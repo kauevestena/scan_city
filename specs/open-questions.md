@@ -59,3 +59,10 @@
   2. `vz = clamp(2 · (alvo − alt), ±climbRateMs)`, mais as térmicas;
   3. o piso só impede a **descida comandada** abaixo de `elev + 2`. A aeronave não é empurrada para cima, e o relevo pode alcançá-la (a colisão é tratada pelo engine em T028).
 - **Resolução:** —
+
+### OQ-007 — Água na cobertura: sempre excluída ou só com `SPECULAR_WATER`?
+- **Aberta em:** 2026-11-14 por T015
+- **Contexto:** [data-model §4](design/data-model.md) diz que `MIN_COVERAGE_GREEN` "exclui água se SPECULAR_WATER", e [domain-math §9](design/domain-math.md) diz que as células de água são excluídas "sempre".
+- **Opções:** A) sempre (domain-math §9); B) só com `SPECULAR_WATER`.
+- **Padrão provisório:** A, porque a domain-math é a especificação normativa das fórmulas e água não tem *tie points* em nenhum caso. `summarizeCoverage` recebe as células excluídas por parâmetro, e quem decide é `evaluateMission` (T018).
+- **Resolução:** —

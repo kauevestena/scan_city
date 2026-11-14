@@ -330,14 +330,14 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [domain-math §6.6, §9](design/domain-math.md)
 - **Arquivos:** \+ `src/domain/geometry.ts`, `src/domain/coverage.ts` + testes
 - **Aceite:**
-  - [ ] O casco convexo de um quadrado com ponto interno retorna 4 vértices.
-  - [ ] A colinearidade de pontos alinhados é < 1e-6, e a de um quadrado é ≈ 1.
-  - [ ] A rasterização de uma pegada que cobre exatamente 1/4 da AOI marca ≈ 1/4 das células (± 2 %).
-  - [ ] 5 pegadas sobrepostas na mesma área dão células verdes.
-  - [ ] Células de água são excluídas.
-  - [ ] Fotos borradas e de névoa (RGB) não contam.
+  - [x] O casco convexo de um quadrado com ponto interno retorna 4 vértices.
+  - [x] A colinearidade de pontos alinhados é < 1e-6, e a de um quadrado é ≈ 1.
+  - [x] A rasterização de uma pegada que cobre exatamente 1/4 da AOI marca ≈ 1/4 das células (± 2 %).
+  - [x] 5 pegadas sobrepostas na mesma área dão células verdes.
+  - [x] Células de água são excluídas.
+  - [x] Fotos borradas e de névoa (RGB) não contam.
 - **Verificação:** `npx vitest run src/domain/geometry src/domain/coverage`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T016 — Acurácia e normas cartográficas
 - **Fase:** F1 · **Depende de:** T015 · **REQs:** REQ-PRC-004 (*parc.*), REQ-PRC-005 (*parc.*), REQ-PRC-006 (*parc.*)
