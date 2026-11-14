@@ -72,25 +72,46 @@ describe('dimensões e determinismo', () => {
 });
 
 describe('fatias sem travar', () => {
-  it('as fatias de 4 ms duram menos de 8 ms (p95), e o progresso chega a 1', () => {
+  it('o orçamento limita a fatia: com relógio de 1 ms por consulta, 4 ms rendem 4 tarefas', () => {
     for (const kind of PRODUCT_KINDS) {
+      const job = new ProductJob(kind, inputs());
+      let clock = 0;
+      expect(job.runSlice(4, () => clock++)).toBe(4);
+      expect(job.progress).toBeGreaterThan(0);
+      expect(job.progress).toBeLessThan(1);
+    }
+  });
+
+  it('nenhuma tarefa passa de metade da fatia: fatia de 4 ms + 1 tarefa < 8 ms', () => {
+    // O relógio de parede oscila com a suíte em paralelo (GC, processador disputado): vale a
+    // menor duração de cada tarefa em 2 gerações, que descarta os picos. O pior caso é a luz
+    // dourada, que gera as sombras longas.
+    const taskTimes = (kind: (typeof PRODUCT_KINDS)[number]) => {
       const job = new ProductJob(kind, inputs({ lighting: 'GOLDEN_HOUR' }));
-      const durations: number[] = [];
-      let last = -1;
+      const times: number[] = [];
       while (!job.done) {
         const t0 = performance.now();
-        job.runSlice(4);
-        durations.push(performance.now() - t0);
-        expect(job.progress).toBeGreaterThanOrEqual(last);
-        last = job.progress;
+        job.runSlice(0);
+        times.push(performance.now() - t0);
       }
-      expect(job.progress).toBe(1);
-      // Com a suíte inteira em paralelo, um pico de CPU ou de GC estoura uma ou outra fatia:
-      // o critério é o p95, com um teto folgado para o pior caso.
-      durations.sort((a, b) => a - b);
-      expect(durations[Math.floor(durations.length * 0.95)] as number, kind).toBeLessThan(8);
-      expect(durations[durations.length - 1] as number, kind).toBeLessThan(60);
+      return times;
+    };
+    for (const kind of PRODUCT_KINDS) {
+      const [a, b] = [taskTimes(kind), taskTimes(kind)] as [number[], number[]];
+      const best = a.map((t, k) => Math.min(t, b[k] as number));
+      expect(Math.max(...best), kind).toBeLessThan(4);
     }
+  });
+
+  it('o progresso é monotônico e chega a 1', () => {
+    const job = new ProductJob('DTM', inputs());
+    let last = -1;
+    while (!job.done) {
+      job.runSlice(4);
+      expect(job.progress).toBeGreaterThanOrEqual(last);
+      last = job.progress;
+    }
+    expect(job.progress).toBe(1);
   });
 });
 

@@ -275,6 +275,110 @@ describe('ProcessingResultsScreen', () => {
     });
   });
 
+  describe('Van Lab e equipe (T044)', () => {
+    /** Missão em campo: ainda a ativa, com o payload `inField` da Van. */
+    function inField(): MissionData {
+      const mission = {
+        ...syntheticMission(C00, createTerrain(C00)),
+        status: 'IN_FLIGHT' as const,
+      } as MissionData;
+      useGameStore.setState((s) => ({
+        mission: { active: mission, pending: [] },
+        session: {
+          ...s.session,
+          screen: 'PROCESSING_RESULTS',
+          payload: { missionId: mission.id, inField: true },
+        },
+      }));
+      return mission;
+    }
+    const withVan = () =>
+      useGameStore.setState((s) => ({
+        inventory: { ...s.inventory, vehicles: [...s.inventory.vehicles, 'LAB_VAN'] },
+      }));
+    const header = () => screen.getByTestId('processing-header').textContent;
+
+    it('fator 2,5: em campo com a Van, o notebook (×1,0) processa a ×2,5; fora de campo, não', () => {
+      withVan();
+      inField();
+      const { unmount } = render(<ProcessingResultsScreen />);
+      expect(header()).toContain('×2,5');
+      unmount();
+      // Mesma Van, mas processando no escritório: vale só o hardware.
+      resetGameStore();
+      withVan();
+      queue();
+      render(<ProcessingResultsScreen />);
+      expect(header()).toContain('×1,0');
+    });
+
+    it('sem a Van, em campo, o fator é o do hardware', () => {
+      inField();
+      render(<ProcessingResultsScreen />);
+      expect(header()).toContain('×1,0');
+    });
+
+    it('a esteira em campo leva 1/2,5 do tempo e termina no mapa (T13), aplicando o resultado', async () => {
+      withVan();
+      const mission = inField();
+      const money = get().player.money;
+      const report = evaluateForState(get(), mission, true);
+      // 6 + 0,08 · 96 = 13,68 s no notebook; ÷ 2,5.
+      expect(report.processingTimeS).toBeCloseTo(13.68 / 2.5, 9);
+      render(<ProcessingResultsScreen />);
+      await waitFor(() => expect(screen.getByTestId('report')).toBeInTheDocument(), {
+        timeout: 12_000,
+      });
+      expect(get().player.money).toBe(money + report.payment.totalBRL);
+      // A missão em campo sai da missão ativa quando o resultado é aplicado.
+      expect(get().mission.active).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Voltar ao mapa' }));
+      expect(get().session.screen).toBe('WORLD_MAP');
+    }, 20_000);
+
+    it('com equipe: aparece a etapa 7 "Vetorização automática (equipe)" e o cabeçalho avisa', () => {
+      useGameStore.setState((s) => ({ staff: { ...s.staff, INTERN: 1 } }));
+      queue();
+      render(<ProcessingResultsScreen />);
+      expect(header()).toContain('+ equipe');
+      const stages = within(screen.getByTestId('pipeline'))
+        .getAllByRole('listitem')
+        .filter((li) => li.hasAttribute('data-stage'));
+      expect(stages).toHaveLength(7);
+      expect(stages[6]).toHaveTextContent('7 Vetorização automática (equipe)');
+    });
+
+    it('sem equipe, a esteira tem 6 etapas e o cabeçalho não menciona a equipe', () => {
+      queue();
+      render(<ProcessingResultsScreen />);
+      expect(header()).not.toContain('equipe');
+      const stages = within(screen.getByTestId('pipeline'))
+        .getAllByRole('listitem')
+        .filter((li) => li.hasAttribute('data-stage'));
+      expect(stages).toHaveLength(6);
+    });
+
+    it('com equipe, os bônus entram no pagamento: fator na linha e custo descontado', async () => {
+      fastHardware();
+      useGameStore.setState((s) => ({ staff: { ...s.staff, INTERN: 1 } }));
+      const mission = queue();
+      const report = evaluateForState(get(), mission, false);
+      expect(report.payment.staffBonus).toBeGreaterThan(1);
+      expect(report.payment.staffCostBRL).toBeGreaterThan(0);
+      render(<ProcessingResultsScreen />);
+      await waitFor(() => expect(screen.getByTestId('report')).toBeInTheDocument(), {
+        timeout: 10_000,
+      });
+      fireEvent.click(screen.getByRole('tab', { name: 'Pagamento' }));
+      // As linhas entram em sequência; o total fecha a tabela.
+      await screen.findByTestId('payment-total', undefined, { timeout: 8000 });
+      const rows = within(screen.getByTestId('report-payment')).getAllByRole('row');
+      const text = rows.map((r) => r.textContent ?? '');
+      expect(text.some((t) => t.includes('× equipe'))).toBe(true);
+      expect(text.some((t) => t.includes('− custo da equipe'))).toBe(true);
+    }, 20_000);
+  });
+
   it('sair durante a esteira não aplica as recompensas (a missão segue na fila)', async () => {
     const mission = queue();
     const money = get().player.money;

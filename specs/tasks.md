@@ -948,11 +948,15 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F5 · **Depende de:** T043 · **REQs:** REQ-PRC-011, REQ-PRC-012
 - **Spec:** [processing-results §5.1](features/processing-results.md), [survey-flight §5.12](features/survey-flight.md)
 - **Aceite:**
-  - [ ] Com a Van, "Processar agora" leva a `PROCESSING_RESULTS` com `inField` e, ao concluir, a `WORLD_MAP` (T13).
-  - [ ] Fator de 2,5 aplicado.
-  - [ ] Com equipe, aparece a etapa 7 e os bônus entram no pagamento.
+  - [x] Com a Van, "Processar agora" leva a `PROCESSING_RESULTS` com `inField` e, ao concluir, a `WORLD_MAP` (T13).
+  - [x] Fator de 2,5 aplicado.
+  - [x] Com equipe, aparece a etapa 7 e os bônus entram no pagamento.
 - **Verificação:** `npx vitest run src/screens/processing` · E2E `van.spec.ts` (`?unlockAll=1`).
-- **Status:** ☐
+- **Notas de implementação:**
+  - A lógica já existia (T015/T019/T021/T043); esta tarefa a fechou com testes: "Processar agora" (Van + dados) já ia a `PROCESSING_RESULTS` com `inField`, o fator vem de `processingSpeed` (`max(hardware, 2,5)` só em campo, com a Van possuída) e a etapa 7 e os bônus da equipe saem de `planStages` e `computePayment`.
+  - Testes de tela (`processing.test.tsx`): com a Van em campo o cabeçalho mostra ×2,5 e, no escritório ou sem Van, o fator do hardware (×1,0 no notebook); a esteira em campo leva 13,68 s ÷ 2,5, aplica o pagamento uma vez, tira a missão da `mission.active` e "Voltar ao mapa" vai a `WORLD_MAP` (T13); com equipe aparece "7 Vetorização automática (equipe)" e "+ equipe" no cabeçalho, e a aba Pagamento traz "× equipe" e "− custo da equipe".
+  - E2E `van.spec.ts`: voo do C00 por autopilot com `unlockAll`, clique em "Processar agora" no pós-voo (antes de o autopilot levar os dados ao escritório, 1,5 s depois), esteira, relatório aprovado e volta ao mapa. Com `unlockAll` o hardware vira a nuvem (×15), então o fator 2,5 é conferido nos testes de tela, não no E2E.
+- **Status:** ✅
 
 ---
 
@@ -1368,8 +1372,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ✅ |
 | REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025 | ✅ |
 | REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
-| REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ☐ |
-| REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ☐ |
+| REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ✅ |
+| REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ✅ |
 | REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ✅ |

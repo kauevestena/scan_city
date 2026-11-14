@@ -22,6 +22,9 @@ export const CLOUD_RADIUS = 1.6;
 const TARGET_RELIEF = 0.45;
 const MAX_EXAGGERATION = 10;
 const CHUNK = 1500;
+/** Pontos agrupados por tarefa, e pontos convertidos para `Float32Array` por tarefa. */
+const GROUP_CHUNK = 1000;
+const CONVERT_CHUNK = 4000;
 
 export type CloudSource = 'PHOTO' | 'LIDAR';
 
@@ -127,7 +130,9 @@ export class CloudJob {
       }
     }
     this.tasks.push(() => this.prepareFrame());
-    this.tasks.push(() => this.makeTin());
+    this.tasks.push(() => this.makeTinVertices());
+    this.tasks.push(() => this.makeTinEdges());
+    this.tasks.push(() => this.convertGroups());
     this.tasks.push(() => this.assemble());
   }
 
@@ -244,7 +249,7 @@ export class CloudJob {
     const { source } = this.inputs;
     const { min, max, sx, sy, sz } = this.frame;
     const rets = ['FIRST', 'INTERMEDIATE', 'GROUND'] as const;
-    const end = Math.min(this.pts.length, this.groupCursor + 3000);
+    const end = Math.min(this.pts.length, this.groupCursor + GROUP_CHUNK);
     for (; this.groupCursor < end; this.groupCursor++) {
       const p = this.pts[this.groupCursor] as Pt;
       let key: number;
@@ -275,34 +280,11 @@ export class CloudJob {
     }
   }
 
-  private makeTin(): void {
+  /** Vértices do TIN (uma tarefa) e, em seguida, as arestas (outra), para não travar a fatia. */
+  private tinPositions: Float32Array | null = null;
+
+  private makeTinVertices(): void {
     const { sx, sy, sz } = this.frame;
-    this.tin = this.buildTin(sx, sy, sz);
-  }
-
-  private assemble(): void {
-    const points: PointSet[] = [...this.groups.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([, g]) => ({ positions: new Float32Array(g.xyz), color: g.color, size: 2 }));
-    const { source } = this.inputs;
-    this.scene = {
-      source,
-      points,
-      pointCount: this.pts.length,
-      ...(source === 'LIDAR' ? { byReturn: this.byReturn } : {}),
-      tin: this.tin as LineSet,
-      radius: CLOUD_RADIUS,
-      exaggeration: this.frame.exaggeration,
-      zRange: { min: this.frame.min, max: this.frame.max },
-    };
-  }
-
-  /** Malha 64 × 64 em wireframe ciano: arestas horizontais, verticais e uma diagonal por célula. */
-  private buildTin(
-    sx: (u: number) => number,
-    sy: (z: number) => number,
-    sz: (v: number) => number,
-  ): LineSet {
     const { aoi } = this.inputs.terrain;
     const n = TIN_GRID + 1;
     const positions = new Float32Array(n * n * 3);
@@ -314,20 +296,74 @@ export class CloudJob {
         positions[o + 2] = sz((j / TIN_GRID) * aoi.widthM);
       }
     }
-    const segs: number[] = [];
+    this.tinPositions = positions;
+  }
+
+  /** Malha 64 × 64 em wireframe ciano: arestas horizontais, verticais e uma diagonal por célula. */
+  private makeTinEdges(): void {
+    const n = TIN_GRID + 1;
+    const segments = new Uint32Array((n * TIN_GRID * 2 + TIN_GRID * TIN_GRID) * 2);
+    let w = 0;
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
         const a = j * n + i;
-        if (i < TIN_GRID) segs.push(a, a + 1);
-        if (j < TIN_GRID) segs.push(a, a + n);
-        if (i < TIN_GRID && j < TIN_GRID) segs.push(a, a + n + 1);
+        if (i < TIN_GRID) {
+          segments[w++] = a;
+          segments[w++] = a + 1;
+        }
+        if (j < TIN_GRID) {
+          segments[w++] = a;
+          segments[w++] = a + n;
+        }
+        if (i < TIN_GRID && j < TIN_GRID) {
+          segments[w++] = a;
+          segments[w++] = a + n + 1;
+        }
       }
     }
-    return {
-      positions,
-      segments: new Uint32Array(segs),
+    this.tin = {
+      positions: this.tinPositions as Float32Array,
+      segments,
       color: COLORS.radar,
       width: 1,
+    };
+  }
+
+  private readonly pointSets: PointSet[] = [];
+  private groupKeys: number[] = [];
+  private convertCursor = 0;
+
+  /** Converte os grupos de cor em `PointSet`, em lotes de ~4.000 pontos. */
+  private convertGroups(): void {
+    if (this.convertCursor === 0) {
+      this.groupKeys = [...this.groups.keys()].sort((a, b) => a - b);
+    }
+    let budget = CONVERT_CHUNK;
+    while (this.convertCursor < this.groupKeys.length && budget > 0) {
+      const g = this.groups.get(this.groupKeys[this.convertCursor] as number) as {
+        color: string;
+        xyz: number[];
+      };
+      this.pointSets.push({ positions: new Float32Array(g.xyz), color: g.color, size: 2 });
+      budget -= g.xyz.length / 3;
+      this.convertCursor++;
+    }
+    if (this.convertCursor < this.groupKeys.length) {
+      this.tasks.splice(this.next + 1, 0, () => this.convertGroups());
+    }
+  }
+
+  private assemble(): void {
+    const { source } = this.inputs;
+    this.scene = {
+      source,
+      points: this.pointSets,
+      pointCount: this.pts.length,
+      ...(source === 'LIDAR' ? { byReturn: this.byReturn } : {}),
+      tin: this.tin as LineSet,
+      radius: CLOUD_RADIUS,
+      exaggeration: this.frame.exaggeration,
+      zRange: { min: this.frame.min, max: this.frame.max },
     };
   }
 }

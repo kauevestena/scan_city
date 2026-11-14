@@ -162,25 +162,42 @@ describe('malha TIN', () => {
   });
 });
 
+/** Duração de cada tarefa do job (uma por fatia), em ms. */
+function taskTimes(make: () => { done: boolean; runSlice(ms: number): number }): number[] {
+  const job = make();
+  const times: number[] = [];
+  while (!job.done) {
+    const t0 = performance.now();
+    job.runSlice(0);
+    times.push(performance.now() - t0);
+  }
+  return times;
+}
+
 describe('fatias', () => {
-  it('as fatias de 4 ms duram < 8 ms (p95) e o resultado não depende do fatiamento', () => {
+  it('o orçamento limita a fatia: com relógio de 1 ms por consulta, 4 ms rendem 4 tarefas', () => {
     const job = new CloudJob(inputs());
-    const durations: number[] = [];
-    while (!job.done) {
-      const t0 = performance.now();
-      job.runSlice(4);
-      durations.push(performance.now() - t0);
-    }
-    expect(job.progress).toBe(1);
-    // Com a suíte inteira em paralelo, um pico de CPU ou de GC estoura uma ou outra fatia:
-    // o critério é o p95, com um teto folgado para o pior caso.
-    durations.sort((a, b) => a - b);
-    expect(durations[Math.floor(durations.length * 0.95)] as number).toBeLessThan(8);
-    expect(durations[durations.length - 1] as number).toBeLessThan(60);
+    let clock = 0;
+    expect(job.runSlice(4, () => clock++)).toBe(4);
+    expect(job.progress).toBeGreaterThan(0);
+  });
+
+  it('nenhuma tarefa passa de metade da fatia: fatia de 4 ms + 1 tarefa < 8 ms', () => {
+    // O relógio de parede oscila com a suíte em paralelo (GC, processador disputado): vale a
+    // menor duração de cada tarefa em 3 gerações, que descarta os picos.
+    const runs = [0, 1, 2].map(() => taskTimes(() => new CloudJob(inputs())));
+    const best = (runs[0] as number[]).map((_, k) => Math.min(...runs.map((r) => r[k] as number)));
+    expect(Math.max(...best)).toBeLessThan(4);
+  });
+
+  it('o resultado não depende do fatiamento', () => {
+    const sliced = new CloudJob(inputs());
+    while (!sliced.done) sliced.runSlice(4);
     const tiny = new CloudJob(inputs());
     while (!tiny.done) tiny.runSlice(0);
-    expect(Array.from(tiny.result.tin.positions)).toEqual(Array.from(job.result.tin.positions));
-    expect(tiny.result.pointCount).toBe(job.result.pointCount);
+    expect(sliced.progress).toBe(1);
+    expect(Array.from(tiny.result.tin.positions)).toEqual(Array.from(sliced.result.tin.positions));
+    expect(tiny.result.pointCount).toBe(sliced.result.pointCount);
   });
 });
 
