@@ -1,4 +1,4 @@
-import type { Vec2, Vec3 } from '@/types/basics';
+import type { Vec2, Vec3 } from '@/types';
 
 export function clamp(x: number, min: number, max: number): number {
   return x < min ? min : x > max ? max : x;

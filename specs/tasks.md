@@ -105,11 +105,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. Exportar tudo de `index.ts`.
   3. Criar um teste de tipos (`expectTypeOf` do Vitest) para 3 objetos de exemplo (Contract, SaveGame, Shot).
 - **Aceite:**
-  - [ ] `npm run typecheck` passa.
-  - [ ] Nenhum `any`.
-  - [ ] Os nomes batem com o data-model.
+  - [x] `npm run typecheck` passa.
+  - [x] Nenhum `any`.
+  - [x] Os nomes batem com o data-model.
 - **Verificação:** `npm run typecheck && npx vitest run src/types`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T004 — Tokens visuais e kit de UI
 - **Fase:** F0 · **Depende de:** T003 · **REQs:** REQ-UI-001, REQ-UI-002, REQ-UI-004, REQ-UI-005, REQ-NFR-004 (*parc.*), REQ-NFR-007 (*parc.*: foco)
