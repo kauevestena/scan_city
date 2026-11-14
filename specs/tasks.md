@@ -493,11 +493,20 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. Briefing completo (disponível, bloqueado, roubado, replay).
   5. Aceitar → `startMission` → `FIELD_SETUP`. A contraproposta do rival entra em T051.
 - **Aceite:**
-  - [ ] A viabilidade do C00 passa.
-  - [ ] O critério 1 de [world-map §8](features/world-map.md) passa.
-  - [ ] Testes RTL do briefing nos 4 estados.
+  - [x] A viabilidade do C00 passa.
+  - [x] O critério 1 de [world-map §8](features/world-map.md) passa.
+  - [x] Testes RTL do briefing nos 4 estados.
 - **Verificação:** `npx vitest run src/data/contracts src/screens/world`
-- **Status:** ☐
+- **Notas de implementação:**
+  - O `museum.slot` numérico codifica (col, lin) da ficha como `lin · 4 + col` (grade 4 × 2 da ala): `museumSlot` e `museumSlotCoords` em `src/data/contracts/museum.ts`. O C00 fica no slot 6.
+  - `refreshUnlocks` roda depois de `changeReputation` e, em silêncio, ao carregar o save: contratos que entraram no catálogo depois do save chegam `LOCKED` e já são reavaliados. Também roda em `applyMissionResult` e na compra de veículo quando essas ações existirem.
+  - `startMission(contractId, rivalAdjustment)` cria a missão `PLANNING` com `defaultPlanParams` e o primeiro equipamento de campo possuído. A contraproposta da MegaMap entra em T051; até lá, o Aceitar usa o fator 1.
+  - Pelo teclado, o briefing abre ao **soltar** a tecla de `INTERACT`: o Espaço solto com o modal já aberto "clicaria" a caixa de diálogo, que recebe o foco. Pelo gamepad, abre na hora.
+  - Os marcadores 1–6 só aparecem quando os contratos entrarem no catálogo. Sem progresso salvo, um contrato conta como bloqueado.
+  - Os nomes das iluminações ("Sol alto", "Nublado", "Hora dourada", "Nevasca", "Névoa mágica") não constam da spec e foram definidos em `STRINGS.lighting`.
+  - Depuração: o painel F9 no mapa ganhou "Teleportar para marcador", e `?unlockAll=1` passa a liberar todos os contratos (os concluídos continuam concluídos).
+  - O `C00_FIXTURE` dos testes de domínio foi substituído pelo C00 real.
+- **Status:** ✅
 
 ### T023 — Planejamento de campo v1
 - **Fase:** F2 · **Depende de:** T022 · **REQs:** REQ-FLD-001, REQ-FLD-002 (*parc.*: Estação Total), REQ-FLD-003 (*parc.*: a pé), REQ-FLD-004, REQ-FLD-005, REQ-FLD-006, REQ-FLD-007, REQ-FLD-008, REQ-FLD-009, REQ-FLD-013
@@ -1161,10 +1170,10 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ☐ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ☐ |
 | REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ☐ |
-| REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ☐ |
+| REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ☐ |
 | REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
-| REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ☐ |
+| REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ☐ |
 | REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ☐ |
 | REQ-FLD-003 | Acessibilidade por veículo | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T017, T023, T039 | ☐ |

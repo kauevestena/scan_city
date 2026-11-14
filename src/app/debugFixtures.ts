@@ -1,9 +1,18 @@
 import { findTransition, type TransitionDef } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import type { GameStore, ScreenPayload } from '@/state/types';
-import type { FlightLine, FlightPlan, MissionData, MuseumSector, ScreenId, Shot } from '@/types';
+import type {
+  ContractProgress,
+  FlightLine,
+  FlightPlan,
+  MissionData,
+  MuseumSector,
+  ScreenId,
+  Shot,
+} from '@/types';
 import { AIRCRAFT, FIELD_EQUIPMENT, LENSES, PAYLOADS, SENSORS, VEHICLES } from '@/data/catalog';
 import { COSMETICS } from '@/data/cosmetics';
+import { CONTRACTS } from '@/data/contracts';
 import type { DebugFlags } from './debugFlags';
 
 /**
@@ -256,7 +265,20 @@ export function applyDebugFlags(flags: DebugFlags, store: Store = useGameStore):
   }
   if (flags.skipIntro) patch.flags = { ...state.flags, introSeen: true };
   if (flags.unlockAll) {
-    // Todos os itens possuídos; os contratos são liberados em T022, com o catálogo de contratos.
+    // Todos os itens possuídos e todos os contratos disponíveis.
+    patch.contracts = Object.fromEntries(
+      CONTRACTS.map((c) => [
+        c.id,
+        state.contracts[c.id]?.status === 'COMPLETED'
+          ? (state.contracts[c.id] as ContractProgress)
+          : {
+              completions: 0,
+              bestScore: 0,
+              ...state.contracts[c.id],
+              status: 'AVAILABLE' as const,
+            },
+      ]),
+    );
     patch.inventory = {
       ...state.inventory,
       aircraft: AIRCRAFT.map((a) => a.id),

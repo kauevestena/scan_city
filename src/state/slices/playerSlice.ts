@@ -88,8 +88,11 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
       return { stats };
     }),
 
-  changeReputation: (delta) =>
+  changeReputation: (delta) => {
     set((s) => ({
       player: { ...s.player, reputation: clamp(s.player.reputation + delta, 0, 100) },
-    })),
+    }));
+    // Alguns contratos dependem da reputação (progression §12).
+    get().refreshUnlocks();
+  },
 });

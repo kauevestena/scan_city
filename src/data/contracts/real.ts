@@ -1,11 +1,14 @@
-import { brl } from '@/data/catalog';
+/** Campanha principal: contratos do Mundo Real (contracts-real). */
+import { Tractor } from 'lucide-react';
 import type { Contract } from '@/types';
+import { registerIcons } from '@/ui/iconRegistry';
+import { brl } from '../catalog/money';
+import { museumSlot } from './museum';
 
-/**
- * C00 "Sítio do Avô" (contracts-real, C00) para os testes do domínio.
- * O objeto de dados do jogo nasce em `src/data/contracts/real.ts` (T022).
- */
-export const C00_FIXTURE: Contract = {
+registerIcons({ Tractor });
+
+/** C00 — Sítio do Avô (tutorial). */
+export const C00: Contract = {
   id: 'C00',
   dimension: 'REAL',
   title: 'Sítio do Avô',
@@ -21,7 +24,8 @@ export const C00_FIXTURE: Contract = {
       initials: 'ZB',
     },
   },
-  objective: 'Levantamento planialtimétrico do sítio do avô para o inventário da família.',
+  objective:
+    'Levantamento planialtimétrico do sítio do avô para o inventário da família. É o primeiro setor do Museu.',
   biome: 'RURAL_TUTORIAL',
   seed: 1001,
   aoi: { widthM: 160, lengthM: 240 },
@@ -74,13 +78,20 @@ export const C00_FIXTURE: Contract = {
   xp: 150,
   reputationReward: 5,
   souvenirId: 'SV_NOTEBOOK',
-  museum: { wing: 'REAL', slot: 0, incomePerMinBRL: brl(10) },
+  museum: { wing: 'REAL', slot: museumSlot(2, 1), incomePerMinBRL: brl(10) },
   unlock: { type: 'ALWAYS' },
   overworldMarker: '0',
   dialogs: {
-    briefing: ['Seu avô mediu essas cercas com teodolito e paciência.'],
-    success: ['Tá tudo aqui, tintim por tintim. Ele ia ficar orgulhoso.'],
-    failure: ['Uai, faltou pedaço do sítio no mapa…'],
+    briefing: [
+      'Seu avô mediu essas cercas com teodolito e paciência.',
+      'Agora é sua vez — e com um pombo, quem diria!',
+      'Coloque uns alvos no chão antes de soltar o Atlas, viu?',
+    ],
+    success: [
+      'Tá tudo aqui, tintim por tintim. Ele ia ficar orgulhoso.',
+      'Guarde a caderneta dele. Ela é sua agora.',
+    ],
+    failure: ['Uai, faltou pedaço do sítio no mapa…', 'Tenta de novo, sem pressa.'],
   },
   referencePlan: {
     aircraftId: 'ATLAS',
@@ -105,3 +116,6 @@ export const C00_FIXTURE: Contract = {
     expected: { gsdCm: 2.52, nLines: 6, flightTimeS: 231.5 },
   },
 };
+
+/** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
+export const REAL_CONTRACTS: readonly Contract[] = [C00];

@@ -92,10 +92,20 @@ export interface InventoryActions {
 }
 
 export interface ContractsActions {
+  /**
+   * Libera os contratos `LOCKED` cuja condição foi satisfeita (progression §12), com toast
+   * (e `RIFT_OPEN` nas fendas), salvo com `silent`. Devolve os ids liberados.
+   */
+  refreshUnlocks: (options?: { silent?: boolean }) => string[];
   markStolen: (contractId: string) => void;
 }
 
 export interface MissionActions {
+  /**
+   * Cria a missão ativa do contrato em planejamento, com os padrões do plano
+   * (field-setup §5.3). `COMPLETED` vira replay (progression §12).
+   */
+  startMission: (contractId: string, rivalAdjustment: number) => MissionData;
   /** Torna `mission` a missão ativa (em planejamento ou em voo). */
   beginMission: (mission: MissionData) => void;
   /** Move a missão ativa para a fila de processamento. */

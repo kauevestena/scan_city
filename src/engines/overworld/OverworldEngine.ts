@@ -4,7 +4,8 @@
  */
 import type { AxisAction } from '@/input/actions';
 import type { Facing, VehicleId } from '@/types';
-import { blockedHint, WORLD_MAP, type MapMarker, type OverworldMap } from '@/world/overworld/tiles';
+import type { MarkerView } from '@/world/overworld/markers';
+import { blockedHint, WORLD_MAP, type OverworldMap } from '@/world/overworld/tiles';
 import { nearestWalkable } from '@/world/overworld/pathfinding';
 import { COLORS } from '@/ui/tokens';
 import type { CanvasSurface } from '../canvas';
@@ -34,14 +35,21 @@ export interface OverworldEngineOptions {
   vehicle: () => VehicleId;
   speedMod: () => number;
   skin: () => SkinColors;
-  /** Marcadores visíveis na aba atual. */
-  markers: () => readonly MapMarker[];
+  /** Marcadores visíveis na aba atual, com status. */
+  markers: () => readonly MarkerView[];
   onHint?: (text: string) => void;
-  onNearDoorChange?: (near: boolean) => void;
+  /** O alvo de `INTERACT` mudou (porta, marcador ou nada). */
+  onTargetChange?: (target: InteractTarget | null) => void;
 }
 
-/** Alvo de um `INTERACT`. Os marcadores entram com o briefing (T022). */
-export type InteractTarget = 'DOOR';
+/** O que um `INTERACT` acionaria: a porta da sede ou um marcador. */
+export type InteractTarget = { kind: 'DOOR' } | { kind: 'MARKER'; marker: MarkerView };
+
+function sameTarget(a: InteractTarget | null, b: InteractTarget | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.kind === 'DOOR' || b.kind === 'DOOR') return a.kind === b.kind;
+  return a.marker.contractId === b.marker.contractId && a.marker.status === b.marker.status;
+}
 
 /** Zoom para a largura lógica do canvas, mantendo ≈ 27 tiles na horizontal. */
 export function zoomFor(width: number): number {
@@ -56,8 +64,8 @@ export class OverworldEngine implements Simulation {
   private distance = 0;
   private timeS = 0;
   private lastHintS = -Infinity;
-  /** Começa falso: o primeiro `update` avisa se o avatar já nasce na porta. */
-  private nearDoor = false;
+  /** Começa vazio: o primeiro `update` avisa se o avatar já nasce num alvo. */
+  private target: InteractTarget | null = null;
   private moving = false;
   private surface: CanvasSurface | null = null;
   private readonly chunks: ChunkCache;
@@ -108,14 +116,40 @@ export class OverworldEngine implements Simulation {
     return d;
   }
 
+  private distanceTo(x: number, y: number): number {
+    return Math.hypot(this.avatar.x - (x + 0.5), this.avatar.y - (y + 0.5));
+  }
+
   isNearDoor(): boolean {
-    const d = this.map.door;
-    return Math.hypot(this.avatar.x - (d.x + 0.5), this.avatar.y - (d.y + 0.5)) <= INTERACT_RADIUS;
+    return this.distanceTo(this.map.door.x, this.map.door.y) <= INTERACT_RADIUS;
+  }
+
+  /** O alvo de `INTERACT` agora: o marcador mais próximo no raio, senão a porta. */
+  currentTarget(): InteractTarget | null {
+    let best: MarkerView | null = null;
+    let bestD = INTERACT_RADIUS;
+    for (const m of this.opts.markers()) {
+      const d = this.distanceTo(m.x, m.y);
+      if (d <= bestD) {
+        best = m;
+        bestD = d;
+      }
+    }
+    if (best) return { kind: 'MARKER', marker: best };
+    return this.isNearDoor() ? { kind: 'DOOR' } : null;
   }
 
   /** O que um `INTERACT` acionaria agora, se algo. */
   interact(): InteractTarget | null {
-    return this.isNearDoor() ? 'DOOR' : null;
+    return this.currentTarget();
+  }
+
+  /** Move o avatar para o centro do tile (depuração: "Teleportar para marcador"). */
+  teleport(x: number, y: number): void {
+    this.avatar = { ...this.avatar, x, y };
+    this.camera = { x, y };
+    const view = this.viewTiles();
+    this.camera = clampCamera(this.camera, view.w, view.h, this.map.width, this.map.height);
   }
 
   update(dtS: number): void {
@@ -131,10 +165,10 @@ export class OverworldEngine implements Simulation {
       this.lastHintS = this.timeS;
       this.opts.onHint?.(blockedHint(result.blockedBy, vehicle));
     }
-    const near = this.isNearDoor();
-    if (near !== this.nearDoor) {
-      this.nearDoor = near;
-      this.opts.onNearDoorChange?.(near);
+    const target = this.currentTarget();
+    if (!sameTarget(target, this.target)) {
+      this.target = target;
+      this.opts.onTargetChange?.(target);
     }
     const view = this.viewTiles();
     this.camera = clampCamera(

@@ -103,6 +103,8 @@ export function flushSave(): boolean {
 export function hydrateGame(): LoadResult {
   void useGameStore.persist.rehydrate();
   useGameStore.setState({ settings: loadSettings() });
+  // Contratos acrescentados ao catálogo depois do save entram e, se for o caso, já liberados.
+  useGameStore.getState().refreshUnlocks({ silent: true });
   pendingSave = null;
   if (lastLoad.status === 'INVALID') {
     useGameStore.getState().pushToast({

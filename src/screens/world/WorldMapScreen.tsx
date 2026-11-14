@@ -3,16 +3,23 @@ import { characterColors } from '@/data/cosmetics';
 import { getVehicle } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { drawMinimap, renderMinimapBase } from '@/engines/overworld/minimap';
-import { OverworldEngine, type SkinColors } from '@/engines/overworld/OverworldEngine';
+import {
+  OverworldEngine,
+  type InteractTarget,
+  type SkinColors,
+} from '@/engines/overworld/OverworldEngine';
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
-import { InputGlyph } from '@/input/InputGlyph';
 import { InputManager } from '@/input/InputManager';
 import { useInputContext } from '@/input/useInputContext';
 import { selectModifiers } from '@/state/selectors';
 import { useGameStore } from '@/state/store';
+import type { GameStore } from '@/state/types';
 import { Tabs, type TabDef } from '@/ui';
-import { WORLD_MAP, type MapMarker } from '@/world/overworld/tiles';
+import { markerViews, type MarkerView } from '@/world/overworld/markers';
+import { WORLD_MAP } from '@/world/overworld/tiles';
+import { BriefingModal } from './BriefingModal';
+import { MarkerLayer } from './MarkerLayer';
 
 const W = STRINGS.world;
 /** Tempo que a dica de bloqueio fica na tela. */
@@ -20,14 +27,29 @@ export const HINT_VISIBLE_MS = 2500;
 /** Intervalo de gravação da posição do avatar (world-map §5.3). */
 export const AVATAR_SAVE_MS = 1000;
 
-/** Na aba Real, só os contratos; as fendas entram com a aba Fendas (T059). */
-const REAL_MARKERS: readonly MapMarker[] = WORLD_MAP.markers.filter((m) => m.kind === 'CONTRACT');
 const TABS: ReadonlyArray<TabDef<'REAL'>> = [{ id: 'REAL', label: W.tabs.REAL }];
 
 let minimapBase: HTMLCanvasElement | null = null;
 function getMinimapBase(): HTMLCanvasElement {
   minimapBase ??= renderMinimapBase(WORLD_MAP);
   return minimapBase;
+}
+
+let markerCache: {
+  contracts: GameStore['contracts'];
+  rifts: readonly string[];
+  views: readonly MarkerView[];
+} | null = null;
+
+/** Marcadores da aba atual, recalculados só quando os contratos ou as fendas mudam. */
+function currentMarkers(): readonly MarkerView[] {
+  const { contracts, world } = useGameStore.getState();
+  if (markerCache?.contracts !== contracts || markerCache.rifts !== world.discoveredRifts) {
+    // A aba Fendas entra em T059; até lá, só os contratos do Mundo Real.
+    const views = markerViews(contracts, 'REAL', world.discoveredRifts);
+    markerCache = { contracts, rifts: world.discoveredRifts, views };
+  }
+  return markerCache.views;
 }
 
 const skinColors = (): SkinColors =>
@@ -50,7 +72,8 @@ export function WorldMapScreen() {
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const surface = useCanvas(canvasRef);
   const vehicle = useGameStore((s) => s.world.vehicleMode);
-  const [nearDoor, setNearDoor] = useState(false);
+  const [target, setTarget] = useState<InteractTarget | null>(null);
+  const [briefing, setBriefing] = useState<string | null>(null);
   const [hint, setHint] = useState<{ text: string; id: number } | null>(null);
 
   const [engine] = useState(() => {
@@ -61,9 +84,9 @@ export function WorldMapScreen() {
       vehicle: () => useGameStore.getState().world.vehicleMode,
       speedMod: () => selectModifiers(useGameStore.getState()).overworldSpeed,
       skin: skinColors,
-      markers: () => REAL_MARKERS,
+      markers: currentMarkers,
       onHint: (text) => setHint({ text, id: performance.now() }),
-      onNearDoorChange: setNearDoor,
+      onTargetChange: setTarget,
     });
   });
 
@@ -72,10 +95,29 @@ export function WorldMapScreen() {
     () =>
       InputManager.get().onAction((e) => {
         if (e.action !== 'INTERACT' || useGameStore.getState().session.paused) return;
-        if (engine.interact() === 'DOOR') {
+        const hit = engine.interact();
+        if (hit?.kind === 'DOOR') {
           flushEngine(engine);
           useGameStore.getState().goTo('OFFICE');
+        } else if (hit?.kind === 'MARKER') {
+          const open = () => setBriefing(hit.marker.contractId);
+          // Pelo teclado, abre ao soltar a tecla: o Espaço solto já no modal "clicaria" o
+          // diálogo que recebe o foco.
+          if (e.device === 'KEYBOARD') window.addEventListener('keyup', open, { once: true });
+          else open();
         }
+      }),
+    [engine],
+  );
+
+  // Teleporte de depuração: a store muda o avatar por fora do engine.
+  useEffect(
+    () =>
+      useGameStore.subscribe((s, prev) => {
+        const a = s.world.avatar;
+        if (a === prev.world.avatar) return;
+        const p = engine.position;
+        if (Math.abs(a.x - p.x) > 1e-6 || Math.abs(a.y - p.y) > 1e-6) engine.teleport(a.x, a.y);
       }),
     [engine],
   );
@@ -107,7 +149,7 @@ export function WorldMapScreen() {
           drawMinimap(
             mini,
             getMinimapBase(),
-            REAL_MARKERS,
+            currentMarkers(),
             engine.avatar,
             WORLD_MAP.door,
             performance.now() / 1000,
@@ -141,15 +183,7 @@ export function WorldMapScreen() {
         </span>
       </div>
 
-      {nearDoor && (
-        <div
-          className="absolute bottom-4 left-4 flex items-center gap-2 rounded-lg border border-cyan-400/60 bg-slate-950/90 px-3 py-2 text-sm text-cyan-200"
-          data-testid="world-prompt"
-        >
-          <InputGlyph action="INTERACT" />
-          {W.enterHq}
-        </div>
-      )}
+      <MarkerLayer target={target} />
 
       <div
         role="status"
@@ -179,6 +213,7 @@ export function WorldMapScreen() {
           data-testid="world-minimap"
         />
       </figure>
+      {briefing && <BriefingModal contractId={briefing} onClose={() => setBriefing(null)} />}
     </main>
   );
 }

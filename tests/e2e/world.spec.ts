@@ -69,3 +69,29 @@ test('a posição do avatar é gravada e restaurada ao voltar ao mapa', async ({
   await page.waitForTimeout(1200);
   expect(await avatar(page)).toMatchObject(before);
 });
+
+test('teleporta até o C00, abre o briefing e aceita: vai ao planejamento de campo', async ({
+  page,
+}) => {
+  await page.goto('/?debug=1&skipIntro=1');
+  await page.getByRole('button', { name: 'Porta — sair para o mapa' }).click();
+  await expect(page.getByTestId('world-map-screen')).toBeVisible();
+  await page.keyboard.press('F9');
+  await page.locator('[data-teleport="C00"]').click();
+  await page.keyboard.press('F9');
+  const prompt = page.getByTestId('world-prompt');
+  await expect(prompt).toHaveText(/Ver contrato "Sítio do Avô"/);
+
+  await page.keyboard.press('Space');
+  const briefing = page.getByRole('dialog', { name: 'Sítio do Avô' });
+  await expect(briefing).toBeVisible();
+  await expect(briefing.getByTestId('briefing-requirements').getByRole('listitem')).toHaveCount(6);
+  // Esc recusa; INTERACT de novo reabre.
+  await page.keyboard.press('Escape');
+  await expect(briefing).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(briefing).toBeVisible();
+  await briefing.getByRole('button', { name: 'Aceitar' }).click();
+  await expect(page.getByTestId('screen-name')).toHaveText('FIELD_SETUP');
+  await expect(page.getByTestId('screen-payload')).toContainText('"contractId":"C00"');
+});

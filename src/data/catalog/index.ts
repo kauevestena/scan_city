@@ -81,13 +81,16 @@ export const PURCHASE_PREREQUISITES: Readonly<Record<string, string>> = {
 /** Câmeras vendidas avulsas (as demais vêm com a aeronave ou com o pod). */
 export const PURCHASABLE_SENSORS = SENSORS.filter((s) => s.priceBRL > 0).map((s) => s.id);
 
+const ITEM_NAMES: ReadonlyMap<string, string> = new Map(
+  [SENSORS, LENSES, PAYLOADS, AIRCRAFT, VEHICLES, FIELD_EQUIPMENT, HARDWARE].flatMap((list) =>
+    list.map((item): [string, string] => [item.id, item.name]),
+  ),
+);
+
 /** Todos os ids de itens compráveis ou possuíveis (referências `OWNS`). */
-export const ALL_ITEM_IDS: ReadonlySet<string> = new Set([
-  ...SENSORS.map((s) => s.id),
-  ...LENSES.map((l) => l.id),
-  ...PAYLOADS.map((p) => p.id),
-  ...AIRCRAFT.map((a) => a.id),
-  ...VEHICLES.map((v) => v.id),
-  ...FIELD_EQUIPMENT.map((f) => f.id),
-  ...HARDWARE.map((h) => h.id),
-]);
+export const ALL_ITEM_IDS: ReadonlySet<string> = new Set(ITEM_NAMES.keys());
+
+/** Nome de exibição de um item do catálogo (o próprio id, se desconhecido). */
+export function itemName(id: string): string {
+  return ITEM_NAMES.get(id) ?? id;
+}

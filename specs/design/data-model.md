@@ -268,7 +268,7 @@ export interface Contract {
   xp: number;
   reputationReward: number;
   souvenirId: string;
-  museum: { wing: Dimension; slot: number; incomePerMinBRL: CentsBRL };
+  museum: { wing: Dimension; slot: number; incomePerMinBRL: CentsBRL };   // slot = lin · 4 + col na grade 4 × 2 da ala
   unlock: UnlockCondition;
   overworldMarker: string;        // caractere no map.ts
   dialogs: { briefing: readonly string[]; success: readonly string[]; failure: readonly string[] };

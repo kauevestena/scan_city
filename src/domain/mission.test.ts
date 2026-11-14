@@ -1,6 +1,6 @@
 import { CATALOG, HARDWARE } from '@/data/catalog';
 import { mulberry32 } from '@/lib/rng';
-import { C00_FIXTURE } from '@/test/fixtures/c00';
+import { C00 } from '@/data/contracts';
 import { syntheticMission } from '@/test/fixtures/syntheticMission';
 import type {
   Contract,
@@ -40,7 +40,7 @@ const paymentStub = (input: PaymentInput): PaymentBreakdown => ({
 function context(over: Partial<MissionContext> = {}): MissionContext {
   return {
     catalog: CATALOG,
-    terrain: createTerrain(C00_FIXTURE),
+    terrain: createTerrain(C00),
     ownsRtkKit: false,
     modifiers: neutralModifiers(),
     staff: { INTERN: 0, JUNIOR_ENG: 0 },
@@ -64,7 +64,7 @@ beforeEach(() => clearTerrainCache());
 describe('cenário golden — missão sintética do C00', () => {
   const run = (
     mission?: MissionData,
-    contract: Contract = C00_FIXTURE,
+    contract: Contract = C00,
     over: Partial<MissionContext> = {},
   ) => {
     const ctx = context(over);
@@ -92,18 +92,16 @@ describe('cenário golden — missão sintética do C00', () => {
 
   it('é determinístico: mesmo terreno e mesma seed → relatório idêntico (REQ-CORE-006)', () => {
     expect(run()).toEqual(run());
-    expect(run().residuals).not.toEqual(
-      run(undefined, C00_FIXTURE, { rng: mulberry32(99) }).residuals,
-    );
+    expect(run().residuals).not.toEqual(run(undefined, C00, { rng: mulberry32(99) }).residuals);
   });
 
   it('com só 2 GCPs, MIN_GCP(3) falha (MAJOR): aprovada, ×0,85 no Q e multiplicador gcpCount', () => {
     const ctx = context();
-    const base = syntheticMission(C00_FIXTURE, ctx.terrain);
+    const base = syntheticMission(C00, ctx.terrain);
     const points = base.groundPoints.filter(
       (p) => p.kind === 'CP' || p.id === 'GCP1' || p.id === 'GCP4',
     );
-    const report = evaluateMission({ ...base, groundPoints: points }, C00_FIXTURE, ctx);
+    const report = evaluateMission({ ...base, groundPoints: points }, C00, ctx);
     const gcpReq = report.requirements.find((r) => r.id === 'C00-gcp');
     expect(gcpReq).toMatchObject({ pass: false, severity: 'MAJOR', valueText: '2 de 3' });
     expect(report.approved).toBe(true);
@@ -122,7 +120,7 @@ describe('cenário golden — missão sintética do C00', () => {
 
   it('sem nenhum dado é reprovação crítica', () => {
     const ctx = context();
-    const empty = syntheticMission(C00_FIXTURE, ctx.terrain, {
+    const empty = syntheticMission(C00, ctx.terrain, {
       shots: [],
       sorties: [{ index: 0, outcome: 'CRASH', durationS: 30 }],
       events: {
@@ -133,7 +131,7 @@ describe('cenário golden — missão sintética do C00', () => {
         ringsCollected: 0,
       },
     });
-    const report = evaluateMission(empty, C00_FIXTURE, ctx);
+    const report = evaluateMission(empty, C00, ctx);
     expect(report.critical).toBe(true);
     expect(report.approved).toBe(false);
     expect(report.qualityScore).toBe(0);
@@ -146,10 +144,10 @@ describe('cenário golden — missão sintética do C00', () => {
 
   it('falha crítica de cobertura reprova', () => {
     const ctx = context();
-    const base = syntheticMission(C00_FIXTURE, ctx.terrain);
+    const base = syntheticMission(C00, ctx.terrain);
     const report = evaluateMission(
       { ...base, shots: base.shots.filter((s) => s.lineIndex < 2) },
-      C00_FIXTURE,
+      C00,
       ctx,
     );
     expect(report.requirements.find((r) => r.id === 'C00-cov')?.pass).toBe(false);
@@ -159,12 +157,12 @@ describe('cenário golden — missão sintética do C00', () => {
   it('replay e segunda aprovação não dão souvenir', () => {
     const ctx = context({ firstApproval: false });
     expect(
-      evaluateMission(syntheticMission(C00_FIXTURE, ctx.terrain), C00_FIXTURE, ctx).souvenirAwarded,
+      evaluateMission(syntheticMission(C00, ctx.terrain), C00, ctx).souvenirAwarded,
     ).toBeUndefined();
     const ctx2 = context();
     const replay = evaluateMission(
-      syntheticMission(C00_FIXTURE, ctx2.terrain, { isReplay: true }),
-      C00_FIXTURE,
+      syntheticMission(C00, ctx2.terrain, { isReplay: true }),
+      C00,
       ctx2,
     );
     expect(replay.souvenirAwarded).toBeUndefined();
@@ -184,7 +182,7 @@ describe('cada check.type é avaliado', () => {
     check,
   });
   const ALL: Contract = {
-    ...C00_FIXTURE,
+    ...C00,
     specialRules: ['FEATURE_TARGETS'],
     requirements: [
       req('gsd', 'MINOR', { type: 'MAX_GSD_CM', value: 5 }),
@@ -269,8 +267,8 @@ describe('cada check.type é avaliado', () => {
 
 describe('medições', () => {
   it('mediana da sobreposição longitudinal e sobreposição lateral estimada', () => {
-    const terrain = createTerrain(C00_FIXTURE);
-    const m = syntheticMission(C00_FIXTURE, terrain);
+    const terrain = createTerrain(C00);
+    const m = syntheticMission(C00, terrain);
     const p = medianForwardOverlapPct(m.shots) as number;
     expect(p).toBeGreaterThan(65);
     expect(p).toBeLessThan(75);

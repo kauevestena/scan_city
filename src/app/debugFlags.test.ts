@@ -2,6 +2,7 @@ import { resetGameStore } from '@/test/resetStore';
 import { useGameStore } from '@/state/store';
 import { applyDebugFlags, debugScreenPayload } from './debugFixtures';
 import { getDebugFlags, NO_DEBUG, parseDebugFlags, resetDebugFlagsCache } from './debugFlags';
+import { CONTRACTS } from '@/data/contracts';
 
 describe('parseDebugFlags', () => {
   it('sem debug=1, ignora todos os parâmetros', () => {
@@ -80,8 +81,14 @@ describe('applyDebugFlags', () => {
     });
   });
 
-  it('unlockAll dá todos os itens do catálogo', () => {
+  it('unlockAll dá todos os itens do catálogo e libera todos os contratos', () => {
+    useGameStore.setState({
+      contracts: {
+        C00: { status: 'STOLEN', completions: 0, bestScore: 0, stolenAtCompletionCount: 0 },
+      },
+    });
     applyDebugFlags(parseDebugFlags('?debug=1&unlockAll=1'));
+    for (const c of CONTRACTS) expect(get().contracts[c.id]?.status).toBe('AVAILABLE');
     const { inventory } = get();
     expect(inventory.aircraft).toEqual(['ATLAS', 'DRONE_T1', 'DRONE_T2', 'VTOL_T3']);
     expect(inventory.vehicles).toContain('LAB_VAN');
@@ -90,6 +97,13 @@ describe('applyDebugFlags', () => {
     expect(inventory.hardware).toBe('CLOUD');
     expect(inventory.sensors).toContain('CAM_THERMAL');
     expect(inventory.cosmetics).toContain('CHAR_GRANDPA_HAT');
+  });
+
+  it('unlockAll mantém os contratos já concluídos', () => {
+    const done = { status: 'COMPLETED' as const, completions: 2, bestScore: 0.9 };
+    useGameStore.setState({ contracts: { C00: done } });
+    applyDebugFlags(parseDebugFlags('?debug=1&unlockAll=1'));
+    expect(get().contracts.C00).toEqual(done);
   });
 
   it('as galerias não mexem na tela do jogo', () => {

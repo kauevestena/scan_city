@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { InputManager } from '@/input/InputManager';
 import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
@@ -82,5 +82,50 @@ describe('WorldMapScreen', () => {
     expect(get().stats.distanceTiles).toBeGreaterThan(0);
     unmount();
     expect(InputManager.get().screenContext).toBe('UI');
+  });
+
+  it('no marcador do C00: prompt, INTERACT abre o briefing ao soltar a tecla, Esc fecha', async () => {
+    render(<WorldMapScreen />);
+    const c00 = WORLD_MAP.markers.find((m) => m.char === '0') as { x: number; y: number };
+    // Teleporte (como o do painel de depuração): a store muda o avatar por fora do engine.
+    act(() => get().setAvatar({ x: c00.x + 0.5, y: c00.y + 0.5 }));
+    await frames(60);
+    const prompt = screen.getByTestId('world-prompt');
+    expect(prompt).toHaveTextContent('Ver contrato "Sítio do Avô"');
+    expect(prompt).toHaveAttribute('data-target', 'C00');
+
+    fireEvent.keyDown(window, { code: 'Space', key: ' ' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.keyUp(window, { code: 'Space', key: ' ' });
+    const dialog = screen.getByRole('dialog', { name: 'Sítio do Avô' });
+    expect(InputManager.get().context).toBe('UI');
+    expect(within(dialog).getAllByRole('listitem').length).toBeGreaterThanOrEqual(6);
+    expect(within(dialog).getByRole('button', { name: 'Aceitar' })).toBeEnabled();
+
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(get().session.paused).toBe(false);
+    expect(InputManager.get().context).toBe('OVERWORLD');
+  });
+
+  it('pelo gamepad, o briefing abre na hora; Aceitar vai ao FIELD_SETUP', async () => {
+    const c00 = WORLD_MAP.markers.find((m) => m.char === '0') as { x: number; y: number };
+    act(() => get().setAvatar({ x: c00.x + 0.5, y: c00.y + 0.5 }));
+    render(<WorldMapScreen />);
+    const pad = {
+      id: 'Xbox Wireless Controller',
+      index: 0,
+      connected: true,
+      mapping: 'standard',
+      axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === 0, value: i === 0 ? 1 : 0 })),
+    };
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [pad], configurable: true });
+    act(() => InputManager.get().poll(1));
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true });
+    const dialog = screen.getByRole('dialog', { name: 'Sítio do Avô' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aceitar' }));
+    expect(get().session.screen).toBe('FIELD_SETUP');
+    expect(get().mission.active?.contractId).toBe('C00');
   });
 });

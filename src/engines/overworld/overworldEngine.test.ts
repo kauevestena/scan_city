@@ -1,13 +1,22 @@
 import type { AxisAction } from '@/input/actions';
+import { initialContracts } from '@/data/contracts';
+import { markerViews, type MarkerView } from '@/world/overworld/markers';
 import { parseMap, WORLD_MAP } from '@/world/overworld/tiles';
 import { AVATAR_BOX, boxBlocker, stepAvatar, type AvatarState } from './avatar';
 import { CAMERA_LERP, clampCamera, followCamera } from './camera';
 import { drawMinimap, renderMinimapBase } from './minimap';
-import { HINT_THROTTLE_S, INTERACT_RADIUS, OverworldEngine, zoomFor } from './OverworldEngine';
-import { ChunkCache, CHUNK_TILES, drawMarker, TILE_COLORS } from './tileRenderer';
+import {
+  HINT_THROTTLE_S,
+  INTERACT_RADIUS,
+  OverworldEngine,
+  zoomFor,
+  type InteractTarget,
+} from './OverworldEngine';
+import { ChunkCache, CHUNK_TILES, drawMarker, MARKER_COLORS, TILE_COLORS } from './tileRenderer';
 
-// Porta em (2,1), spawn em (3,1), encosta íngreme em (5,1), água em (0,3).
-const MINI = parseMap(['..........', '..O@.A....', '..........', '~.........']);
+// Porta em (2,1), spawn em (3,1), encosta íngreme em (5,1), água em (0,3), C00 em (8,3).
+const MINI = parseMap(['..........', '..O@.A....', '..........', '~.......0.']);
+const MINI_MARKERS = markerViews(initialContracts(), 'REAL', [], MINI);
 const SKIN = { primary: '#f97316', secondary: '#1e293b' };
 const at = (x: number, y: number, facing: AvatarState['facing'] = 'S'): AvatarState => ({
   x,
@@ -32,7 +41,7 @@ function surface(width = 1280, height = 672) {
 function engineOn(map = MINI, start: AvatarStart = { x: 3.5, y: 1.5, facing: 'S' }) {
   const input = fakeInput();
   const hints: string[] = [];
-  const near: boolean[] = [];
+  const targets: Array<InteractTarget | null> = [];
   const engine = new OverworldEngine({
     map,
     input,
@@ -40,11 +49,11 @@ function engineOn(map = MINI, start: AvatarStart = { x: 3.5, y: 1.5, facing: 'S'
     vehicle: () => 'FOOT_BIKE',
     speedMod: () => 1,
     skin: () => SKIN,
-    markers: () => map.markers,
+    markers: () => (map === MINI ? MINI_MARKERS : []),
     onHint: (t) => hints.push(t),
-    onNearDoorChange: (n) => near.push(n),
+    onTargetChange: (t) => targets.push(t),
   });
-  return { engine, input, hints, near };
+  return { engine, input, hints, targets };
 }
 
 /** Roda `seconds` de simulação em sub-passos de 1/60 s. */
@@ -115,19 +124,36 @@ describe('câmera', () => {
 
 describe('OverworldEngine', () => {
   it('anda até a porta, avisa a proximidade e o INTERACT aponta a sede', () => {
-    const { engine, input, near } = engineOn();
+    const { engine, input, targets } = engineOn();
     expect(engine.interact()).toBeNull();
     input.axes.MOVE_X = -1;
     run(engine, 0.25);
     expect(engine.isNearDoor()).toBe(true);
-    expect(near).toEqual([true]);
-    expect(engine.interact()).toBe('DOOR');
+    expect(targets).toEqual([{ kind: 'DOOR' }]);
+    expect(engine.interact()).toEqual({ kind: 'DOOR' });
     expect(Math.hypot(engine.avatar.x - 2.5, engine.avatar.y - 1.5)).toBeLessThanOrEqual(
       INTERACT_RADIUS,
     );
     input.axes.MOVE_X = 1;
     run(engine, 0.5);
-    expect(near).toEqual([true, false]);
+    expect(targets).toEqual([{ kind: 'DOOR' }, null]);
+  });
+
+  it('marcador no raio de 0,8 tile vira o alvo; o teleporte leva até ele', () => {
+    const { engine, targets } = engineOn();
+    engine.teleport(8.5, 3.5);
+    expect(engine.position).toMatchObject({ x: 8.5, y: 3.5 });
+    engine.update(1 / 60);
+    const target = targets.at(-1);
+    expect(target?.kind).toBe('MARKER');
+    expect(target?.kind === 'MARKER' && target.marker).toMatchObject({
+      contractId: 'C00',
+      status: 'AVAILABLE',
+    });
+    expect(engine.interact()).toEqual(target);
+    // Mesmo alvo nos frames seguintes: nenhum aviso novo.
+    engine.update(1 / 60);
+    expect(targets).toHaveLength(1);
   });
 
   it('dica de bloqueio com throttle de 3 s', () => {
@@ -196,13 +222,24 @@ describe('render de tiles e minimapa', () => {
     expect(cache.size).toBe(1);
   });
 
-  it('marcador e minimapa desenham sem erro', () => {
+  it('marcadores por status (cadeado, "MM") e minimapa desenham sem erro', () => {
     const { ctx } = surface();
-    drawMarker(ctx, { char: '0', kind: 'CONTRACT', x: 3, y: 4 }, 1.2);
-    expect(ctx.fill).toHaveBeenCalled();
-    const base = renderMinimapBase(MINI);
-    expect([base.width, base.height]).toEqual([10, 4]);
-    drawMinimap(ctx, base, MINI.markers, { x: 3.5, y: 1.5 }, MINI.door, 0);
-    expect(ctx.drawImage).toHaveBeenCalledWith(base, 0, 0);
+    const base: MarkerView = {
+      char: '0',
+      kind: 'CONTRACT',
+      x: 3,
+      y: 4,
+      contractId: 'C00',
+      status: 'AVAILABLE',
+    };
+    for (const status of ['AVAILABLE', 'LOCKED', 'COMPLETED', 'STOLEN'] as const) {
+      drawMarker(ctx, { ...base, status }, 1.2);
+    }
+    expect(MARKER_COLORS.AVAILABLE).not.toBe(MARKER_COLORS.LOCKED);
+    expect(ctx.fillText).toHaveBeenCalledWith('MM', expect.any(Number), expect.any(Number));
+    const mini = renderMinimapBase(MINI);
+    expect([mini.width, mini.height]).toEqual([10, 4]);
+    drawMinimap(ctx, mini, MINI_MARKERS, { x: 3.5, y: 1.5 }, MINI.door, 0);
+    expect(ctx.drawImage).toHaveBeenCalledWith(mini, 0, 0);
   });
 });

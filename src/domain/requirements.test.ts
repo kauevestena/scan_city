@@ -1,5 +1,5 @@
 import { CATALOG } from '@/data/catalog';
-import { C00_FIXTURE } from '@/test/fixtures/c00';
+import { C00 } from '@/data/contracts';
 import { referenceParams, referencePoints } from '@/test/fixtures/syntheticMission';
 import type { Contract, ContractRequirement, PlanParams } from '@/types';
 import { clearTerrainCache, createTerrain } from '@/world/terrain/createTerrain';
@@ -17,14 +17,9 @@ const ctx = { catalog: CATALOG, ownsRtkKit: false, fieldEquipmentId: 'TOTAL_STAT
 
 describe('predictRequirements', () => {
   it('o plano de referência do C00 não tem nenhum requisito previsível em falha', () => {
-    const terrain = createTerrain(C00_FIXTURE);
-    const plan = buildFlightPlan(referenceParams(C00_FIXTURE), C00_FIXTURE, CATALOG);
-    const results = predictRequirements(
-      plan,
-      C00_FIXTURE,
-      referencePoints(C00_FIXTURE, terrain),
-      ctx,
-    );
+    const terrain = createTerrain(C00);
+    const plan = buildFlightPlan(referenceParams(C00), C00, CATALOG);
+    const results = predictRequirements(plan, C00, referencePoints(C00, terrain), ctx);
     expect(results.map((r) => r.pass)).toEqual(results.map(() => true));
     expect(results.find((r) => r.id === 'C00-gsd')?.valueText.replace(/\s/g, ' ')).toBe('2,52 cm');
     expect(results.find((r) => r.id === 'C00-cov')?.valueText).toBe('—');
@@ -33,14 +28,14 @@ describe('predictRequirements', () => {
 
   it('C05 com DRONE_T1 e H = 55 m: GSD previsto 1,508 cm passa do máximo de 1,5 cm', () => {
     const contract: Contract = {
-      ...C00_FIXTURE,
+      ...C00,
       ceilingM: 120,
       requirements: [
         { id: 'g', label: 'GSD', severity: 'MAJOR', check: { type: 'MAX_GSD_CM', value: 1.5 } },
       ],
     };
     const params: PlanParams = {
-      ...referenceParams(C00_FIXTURE),
+      ...referenceParams(C00),
       aircraftId: 'DRONE_T1',
       sensorId: 'CAM_20MP_RS',
       heightM: 55,
@@ -70,7 +65,7 @@ describe('predictRequirements', () => {
       check,
     });
     const contract: Contract = {
-      ...C00_FIXTURE,
+      ...C00,
       requirements: [
         r('p', { type: 'MIN_FORWARD_OVERLAP', value: 75 }),
         r('q', { type: 'MIN_SIDE_OVERLAP', value: 55 }),
@@ -91,13 +86,10 @@ describe('predictRequirements', () => {
         r('feat', { type: 'FEATURE_CAPTURED', featureId: 'X' }),
       ],
     };
-    const terrain = createTerrain(C00_FIXTURE);
-    const plan = buildFlightPlan(referenceParams(C00_FIXTURE), contract, CATALOG);
+    const terrain = createTerrain(C00);
+    const plan = buildFlightPlan(referenceParams(C00), contract, CATALOG);
     const res = Object.fromEntries(
-      predictRequirements(plan, contract, referencePoints(C00_FIXTURE, terrain), ctx).map((x) => [
-        x.id,
-        x,
-      ]),
+      predictRequirements(plan, contract, referencePoints(C00, terrain), ctx).map((x) => [x.id, x]),
     );
     expect(res.p?.pass).toBe(false);
     expect(res.q?.pass).toBe(true);
@@ -120,14 +112,14 @@ describe('predictRequirements', () => {
 
 describe('estimateFromPlan', () => {
   const pod: PlanParams = {
-    ...referenceParams(C00_FIXTURE),
+    ...referenceParams(C00),
     aircraftId: 'DRONE_T2',
     sensorId: 'POD_LIDAR',
     primarySensor: 'LIDAR',
     heightM: 80,
   };
   const lidarContract: Contract = {
-    ...C00_FIXTURE,
+    ...C00,
     ceilingM: 120,
     specialRules: ['EM_INTERFERENCE'],
     requirements: [
@@ -147,13 +139,13 @@ describe('estimateFromPlan', () => {
   });
 
   it('sem CPs, o RMSE previsto é o dos GCPs × 1,8', () => {
-    const terrain = createTerrain(C00_FIXTURE);
-    const plan = buildFlightPlan(referenceParams(C00_FIXTURE), C00_FIXTURE, CATALOG);
-    const points = referencePoints(C00_FIXTURE, terrain);
-    const withCp = estimateFromPlan(plan, C00_FIXTURE, points, ctx);
+    const terrain = createTerrain(C00);
+    const plan = buildFlightPlan(referenceParams(C00), C00, CATALOG);
+    const points = referencePoints(C00, terrain);
+    const withCp = estimateFromPlan(plan, C00, points, ctx);
     const noCp = estimateFromPlan(
       plan,
-      C00_FIXTURE,
+      C00,
       points.filter((p) => p.kind === 'GCP'),
       ctx,
     );

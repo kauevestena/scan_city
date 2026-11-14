@@ -128,6 +128,42 @@ describe('inventory', () => {
 });
 
 describe('mission', () => {
+  it('startMission cria a missão em planejamento com os padrões do plano', () => {
+    const mission = get().startMission('C00', 0.85);
+    expect(get().mission.active).toBe(mission);
+    expect(mission).toMatchObject({
+      contractId: 'C00',
+      rivalAdjustment: 0.85,
+      isReplay: false,
+      status: 'PLANNING',
+      fieldEquipmentId: 'TOTAL_STATION',
+      groundPoints: [],
+      shots: [],
+    });
+    expect(mission.id).toMatch(/^C00-\d+$/);
+    // field-setup §5.3: Atlas recomendado e possuído, H = clamp(80) no teto de 80 m, p 75, q 65.
+    expect(mission.plan.params).toMatchObject({
+      aircraftId: 'ATLAS',
+      sensorId: 'CAM_PIGEON',
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+      lighting: 'SUN_HIGH',
+    });
+    expect(mission.plan.lines.length).toBeGreaterThan(0);
+  });
+
+  it('startMission de um contrato concluído é repetição', () => {
+    useGameStore.setState((s) => ({
+      contracts: { ...s.contracts, C00: { status: 'COMPLETED', completions: 1, bestScore: 0.8 } },
+    }));
+    expect(get().startMission('C00', 1).isReplay).toBe(true);
+    expect(() => get().startMission('C99', 1)).toThrow(RangeError);
+  });
+
+  it('novo jogo: C00 disponível', () => {
+    expect(get().contracts.C00).toEqual({ status: 'AVAILABLE', completions: 0, bestScore: 0 });
+  });
+
   it('beginMission → queueActive → consumePending', () => {
     get().queueActive();
     expect(get().mission.pending).toHaveLength(0);
@@ -176,10 +212,11 @@ describe('contracts e rival', () => {
   });
 
   it('contratos desconhecidos são ignorados', () => {
+    const before = get().contracts;
     get().steal('C99');
     get().markStolen('C99');
     expect(get().rival.score).toBe(0);
-    expect(get().contracts).toEqual({});
+    expect(get().contracts).toBe(before);
   });
 
   it('selectContractIdsByStatus é memoizado pela identidade de contracts', () => {

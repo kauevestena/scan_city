@@ -4,9 +4,10 @@
  * As cores do mapa são do engine (REQ-UI-001 permite hex nos engines).
  */
 import { hash2 } from '@/lib/rng';
-import type { TileType } from '@/types';
-import { COLORS, withAlpha } from '@/ui/tokens';
-import { tileAt, type MapMarker, type OverworldMap } from '@/world/overworld/tiles';
+import type { ContractStatus, TileType } from '@/types';
+import { COLORS, FONTS, withAlpha } from '@/ui/tokens';
+import type { MarkerView } from '@/world/overworld/markers';
+import { tileAt, type OverworldMap } from '@/world/overworld/tiles';
 
 export const TILE_PX = 32;
 export const CHUNK_TILES = 16;
@@ -241,16 +242,21 @@ export function drawWater(
   }
 }
 
-/** Marcador ◆ pulsante (contratos). A cor por status entra com os contratos (T022). */
-export function drawMarker(
-  ctx: Ctx,
-  marker: MapMarker,
-  timeS: number,
-  color: string = COLORS.radar,
-): void {
+/** Cor do marcador por status (world-map §5.2). */
+export const MARKER_COLORS: Readonly<Record<ContractStatus, string>> = {
+  AVAILABLE: COLORS.radar,
+  LOCKED: '#64748b',
+  COMPLETED: COLORS.ok,
+  STOLEN: COLORS.danger,
+};
+
+/** Marcador ◆ pulsante na cor do status; bloqueado com cadeado, roubado com "MM". */
+export function drawMarker(ctx: Ctx, marker: MarkerView, timeS: number): void {
+  const color = MARKER_COLORS[marker.status];
   const cx = marker.x * TILE_PX + TILE_PX / 2;
   const cy = marker.y * TILE_PX + TILE_PX / 2;
-  const pulse = 1 + 0.15 * Math.sin(timeS * 4);
+  const locked = marker.status === 'LOCKED';
+  const pulse = locked ? 1 : 1 + 0.15 * Math.sin(timeS * 4);
   const s = 10 * pulse;
   ctx.fillStyle = withAlpha(color, 0.25);
   ctx.beginPath();
@@ -267,4 +273,20 @@ export function drawMarker(
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  if (locked) {
+    // Cadeado: arco + corpo.
+    ctx.strokeStyle = COLORS.text;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy - 1, 2.5, Math.PI, 0);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.text;
+    ctx.fillRect(cx - 3.5, cy - 1, 7, 5);
+  } else if (marker.status === 'STOLEN') {
+    ctx.fillStyle = COLORS.text;
+    ctx.font = `bold 7px ${FONTS.mono}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MM', cx, cy + 0.5);
+  }
 }
