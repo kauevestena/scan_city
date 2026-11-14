@@ -7,6 +7,7 @@ import {
   exposureTimeS,
   footprint,
   gsd,
+  obliqueFootprint,
   motionBlurPx,
   pixelPitchM,
   realForwardOverlap,
@@ -110,6 +111,34 @@ export function footprintCorners(
     aoiPoint(frame, s + hh, x + hw),
     aoiPoint(frame, s - hh, x + hw),
     aoiPoint(frame, s - hh, x - hw),
+  ];
+}
+
+/**
+ * Pegada oblíqua (domain-math §2.8): trapézio deslocado à frente da aeronave. A borda
+ * próxima fica mais perto da câmera (mais estreita); a distante, mais larga.
+ */
+export function obliqueCorners(
+  frame: RunFrame,
+  s: number,
+  x: number,
+  aglM: number,
+  tiltDeg: number,
+  cam: Pick<CameraModel, 'sensorWidthM' | 'sensorHeightM' | 'focalM'>,
+): AoiPoint[] {
+  const tilt = (tiltDeg * Math.PI) / 180;
+  const vFov = 2 * Math.atan(cam.sensorHeightM / (2 * cam.focalM));
+  const o = obliqueFootprint(aglM, tilt, cam.sensorWidthM, cam.focalM, vFov);
+  const near = tilt - vFov / 2;
+  const far = Math.min(tilt + vFov / 2, (85 * Math.PI) / 180);
+  const widthAt = (angle: number) => (aglM / Math.cos(angle)) * (cam.sensorWidthM / cam.focalM);
+  const wn = widthAt(near) / 2;
+  const wf = widthAt(far) / 2;
+  return [
+    aoiPoint(frame, s + o.farM, x - wf),
+    aoiPoint(frame, s + o.farM, x + wf),
+    aoiPoint(frame, s + o.nearM, x + wn),
+    aoiPoint(frame, s + o.nearM, x - wn),
   ];
 }
 

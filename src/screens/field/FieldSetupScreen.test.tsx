@@ -327,4 +327,37 @@ describe('FieldSetupScreen', () => {
     });
     expect(Math.min(...times)).toBeLessThan(16);
   });
+
+  it('os toggles de modo aparecem conforme a aeronave (REQ-FLD-012)', () => {
+    act(() =>
+      useGameStore.setState((s) => ({
+        inventory: {
+          ...s.inventory,
+          aircraft: ['ATLAS', 'DRONE_T1', 'DRONE_T2', 'VTOL_T3'],
+          sensors: ['CAM_PIGEON', 'CAM_20MP_RS', 'CAM_45MP_FF'],
+          lenses: ['LENS_24'],
+        },
+      })),
+    );
+    render(<FieldSetupScreen />);
+    tab(/Plano de voo/);
+    const toggles = () =>
+      within(screen.getByTestId('plan-modes'))
+        .getAllByRole('button')
+        .map((b) => b.textContent);
+    // Atlas: nenhum.
+    expect(screen.queryByTestId('plan-modes')).not.toBeInTheDocument();
+    // Drone T1: malha cruzada e oblíqua; sem Terrain Following.
+    fireEvent.click(screen.getByRole('tab', { name: 'Drone Amador "Faísca"' }));
+    expect(toggles()).toEqual(['Malha cruzada', 'Oblíqua 45°', 'Oblíqua 60°']);
+    fireEvent.click(screen.getByRole('button', { name: 'Oblíqua 45°' }));
+    expect(get().mission.active?.plan.params.obliqueDeg).toBe(45);
+    fireEvent.click(screen.getByRole('button', { name: 'Oblíqua 45°' }));
+    expect(get().mission.active?.plan.params.obliqueDeg).toBeUndefined();
+    // Condor (T2): os três modos; Albatroz (asa fixa): TF e malha, sem oblíqua.
+    fireEvent.click(screen.getByRole('tab', { name: 'Multirrotor Pro RTK "Condor"' }));
+    expect(toggles()).toEqual(['Terrain Following', 'Malha cruzada', 'Oblíqua 45°', 'Oblíqua 60°']);
+    fireEvent.click(screen.getByRole('tab', { name: 'Asa Fixa VTOL "Albatroz"' }));
+    expect(toggles()).toEqual(['Terrain Following', 'Malha cruzada']);
+  });
 });

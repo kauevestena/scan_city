@@ -64,6 +64,7 @@ import {
   FOOTPRINT_FADE_S,
   footprintCorners,
   inShotWindow,
+  obliqueCorners,
   MANUAL_COOLDOWN_S,
   realOverlapPct,
   recordShot,
@@ -359,13 +360,10 @@ export class FlightEngine implements Simulation {
     this.pending.push(shot);
     if (this.pending.length >= SHOT_BATCH) this.flushShots();
     this.footprints.push({
-      corners: footprintCorners(
-        this.frame,
-        this.ac.s,
-        this.ac.x,
-        shot.footprintWM,
-        shot.footprintHM,
-      ),
+      corners:
+        shot.tiltDeg > 0
+          ? obliqueCorners(this.frame, this.ac.s, this.ac.x, shot.aglM, shot.tiltDeg, this.camera)
+          : footprintCorners(this.frame, this.ac.s, this.ac.x, shot.footprintWM, shot.footprintHM),
       bornS: this.sortieT,
     });
     if (!this.opts.reduceFlashes()) this.flashUntil = this.sortieT + FLASH_S;
@@ -393,7 +391,8 @@ export class FlightEngine implements Simulation {
         x: this.ac.x,
         vx: this.ac.vLat + this.ac.drift,
         alt: this.ac.alt,
-        targetAlt: this.planAlt,
+        // Com Terrain Following, o AGL-alvo é mantido pela física: sem correção vertical.
+        targetAlt: this.opts.mission.plan.params.terrainFollowing ? this.ac.alt : this.planAlt,
         lateralMaxMs: Math.max(1, this.aircraft.lateralSpeedMaxMs),
         obstacleAhead: false,
       });
@@ -451,7 +450,11 @@ export class FlightEngine implements Simulation {
     switch (this.phase) {
       case 'TAKEOFF': {
         const k = clamp(this.phaseT / TAKEOFF_S, 0, 1);
-        this.ac = { ...this.ac, alt: lerp(this.startAlt, this.planAlt, k * k * (3 - 2 * k)) };
+        // Com TF, sobe até H acima do terreno sob a aeronave; senão, até H sobre a cota média.
+        const target = this.opts.mission.plan.params.terrainFollowing
+          ? this.elevationAt(this.ac.s, this.ac.x) + this.opts.mission.plan.params.heightM
+          : this.planAlt;
+        this.ac = { ...this.ac, alt: lerp(this.startAlt, target, k * k * (3 - 2 * k)) };
         this.drain(dtS);
         if (k >= 1) this.setPhase('RUN');
         break;

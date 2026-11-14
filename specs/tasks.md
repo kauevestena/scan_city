@@ -756,12 +756,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T033 · **REQs:** REQ-FLT-016, REQ-FLD-012
 - **Spec:** [survey-flight §5.6, §5.7](features/survey-flight.md), [field-setup §5.3](features/field-setup.md), [domain-math §2.8](design/domain-math.md)
 - **Aceite:**
-  - [ ] TF sobre um terreno de teste com rampa mantém o AGL ≤ 15 % de desvio.
-  - [ ] As linhas cruzadas voam após as primárias.
-  - [ ] Na oblíqua, a pegada desenhada é deslocada e trapezoidal e os shots registram `tiltDeg`.
-  - [ ] Os toggles no Field Setup aparecem conforme a aeronave.
+  - [x] TF sobre um terreno de teste com rampa mantém o AGL ≤ 15 % de desvio.
+  - [x] As linhas cruzadas voam após as primárias.
+  - [x] Na oblíqua, a pegada desenhada é deslocada e trapezoidal e os shots registram `tiltDeg`.
+  - [x] Os toggles no Field Setup aparecem conforme a aeronave.
 - **Verificação:** `npx vitest run src/engines/flight src/screens/field`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Com TF, a decolagem sobe até H acima do terreno sob a aeronave (e não H sobre a cota média), e o autopilot não corrige a altitude: o AGL-alvo é mantido pela física (`terrainFollowTargetAlt`). Numa rampa de 10 %, o AGL fica a ≤ 15 % de 60 m; sem TF, passa disso (teste).
+  - As linhas cruzadas já vinham depois das primárias no plano; o engine as voa na mesma ordem, e o rumo delas é perpendicular (teste com o DRONE_T1).
+  - Oblíqua: `obliqueCorners` desenha o trapézio de domain-math §2.8, deslocado à frente em `centerOffsetM`, com a borda distante mais larga. Os disparos registram `tiltDeg`; a cobertura já usava a pegada oblíqua (T015).
+  - O `Shot` guarda a pegada nadir em `footprintWM/HM`: a pegada oblíqua é recalculada de `aglM` e `tiltDeg` onde for preciso.
+  - Os toggles de modo (aba 2) já apareciam conforme a aeronave desde T023; entrou o teste RTL para Atlas, T1, Condor e Albatroz.
+- **Status:** ✅
 
 ### T035 — Alertas de qualidade e disparo manual
 - **Fase:** F3 · **Depende de:** T034 · **REQs:** REQ-FLT-006, REQ-FLT-007, REQ-FLT-008, REQ-FLT-017, REQ-FLT-018
@@ -1269,7 +1275,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
 | REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ☐ |
 | REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ☐ |
-| REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ☐ |
+| REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
 | REQ-FLT-002 | Terreno com relevo | [architecture](design/architecture.md), [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
@@ -1286,7 +1292,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
-| REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ☐ |
+| REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
 | REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
 | REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ✅ |
