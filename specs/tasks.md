@@ -578,10 +578,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. `applyMissionResult` idempotente.
   5. "Enviar ao Museu" → T11.
 - **Aceite:**
-  - [ ] Os critérios 1, 2 e 4 de [processing-results §8](features/processing-results.md).
-  - [ ] Recarregar durante a esteira não aplica as recompensas.
+  - [x] Os critérios 1, 2 e 4 de [processing-results §8](features/processing-results.md).
+  - [x] Recarregar durante a esteira não aplica as recompensas.
 - **Verificação:** `npx vitest run src/screens/processing src/engines/raster` · E2E `processing.spec.ts`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - O relatório é calculado uma vez na montagem (LOADING) com o RNG seedado pelo id da missão: recarregar e reprocessar dá o mesmo resultado. As recompensas só entram no REPORT, por `applyMissionResult`, que tira a missão da fila (ou da missão ativa, em campo) antes de tudo; as chamadas seguintes devolvem `false`.
+  - `lensCalibration` (domain-math §12.4) entrou já aqui, porque a etapa 3 da esteira e a aba Acurácia usam o erro de reprojeção e os parâmetros. O `qualityProduct` é o produto dos multiplicadores XY. T043 fica com o restante de REQ-PRC-003.
+  - O museu recebe o setor no REPORT (só se o score for maior); "Enviar à Mesa do Museu" apenas navega (T11).
+  - Rótulo dos multiplicadores: "(×v)" quando XY e Z são iguais; senão, "(XY ×a, Z ×b)", omitindo o eixo neutro. Com 3 GCPs colineares, o casco tem área zero e o XY também é penalizado: "Geometria dos GCPs (XY ×2,50, Z ×3,00)".
+  - Roubo: ver OQ-010. Sem outro contrato jogável, a MegaMap não leva o contrato. Os roubados voltam a `AVAILABLE` quando outro contrato é concluído (progression §8), o que já está no `applyMissionResult`.
+  - A esteira avança no `GameLoop` (congela na pausa) e toca `STAGE_DONE` por etapa e o loop `PROCESSING` com `rate` = fator de velocidade.
+  - Os ícones dos souvenirs passaram a ser registrados em `souvenirs.ts` (antes caíam no ícone de reserva).
+- **Status:** ✅
 
 ### T026 — Motor `soft3d` e Mesa Holográfica v1
 - **Fase:** F2 · **Depende de:** T025 · **REQs:** REQ-HOL-001, REQ-HOL-002, REQ-HOL-003, REQ-HOL-008
@@ -1233,15 +1241,15 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ☐ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ☐ |
-| REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ☐ |
+| REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ☐ |
-| REQ-PRC-004 | Tabela de resíduos e RMSE | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ☐ |
+| REQ-PRC-004 | Tabela de resíduos e RMSE | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
 | REQ-PRC-005 | Penalidades de acurácia | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T043 | ☐ |
-| REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ☐ |
-| REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ☐ |
+| REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
+| REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ✅ |
 | REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ☐ |
-| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025 | ☐ |
-| REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ☐ |
+| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025 | ✅ |
+| REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ☐ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ☐ |
 | REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ☐ |

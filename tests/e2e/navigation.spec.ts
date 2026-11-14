@@ -7,6 +7,7 @@ const REAL_SCREENS: Record<string, string> = {
   WORLD_MAP: 'world-map-screen',
   FIELD_SETUP: 'field-setup-screen',
   SURVEY_FLIGHT: 'survey-flight-screen',
+  PROCESSING_RESULTS: 'processing-screen',
 };
 
 async function go(page: Page, transition: string, expected: string) {

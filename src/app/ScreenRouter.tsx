@@ -4,6 +4,7 @@ import type { ScreenId } from '@/types';
 import { FieldSetupScreen } from '@/screens/field/FieldSetupScreen';
 import { SurveyFlightScreen } from '@/screens/flight/SurveyFlightScreen';
 import { OfficeScreen } from '@/screens/office/OfficeScreen';
+import { ProcessingResultsScreen } from '@/screens/processing/ProcessingResultsScreen';
 import { WorldMapScreen } from '@/screens/world/WorldMapScreen';
 import { DebugScreenShell } from './DebugScreenShell';
 
@@ -13,6 +14,7 @@ export const SCREEN_COMPONENTS: Partial<Record<ScreenId, ComponentType>> = {
   WORLD_MAP: WorldMapScreen,
   FIELD_SETUP: FieldSetupScreen,
   SURVEY_FLIGHT: SurveyFlightScreen,
+  PROCESSING_RESULTS: ProcessingResultsScreen,
 };
 
 export function ScreenRouter() {

@@ -46,7 +46,12 @@ import {
 import { capturedFeatures } from './features';
 import { median } from './stats';
 import { pixelPitchM, realForwardOverlap, realSideOverlap } from './photogrammetry';
-import { processingBaseTimeS, processingSpeed, processingTimeS } from './processing';
+import {
+  processingBaseTimeS,
+  processingSpeed,
+  processingTimeS,
+  lensCalibration,
+} from './processing';
 import {
   planEquipment,
   requiresLidar,
@@ -489,6 +494,11 @@ export function evaluateMission(
     reputationDelta: rewards.reputationDelta,
     processingTimeS: processingTimeS(processingBaseTimeS(shots.length, nPulses), speed),
   };
+  if (shots.length > 0) {
+    // O ajustamento estima a calibração da câmera usada nas fotos (§12.4).
+    const qualityProduct = multipliers.reduce((p, m) => p * m.xy, 1);
+    report.lens = lensCalibration(camera, focalM, ctx.rng.fork('lens'), qualityProduct);
+  }
   if (pec) report.pec = pec;
   if (asprs) report.asprs = asprs;
   if (lidar) report.lidarStats = lidar;

@@ -1,4 +1,46 @@
+import {
+  Bike,
+  Box,
+  CircleDashed,
+  CircleDot,
+  Cylinder,
+  Gem,
+  Grid3x3,
+  HardHat,
+  KeyRound,
+  NotebookPen,
+  Package,
+  Paintbrush,
+  Sparkle,
+  Sprout,
+  Sword,
+  Triangle,
+  Wheat,
+  Wine,
+} from 'lucide-react';
 import type { Souvenir } from '@/types';
+import { registerIcons } from '@/ui/iconRegistry';
+
+registerIcons({
+  Bike,
+  Box,
+  CircleDashed,
+  CircleDot,
+  Cylinder,
+  Gem,
+  Grid3x3,
+  HardHat,
+  KeyRound,
+  NotebookPen,
+  Package,
+  Paintbrush,
+  Sparkle,
+  Sprout,
+  Sword,
+  Triangle,
+  Wheat,
+  Wine,
+});
 
 /** catalog §11 — 18 souvenirs, um por contrato, entregues na primeira aprovação. */
 export const SOUVENIRS: readonly Souvenir[] = [

@@ -4,6 +4,7 @@ import { itemName } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
+import { REPLAY_FACTOR } from '@/domain/economy';
 import { describeUnlock, evaluateUnlock, unlockStateFrom } from '@/domain/progression';
 import { formatBRL, formatNumber } from '@/lib/format';
 import { useGameStore } from '@/state/store';
@@ -11,8 +12,6 @@ import type { Contract, UnlockCondition } from '@/types';
 import { Button, ChecklistItem, cx, DialogueBox, EmblemBadge, Modal } from '@/ui';
 
 const B = STRINGS.briefing;
-/** Fator de pagamento de uma repetição (progression §12). */
-export const REPLAY_FACTOR = 0.4;
 
 /** Partes de primeiro nível de uma condição (`ALL` vira uma lista). */
 function unlockParts(cond: UnlockCondition): UnlockCondition[] {

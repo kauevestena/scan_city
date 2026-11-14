@@ -1,11 +1,26 @@
 import type { StateCreator } from 'zustand';
 import { CATALOG, FIELD_EQUIPMENT, getAircraft, getFieldEquipment } from '@/data/catalog';
+import { AudioEngine } from '@/audio/AudioEngine';
+import { SOUVENIRS } from '@/data/souvenirs';
+import { STRINGS } from '@/data/strings';
 import { gcpSigma } from '@/domain/accuracy';
+import { sectorIncomePerMin } from '@/domain/museum';
+import { addXp } from '@/domain/progression';
 import { getContract } from '@/data/contracts';
 import { buildFlightPlan, defaultPlanParams } from '@/domain/flightPlanner';
 import type { MissionData } from '@/types';
 import { selectModifiers } from '../selectors';
 import type { GameStore, MissionActions, MissionState } from '../types';
+
+/**
+ * OQ-010: sem outro contrato jogável (disponível ou concluído), o roubo travaria o jogo,
+ * porque o contrato só volta depois de concluir outro. Nesse caso a MegaMap não leva.
+ */
+export function canBeStolen(contracts: GameStore['contracts'], contractId: string): boolean {
+  return Object.entries(contracts).some(
+    ([id, p]) => id !== contractId && (p.status === 'AVAILABLE' || p.status === 'COMPLETED'),
+  );
+}
 
 export function initialMission(): MissionState {
   return { active: null, pending: [] };
@@ -148,6 +163,112 @@ export const createMissionSlice: StateCreator<
         ? { mission: { ...s.mission, active: { ...s.mission.active, status: 'PLANNING' } } }
         : s,
     ),
+
+  applyMissionResult: (report) => {
+    const state = get();
+    const pending = state.mission.pending.find((m) => m.id === report.missionId);
+    const active = state.mission.active?.id === report.missionId ? state.mission.active : null;
+    const mission = pending ?? active;
+    if (!mission || mission.status === 'PROCESSED') return false;
+    const contract = getContract(report.contractId);
+    const progress = state.contracts[contract.id] ?? {
+      status: 'LOCKED',
+      completions: 0,
+      bestScore: 0,
+    };
+
+    // A missão sai da fila (ou da missão ativa, em campo) antes de tudo: idempotência.
+    set((s) => ({
+      mission: {
+        active: s.mission.active?.id === mission.id ? null : s.mission.active,
+        pending: s.mission.pending.filter((m) => m.id !== mission.id),
+      },
+    }));
+
+    if (report.payment.totalBRL > 0) {
+      get().earn(report.payment.totalBRL, STRINGS.contracts.payment(contract.title));
+    }
+
+    // XP: um LEVEL_UP por nível, 300 ms entre eles (processing-results §7).
+    const leveled = addXp(get().player, report.xp);
+    const { levelsGained, ...player } = leveled;
+    set({ player });
+    for (let k = 0; k < levelsGained; k++) {
+      const level = player.level - levelsGained + k + 1;
+      get().pushToast({ type: 'success', title: STRINGS.progression.levelUp(level) });
+      setTimeout(() => AudioEngine.get().play('LEVEL_UP'), 300 * k);
+    }
+
+    // Contrato: aprovação conclui; falha crítica (fora do replay) é roubada pela MegaMap.
+    const better = report.qualityScore > progress.bestScore;
+    if (report.approved) {
+      set((s) => ({
+        contracts: {
+          ...s.contracts,
+          [contract.id]: {
+            ...progress,
+            status: 'COMPLETED',
+            completions: progress.completions + 1,
+            bestScore: Math.max(progress.bestScore, report.qualityScore),
+            ...(better
+              ? {
+                  bestClass: report.pec?.planimetric.achieved ?? progress.bestClass,
+                  bestMissionLines: mission.plan.lines.map((l) => ({ start: l.start, end: l.end })),
+                  bestAircraftId: mission.plan.params.aircraftId,
+                }
+              : {}),
+          },
+        },
+        stats: { ...s.stats, contractsCompleted: s.stats.contractsCompleted + 1 },
+      }));
+      // Museu: o setor só é trocado por um resultado melhor (§5.9).
+      const sector = state.museum.sectors[contract.id];
+      if (!sector || report.qualityScore > sector.qualityScore) {
+        set((s) => ({
+          museum: {
+            ...s.museum,
+            sectors: {
+              ...s.museum.sectors,
+              [contract.id]: {
+                contractId: contract.id,
+                qualityScore: report.qualityScore,
+                mappedAt: Date.now(),
+                incomePerMinBRL: sectorIncomePerMin(
+                  contract.museum.incomePerMinBRL,
+                  report.qualityScore,
+                ),
+                className: report.pec?.planimetric.achieved ?? '',
+              },
+            },
+          },
+        }));
+      }
+      // Contratos roubados voltam depois de concluir outro (progression §8).
+      const done = get().stats.contractsCompleted;
+      set((s) => ({
+        contracts: Object.fromEntries(
+          Object.entries(s.contracts).map(([id, p]) =>
+            p.status === 'STOLEN' && (p.stolenAtCompletionCount ?? 0) < done
+              ? [id, { ...p, status: 'AVAILABLE' as const }]
+              : [id, p],
+          ),
+        ),
+      }));
+    } else if (report.critical && !mission.isReplay && canBeStolen(get().contracts, contract.id)) {
+      get().steal(contract.id);
+    }
+
+    if (report.souvenirAwarded && !get().souvenirs.includes(report.souvenirAwarded)) {
+      const souvenir = SOUVENIRS.find((sv) => sv.id === report.souvenirAwarded);
+      set((s) => ({ souvenirs: [...s.souvenirs, report.souvenirAwarded as string] }));
+      get().pushToast({ type: 'success', title: STRINGS.contracts.souvenir(souvenir?.name ?? '') });
+    }
+
+    // A reputação vem por último: ela já dispara a reavaliação dos desbloqueios.
+    if (report.reputationDelta !== 0) get().changeReputation(report.reputationDelta);
+    else get().refreshUnlocks();
+    return true;
+  },
 
   queueActive: () =>
     set((s) => {

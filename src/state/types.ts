@@ -6,6 +6,7 @@ import type {
   GroundPoint,
   MissionData,
   PlanParams,
+  QualityReport,
   Shot,
   SortieOutcome,
   SaveGame,
@@ -134,6 +135,12 @@ export interface MissionActions {
   endSortie: (result: SortieReport) => void;
   /** "Tentar de novo": a missão sem dados volta ao planejamento. */
   resumePlanning: () => void;
+  /**
+   * Aplica o relatório (processing-results §3): dinheiro, XP, reputação, souvenir, contrato,
+   * museu, roubo e desbloqueios. Idempotente: a missão sai da fila na primeira chamada, e as
+   * seguintes devolvem `false` sem mudar nada.
+   */
+  applyMissionResult: (report: QualityReport) => boolean;
   /** Torna `mission` a missão ativa (em planejamento ou em voo). */
   beginMission: (mission: MissionData) => void;
   /** Move a missão ativa para a fila de processamento. */

@@ -4,6 +4,7 @@ import { SKILLS } from '@/data/skills';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { initialInventory } from '@/state/slices/inventorySlice';
 import type { UnlockCondition } from '@/types';
+import { hasIcon } from '@/ui/iconRegistry';
 import {
   AIRCRAFT,
   ALL_ITEM_IDS,
@@ -170,6 +171,8 @@ describe('referências cruzadas', () => {
     expect(SOUVENIRS.map((s) => s.contractId).sort()).toEqual([...CONTRACT_IDS].sort());
     for (const souvenir of SOUVENIRS) {
       expect(Object.hasOwn(lucide, souvenir.icon), souvenir.icon).toBe(true);
+      // E registrado para o `NamedIcon` (senão aparece o ícone de reserva).
+      expect(hasIcon(souvenir.icon), souvenir.icon).toBe(true);
       expect(souvenir.story.length).toBeGreaterThan(20);
       expect(souvenir.color).toMatch(/^#[0-9a-f]{6}$/);
     }

@@ -50,6 +50,7 @@ test('Workstation → Processar leva ao processamento da missão pendente', asyn
   await page.keyboard.press('F9');
   await page.getByRole('button', { name: 'Workstation' }).click();
   await page.getByTestId('workstation-panel').getByRole('button', { name: 'Processar' }).click();
-  await expect(page.getByTestId('screen-name')).toHaveText('PROCESSING_RESULTS');
-  await expect(page.getByTestId('screen-payload')).toContainText('"inField":false');
+  await expect(page.getByTestId('processing-screen')).toBeVisible();
+  await expect(page.getByTestId('pipeline')).toBeVisible();
+  await expect(page.getByTestId('processing-header')).toContainText('Notebook Velho Lento');
 });

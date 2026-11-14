@@ -79,3 +79,11 @@
 - **Opções:** A) `PICKUP_4X4`, como no layout do mapa; B) `FOOT_BIKE`, abrindo uma passagem no cinturão.
 - **Padrão provisório:** A. O mapa e o teste de BFS (`MARKER_ACCESS`) tratam `e` como só 4x4. Ao criar a ficha de R05 (T059), usar `minVehicle = PICKUP_4X4`.
 - **Resolução:** —
+
+### OQ-010 — Roubo sem outro contrato jogável
+- **Aberta em:** 2026-11-14 por T025
+- **Contexto:** pela [progression §8](features/progression.md), uma falha crítica (fora do replay) faz a MegaMap roubar o contrato, que só volta depois de o jogador concluir **outro**. Na primeira tentativa do C00, não existe outro contrato: o C01 exige `CONTRACT_DONE(C00)`. O jogo travaria. O mesmo vale para qualquer roubo quando não há nenhum outro contrato disponível ou concluído (os concluídos podem ser repetidos).
+- **Opções:** A) não roubar quando não houver outro contrato jogável; B) isentar só o C00; C) devolver o contrato roubado depois de um tempo.
+- **Padrão provisório:** A (`canBeStolen` em `missionSlice`). Cobre o C00 e qualquer situação equivalente, sem mudar a regra no resto da campanha.
+- **Resolução:** —
+
