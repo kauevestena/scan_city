@@ -65,6 +65,7 @@ import {
   footprintCorners,
   inShotWindow,
   obliqueCorners,
+  shearCorners,
   MANUAL_COOLDOWN_S,
   realOverlapPct,
   recordShot,
@@ -359,11 +360,20 @@ export class FlightEngine implements Simulation {
     this.shots.push(shot);
     this.pending.push(shot);
     if (this.pending.length >= SHOT_BATCH) this.flushShots();
+    const base =
+      shot.tiltDeg > 0
+        ? obliqueCorners(this.frame, this.ac.s, this.ac.x, shot.aglM, shot.tiltDeg, this.camera)
+        : footprintCorners(this.frame, this.ac.s, this.ac.x, shot.footprintWM, shot.footprintHM);
+    // Rolling shutter com movimento lateral: o trapézio sai cisalhado pelo skew (em metros).
+    const lateral = Math.abs(this.ac.vLat + this.ac.drift) > 0.1 || this.phase === 'TURN';
+    const shearM = lateral
+      ? shot.skewPx * gsd(shot.aglM, this.camera.pitchM, this.camera.focalM)
+      : 0;
     this.footprints.push({
       corners:
-        shot.tiltDeg > 0
-          ? obliqueCorners(this.frame, this.ac.s, this.ac.x, shot.aglM, shot.tiltDeg, this.camera)
-          : footprintCorners(this.frame, this.ac.s, this.ac.x, shot.footprintWM, shot.footprintHM),
+        shearM > 0
+          ? shearCorners(base, this.frame, Math.sign(this.ac.vLat + this.ac.drift || 1) * shearM)
+          : base,
       bornS: this.sortieT,
     });
     if (!this.opts.reduceFlashes()) this.flashUntil = this.sortieT + FLASH_S;
@@ -742,6 +752,14 @@ export class FlightEngine implements Simulation {
       ),
     );
     const p = this.pRealPct();
+    // Queda iminente: AGL < 5 m e descendo, ou casco = 1 (crítico).
+    const pos = this.pos();
+    const agl = this.ac.alt - this.opts.terrain.elevation(pos.u, pos.v);
+    if ((agl < 5 && this.ac.vz < 0) || this.hull === 1) list.push(makeAlert('CRASH_IMMINENT'));
+    // Asa fixa no mínimo: o stall não é modelado, a velocidade só fica limitada.
+    if (this.aircraft.kind === 'FIXED_WING_VTOL' && this.ac.v <= this.aircraft.vMinMs + 0.05) {
+      list.push(makeAlert('MIN_SPEED'));
+    }
     if (this.rthRecommended()) list.push(makeAlert('RTH'));
     if (isDistracted(this.distraction)) list.push(makeAlert('ATLAS_DISTRACTED'));
     if (windAboveTolerance(this.opts.contract.wind, this.aircraft))

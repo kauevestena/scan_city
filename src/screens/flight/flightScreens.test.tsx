@@ -88,6 +88,28 @@ describe('FlightHud', () => {
     expect(screen.queryByTestId('hud-glitch')).not.toBeInTheDocument();
   });
 
+  it('mostra todas as leituras do snapshot e pulsa o contador de fotos (não com reduceFlashes)', () => {
+    const { rerender } = render(<FlightHud snap={snap({ rtk: 'FLOAT' })} />);
+    const hud = screen.getByTestId('flight-hud');
+    expect(hud).toHaveTextContent('RTK: FLOAT');
+    expect(hud).toHaveTextContent('ALT65 m');
+    expect(hud).toHaveTextContent('VEL10,4 m/s');
+    expect(hud).toHaveTextContent('VENTO1,2 m/s');
+    expect(hud).toHaveTextContent('GSD2,52 cm/px');
+    expect(hud).toHaveTextContent('p58 %');
+    expect(hud).toHaveTextContent('q60 %');
+    expect(hud).toHaveTextContent('BLUR0,2 px');
+    expect(screen.getByTestId('hud-photos')).toHaveClass('photo-pulse');
+    useGameStore.setState((s) => ({ settings: { ...s.settings, reduceFlashes: true } }));
+    rerender(<FlightHud snap={snap({ photos: 44 })} />);
+    expect(screen.getByTestId('hud-photos')).not.toHaveClass('photo-pulse');
+  });
+
+  it('a velocidade mínima da asa fixa aparece como alerta', () => {
+    render(<FlightHud snap={snap({ alerts: [makeAlert('MIN_SPEED')] })} />);
+    expect(screen.getByText('VELOCIDADE MÍNIMA')).toBeInTheDocument();
+  });
+
   it('LiDAR ativo: mostra a densidade total e a de solo', () => {
     render(
       <FlightHud snap={snap({ activeSensor: 'LIDAR', lidarDensity: 158, groundDensity: 17 })} />,

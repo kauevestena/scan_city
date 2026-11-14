@@ -299,6 +299,7 @@ export const STRINGS = {
       MOTION_BLUR: () => 'MOTION BLUR',
       LOW_LIGHT: () => 'POUCA LUZ: REDUZA A VELOCIDADE',
       OUT_OF_LANE: () => 'FORA DA FAIXA',
+      MIN_SPEED: () => 'VELOCIDADE MÍNIMA',
       RTK_FLOAT: () => 'RTK FLOAT — multipercurso GNSS',
       ATLAS_DISTRACTED: () => 'Atlas avistou sementes!',
     },

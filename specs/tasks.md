@@ -773,13 +773,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T034 · **REQs:** REQ-FLT-006, REQ-FLT-007, REQ-FLT-008, REQ-FLT-017, REQ-FLT-018
 - **Spec:** [survey-flight §5.8, §5.17](features/survey-flight.md)
 - **Aceite:**
-  - [ ] Os critérios 3 e 6 de [survey-flight §8](features/survey-flight.md).
-  - [ ] Disparo manual com cooldown.
-  - [ ] Rolling shutter com skew registrado e pegada cisalhada.
-  - [ ] Fila de alertas respeita a prioridade (máximo 2).
-  - [ ] HUD completo (todos os campos do snapshot).
+  - [x] Os critérios 3 e 6 de [survey-flight §8](features/survey-flight.md).
+  - [x] Disparo manual com cooldown.
+  - [x] Rolling shutter com skew registrado e pegada cisalhada.
+  - [x] Fila de alertas respeita a prioridade (máximo 2).
+  - [x] HUD completo (todos os campos do snapshot).
 - **Verificação:** `npx vitest run src/engines/flight src/screens/flight`
-- **Status:** ☐
+- **Notas de implementação:**
+  - A maior parte desta tarefa já existia desde T024 (disparo manual com cooldown, alertas de overlap, blur e pouca luz, fila de no máximo 2 por prioridade); entraram os testes dos critérios 3 (velocidade +30 % → `OVERLAP INSUFICIENTE`) e 6 (`reduceFlashes` sem overlay branco).
+  - Pegada cisalhada: com movimento lateral (ou em curva), a borda da frente do trapézio desloca `skewPx × GSD` (em metros) para o lado do movimento. O skew continua registrado em cada `Shot`: câmeras de obturador global, como a do Atlas, têm skew 0.
+  - Novos alertas: `CRASH_IMMINENT` (AGL < 5 m e descendo, ou casco = 1) e `MIN_SPEED` ("VELOCIDADE MÍNIMA", asa fixa no vMin; o stall não é modelado). O contador de fotos pulsa a cada disparo, exceto com `reduceFlashes`.
+  - O alerta `DETECTED` e os campos `detectedProgress` e `rings` do snapshot entram com os holofotes e os anéis (T036).
+- **Status:** ✅
 
 ### T036 — Aceleração de tempo e elementos de fenda
 - **Fase:** F3 · **Depende de:** T035 · **REQs:** REQ-FLT-023, REQ-FLT-024
@@ -1282,9 +1287,9 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-003 | Decolagem cinematográfica | [survey-flight](features/survey-flight.md) | T024 | ✅ |
 | REQ-FLT-004 | Controles de voo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T013, T024 | ✅ |
 | REQ-FLT-005 | Linhas como corridas | [survey-flight](features/survey-flight.md) | T024 | ✅ |
-| REQ-FLT-006 | Câmera RGB | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
-| REQ-FLT-007 | Sobreposição real e faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T035 | ☐ |
-| REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
+| REQ-FLT-006 | Câmera RGB | [survey-flight](features/survey-flight.md) | T024, T035 | ✅ |
+| REQ-FLT-007 | Sobreposição real e faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T035 | ✅ |
+| REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ✅ |
 | REQ-FLT-009 | Sensor LiDAR | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T012, T033 | ✅ |
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
@@ -1293,8 +1298,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
-| REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
-| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
+| REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ✅ |
+| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ✅ |
 | REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ✅ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |

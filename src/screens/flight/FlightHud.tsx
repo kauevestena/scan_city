@@ -203,7 +203,12 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
             </div>
           </div>
           <div className="flex flex-col gap-1 rounded-lg bg-slate-950/70 px-3 py-2">
-            <span data-testid="hud-photos">
+            {/* O contador pulsa a cada foto (a chave reinicia a animação). */}
+            <span
+              key={snap.photos}
+              data-testid="hud-photos"
+              className={reduceFlashes ? undefined : 'photo-pulse'}
+            >
               <Readout label={T.photos} value={`${snap.photos} / ${snap.photosPlanned}`} />
             </span>
             {snap.lidarDensity !== undefined && (

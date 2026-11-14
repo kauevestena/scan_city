@@ -115,6 +115,21 @@ export function footprintCorners(
 }
 
 /**
+ * Rolling shutter (§5.8): com movimento lateral, a pegada sai cisalhada — a borda da frente
+ * desloca `shearM` (o skew em metros) para o lado. `shearM = 0` devolve os cantos iguais.
+ */
+export function shearCorners(
+  corners: readonly AoiPoint[],
+  frame: Pick<RunFrame, 'right'>,
+  shearM: number,
+): AoiPoint[] {
+  // Os dois primeiros cantos são a borda da frente (a "última linha" lida pelo obturador).
+  return corners.map((c, i) =>
+    i < 2 ? { u: c.u + frame.right.u * shearM, v: c.v + frame.right.v * shearM } : c,
+  );
+}
+
+/**
  * Pegada oblíqua (domain-math §2.8): trapézio deslocado à frente da aeronave. A borda
  * próxima fica mais perto da câmera (mais estreita); a distante, mais larga.
  */

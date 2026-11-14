@@ -16,6 +16,7 @@ export type FlightAlertId =
   | 'MOTION_BLUR'
   | 'LOW_LIGHT'
   | 'OUT_OF_LANE'
+  | 'MIN_SPEED'
   | 'RTK_FLOAT'
   | 'ATLAS_DISTRACTED';
 
@@ -37,6 +38,7 @@ const PRIORITY: Readonly<Record<FlightAlertId, [number, FlightAlert['level']]>> 
   MOTION_BLUR: [6, 'warn'],
   LOW_LIGHT: [6, 'warn'],
   OUT_OF_LANE: [7, 'warn'],
+  MIN_SPEED: [7, 'warn'],
   RTK_FLOAT: [8, 'info'],
   ATLAS_DISTRACTED: [9, 'info'],
 };
