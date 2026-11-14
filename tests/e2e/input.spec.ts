@@ -39,8 +39,8 @@ test('os glyphs seguem o dispositivo escolhido na galeria', async ({ page }) => 
 });
 
 test('no escritório, Esc pausa e Esc de novo retoma', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByTestId('screen-name')).toHaveText('OFFICE');
+  await page.goto('/?debug=1&skipIntro=1');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
   await page.keyboard.press('Escape');
   const pause = page.getByRole('dialog', { name: 'Jogo pausado' });
   await expect(pause).toBeVisible();

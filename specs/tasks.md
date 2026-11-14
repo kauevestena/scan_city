@@ -444,10 +444,15 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. Workstation v1: só a aba Fila.
   5. A intro.
 - **Aceite:**
-  - [ ] Os critérios 1, 3 e 5 de [office §8](features/office.md), estes últimos restritos aos 4 hotspots.
-  - [ ] A TopBar mostra saldo, nível/XP, reputação e renda (0).
+  - [x] Os critérios 1, 3 e 5 de [office §8](features/office.md), estes últimos restritos aos 4 hotspots.
+  - [x] A TopBar mostra saldo, nível/XP, reputação e renda (0).
 - **Verificação:** `npx vitest run src/screens/office src/app` · E2E `office.spec.ts` (intro → porta).
-- **Status:** ☐
+- **Notas de implementação:**
+  - A TopBar é montada pelo `App` acima do `ScreenRouter` nas 4 telas de REQ-UI-003, inclusive nas que ainda usam o shell.
+  - Com o escritório real, o painel de depuração passa a abrir com **F9** (`DebugOverlay`, só com `?debug=1`). Nas telas servidas pelo shell, continua embutido.
+  - A mesa holográfica do escritório mostra, por enquanto, um relevo de linhas animadas; o mini-render do museu com o `soft3d` entra em T026.
+  - A navegação espacial segue input §5 à risca: no layout da sala, da Mesa a seta → leva ao Laboratório (mais próximo na diagonal) e, do Laboratório, ← leva à Mesa. Os 4 hotspots são alcançáveis a partir da Porta (E2E com busca em largura pelas setas).
+- **Status:** ✅
 
 ### T021 — Mapa-múndi v1
 - **Fase:** F2 · **Depende de:** T020 · **REQs:** REQ-WLD-001, REQ-WLD-002 (*parc.*: a pé), REQ-WLD-003 (*parc.*), REQ-WLD-007
@@ -1132,16 +1137,16 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ☐ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
-| REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ☐ |
+| REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ☐ |
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ☐ |
-| REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ☐ |
+| REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ☐ |
 | REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ☐ |
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ☐ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
-| REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ☐ |
+| REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ☐ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ☐ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ☐ |

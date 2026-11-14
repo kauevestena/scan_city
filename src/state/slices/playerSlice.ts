@@ -51,6 +51,8 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
   flags: initialFlags(),
   souvenirs: [],
 
+  setFlags: (flags) => set((s) => ({ flags: { ...s.flags, ...flags } })),
+
   earn: (amount, reason) => {
     const cents = Math.max(0, Math.round(amount));
     set((s) => ({

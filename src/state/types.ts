@@ -77,6 +77,7 @@ export interface SessionActions {
 }
 
 export interface PlayerActions {
+  setFlags: (flags: Partial<SaveGame['flags']>) => void;
   earn: (amount: CentsBRL, reason: string) => void;
   /** Debita se houver saldo; senão, não altera nada, avisa e retorna `false`. */
   spend: (amount: CentsBRL, reason: string) => boolean;

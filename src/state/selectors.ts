@@ -1,4 +1,6 @@
-import type { ContractStatus, MissionData, ScreenId, VehicleId } from '@/types';
+import { museumIncomePerMin } from '@/domain/museum';
+import { applyModifiers } from '@/domain/modifiers';
+import type { ContractStatus, MissionData, ModifierSet, ScreenId, VehicleId } from '@/types';
 import type { GameData } from './types';
 
 export const selectScreen = (s: GameData): ScreenId => s.session.screen;
@@ -32,3 +34,19 @@ export const selectContractIdsByStatus =
     }
     return lastIds;
   };
+
+let lastSkills: readonly string[] | null = null;
+let lastModifiers: ModifierSet | null = null;
+
+/** Modificadores das habilidades, memoizados pela identidade de `skills`. */
+export const selectModifiers = (s: GameData): ModifierSet => {
+  if (s.skills !== lastSkills || lastModifiers === null) {
+    lastSkills = s.skills;
+    lastModifiers = applyModifiers(s.skills);
+  }
+  return lastModifiers;
+};
+
+/** Renda do museu em centavos por minuto (pode ser fracionária). */
+export const selectMuseumIncome = (s: GameData): number =>
+  museumIncomePerMin(s.museum.sectors, s.museum.featured, selectModifiers(s).museumVisitors);

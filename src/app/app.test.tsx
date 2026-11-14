@@ -22,29 +22,40 @@ afterEach(() => {
   resetDebugFlagsCache();
 });
 
+/** Jogo já apresentado: sem a intro por cima do escritório. */
+function skipIntro() {
+  useGameStore.getState().setFlags({ introSeen: true });
+}
+
 describe('App + ScreenRouter', () => {
-  it('abre no escritório, servido pelo shell enquanto a tela não existe', () => {
+  it('abre no escritório real, com a barra superior', () => {
+    skipIntro();
     open('/');
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('OFFICE');
-    expect(screen.getByTestId('screen-payload')).toHaveTextContent('null');
-    expect(screen.getAllByRole('button', { name: /^T\d+ →/ })).toHaveLength(4);
+    expect(screen.getByTestId('office-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
   });
 
-  it('navega pelo shell: OFFICE → WORLD_MAP → FIELD_SETUP → SURVEY_FLIGHT', () => {
-    open('/');
-    fireEvent.click(screen.getByRole('button', { name: 'T1 → WORLD_MAP' }));
+  it('telas sem implementação usam o shell; a barra superior segue a tela', () => {
+    open('/?debug=1&screen=WORLD_MAP');
     expect(screen.getByTestId('screen-name')).toHaveTextContent('WORLD_MAP');
+    expect(screen.getByTestId('top-bar')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'T6 → FIELD_SETUP' }));
     expect(screen.getByTestId('screen-payload')).toHaveTextContent(
       '{"contractId":"C00","rivalAdjustment":1}',
     );
+    expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'T8 → SURVEY_FLIGHT' }));
     expect(get().session.screen).toBe('SURVEY_FLIGHT');
     expect(screen.getAllByRole('button', { name: /^T\d+ →/ })).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'T10 → WORLD_MAP' }));
+    skipIntro();
+    fireEvent.click(screen.getByRole('button', { name: 'T5 → OFFICE' }));
+    expect(screen.getByTestId('office-screen')).toBeInTheDocument();
   });
 
   it('as ações rápidas dão dinheiro e geram missão pendente', () => {
-    open('/');
+    open('/?debug=1&screen=WORLD_MAP');
     fireEvent.click(screen.getByRole('button', { name: /^\+ R\$/ }));
     expect(get().player.money).toBe(1_500_000);
     expect(screen.getByTestId('debug-money').textContent?.replace(/\s/g, ' ')).toBe(
@@ -54,13 +65,30 @@ describe('App + ScreenRouter', () => {
     expect(get().mission.pending).toHaveLength(1);
   });
 
+  it('F9 abre o painel de depuração sobre as telas reais (só com ?debug=1)', () => {
+    skipIntro();
+    const { unmount } = open('/?debug=1');
+    expect(screen.queryByTestId('debug-overlay')).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'F9' });
+    expect(screen.getByTestId('debug-overlay')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'T3 → INFOGRAPHIC_LAB' }));
+    // No shell, o painel embutido substitui o flutuante.
+    expect(screen.queryByTestId('debug-overlay')).not.toBeInTheDocument();
+    expect(screen.getByTestId('screen-name')).toHaveTextContent('INFOGRAPHIC_LAB');
+    unmount();
+    open('/');
+    fireEvent.keyDown(window, { key: 'F9' });
+    expect(screen.queryByTestId('debug-overlay')).not.toBeInTheDocument();
+  });
+
   it('?debug=1&screen=UIKIT abre a galeria; sem debug, o parâmetro é ignorado', () => {
     const { unmount } = open('/?debug=1&screen=UIKIT');
     expect(screen.getByRole('heading', { name: 'Kit de UI' })).toBeInTheDocument();
     unmount();
+    skipIntro();
     open('/?screen=UIKIT');
     expect(screen.queryByRole('heading', { name: 'Kit de UI' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('OFFICE');
+    expect(screen.getByTestId('office-screen')).toBeInTheDocument();
   });
 
   it('?debug=1&screen=X abre a tela pedida', () => {
@@ -70,6 +98,7 @@ describe('App + ScreenRouter', () => {
   });
 
   it('os toasts da store aparecem na tela', () => {
+    skipIntro();
     open('/');
     act(() => {
       get().pushToast({ type: 'success', title: 'Novo contrato: Sítio do Avô' });
@@ -114,6 +143,8 @@ describe('InputDriver', () => {
 });
 
 describe('PauseOverlay', () => {
+  beforeEach(() => skipIntro());
+
   it('Esc abre a pausa e congela session.paused; Continuar retoma', () => {
     open('/');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

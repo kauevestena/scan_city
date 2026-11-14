@@ -110,6 +110,34 @@ export const STRINGS = {
     levelUp: (level: number) => `Nível ${level}! +1 ponto de habilidade`,
     reputationBands: ['Desconhecida', 'Promissora', 'Respeitada', 'Referência', 'Lendária'],
   },
+  topBar: {
+    company: 'GeoSurvey',
+    level: (n: number) => `Nív. ${n}`,
+    xp: (xp: number, next: number) => `${xp} / ${next} XP`,
+    reputation: 'Reputação',
+    museumIncome: (value: string) => `${value}/min`,
+    museumLabel: 'Renda do museu',
+    dimensions: { REAL: 'Mundo Real', RIFT: 'Fendas' },
+    pause: 'Pausar',
+  },
+  office: {
+    title: 'Sede da GeoSurvey',
+    introTitle: 'Uma carta na mesa',
+    pendingToast: (n: number) =>
+      n === 1
+        ? 'Há 1 missão aguardando processamento na Workstation'
+        : `Há ${n} missões aguardando processamento na Workstation`,
+    close: 'Fechar painel',
+    workstation: {
+      title: 'Workstation',
+      queueTab: 'Fila de Processamento',
+      empty: 'Nenhuma missão na fila. Voe um contrato e traga os dados para cá.',
+      photos: (n: number) => `${n} fotos`,
+      pulses: (n: string) => `${n} pulsos`,
+      estimate: (time: string) => `Tempo estimado: ${time}`,
+      process: 'Processar',
+    },
+  },
   pause: {
     title: 'Jogo pausado',
     resume: 'Continuar',
