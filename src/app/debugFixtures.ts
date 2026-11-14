@@ -2,6 +2,8 @@ import { findTransition, type TransitionDef } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import type { GameStore, ScreenPayload } from '@/state/types';
 import type { FlightLine, FlightPlan, MissionData, MuseumSector, ScreenId, Shot } from '@/types';
+import { AIRCRAFT, FIELD_EQUIPMENT, LENSES, PAYLOADS, SENSORS, VEHICLES } from '@/data/catalog';
+import { COSMETICS } from '@/data/cosmetics';
 import type { DebugFlags } from './debugFlags';
 
 /**
@@ -253,6 +255,20 @@ export function applyDebugFlags(flags: DebugFlags, store: Store = useGameStore):
     patch.player = { ...state.player, money: Math.max(0, Math.round(flags.money * 100)) };
   }
   if (flags.skipIntro) patch.flags = { ...state.flags, introSeen: true };
+  if (flags.unlockAll) {
+    // Todos os itens possuídos; os contratos são liberados em T022, com o catálogo de contratos.
+    patch.inventory = {
+      ...state.inventory,
+      aircraft: AIRCRAFT.map((a) => a.id),
+      sensors: [...new Set([...state.inventory.sensors, ...SENSORS.map((s) => s.id)])],
+      lenses: LENSES.map((l) => l.id),
+      payloads: PAYLOADS.map((p) => p.id),
+      vehicles: VEHICLES.map((v) => v.id),
+      fieldEquipment: FIELD_EQUIPMENT.map((f) => f.id),
+      hardware: 'CLOUD',
+      cosmetics: COSMETICS.map((c) => c.id),
+    };
+  }
   if (Object.keys(patch).length > 0) store.setState(patch);
 
   if (flags.screen !== null && flags.screen !== 'UIKIT' && flags.screen !== 'SOUNDBOARD') {

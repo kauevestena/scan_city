@@ -250,12 +250,12 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. Escrever as histórias dos souvenirs (1–2 frases).
   3. Criar os testes de integridade.
 - **Aceite:**
-  - [ ] IDs únicos.
-  - [ ] Toda referência cruzada existe: `compatibleAircraft`, `compatibleSensors`, `rgbSensorId`, `requires` das skills, cosméticos com `unlock` válido.
-  - [ ] Pixel pitch calculado bate com a coluna "Pixel (µm)" (tolerância de 0,5 %).
-  - [ ] Cada ramo de skills tem 4 nós que somam 6 pontos.
+  - [x] IDs únicos.
+  - [x] Toda referência cruzada existe: `compatibleAircraft`, `compatibleSensors`, `rgbSensorId`, `requires` das skills, cosméticos com `unlock` válido.
+  - [x] Pixel pitch calculado bate com a coluna "Pixel (µm)" (tolerância de 0,5 %).
+  - [x] Cada ramo de skills tem 4 nós que somam 6 pontos.
 - **Verificação:** `npx vitest run src/data`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T011 — Fotogrametria
 - **Fase:** F1 · **Depende de:** T010 · **REQs:** REQ-FLD-007 (*parc.*), REQ-FLT-008 (*parc.*), REQ-FLT-017 (*parc.*), REQ-LAB-005 (*parc.*)

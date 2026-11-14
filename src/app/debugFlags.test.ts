@@ -80,6 +80,18 @@ describe('applyDebugFlags', () => {
     });
   });
 
+  it('unlockAll dá todos os itens do catálogo', () => {
+    applyDebugFlags(parseDebugFlags('?debug=1&unlockAll=1'));
+    const { inventory } = get();
+    expect(inventory.aircraft).toEqual(['ATLAS', 'DRONE_T1', 'DRONE_T2', 'VTOL_T3']);
+    expect(inventory.vehicles).toContain('LAB_VAN');
+    expect(inventory.payloads).toEqual(['POD_LIDAR']);
+    expect(inventory.fieldEquipment).toEqual(['TOTAL_STATION', 'GNSS_RTK_KIT']);
+    expect(inventory.hardware).toBe('CLOUD');
+    expect(inventory.sensors).toContain('CAM_THERMAL');
+    expect(inventory.cosmetics).toContain('CHAR_GRANDPA_HAT');
+  });
+
   it('as galerias não mexem na tela do jogo', () => {
     applyDebugFlags(parseDebugFlags('?debug=1&screen=UIKIT'));
     expect(get().session.screen).toBe('OFFICE');
