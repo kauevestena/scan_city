@@ -702,14 +702,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T030 · **REQs:** REQ-FLT-014, REQ-FLT-019
 - **Spec:** [survey-flight §5.12](features/survey-flight.md), [architecture §2 (T16)](design/architecture.md)
 - **Aceite:**
-  - [ ] O critério 5 de [survey-flight §8](features/survey-flight.md).
-  - [ ] RTH com confirmação e timeout.
-  - [ ] "Nova surtida" retoma na 1ª linha incompleta e consome a bateria reserva.
-  - [ ] Sem reservas, o botão some.
-  - [ ] T16 "Tentar de novo" funciona sem dados.
-  - [ ] O plano C05 (2 baterias) é completável com autopilot em 2 surtidas.
+  - [x] O critério 5 de [survey-flight §8](features/survey-flight.md).
+  - [x] RTH com confirmação e timeout.
+  - [x] "Nova surtida" retoma na 1ª linha incompleta e consome a bateria reserva.
+  - [x] Sem reservas, o botão some.
+  - [x] T16 "Tentar de novo" funciona sem dados.
+  - [x] O plano C05 (2 baterias) é completável com autopilot em 2 surtidas.
 - **Verificação:** `npx vitest run src/engines/flight` · E2E `flight-sorties.spec.ts`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - RTH: o 1º `R` abre a confirmação (3 s, "Retornar à base? [R] confirmar / [Esc] cancelar" no HUD); o 2º dentro da janela inicia `RETURNING` (3 s, sobe) e a surtida termina `RTH`, com os dados mantidos e a linha corrente incompleta. O Esc cancela e também pausa (no contexto `FLIGHT` o Esc não tem `UI_BACK`).
+  - A "base" para a distância de volta é o início da primeira linha do plano. O limiar é o de `rthRequired` (energia < máx(20 %, 1,2 × tempo de volta × dreno de cruzeiro)); o bip `RTH_BEEP` toca a cada 1,5 s enquanto durar.
+  - "Nova surtida" (`canStartNewSortie`): linhas incompletas e, para multirrotor e asa fixa, bateria sobrando (`1 + reservas − surtidas`); para o Atlas, milho em estoque (a ação enche o papo). O voo é remontado com um engine novo, que começa na 1ª linha incompleta, com os disparos continuando do índice anterior.
+  - O consumo de milho durante o voo do Atlas (e o papo como energia inicial) é de T032: aqui a energia de toda surtida começa em 100 %.
+  - O plano do C05 (2 baterias) só existe em T054; o critério foi coberto com o DRONE_T1 e a resistência reduzida a 30 % por modificador: o autopilot completa as 6 linhas do C00 em 2 surtidas (`RTH` + `COMPLETED`). O autopilot confirma o RTH e a nova surtida sozinho.
+  - `flight-sorties.spec.ts` usa o Atlas (milho em estoque), sem autopilot.
+- **Status:** ✅
 
 ### T032 — Comportamento de Atlas
 - **Fase:** F3 · **Depende de:** T031 · **REQs:** REQ-FLT-015, REQ-PRG-013 (*parc.*: consumo de milho em voo)
@@ -1265,12 +1272,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |
-| REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ☐ |
+| REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ☐ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ☐ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
 | REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
-| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ☐ |
+| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ✅ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |

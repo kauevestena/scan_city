@@ -73,6 +73,8 @@ export interface FlightHudSnapshot {
   cornLeft?: number;
   timeLeftS: number;
   rthAlert: boolean;
+  /** Confirmação do RTH aberta (3 s). */
+  rthConfirm: boolean;
   /** Interferência EM: glitch de scanlines no HUD. */
   emGlitch: boolean;
   hull: number;

@@ -151,6 +151,16 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
               {T.alerts[a.id](a.value)}
             </span>
           ))}
+          {snap.rthConfirm && (
+            <span
+              className="flex items-center gap-2 rounded-md border border-amber-400 bg-slate-950/90 px-3 py-1 text-sm text-amber-100"
+              data-testid="hud-rth-confirm"
+            >
+              {T.rthConfirm}
+              <InputGlyph action="RTH" label={T.rthConfirmKeys} />
+              <InputGlyph action="PAUSE" label={T.rthCancelKeys} />
+            </span>
+          )}
           {phaseLabel && (
             <span
               className="font-mono text-xs tracking-widest text-cyan-300"

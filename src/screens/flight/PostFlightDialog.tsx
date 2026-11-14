@@ -1,7 +1,9 @@
-import { Inbox, RotateCcw, Trash2, Truck } from 'lucide-react';
+import { Inbox, Repeat, RotateCcw, Trash2, Truck } from 'lucide-react';
 import { useState } from 'react';
 import { STRINGS } from '@/data/strings';
 import type { SortieResult } from '@/engines/flight/FlightEngine';
+import { getAircraft } from '@/data/catalog';
+import { canStartNewSortie } from '@/domain/sorties';
 import { formatDuration, formatPct } from '@/lib/format';
 import { useGameStore } from '@/state/store';
 import { Button, ConfirmDialog, Modal, Stat } from '@/ui';
@@ -12,17 +14,33 @@ export interface PostFlightDialogProps {
   result: SortieResult;
   totalLines: number;
   energyLeft: number;
+  /** Chamado depois de `startNewSortie` na store, para remontar o voo. */
+  onNewSortie?: () => void;
 }
 
 /** Pós-voo (survey-flight §5.12): resumo e destino dos dados. "Nova surtida" entra em T031. */
-export function PostFlightDialog({ result, totalLines, energyLeft }: PostFlightDialogProps) {
+export function PostFlightDialog({
+  result,
+  totalLines,
+  energyLeft,
+  onNewSortie,
+}: PostFlightDialogProps) {
   const mission = useGameStore((s) => s.mission.active);
   const hasVan = useGameStore((s) => s.inventory.vehicles.includes('LAB_VAN'));
+  const inventory = useGameStore((s) => s.inventory);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   if (!mission) return null;
   const hasData = mission.shots.length > 0;
+  const newSortieOk = canStartNewSortie(
+    mission,
+    getAircraft(mission.plan.params.aircraftId),
+    inventory,
+  );
   const lost = result.outcome === 'CRASH' || result.outcome === 'ENERGY_DEPLETED';
 
+  const newSortie = () => {
+    if (useGameStore.getState().startNewSortie()) onNewSortie?.();
+  };
   const take = () => {
     const { queueActive, goTo } = useGameStore.getState();
     queueActive();
@@ -49,6 +67,11 @@ export function PostFlightDialog({ result, totalLines, energyLeft }: PostFlightD
       {!hasData && (
         <Button icon={RotateCcw} onClick={retry}>
           {P.retry}
+        </Button>
+      )}
+      {newSortieOk && (
+        <Button icon={Repeat} onClick={newSortie} data-testid="post-new-sortie">
+          {P.newSortie}
         </Button>
       )}
       {hasData && hasVan && (

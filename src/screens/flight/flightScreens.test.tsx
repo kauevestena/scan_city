@@ -31,6 +31,7 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     timeLeftS: 1112,
     rthAlert: false,
     emGlitch: false,
+    rthConfirm: false,
     hull: 2,
     hullMax: 3,
     rtk: 'NONE',
@@ -146,6 +147,46 @@ describe('PostFlightDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /Processar agora/ }));
     expect(get().session.screen).toBe('PROCESSING_RESULTS');
     expect(get().session.payload).toMatchObject({ inField: true });
+  });
+
+  it('Nova surtida: com linhas incompletas e milho em estoque (Atlas), enche o papo; sem estoque, some', () => {
+    withMission(true);
+    useGameStore.setState((s) => ({
+      mission: {
+        ...s.mission,
+        active: {
+          ...(s.mission.active as NonNullable<typeof s.mission.active>),
+          completedLines: [0, 1],
+          sorties: [{ index: 0, outcome: 'RTH', durationS: 50 }],
+        },
+      },
+      inventory: { ...s.inventory, corn: { stock: 15, crop: 4 } },
+    }));
+    const onNew = vi.fn();
+    const { unmount } = render(
+      <PostFlightDialog
+        result={{ ...result, outcome: 'RTH', completedLines: [0, 1] }}
+        totalLines={6}
+        energyLeft={0.2}
+        onNewSortie={onNew}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('post-new-sortie'));
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(get().inventory.corn).toEqual({ stock: 9, crop: 10 });
+    expect(get().mission.active?.status).toBe('IN_FLIGHT');
+    unmount();
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, corn: { stock: 0, crop: 10 } } }));
+    render(
+      <PostFlightDialog result={{ ...result, outcome: 'RTH' }} totalLines={6} energyLeft={0.2} />,
+    );
+    expect(screen.queryByTestId('post-new-sortie')).not.toBeInTheDocument();
+    expect(get().startNewSortie()).toBe(false);
+  });
+
+  it('RTH: a confirmação aparece no HUD com os glyphs', () => {
+    render(<FlightHud snap={snap({ rthConfirm: true })} />);
+    expect(screen.getByTestId('hud-rth-confirm')).toHaveTextContent('Retornar à base?');
   });
 
   it('sem dados: só "Abandonar" e "Tentar de novo" (T16 volta ao planejamento)', () => {

@@ -135,6 +135,11 @@ export interface MissionActions {
    * esgotada, descarta os disparos desta surtida. Atualiza as estatísticas.
    */
   endSortie: (result: SortieReport) => void;
+  /**
+   * "Nova surtida" (survey-flight §5.12): com o Atlas, o papo enche com o estoque; a troca de
+   * bateria é só contar a surtida. Devolve `false` se não houver energia reserva.
+   */
+  startNewSortie: () => boolean;
   /** "Tentar de novo": a missão sem dados volta ao planejamento. */
   resumePlanning: () => void;
   /**

@@ -58,6 +58,7 @@ function createEngine(
     onShots: (batch) => useGameStore.getState().appendShots(batch),
     onShutter: () => AudioEngine.get().play('SHUTTER'),
     onCollision: () => AudioEngine.get().play('CRASH'),
+    onRthBeep: () => AudioEngine.get().play('RTH_BEEP'),
     onRtkChange: (status) => {
       if (status === 'FLOAT') {
         useGameStore
@@ -82,7 +83,13 @@ function createEngine(
 export function SurveyFlightScreen() {
   const mission = useGameStore((s) => s.mission.active);
   if (!mission || mission.status !== 'IN_FLIGHT') return <NoFlight />;
-  return <Flight mission={mission} />;
+  return <FlightHost mission={mission} />;
+}
+
+/** Uma nova surtida remonta o voo (engine novo); o resto da tela segue igual. */
+function FlightHost({ mission }: { mission: MissionData }) {
+  const [attempt, setAttempt] = useState(0);
+  return <Flight key={attempt} mission={mission} onNewSortie={() => setAttempt((n) => n + 1)} />;
 }
 
 function NoFlight() {
@@ -102,7 +109,7 @@ function NoFlight() {
   );
 }
 
-function Flight({ mission }: { mission: MissionData }) {
+function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: () => void }) {
   useInputContext('FLIGHT');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const surface = useCanvas(canvasRef);
@@ -115,7 +122,11 @@ function Flight({ mission }: { mission: MissionData }) {
   useEffect(
     () =>
       InputManager.get().onAction((e) => {
-        if (e.action === 'FIRE' && !useGameStore.getState().session.paused) engine.manualShot();
+        if (useGameStore.getState().session.paused) return;
+        if (e.action === 'FIRE') engine.manualShot();
+        else if (e.action === 'RTH') engine.requestRth();
+        // O Esc cancela a confirmação do RTH (e também pausa).
+        else if (e.action === 'PAUSE') engine.cancelRth();
       }),
     [engine],
   );
@@ -124,13 +135,19 @@ function Flight({ mission }: { mission: MissionData }) {
   useEffect(() => {
     if (!autopilot || !result) return;
     const timer = window.setTimeout(() => {
-      const { mission: m, queueActive, goTo } = useGameStore.getState();
-      if (!m.active || m.active.shots.length === 0) return;
+      const { mission: m, queueActive, goTo, startNewSortie } = useGameStore.getState();
+      if (!m.active) return;
+      // Com linhas incompletas e energia reserva, segue para outra surtida.
+      if (startNewSortie()) {
+        onNewSortie();
+        return;
+      }
+      if (m.active.shots.length === 0) return;
       queueActive();
       goTo('WORLD_MAP', { outcome: 'QUEUED' });
     }, AUTOPILOT_CONFIRM_MS);
     return () => window.clearTimeout(timer);
-  }, [autopilot, result]);
+  }, [autopilot, result, onNewSortie]);
 
   useGameLoop(
     () => {
@@ -157,6 +174,7 @@ function Flight({ mission }: { mission: MissionData }) {
       <TutorialHint step={3} className="absolute top-28 left-1/2 -translate-x-1/2" />
       {result && (
         <PostFlightDialog
+          onNewSortie={onNewSortie}
           result={result}
           totalLines={mission.plan.lines.length}
           energyLeft={engine.energy}

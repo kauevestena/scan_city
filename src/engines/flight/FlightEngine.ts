@@ -4,7 +4,7 @@
  * store recebe os eventos pelos callbacks.
  */
 import type { Catalog } from '@/data/catalog';
-import { drainPerSecond } from '@/domain/energy';
+import { drainPerSecond, rthRequired } from '@/domain/energy';
 import {
   crabAngleRad,
   thermalLiftMs,
@@ -81,6 +81,10 @@ export const TAKEOFF_S = 2.5;
 export const LANDING_S = 2;
 export const TURN_PRESENT_MAX_S = 2.5;
 export const FLASH_S = 0.08;
+export const RETURNING_S = 3;
+/** Janela para confirmar o RTH (survey-flight §5.12). */
+export const RTH_CONFIRM_S = 3;
+export const RTH_BEEP_S = 1.5;
 /** Lote de disparos enviados ao store (§6). */
 export const SHOT_BATCH = 10;
 /** Suavização do X da câmera por quadro (a 60 FPS). */
@@ -123,6 +127,8 @@ export interface FlightEngineOptions {
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
   onCollision?: () => void;
+  /** Bip de RTH recomendado (a cada 1,5 s). */
+  onRthBeep?: () => void;
   /** O status RTK mudou (toast "RTK FLOAT — multipercurso GNSS"). */
   onRtkChange?: (status: RtkStatus) => void;
   onCrash?: () => void;
@@ -196,6 +202,8 @@ export class FlightEngine implements Simulation {
   private readonly em: boolean;
   private emHeading = 0;
   private lastRtk: RtkStatus = 'NONE';
+  private rthConfirmUntil = -1;
+  private rthBeepAt = 0;
   private ended = false;
 
   constructor(private readonly opts: FlightEngineOptions) {
@@ -366,6 +374,14 @@ export class FlightEngine implements Simulation {
     this.sortieT += dtS;
     this.manualCooldown = Math.max(0, this.manualCooldown - dtS);
     this.weather?.update(dtS, this.crossWind, this.sortieT);
+    if (this.phase === 'RUN' && this.rthRecommended()) {
+      if (this.sortieT >= this.rthBeepAt) {
+        this.rthBeepAt = this.sortieT + RTH_BEEP_S;
+        this.opts.onRthBeep?.();
+      }
+      // O autopilot de depuração pede e confirma o RTH sozinho.
+      if (this.opts.autopilot) this.requestRth();
+    }
     this.invulnerableS = Math.max(0, this.invulnerableS - dtS);
     this.shakeS = Math.max(0, this.shakeS - dtS);
     this.updateWind();
@@ -390,6 +406,13 @@ export class FlightEngine implements Simulation {
         const ground = this.elevationAt(this.ac.s, this.ac.x) + 1;
         this.ac = { ...this.ac, alt: lerp(this.ac.alt, ground, k) };
         if (k >= 1) this.endSortie('COMPLETED');
+        break;
+      }
+      case 'RETURNING': {
+        // Sobe e faz a curva de volta; a surtida termina como RTH com os dados mantidos.
+        this.drain(dtS);
+        this.ac = { ...this.ac, alt: this.ac.alt + 4 * dtS };
+        if (this.phaseT >= RETURNING_S) this.endSortie('RTH');
         break;
       }
       case 'CRASHED':
@@ -537,6 +560,50 @@ export class FlightEngine implements Simulation {
     this.publish(true);
   }
 
+  /**
+   * `RTH`: o primeiro acionamento abre a confirmação (3 s); o segundo dentro da janela
+   * inicia o retorno. Devolve o estado resultante.
+   */
+  requestRth(): 'IGNORED' | 'ASK' | 'CONFIRMED' {
+    if (this.phase !== 'RUN') return 'IGNORED';
+    if (this.sortieT < this.rthConfirmUntil) {
+      this.rthConfirmUntil = -1;
+      this.setPhase('RETURNING');
+      return 'CONFIRMED';
+    }
+    this.rthConfirmUntil = this.sortieT + RTH_CONFIRM_S;
+    return 'ASK';
+  }
+
+  cancelRth(): void {
+    this.rthConfirmUntil = -1;
+  }
+
+  get rthConfirming(): boolean {
+    return this.phase === 'RUN' && this.sortieT < this.rthConfirmUntil;
+  }
+
+  /** Posição de casa: o início da primeira linha do plano. */
+  private distanceHomeM(): number {
+    const home = this.opts.mission.plan.lines[0]?.start ?? { u: 0, v: 0 };
+    const p = this.pos();
+    return Math.hypot(p.u - home.u, p.v - home.v);
+  }
+
+  /** Energia restante abaixo da necessária para voltar × 1,2, ou de 20 % (domain-math §7). */
+  rthRecommended(): boolean {
+    const drainCruise = drainPerSecond({
+      enduranceS: this.aircraft.enduranceS,
+      enduranceMod: this.opts.mods.endurance,
+      speedMs: this.aircraft.vCruiseMs,
+      vCruiseMs: this.aircraft.vCruiseMs,
+      windMs: 0,
+      climbing: false,
+      blizzard: false,
+    });
+    return rthRequired(this.energy, this.distanceHomeM(), this.aircraft.vCruiseMs, drainCruise);
+  }
+
   /** Abandono imediato (sem dados válidos desta surtida). */
   abort(): void {
     this.endSortie('ABORTED');
@@ -555,6 +622,7 @@ export class FlightEngine implements Simulation {
       ),
     );
     const p = this.pRealPct();
+    if (this.rthRecommended()) list.push(makeAlert('RTH'));
     if (windAboveTolerance(this.opts.contract.wind, this.aircraft))
       list.push(makeAlert('WIND_LIMIT'));
     if (p !== null && p < minP) list.push(makeAlert('OVERLAP', Math.round(p)));
@@ -605,7 +673,8 @@ export class FlightEngine implements Simulation {
       energy: this.energy,
       energyUnit: this.aircraft.energyUnit,
       timeLeftS: this.energy / drainCruise,
-      rthAlert: false,
+      rthAlert: this.phase === 'RUN' && this.rthRecommended(),
+      rthConfirm: this.rthConfirming,
       emGlitch: this.em,
       hull: Math.max(0, this.hull),
       hullMax: this.aircraft.hull,

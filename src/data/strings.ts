@@ -280,6 +280,9 @@ export const STRINGS = {
     photos: 'FOTOS',
     blur: 'BLUR',
     minimap: 'Minimapa do voo',
+    rthConfirm: 'Retornar à base?',
+    rthConfirmKeys: 'confirmar',
+    rthCancelKeys: 'cancelar',
     hints: { photo: 'foto manual', rth: 'RTH', pause: 'pausa' },
     alerts: {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
@@ -309,6 +312,7 @@ export const STRINGS = {
       time: 'Tempo de voo',
       energyLeft: 'Energia restante',
       collisions: 'Colisões',
+      newSortie: 'Nova surtida',
       process: 'Processar agora',
       take: 'Levar dados ao escritório',
       abandon: 'Abandonar missão',

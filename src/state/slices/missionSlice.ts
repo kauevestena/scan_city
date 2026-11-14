@@ -5,6 +5,7 @@ import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
 import { gcpSigma } from '@/domain/accuracy';
 import { sectorIncomePerMin } from '@/domain/museum';
+import { canStartNewSortie, feedCrop } from '@/domain/sorties';
 import { addXp } from '@/domain/progression';
 import { getContract } from '@/data/contracts';
 import { buildFlightPlan, defaultPlanParams } from '@/domain/flightPlanner';
@@ -156,6 +157,23 @@ export const createMissionSlice: StateCreator<
       flightTimeS: result.durationS,
       crashes: result.outcome === 'CRASH' ? 1 : 0,
     });
+  },
+
+  startNewSortie: () => {
+    const { mission, inventory } = get();
+    const active = mission.active;
+    if (!active) return false;
+    const aircraft = getAircraft(active.plan.params.aircraftId);
+    if (!canStartNewSortie(active, aircraft, inventory)) return false;
+    if (aircraft.energyUnit === 'CORN') {
+      set((s) => ({ inventory: { ...s.inventory, corn: feedCrop(s.inventory.corn) } }));
+    }
+    set((s) =>
+      s.mission.active
+        ? { mission: { ...s.mission, active: { ...s.mission.active, status: 'IN_FLIGHT' } } }
+        : s,
+    );
+    return true;
   },
 
   resumePlanning: () =>
