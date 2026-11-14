@@ -9,6 +9,8 @@ export default mergeConfig(
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
+      // O teste de tokens lê index.css como texto (`?raw`).
+      css: true,
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],

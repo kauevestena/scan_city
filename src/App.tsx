@@ -1,7 +1,9 @@
 import { Radar } from 'lucide-react';
+import { UiKitGallery } from '@/app/UiKitGallery';
 import { STRINGS } from '@/data/strings';
+import { ToastHost } from '@/ui';
 
-export function App() {
+function BootScreen() {
   return (
     <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 overflow-hidden bg-slate-950 text-slate-100 select-none">
       <Radar size={48} strokeWidth={1.75} className="text-cyan-400" aria-hidden />
@@ -11,5 +13,15 @@ export function App() {
         {STRINGS.app.version(__APP_VERSION__)}
       </p>
     </div>
+  );
+}
+
+export function App() {
+  const screen = new URLSearchParams(window.location.search).get('screen');
+  return (
+    <>
+      {screen === 'UIKIT' ? <UiKitGallery /> : <BootScreen />}
+      <ToastHost />
+    </>
   );
 }

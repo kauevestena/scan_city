@@ -124,11 +124,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - O `InputGlyph` ainda não existe; o `Button.glyph` fica opcional e é ligado em T008.
   3. Criar a galeria `UiKitGallery` com todos os estados, acessível via `?screen=UIKIT`. O `App` lê o query param diretamente; em T005 isso passa para o debugFlags.
 - **Aceite:**
-  - [ ] Todos os 16 componentes renderizam na galeria.
-  - [ ] Testes RTL: `Slider` (teclado ←/→ altera o valor, limites), `Modal` (Esc fecha quando `dismissable`, foco preso), `ToastHost` (máximo 4, expira em 4 s com timers falsos), `DialogueBox` (avanço).
-  - [ ] Nenhuma cor hex fora de `tokens.ts`/`index.css`, conferido com `grep -rnE "#[0-9a-fA-F]{6}" src/ui src/app`, que deve achar só o arquivo de tokens.
+  - [x] Todos os 16 componentes renderizam na galeria.
+  - [x] Testes RTL: `Slider` (teclado ←/→ altera o valor, limites), `Modal` (Esc fecha quando `dismissable`, foco preso), `ToastHost` (máximo 4, expira em 4 s com timers falsos), `DialogueBox` (avanço).
+  - [x] Nenhuma cor hex fora de `tokens.ts`/`index.css`, conferido com `grep -rnE "#[0-9a-fA-F]{6}" src/ui src/app`, que deve achar só o arquivo de tokens.
 - **Verificação:** `npx vitest run src/ui` · manual: abrir `/?screen=UIKIT`.
-- **Status:** ☐
+- **Status:** ✅
 
 ### T005 — Store, máquina de estados, roteador e flags de debug
 - **Fase:** F0 · **Depende de:** T004 · **REQs:** REQ-CORE-001, REQ-CORE-002, REQ-CORE-003 (*parc.*: overlay), REQ-CORE-007, REQ-UI-004
@@ -1088,11 +1088,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ☐ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ☐ |
-| REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ☐ |
+| REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ☐ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ☐ |
-| REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ☐ |
+| REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ☐ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ☐ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ☐ |
