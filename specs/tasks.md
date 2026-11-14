@@ -88,13 +88,13 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - `formatCm(m)`, `formatUm(m)`, `formatMm(m)`;
      - `formatDistance(m)` → "1,2 km" / "340 m".
 - **Aceite:**
-  - [ ] O mesmo `seed` produz a mesma sequência de 1.000 valores.
-  - [ ] `normal()` tem média ≈ 0 e desvio ≈ 1 em 10.000 amostras (tolerância de 0,05).
-  - [ ] `fork('x')` é determinístico e independente do consumo do pai.
-  - [ ] `formatBRL(1234567) === 'R$ 12.345,67'` (normalizando o espaço não separável do Intl).
-  - [ ] Cobertura de `lib/` ≥ 90 %.
+  - [x] O mesmo `seed` produz a mesma sequência de 1.000 valores.
+  - [x] `normal()` tem média ≈ 0 e desvio ≈ 1 em 10.000 amostras (tolerância de 0,05).
+  - [x] `fork('x')` é determinístico e independente do consumo do pai.
+  - [x] `formatBRL(1234567) === 'R$ 12.345,67'` (normalizando o espaço não separável do Intl).
+  - [x] Cobertura de `lib/` ≥ 90 %.
 - **Verificação:** `npx vitest run src/lib --coverage`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T003 — Tipos canônicos
 - **Fase:** F0 · **Depende de:** T002 · **REQs:** — (fundação para todos)
@@ -1199,5 +1199,5 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ☐ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ☐ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ☐ |
-| REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ☐ |
+| REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078 | ☐ |
