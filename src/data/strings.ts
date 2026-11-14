@@ -109,6 +109,10 @@ export const STRINGS = {
     all: (parts: string[]) => parts.join(' e '),
     any: (parts: string[]) => parts.join(' ou '),
   },
+  perch: {
+    cornReason: (n: number) => `Milho: ${n} unidades`,
+    calibrated: (flights: number) => `Câmera do Atlas calibrada para ${flights} voos`,
+  },
   staff: {
     hireReason: (name: string) => `Contratação: ${name}`,
     hired: (name: string) => `Contratado: ${name}`,
@@ -152,6 +156,22 @@ export const STRINGS = {
       hardwareSpeed: (x: string) => `Velocidade de processamento ×${x}`,
       buy: (price: string) => `Comprar (${price})`,
       sequenceHint: 'O hardware segue uma sequência: cada upgrade exige o anterior.',
+    },
+    perchPanel: {
+      title: 'Poleiro do Atlas',
+      crop: (n: number, max: number) => `Papo: ${n} / ${max}`,
+      stock: (n: number) => `Estoque: ${n}`,
+      cropHint: 'Cada unidade de milho dá 60 s de voo ao Atlas.',
+      buy: (pack: number, price: string) => `Comprar ${pack} (${price})`,
+      feed: 'Alimentar',
+      feedFull: 'O papo já está cheio',
+      feedNeedCorn: 'Compre milho',
+      calibrate: 'Calibrar câmera',
+      calibrating: 'Calibrando…',
+      calibration: (flights: number) =>
+        flights > 0 ? `Calibração: ${flights} voos restantes` : 'Calibração: nenhuma',
+      calibrationHint: 'Grátis: reduz a penalidade da câmera do Atlas por 3 voos.',
+      accessories: 'Acessórios',
     },
     team: {
       title: 'Mesa da Equipe',

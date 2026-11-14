@@ -120,6 +120,15 @@ export interface InventoryActions {
   setEmblem: (emblem: Emblem) => void;
   /** Soma milho ao estoque (Atlas). */
   addCorn: (amount: number) => void;
+  /**
+   * Compra um pacote de milho no Poleiro (catalog §8): `pack` unidades a R$ 5 cada. Sem saldo,
+   * `spend` avisa. Devolve se comprou.
+   */
+  buyCorn: (pack: number) => boolean;
+  /** Alimenta o Atlas: o papo enche com o estoque, até 10. Devolve as unidades passadas. */
+  feedAtlas: () => number;
+  /** Calibra a câmera do Atlas: vale para os próximos 3 voos (grátis). */
+  calibrateAtlas: () => void;
 }
 
 export interface ContractsActions {

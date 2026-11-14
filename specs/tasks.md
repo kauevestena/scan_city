@@ -1018,12 +1018,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T047 · **REQs:** REQ-OFF-005, REQ-PRG-013
 - **Spec:** [office §5](features/office.md) (Poleiro), [catalog §8](content/catalog.md)
 - **Aceite:**
-  - [ ] Comprar milho, alimentar (limite 10) e calibrar (3 voos).
-  - [ ] Acessórios.
-  - [ ] Arrulho ao clicar.
-  - [ ] Hotspot ativo.
+  - [x] Comprar milho, alimentar (limite 10) e calibrar (3 voos).
+  - [x] Acessórios.
+  - [x] Arrulho ao clicar.
+  - [x] Hotspot ativo.
 - **Verificação:** `npx vitest run src/screens/office`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Ações na store: `buyCorn(pack)` (pacotes de 10 e 50 a R$ 5 a unidade; sem saldo, `spend` avisa e nada muda), `feedAtlas()` (usa `feedCrop`: o papo enche com o estoque, até 10; devolve o que passou e arrulha) e `calibrateAtlas()` (grátis: `atlasCalibrationFlights = 3`, com toast).
+  - `PerchPanel` (hotspot PERCH ativo): gauge do papo (n / 10) e do estoque, botões "Comprar 10 (R$ 50)" e "Comprar 50 (R$ 250)", "Alimentar" (desabilitado com a dica "O papo já está cheio" ou "Compre milho"), "Calibrar câmera" (2 s de barra de progresso, só então grava os 3 voos; recalibrar volta a 3, sem acumular) e os acessórios.
+  - Acessórios reaproveitam `ShopItemCard`/`buyItem`: o "sem acessório" começa equipado, os de preço fixo se compram e se equipam, e os bloqueados mostram o motivo (a mochila GPS exige o kit GNSS RTK; a coroa de louros, o C03). Ativar o hotspot toca `PIGEON_COO`: é o clique no Atlas do canvas, já que o hotspot cobre o poleiro. O desconto `shopPrice` da Garagem vale para os acessórios (passam por `buyItem`), não para o milho.
+  - O escritório tem agora 8 hotspots ativos (testes de teclado, unitário e E2E).
+- **Status:** ✅
 
 ### T049 — Cosméticos e editor de emblema
 - **Fase:** F6 · **Depende de:** T048 · **REQs:** REQ-PRG-008
@@ -1331,7 +1336,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ✅ |
 | REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ✅ |
-| REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ☐ |
+| REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ✅ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
@@ -1417,7 +1422,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ☐ |
 | REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |
 | REQ-PRG-012 | Reputação | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046, T051 | ✅ |
-| REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ☐ |
+| REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ✅ |
 | REQ-CNT-001 | Contratos reais | [contracts-real](content/contracts-real.md), [data-model](design/data-model.md) | T022, T053, T054, T055, T056, T057, T058 | ☐ |
 | REQ-CNT-002 | Fendas | [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md) | T059, T060–T070, T071 | ☐ |
 | REQ-CNT-003 | Progressão e desbloqueio | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [progression](features/progression.md) | T019, T071 | ☐ |

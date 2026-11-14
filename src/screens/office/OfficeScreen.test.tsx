@@ -36,7 +36,7 @@ describe('OfficeScreen', () => {
     expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).toHaveFocus();
   });
 
-  it('só os 7 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
+  it('só os 8 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     const hotspots = document.querySelectorAll('[data-hotspot]');
@@ -46,6 +46,7 @@ describe('OfficeScreen', () => {
       'GARAGE',
       'HOLO_TABLE',
       'LAB',
+      'PERCH',
       'STAFF',
       'WORKSTATION',
     ]);
@@ -64,7 +65,7 @@ describe('OfficeScreen', () => {
     expect(get().world.avatar).toEqual({ ...DEFAULT_SPAWN, facing: 'S' });
   });
 
-  it('só com o teclado, setas e Enter alcançam e ativam os 7 hotspots', () => {
+  it('só com o teclado, setas e Enter alcançam e ativam os 8 hotspots', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     placeHotspots();
@@ -93,6 +94,7 @@ describe('OfficeScreen', () => {
       'GARAGE',
       'HOLO_TABLE',
       'LAB',
+      'PERCH',
       'STAFF',
       'WORKSTATION',
     ]);

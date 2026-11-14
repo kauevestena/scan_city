@@ -1,6 +1,8 @@
 import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
+import { ATLAS_RULES } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
+import { feedCrop } from '@/domain/sorties';
 import { addItems, canBuy, purchaseItems, shopItem, shopPrice } from '@/domain/economy';
 import { unlockStateFrom } from '@/domain/progression';
 import { selectModifiers } from '../selectors';
@@ -79,6 +81,34 @@ export const createInventorySlice: StateCreator<
     // Possuir itens é condição de alguns contratos (progression §12).
     get().refreshUnlocks();
     return true;
+  },
+
+  buyCorn: (pack) => {
+    if (!(ATLAS_RULES.cornPacks as readonly number[]).includes(pack)) return false;
+    if (!get().spend(ATLAS_RULES.cornPriceBRL * pack, STRINGS.perch.cornReason(pack))) return false;
+    get().addCorn(pack);
+    AudioEngine.get().play('CASH_REGISTER');
+    return true;
+  },
+
+  feedAtlas: () => {
+    const { corn } = get().inventory;
+    const fed = feedCrop(corn);
+    const moved = fed.crop - corn.crop;
+    if (moved <= 0) return 0;
+    set((s) => ({ inventory: { ...s.inventory, corn: fed } }));
+    AudioEngine.get().play('PIGEON_COO');
+    return moved;
+  },
+
+  calibrateAtlas: () => {
+    set((s) => ({
+      inventory: { ...s.inventory, atlasCalibrationFlights: ATLAS_RULES.calibrationFlights },
+    }));
+    get().pushToast({
+      type: 'success',
+      title: STRINGS.perch.calibrated(ATLAS_RULES.calibrationFlights),
+    });
   },
 
   setEmblem: (emblem) =>
