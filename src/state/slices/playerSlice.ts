@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
 import { formatBRL } from '@/lib/format';
 import { clamp } from '@/lib/math';
@@ -62,6 +63,7 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
     const cents = Math.max(0, Math.round(amount));
     const { money } = get().player;
     if (cents > money) {
+      AudioEngine.get().play('DENIED');
       get().pushToast({
         type: 'error',
         title: STRINGS.economy.insufficientFunds(formatBRL(cents - money)),

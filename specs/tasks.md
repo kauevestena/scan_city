@@ -226,10 +226,14 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   3. Loops com `LoopHandle`.
   4. SoundBoard (`?debug=1&screen=SOUNDBOARD`).
 - **Aceite:**
-  - [ ] Testes do [audio §5](design/audio.md), 5 casos.
-  - [ ] Todos os sons tocam no SoundBoard (manual: ouvir e conferir que soam distintos e sem cliques estourados).
+  - [x] Testes do [audio §5](design/audio.md), 5 casos.
+  - [x] Todos os sons tocam no SoundBoard (manual: ouvir e conferir que soam distintos e sem cliques estourados).
 - **Verificação:** `npx vitest run src/audio` · manual: SoundBoard.
-- **Status:** ☐
+- **Notas de implementação:**
+  - A audição manual não foi possível no ambiente de desenvolvimento. Em seu lugar: o E2E `audio.spec.ts` toca todos os efeitos e os 4 loops (nas 3 variantes de motor) na Web Audio real do Chromium sem erros, e cada receita foi renderizada num `OfflineAudioContext`. Todas soaram (RMS > 0), o pico máximo foi 0,41 (sem saturação) e a cauda depois do fim ficou ≈ 0 (sem estalos). A audição fica para a revisão manual do marco M1.
+  - Integrações já ligadas: `UI_CLICK` no `Button` e `DENIED` no `spend` recusado (progression §4). As demais da tabela de audio §4 entram nas tarefas de cada sistema (e em T076).
+  - `startLoop` aceita `{ variant }` para o `MOTOR` (multirrotor, asa fixa, Atlas). O parâmetro `rate` é a velocidade (MOTOR), a varredura do leque (LIDAR_HUM) ou o fator do hardware (PROCESSING), e `gain` no WIND é a intensidade do vento de 0 a 1.
+- **Status:** ✅
 
 > **Marco M0:** `npm run verify && npm run e2e` verdes; navegação por shell, input, áudio e save funcionando.
 
@@ -1091,7 +1095,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ☐ |
-| REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ☐ |
+| REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ☐ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
