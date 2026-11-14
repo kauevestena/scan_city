@@ -109,6 +109,11 @@ export const STRINGS = {
     all: (parts: string[]) => parts.join(' e '),
     any: (parts: string[]) => parts.join(' ou '),
   },
+  staff: {
+    hireReason: (name: string) => `Contratação: ${name}`,
+    hired: (name: string) => `Contratado: ${name}`,
+    fired: (name: string) => `Demitido: ${name}`,
+  },
   progression: {
     levelUp: (level: number) => `Nível ${level}! +1 ponto de habilidade`,
     skillUnlocked: (name: string) => `Habilidade adquirida: ${name}`,
@@ -147,6 +152,19 @@ export const STRINGS = {
       hardwareSpeed: (x: string) => `Velocidade de processamento ×${x}`,
       buy: (price: string) => `Comprar (${price})`,
       sequenceHint: 'O hardware segue uma sequência: cada upgrade exige o anterior.',
+    },
+    team: {
+      title: 'Mesa da Equipe',
+      hire: 'Contratar',
+      fire: 'Demitir',
+      count: (n: number, max: number) => `${n} / ${max}`,
+      hireCost: (price: string) => `Contratação: ${price}`,
+      perContract: (price: string) => `Por contrato processado: ${price}`,
+      paymentBonus: (pct: string) => `Pagamento: +${pct} %`,
+      speedBonus: (pct: string) => `Processamento: +${pct} %`,
+      maxed: 'Equipe completa nesta função',
+      none: 'Ninguém contratado',
+      hint: 'Cada pessoa melhora o pagamento e a velocidade da esteira; o custo por contrato sai do pagamento.',
     },
     career: {
       title: 'Quadro de Carreira',

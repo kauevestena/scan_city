@@ -1,4 +1,5 @@
 import type {
+  StaffRoleId,
   FieldEquipmentId,
   CentsBRL,
   ContractProgress,
@@ -97,6 +98,13 @@ export interface PlayerActions {
    * Debita os pontos e adiciona o nó; devolve se aconteceu.
    */
   unlockSkill: (id: string) => boolean;
+  /**
+   * Contrata uma pessoa (progression §7): respeita o máximo da função e debita o custo de
+   * contratação (sem saldo, `spend` avisa). Devolve se contratou.
+   */
+  hireStaff: (role: StaffRoleId) => boolean;
+  /** Demite uma pessoa, sem custo nem reembolso. Devolve se havia quem demitir. */
+  fireStaff: (role: StaffRoleId) => boolean;
   /** Soma os deltas às estatísticas da carreira. */
   addStats: (delta: Partial<SaveGame['stats']>) => void;
 }

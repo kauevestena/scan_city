@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
+import { STAFF } from '@/data/catalog';
 import { SKILLS } from '@/data/skills';
 import { addXp, canUnlockSkill } from '@/domain/progression';
 import { formatBRL } from '@/lib/format';
@@ -114,6 +115,27 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
     }));
     AudioEngine.get().play('COLLECT');
     get().pushToast({ type: 'success', title: STRINGS.progression.skillUnlocked(node.name) });
+    return true;
+  },
+
+  hireStaff: (role) => {
+    const def = STAFF.find((r) => r.id === role);
+    if (!def || get().staff[role] >= def.maxCount) {
+      AudioEngine.get().play('DENIED');
+      return false;
+    }
+    if (!get().spend(def.hireCostBRL, STRINGS.staff.hireReason(def.name))) return false;
+    set((s) => ({ staff: { ...s.staff, [role]: s.staff[role] + 1 } }));
+    AudioEngine.get().play('CASH_REGISTER');
+    get().pushToast({ type: 'info', title: STRINGS.staff.hired(def.name) });
+    return true;
+  },
+
+  fireStaff: (role) => {
+    if (get().staff[role] <= 0) return false;
+    set((s) => ({ staff: { ...s.staff, [role]: s.staff[role] - 1 } }));
+    const def = STAFF.find((r) => r.id === role);
+    get().pushToast({ type: 'info', title: STRINGS.staff.fired(def?.name ?? role) });
     return true;
   },
 

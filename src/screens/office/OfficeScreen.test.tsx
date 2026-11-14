@@ -36,7 +36,7 @@ describe('OfficeScreen', () => {
     expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).toHaveFocus();
   });
 
-  it('só os 6 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
+  it('só os 7 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     const hotspots = document.querySelectorAll('[data-hotspot]');
@@ -46,6 +46,7 @@ describe('OfficeScreen', () => {
       'GARAGE',
       'HOLO_TABLE',
       'LAB',
+      'STAFF',
       'WORKSTATION',
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Mesa Holográfica' }));
@@ -63,7 +64,7 @@ describe('OfficeScreen', () => {
     expect(get().world.avatar).toEqual({ ...DEFAULT_SPAWN, facing: 'S' });
   });
 
-  it('só com o teclado, setas e Enter alcançam e ativam os 6 hotspots', () => {
+  it('só com o teclado, setas e Enter alcançam e ativam os 7 hotspots', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     placeHotspots();
@@ -92,6 +93,7 @@ describe('OfficeScreen', () => {
       'GARAGE',
       'HOLO_TABLE',
       'LAB',
+      'STAFF',
       'WORKSTATION',
     ]);
     // Enter no botão focado usa a ativação nativa (clique).

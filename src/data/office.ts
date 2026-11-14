@@ -87,6 +87,7 @@ export const ACTIVE_HOTSPOTS: ReadonlySet<OfficeHotspotId> = new Set([
   'WORKSTATION',
   'GARAGE',
   'CAREER',
+  'STAFF',
 ]);
 
 /** Falante da introdução (REQ-OFF-007). */

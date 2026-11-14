@@ -1002,12 +1002,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T046 · **REQs:** REQ-PRG-005
 - **Spec:** [progression §7](features/progression.md), [catalog §7](content/catalog.md)
 - **Aceite:**
-  - [ ] Contratar e demitir com limites.
-  - [ ] Custos aplicados no pagamento.
-  - [ ] Bonecos desenhados no escritório.
-  - [ ] Hotspot ativo.
+  - [x] Contratar e demitir com limites.
+  - [x] Custos aplicados no pagamento.
+  - [x] Bonecos desenhados no escritório.
+  - [x] Hotspot ativo.
 - **Verificação:** `npx vitest run src/screens/office`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Ações `hireStaff(role)` e `fireStaff(role)` na store: contratar respeita `maxCount` e cobra `hireCostBRL` via `spend` (sem saldo: `DENIED` e o aviso do que falta; com sucesso, `CASH_REGISTER` e toast); demitir tira 1, sem custo nem reembolso, e recusa com 0 pessoas.
+  - `StaffPanel` (hotspot STAFF ativo): um card por função com custo de contratação, custo por contrato processado, bônus de pagamento e de velocidade, quantidade atual / máxima e os botões Contratar (desabilitado no máximo, com o aviso "Equipe completa") e Demitir (desabilitado com 0).
+  - Custos no pagamento: já saíam de `computePayment` (T019/T044); o teste de integração contrata um estagiário e um engenheiro e confere, no relatório, o bônus 1 + 0,06 + 0,15, o custo de R$ 500 + R$ 1.800 por contrato, o total e o tempo da esteira ÷ 1,15. Os bonecos e a mesa extra do escritório já eram desenhados por `OfficeRenderer` (`drawStaffDesk`, com teste).
+  - O escritório passa a ter 7 hotspots ativos; os testes de teclado (unitário e E2E) cobrem os 7.
+- **Status:** ✅
 
 ### T048 — Poleiro do Atlas
 - **Fase:** F6 · **Depende de:** T047 · **REQs:** REQ-OFF-005, REQ-PRG-013
@@ -1404,7 +1409,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-002 | Aeronaves e sensores por tier | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-004 | Hardware de processamento | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
-| REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ☐ |
+| REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ✅ |
 | REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ☐ |
