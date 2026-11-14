@@ -58,6 +58,13 @@ function createEngine(
     onShots: (batch) => useGameStore.getState().appendShots(batch),
     onShutter: () => AudioEngine.get().play('SHUTTER'),
     onCollision: () => AudioEngine.get().play('CRASH'),
+    onRtkChange: (status) => {
+      if (status === 'FLOAT') {
+        useGameStore
+          .getState()
+          .pushToast({ type: 'warn', title: STRINGS.flight.alerts.RTK_FLOAT() });
+      }
+    },
     onCrash: () => AudioEngine.get().play('CRASH'),
     onHud,
     onSortieEnd: (result) => {

@@ -73,6 +73,8 @@ export interface FlightHudSnapshot {
   cornLeft?: number;
   timeLeftS: number;
   rthAlert: boolean;
+  /** Interferência EM: glitch de scanlines no HUD. */
+  emGlitch: boolean;
   hull: number;
   hullMax: number;
   rtk: RtkStatus;

@@ -7,6 +7,7 @@ import type { Catalog } from '@/data/catalog';
 import { drainPerSecond } from '@/domain/energy';
 import {
   crabAngleRad,
+  thermalLiftMs,
   initialAircraftState,
   stepAircraft,
   windAt,
@@ -22,6 +23,7 @@ import type {
   Contract,
   MissionData,
   ModifierSet,
+  RtkStatus,
   Shot,
   SortieOutcome,
 } from '@/types';
@@ -30,6 +32,7 @@ import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
 import { drawAircraft, drawGroundShadow, type SpriteColors } from './aircraftSprite';
+import { driftMultiplier, emActive, emDisturbance, windAboveTolerance } from './environment';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
@@ -120,6 +123,8 @@ export interface FlightEngineOptions {
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
   onCollision?: () => void;
+  /** O status RTK mudou (toast "RTK FLOAT — multipercurso GNSS"). */
+  onRtkChange?: (status: RtkStatus) => void;
   onCrash?: () => void;
   now?: () => number;
 }
@@ -188,12 +193,16 @@ export class FlightEngine implements Simulation {
   private readonly hud = new HudThrottle();
   private surface: CanvasSurface | null = null;
   private weather: WeatherParticles | null = null;
+  private readonly em: boolean;
+  private emHeading = 0;
+  private lastRtk: RtkStatus = 'NONE';
   private ended = false;
 
   constructor(private readonly opts: FlightEngineOptions) {
     const { aircraft } = planEquipment(opts.mission.plan, opts.catalog);
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
+    this.em = emActive(opts.contract.specialRules, aircraft);
     this.camera = cameraModel(opts.mission.plan, opts.catalog);
     // Primárias em zigue-zague e depois as cruzadas: a ordem do plano. Só as que faltam.
     const done = new Set(opts.mission.completedLines);
@@ -259,7 +268,9 @@ export class FlightEngine implements Simulation {
       x: this.ac.x,
       altM: this.ac.alt,
       speedMs: this.ac.v,
-      crabRad: this.aircraft.turnRadiusM > 0 ? crabAngleRad(this.crossWind, this.ac.v) : 0,
+      crabRad:
+        (this.aircraft.turnRadiusM > 0 ? crabAngleRad(this.crossWind, this.ac.v) : 0) +
+        this.emHeading,
       tiltDeg: plan.params.obliqueDeg ?? 0,
       lighting: plan.params.lighting,
       rtk: this.rtk(),
@@ -295,6 +306,10 @@ export class FlightEngine implements Simulation {
     if (this.pending.length === 0) return;
     this.opts.onShots?.(this.pending);
     this.pending = [];
+  }
+
+  private pos() {
+    return aoiPoint(this.frame, this.ac.s, this.ac.x);
   }
 
   private rtk() {
@@ -435,13 +450,32 @@ export class FlightEngine implements Simulation {
         ceilingM: this.opts.contract.ceilingM,
         elevationM: this.elevationAt(this.ac.s, this.ac.x),
         crossWindMs: this.crossWind,
-        windDriftMod: this.opts.mods.windDrift,
-        thermalLiftMs: 0,
+        // Acima da tolerância, a deriva dobra (STRONG_WIND).
+        windDriftMod:
+          this.opts.mods.windDrift * driftMultiplier(this.opts.contract.wind, this.aircraft),
+        thermalLiftMs: thermalLiftMs(
+          this.opts.terrain.zones,
+          this.pos().u,
+          this.pos().v,
+          this.opts.mission.plan.params.lighting,
+          this.opts.mods.thermalEffect,
+        ),
         terrainFollowing: plan.params.terrainFollowing,
         elevationAhead: (d) => this.elevationAt(this.ac.s + d, this.ac.x),
       },
       dtS,
     );
+    if (this.em) {
+      // Interferência EM: tremor lateral de ±0,8 m/s (a deriva de rumo vai para as fotos).
+      const d = emDisturbance(this.sortieT, (x) => this.windNoise(x, 7));
+      this.emHeading = d.headingRad;
+      this.ac = { ...this.ac, x: this.ac.x + d.lateralMs * dtS };
+    }
+    const rtk = this.rtk();
+    if (rtk !== this.lastRtk) {
+      this.lastRtk = rtk;
+      this.opts.onRtkChange?.(rtk);
+    }
     this.drain(dtS);
     this.collide();
     if (this.phase !== 'RUN') return;
@@ -521,6 +555,8 @@ export class FlightEngine implements Simulation {
       ),
     );
     const p = this.pRealPct();
+    if (windAboveTolerance(this.opts.contract.wind, this.aircraft))
+      list.push(makeAlert('WIND_LIMIT'));
     if (p !== null && p < minP) list.push(makeAlert('OVERLAP', Math.round(p)));
     if (this.lastBlur > 1) list.push(makeAlert('MOTION_BLUR'));
     else if (plan.params.lighting === 'GOLDEN_HOUR' && this.lastBlur > 0.5)
@@ -570,6 +606,7 @@ export class FlightEngine implements Simulation {
       energyUnit: this.aircraft.energyUnit,
       timeLeftS: this.energy / drainCruise,
       rthAlert: false,
+      emGlitch: this.em,
       hull: Math.max(0, this.hull),
       hullMax: this.aircraft.hull,
       rtk: this.rtk(),

@@ -682,15 +682,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T029 · **REQs:** REQ-FLT-013, REQ-FLT-020, REQ-FLT-022
 - **Spec:** [survey-flight §5.13](features/survey-flight.md), [domain-math §5](design/domain-math.md)
 - **Aceite:**
-  - [ ] HUD de vento e crab.
-  - [ ] Deriva proporcional ao `driftFactor` × `windDrift`.
-  - [ ] `STRONG_WIND` acima da tolerância dobra a deriva e emite o alerta.
-  - [ ] Térmicas somam lift.
-  - [ ] EM com ruído (Atlas imune, testado).
-  - [ ] `rtkStatusAt` com zonas de teste.
-  - [ ] Fotos registram `rtk`.
+  - [x] HUD de vento e crab.
+  - [x] Deriva proporcional ao `driftFactor` × `windDrift`.
+  - [x] `STRONG_WIND` acima da tolerância dobra a deriva e emite o alerta.
+  - [x] Térmicas somam lift.
+  - [x] EM com ruído (Atlas imune, testado).
+  - [x] `rtkStatusAt` com zonas de teste.
+  - [x] Fotos registram `rtk`.
 - **Verificação:** `npx vitest run src/engines/flight src/domain/flightPhysics`
-- **Status:** ☐
+- **Notas de implementação:**
+  - A deriva dobra sempre que `mean + gust` passa de `windToleranceMs` da aeronave (a spec liga isso à regra `STRONG_WIND`, que o contrato com vento ≥ 8 m/s declara; aplicar pela tolerância cobre os dois casos e o aviso do plano). O alerta é `WIND_LIMIT`.
+  - As térmicas somam `thermalLiftMs` das zonas `THERMAL` do terreno (× `thermalEffect` das skills, metade sem `SUN_HIGH`). A distorção visual do ar sobre a zona não foi feita.
+  - EM: tremor lateral de ±0,8 m/s somado ao X e deriva de rumo de ±3° (lenta) somada ao `crab` das fotos; Atlas imune. O glitch de scanlines no HUD sai com `reduceFlashes`.
+  - O rumo da EM só afeta o registro das fotos; a aeronave não gira visualmente.
+  - RTK: o `onRtkChange` dispara um toast "RTK FLOAT — multipercurso GNSS" ao entrar no cânion; as fotos registram `rtk`. As zonas `RTK_CANYON` vêm do gerador do bioma urbano (T052), então aqui foram testadas com zonas fabricadas.
+- **Status:** ✅
 
 ### T031 — Energia, RTH e múltiplas surtidas
 - **Fase:** F3 · **Depende de:** T030 · **REQs:** REQ-FLT-014, REQ-FLT-019
@@ -1258,16 +1264,16 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ☐ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
-| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ☐ |
+| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ☐ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ☐ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ☐ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
 | REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
 | REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ☐ |
-| REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ☐ |
+| REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
-| REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ☐ |
+| REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
 | REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ☐ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ☐ |

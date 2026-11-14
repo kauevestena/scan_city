@@ -4,6 +4,7 @@ import type { FlightHudSnapshot } from '@/engines/flight/hudPublisher';
 import { InputGlyph } from '@/input/InputGlyph';
 import { formatDuration, formatNumber, formatPct } from '@/lib/format';
 import type { AoiPoint } from '@/types';
+import { useGameStore } from '@/state/store';
 import { cx, ProgressBar } from '@/ui';
 
 const T = STRINGS.flight;
@@ -67,6 +68,9 @@ function Minimap({ snap }: { snap: FlightHudSnapshot }) {
 
 /** HUD do voo (survey-flight §4), lido do snapshot publicado a 10 Hz. */
 export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
+  // Glitch de scanlines da interferência EM; desligado com `reduceFlashes`.
+  const reduceFlashes = useGameStore((s) => s.settings.reduceFlashes);
+  const glitch = snap.emGlitch && !reduceFlashes;
   const phaseLabel = T.phases[snap.phase];
   // O Atlas voa a milho (papo); os demais, a bateria.
   const energyText = `${snap.energyUnit === 'CORN' ? '🌽 ' : ''}${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`;
@@ -75,7 +79,19 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
     <div
       className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3"
       data-testid="flight-hud"
+      data-glitch={glitch}
     >
+      {glitch && (
+        <div
+          aria-hidden
+          data-testid="hud-glitch"
+          className="absolute inset-0 animate-pulse opacity-30"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(0deg, rgba(34,211,238,0.35) 0 1px, transparent 1px 4px)',
+          }}
+        />
+      )}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-4 rounded-lg bg-slate-950/70 px-3 py-2 text-sm text-slate-200">
           <span>{snap.aircraftName}</span>

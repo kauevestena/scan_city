@@ -30,6 +30,7 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     energyUnit: 'CORN',
     timeLeftS: 1112,
     rthAlert: false,
+    emGlitch: false,
     hull: 2,
     hullMax: 3,
     rtk: 'NONE',
@@ -75,6 +76,14 @@ describe('FlightHud', () => {
     expect(alerts.getByText('FORA DA FAIXA')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Minimapa do voo' })).toBeInTheDocument();
     expect(screen.queryByTestId('hud-phase')).not.toBeInTheDocument();
+  });
+
+  it('interferência EM: glitch de scanlines, desligado com reduceFlashes', () => {
+    const { rerender } = render(<FlightHud snap={snap({ emGlitch: true })} />);
+    expect(screen.getByTestId('hud-glitch')).toBeInTheDocument();
+    useGameStore.setState((s) => ({ settings: { ...s.settings, reduceFlashes: true } }));
+    rerender(<FlightHud snap={snap({ emGlitch: true })} />);
+    expect(screen.queryByTestId('hud-glitch')).not.toBeInTheDocument();
   });
 
   it('bateria e fase fora do RUN', () => {
