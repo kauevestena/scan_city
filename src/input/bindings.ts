@@ -116,7 +116,13 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
   },
   UI: {
     buttons: { ...UI_NAV, ...UI_COMMON, PAUSE: PAUSE_M },
-    axes: {},
+    // Só o analógico direito e o zoom: o visualizador de nuvem 3D do relatório orbita com eles.
+    // As setas seguem na navegação de foco.
+    axes: {
+      LOOK_X: { stick: { axis: 2 } },
+      LOOK_Y: { stick: { axis: 3, invert: true } },
+      ZOOM,
+    },
   },
   HOLO: {
     buttons: {

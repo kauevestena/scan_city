@@ -14,6 +14,10 @@ import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 
 const U = STRINGS.processing.products.unavailable;
 
+/** As abas do visualizador: os quatro rasters mais a nuvem 3D / TIN. */
+export type ViewerKind = ProductKind | 'CLOUD';
+export const VIEWER_KINDS: readonly ViewerKind[] = ['ORTHO', 'DSM', 'DTM', 'CLOUD', 'NDVI'];
+
 export interface ProductAvailability {
   available: boolean;
   /** Motivo, quando indisponível (tooltip da aba). */
@@ -67,7 +71,7 @@ export function productAvailability(
   report: QualityReport,
   contract: Contract,
   terrain: TerrainSampler,
-): Record<ProductKind, ProductAvailability> {
+): Record<ViewerKind, ProductAvailability> {
   const { camera } = planEquipment(mission.plan, CATALOG);
   const photos = validPhotoCount(mission, contract);
   const lidar = hasLidarData(mission);
@@ -75,6 +79,7 @@ export function productAvailability(
   return {
     ORTHO: photos > 0 && rgbLike ? yes : no(U.ORTHO),
     DSM: photos > 0 || lidar ? yes : no(U.DSM),
+    CLOUD: photos > 0 || lidar ? yes : no(U.CLOUD),
     DTM: lidar || (photos > 0 && hasOpenGround(report, contract, terrain)) ? yes : no(U.DTM),
     NDVI: camera.kind !== 'MULTISPECTRAL' ? no(U.NDVI) : photos > 0 ? yes : no(U.NDVI_NO_PHOTOS),
   };

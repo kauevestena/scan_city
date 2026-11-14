@@ -531,4 +531,25 @@ describe('tabela de bindings', () => {
       expect(BINDINGS[ctx].buttons.PAUSE?.pad, ctx).toContain(PAD.MENU);
     }
   });
+
+  it('contexto UI: o analógico direito e o zoom valem (nuvem 3D do relatório); as setas não', () => {
+    const pad = createPad(XBOX_ID);
+    uninstall = installGamepads([pad]);
+    input.setContext('UI');
+    pad.axes = [0, 0, 1, 0];
+    setButton(pad, PAD.RT, 1);
+    poll();
+    expect(input.axis('LOOK_X')).toBeCloseTo(1, 5);
+    expect(input.axis('ZOOM')).toBeGreaterThan(0.9);
+    // Eixo Y do analógico: para cima é negativo no hardware; LOOK_Y é invertido.
+    pad.axes = [0, 0, 0, -1];
+    poll();
+    expect(input.axis('LOOK_Y')).toBeCloseTo(1, 5);
+    pad.axes = [0, 0, 1, 0];
+    poll();
+    key('ArrowRight');
+    poll();
+    expect(input.axis('LOOK_X')).toBeCloseTo(1, 5);
+    key('ArrowRight', 'keyUp');
+  });
 });

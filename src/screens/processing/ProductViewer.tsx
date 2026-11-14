@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getContract } from '@/data/contracts';
 import { STRINGS } from '@/data/strings';
 import { hypsometricColor } from '@/engines/raster/orthoPreview';
+import { CloudJob, type CloudScene, type CloudSource } from '@/engines/raster/pointCloud';
 import {
   NDVI_MAX,
   NDVI_MIN,
-  PRODUCT_KINDS,
   PRODUCT_SIZE,
   ProductJob,
   ndviColor,
@@ -14,11 +14,23 @@ import {
 } from '@/engines/raster/products';
 import { formatNumber } from '@/lib/format';
 import type { MissionData, QualityReport } from '@/types';
+import type { OrbitCamera } from '@/engines/soft3d/OrbitCamera';
+import type { MutableRefObject } from 'react';
 import { ProgressBar, Tabs, type TabDef } from '@/ui';
 import { COLORS } from '@/ui/tokens';
+import { hashString } from '@/lib/rng';
+import { cx, FOCUS_RING } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
-import { productAvailability, productInputs } from './productModel';
+import { CloudLegend, PointCloudView } from './PointCloudView';
+import {
+  hasLidarData,
+  productAvailability,
+  productInputs,
+  validPhotoCount,
+  VIEWER_KINDS,
+  type ViewerKind,
+} from './productModel';
 
 const P = STRINGS.processing.products;
 const CANVAS_W = 640;
@@ -123,6 +135,8 @@ export interface ProductViewerProps {
   terrain?: TerrainSampler;
   /** Orçamento de cada fatia de geração, ms. */
   sliceBudgetMs?: number;
+  /** Expõe a câmera da nuvem 3D (testes). */
+  cloudCameraRef?: MutableRefObject<OrbitCamera | null>;
 }
 
 /** Aba Produtos: Ortofoto, MDS, MDT e NDVI, gerados em fatias (processing-results §5.7). */
@@ -131,6 +145,7 @@ export function ProductViewer({
   mission,
   terrain: injected,
   sliceBudgetMs = SLICE_BUDGET_MS,
+  cloudCameraRef,
 }: ProductViewerProps) {
   const contract = getContract(report.contractId);
   const terrain = useMemo(() => injected ?? createTerrain(contract), [injected, contract]);
@@ -138,9 +153,9 @@ export function ProductViewer({
     () => productAvailability(mission, report, contract, terrain),
     [mission, report, contract, terrain],
   );
-  const tabs = useMemo<ReadonlyArray<TabDef<ProductKind>>>(
+  const tabs = useMemo<ReadonlyArray<TabDef<ViewerKind>>>(
     () =>
-      PRODUCT_KINDS.map((id) => {
+      VIEWER_KINDS.map((id) => {
         const a = availability[id];
         return {
           id,
@@ -151,17 +166,51 @@ export function ProductViewer({
       }),
     [availability],
   );
-  const firstAvailable = PRODUCT_KINDS.find((k) => availability[k].available) ?? 'ORTHO';
-  const [kind, setKind] = useState<ProductKind>(firstAvailable);
+  const firstAvailable = VIEWER_KINDS.find((k) => availability[k].available) ?? 'ORTHO';
+  const [kind, setKind] = useState<ViewerKind>(firstAvailable);
   const [raster, setRaster] = useState<ProductRaster | null>(null);
+  const [cloud, setCloud] = useState<CloudScene | null>(null);
   const [progress, setProgress] = useState(0);
+  const [tin, setTin] = useState(false);
+  const hasLidar = useMemo(() => hasLidarData(mission), [mission]);
+  const hasPhotos =
+    availability.DSM.available && (!hasLidar || validPhotoCount(mission, contract) > 0);
+  const [source, setSource] = useState<CloudSource>(hasLidar ? 'LIDAR' : 'PHOTO');
   const cache = useRef(new Map<ProductKind, ProductRaster>());
+  const cloudCache = useRef(new Map<CloudSource, CloudScene>());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { aoi } = contract;
 
-  // Gera o raster do produto atual em fatias, uma por frame.
+  // Gera, em fatias (uma por frame), os jobs em sequência; cada fábrica cria o seu na vez.
+  const runPipeline = (
+    steps: ReadonlyArray<() => { done: boolean; progress: number; runSlice(ms: number): number }>,
+    finish: () => void,
+  ) => {
+    let frame = 0;
+    let index = 0;
+    let job = steps[0]?.();
+    const tick = () => {
+      if (!job) return;
+      job.runSlice(sliceBudgetMs);
+      setProgress((index + job.progress) / steps.length);
+      if (job.done) {
+        index++;
+        const factory = steps[index];
+        if (!factory) {
+          finish();
+          return;
+        }
+        job = factory();
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  };
+
+  // Raster do produto atual.
   useEffect(() => {
-    if (!availability[kind].available) return;
+    if (kind === 'CLOUD' || !availability[kind].available) return;
     const hit = cache.current.get(kind);
     if (hit) {
       setRaster(hit);
@@ -171,21 +220,51 @@ export function ProductViewer({
     setRaster(null);
     setProgress(0);
     const job = new ProductJob(kind, productInputs(mission, report, terrain));
-    let frame = 0;
-    const tick = () => {
-      job.runSlice(sliceBudgetMs);
-      setProgress(job.progress);
-      if (job.done) {
-        const done = job.raster;
-        cache.current.set(kind, done);
-        setRaster(done);
-        return;
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return runPipeline([() => job], () => {
+      cache.current.set(kind, job.raster);
+      setRaster(job.raster);
+    });
+    // `runPipeline` só depende do orçamento, já listado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, availability, mission, report, terrain, sliceBudgetMs]);
+
+  // Nuvem 3D / TIN da origem escolhida; a nuvem fotogramétrica usa a orto para as cores.
+  useEffect(() => {
+    if (kind !== 'CLOUD' || !availability.CLOUD.available) return;
+    const hit = cloudCache.current.get(source);
+    if (hit) {
+      setCloud(hit);
+      setProgress(1);
+      return;
+    }
+    setCloud(null);
+    setProgress(0);
+    const wantsOrtho =
+      source === 'PHOTO' && availability.ORTHO.available && !cache.current.has('ORTHO');
+    const ortho = wantsOrtho
+      ? new ProductJob('ORTHO', productInputs(mission, report, terrain))
+      : null;
+    let job: CloudJob | null = null;
+    const makeCloud = () => {
+      job = new CloudJob({
+        terrain,
+        coverage: report.coverage,
+        source,
+        ortho: cache.current.get('ORTHO') ?? ortho?.raster ?? null,
+        lidarSamples: mission.lidar?.samples ?? [],
+        seed: hashString(mission.id),
+      });
+      return job;
+    };
+    const steps = ortho ? [() => ortho, makeCloud] : [makeCloud];
+    return runPipeline(steps, () => {
+      if (ortho) cache.current.set('ORTHO', ortho.raster);
+      const scene = (job as CloudJob).result;
+      cloudCache.current.set(source, scene);
+      setCloud(scene);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, source, availability, mission, report, terrain, sliceBudgetMs]);
 
   // Pinta o raster pronto no canvas de 256 × 256 (o CSS o estica sobre a AOI).
   useEffect(() => {
@@ -197,40 +276,81 @@ export function ProductViewer({
   }, [raster]);
 
   const captured = terrain.features.filter((f) => mission.events.featuresCaptured.includes(f.id));
-  const ready = raster !== null && raster.kind === kind;
+  const isCloud = kind === 'CLOUD';
+  const ready = isCloud
+    ? cloud !== null && cloud.source === source
+    : raster !== null && raster.kind === kind;
 
   return (
     <div className="flex flex-col gap-3" data-testid="report-products">
       <Tabs tabs={tabs} value={kind} onChange={setKind} ariaLabel={P.label} />
-      <div className="relative w-fit" style={{ width: CANVAS_W, maxWidth: '100%' }}>
-        <canvas
-          ref={canvasRef}
-          width={PRODUCT_SIZE}
-          height={PRODUCT_SIZE}
-          role="img"
-          aria-label={P.canvasLabel(P.kinds[kind])}
-          className="block w-full rounded-md border border-slate-700 [image-rendering:pixelated]"
-          style={{ aspectRatio: `${aoi.lengthM} / ${aoi.widthM}`, height: 'auto' }}
-          data-testid="product-canvas"
-          data-kind={kind}
-          data-ready={ready}
-        />
-        {captured.map((f) => (
-          <span
-            key={f.id}
-            data-testid="product-feature"
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-            style={{ left: `${(f.u / aoi.lengthM) * 100}%`, top: `${(f.v / aoi.widthM) * 100}%` }}
-          >
-            <span className="flex flex-col items-center">
-              <span className="rounded bg-slate-950/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-amber-300">
-                {f.name}
+      {isCloud ? (
+        <div className="flex flex-col gap-3" data-testid="cloud-view" data-ready={ready}>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-200">
+            {hasLidar && hasPhotos && (
+              <Tabs
+                tabs={[
+                  { id: 'PHOTO', label: P.cloud.sourcePhoto },
+                  { id: 'LIDAR', label: P.cloud.sourceLidar },
+                ]}
+                value={source}
+                onChange={setSource}
+                ariaLabel={P.cloud.source}
+              />
+            )}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={tin}
+                onChange={(e) => setTin(e.target.checked)}
+                className={cx('size-4 accent-cyan-400', FOCUS_RING)}
+              />
+              {P.cloud.tin}
+            </label>
+          </div>
+          {cloud && cloud.source === source && (
+            <PointCloudView
+              scene={cloud}
+              tin={tin}
+              {...(cloudCameraRef ? { cameraRef: cloudCameraRef } : {})}
+            />
+          )}
+          {cloud && cloud.source === source && <CloudLegend scene={cloud} />}
+        </div>
+      ) : (
+        <div className="relative w-fit" style={{ width: CANVAS_W, maxWidth: '100%' }}>
+          <canvas
+            ref={canvasRef}
+            width={PRODUCT_SIZE}
+            height={PRODUCT_SIZE}
+            role="img"
+            aria-label={P.canvasLabel(P.kinds[kind])}
+            className="block w-full rounded-md border border-slate-700 [image-rendering:pixelated]"
+            style={{ aspectRatio: `${aoi.lengthM} / ${aoi.widthM}`, height: 'auto' }}
+            data-testid="product-canvas"
+            data-kind={kind}
+            data-ready={ready}
+          />
+          {captured.map((f) => (
+            <span
+              key={f.id}
+              data-testid="product-feature"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+              style={{ left: `${(f.u / aoi.lengthM) * 100}%`, top: `${(f.v / aoi.widthM) * 100}%` }}
+            >
+              <span className="flex flex-col items-center">
+                <span className="rounded bg-slate-950/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-amber-300">
+                  {f.name}
+                </span>
+                <span
+                  className="size-2 rotate-45 border border-slate-950 bg-amber-400"
+                  aria-hidden
+                />
               </span>
-              <span className="size-2 rotate-45 border border-slate-950 bg-amber-400" aria-hidden />
             </span>
-          </span>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       {!ready && availability[kind].available && (
         <div className="flex w-64 flex-col gap-1" data-testid="product-progress" role="status">
           <span className="text-xs text-slate-300">
@@ -239,7 +359,7 @@ export function ProductViewer({
           <ProgressBar value={progress} />
         </div>
       )}
-      {ready && <Legend raster={raster} />}
+      {ready && !isCloud && raster && <Legend raster={raster} />}
       {captured.length > 0 && (
         <ul className="text-sm text-amber-200" data-testid="product-features">
           {captured.map((f) => (

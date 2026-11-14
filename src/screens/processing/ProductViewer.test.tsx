@@ -4,7 +4,12 @@ import { createCoverageGrid } from '@/domain/coverage';
 import { syntheticMission } from '@/test/fixtures/syntheticMission';
 import { resetGameStore } from '@/test/resetStore';
 import { useGameStore } from '@/state/store';
-import type { MissionData, QualityReport } from '@/types';
+import { PAD } from '@/input/gamepad';
+import { InputManager } from '@/input/InputManager';
+import { createPad, installGamepads, setButton } from '@/test/fakeGamepad';
+import { useInputContext } from '@/input/useInputContext';
+import type { OrbitCamera } from '@/engines/soft3d/OrbitCamera';
+import type { LidarSample, MissionData, QualityReport } from '@/types';
 import { buildTestArena } from '@/world/terrain/biomes/testArena';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { evaluateForState } from './evaluate';
@@ -89,6 +94,42 @@ describe('disponibilidade dos produtos (§5.7)', () => {
     expect(a.DTM).toEqual({ available: false, reason: 'MDT requer LiDAR ou áreas abertas' });
   });
 });
+
+function lidarOf(mission: MissionData, n: number): MissionData {
+  const pulses = grid.counts.map(() => 100);
+  const rets = ['FIRST', 'INTERMEDIATE', 'GROUND'] as const;
+  const samples: LidarSample[] = Array.from({ length: n }, (_, k) => ({
+    u: (k * 7.3) % C00.aoi.lengthM,
+    v: (k * 3.1) % C00.aoi.widthM,
+    z: (k % 40) / 10,
+    ret: rets[k % 3] as LidarSample['ret'],
+  }));
+  return {
+    ...mission,
+    lidar: {
+      grid: {
+        cols: grid.cols,
+        rows: grid.rows,
+        pulses,
+        firstAbove: pulses,
+        ground: pulses,
+        cellAreaM2: 10,
+      },
+      samples,
+    },
+  } as MissionData;
+}
+
+const cloudReady = () =>
+  waitFor(() => expect(screen.getByTestId('cloud-view')).toHaveAttribute('data-ready', 'true'), {
+    timeout: 10_000,
+  });
+
+/** O relatório roda no contexto UI; o viewer lê o analógico direito por ele. */
+function UiContext({ children }: { children: React.ReactNode }) {
+  useInputContext('UI');
+  return <>{children}</>;
+}
 
 describe('ProductViewer', () => {
   it('critério 5: com CAM_20MP_RS, o NDVI fica desabilitado e o tooltip dá o motivo', () => {
@@ -180,4 +221,123 @@ describe('ProductViewer', () => {
   });
 
   afterEach(() => act(() => undefined));
+});
+
+describe('Nuvem / TIN (T042)', () => {
+  it('a aba existe entre o MDT e o NDVI; sem dados fica desabilitada com o motivo', () => {
+    const { mission, report } = fixture();
+    const { unmount } = render(
+      <ProductViewer report={report} mission={mission} sliceBudgetMs={50} />,
+    );
+    const names = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(names).toEqual(['Ortofoto', 'MDS', 'MDT', 'Nuvem / TIN', 'NDVI']);
+    expect(screen.getByRole('tab', { name: 'Nuvem / TIN' })).not.toHaveAttribute('aria-disabled');
+    unmount();
+    render(
+      <ProductViewer
+        report={report}
+        mission={{ ...mission, shots: [] } as MissionData}
+        sliceBudgetMs={50}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: 'Nuvem / TIN' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+
+  it('nuvem fotogramétrica: ~30.000 pontos com as cores da orto e o toggle TIN', async () => {
+    const { mission, report } = fixture();
+    render(<ProductViewer report={report} mission={mission} sliceBudgetMs={50} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
+    await cloudReady();
+    expect(screen.getByTestId('cloud-canvas')).toBeInTheDocument();
+    expect(screen.getByTestId('cloud-legend')).toHaveTextContent(/\d+\.\d{3} pontos/);
+    expect(screen.getByTestId('cloud-legend')).toHaveTextContent('Cores da ortofoto');
+    // Sem LiDAR, não há escolha de origem.
+    expect(screen.queryByRole('tab', { name: 'LiDAR' })).not.toBeInTheDocument();
+    const toggle = screen.getByRole('checkbox', { name: 'Mostrar malha TIN' });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+  }, 30_000);
+
+  it('nuvem LiDAR: cores por retorno e escolha entre as duas origens quando há fotos também', async () => {
+    const { mission, report } = fixture();
+    render(<ProductViewer report={report} mission={lidarOf(mission, 600)} sliceBudgetMs={50} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
+    await cloudReady();
+    expect(screen.getByTestId('return-FIRST')).toHaveTextContent('1º retorno');
+    expect(screen.getByTestId('return-INTERMEDIATE')).toHaveTextContent('Intermediário');
+    expect(screen.getByTestId('return-GROUND')).toHaveTextContent('Solo');
+    expect(screen.getByTestId('cloud-count')).toHaveTextContent('600 pontos');
+    fireEvent.click(screen.getByRole('tab', { name: 'Fotogrametria' }));
+    await waitFor(
+      () => expect(screen.getByTestId('cloud-legend')).toHaveTextContent('Cores da ortofoto'),
+      {
+        timeout: 10_000,
+      },
+    );
+  }, 30_000);
+
+  it('órbita por mouse: arrastar gira, a roda dá zoom (dentro dos limites)', async () => {
+    const { mission, report } = fixture();
+    const cameraRef: { current: OrbitCamera | null } = { current: null };
+    render(
+      <ProductViewer
+        report={report}
+        mission={lidarOf(mission, 90)}
+        sliceBudgetMs={50}
+        cloudCameraRef={cameraRef}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
+    await cloudReady();
+    const canvas = screen.getByTestId('cloud-canvas');
+    const camera = cameraRef.current as OrbitCamera;
+    const yaw = camera.yaw;
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 160, clientY: 100 });
+    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 160, clientY: 100 });
+    expect(camera.yaw).toBeLessThan(yaw);
+    const d = camera.distance;
+    fireEvent.wheel(canvas, { deltaY: 100 });
+    expect(camera.distance).toBeGreaterThan(d);
+    for (let i = 0; i < 80; i++) fireEvent.wheel(canvas, { deltaY: 100 });
+    expect(camera.distance).toBeCloseTo(camera.maxDistance, 6);
+  }, 30_000);
+
+  it('gamepad: o analógico direito orbita e os gatilhos dão zoom', async () => {
+    const { mission, report } = fixture();
+    const cameraRef: { current: OrbitCamera | null } = { current: null };
+    render(
+      <UiContext>
+        <ProductViewer
+          report={report}
+          mission={lidarOf(mission, 90)}
+          sliceBudgetMs={50}
+          cloudCameraRef={cameraRef}
+        />
+      </UiContext>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
+    await cloudReady();
+    // A nuvem pronta sai de um rAF, fora do act: os efeitos (o loop) só rodam ao fechar um act.
+    await act(async () => undefined);
+    expect(InputManager.get().screenContext).toBe('UI');
+    const camera = cameraRef.current as OrbitCamera;
+    const { yaw, distance } = camera;
+    const pad = createPad('Xbox Wireless Controller');
+    pad.axes = [0, 0, 1, 0];
+    setButton(pad, PAD.RT, 1);
+    const uninstall = installGamepads([pad]);
+    try {
+      await act(() => new Promise<void>((r) => setTimeout(r, 300)));
+    } finally {
+      uninstall();
+    }
+    // Stick à direita: LOOK_X > 0 gira o yaw para baixo; o gatilho direito aproxima a câmera.
+    expect(camera.yaw).toBeLessThan(yaw);
+    expect(camera.distance).toBeLessThan(distance);
+  }, 30_000);
 });

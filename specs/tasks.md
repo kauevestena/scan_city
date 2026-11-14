@@ -911,12 +911,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F5 · **Depende de:** T041 · **REQs:** REQ-PRC-008
 - **Spec:** [processing-results §5.7](features/processing-results.md), [holo-table §5.1](features/holo-table.md)
 - **Aceite:**
-  - [ ] Nuvem fotogramétrica (cores da orto) e nuvem LiDAR (cores por retorno).
-  - [ ] Toggle TIN.
-  - [ ] Órbita por mouse e gamepad.
-  - [ ] 30.000 pontos a ≥ 50 FPS.
+  - [x] Nuvem fotogramétrica (cores da orto) e nuvem LiDAR (cores por retorno).
+  - [x] Toggle TIN.
+  - [x] Órbita por mouse e gamepad.
+  - [x] 30.000 pontos a ≥ 50 FPS.
 - **Verificação:** `npx vitest run src/screens/processing` · manual com `?debug=1&screen=PROCESSING_RESULTS`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - `engines/raster/pointCloud.ts`: `CloudJob` monta a cena em fatias de tempo (mesmo padrão do `ProductJob`; o teste mede cada fatia < 8 ms). Fotogrametria: até 30.000 pontos numa grade com jitter sobre a AOI, só em células com dados, com a elevação do MDS e a cor do pixel da orto (se a orto ainda não foi gerada, gera antes; sem orto, hipsometria). Os pontos são agrupados por cor em baldes de 4 bits por canal, um `PointSet` por balde. LiDAR: as amostras da missão (até 50.000) são reduzidas a 30.000 em passo regular, com 1º retorno ciano, intermediário violeta e solo verde (tokens `COLORS`). TIN: 65 × 65 vértices sobre o MDS, com arestas horizontais, verticais e uma diagonal por célula (64 × 64 células), em wireframe ciano.
+  - Cena em unidades próprias (a AOI cabe em [−1, 1]); relevo plano ganha exagero vertical automático (altura-alvo de 0,45, no máximo ×10).
+  - `PointCloudView.tsx` usa `OrbitCamera` e `Soft3DRenderer` (os mesmos da Mesa): arrastar orbita, a roda dá zoom e o analógico direito (`LOOK_X/Y`) e os gatilhos (`ZOOM`) funcionam no controle. O relatório roda no contexto `UI`, que não tinha eixos; acrescentei a ele só `LOOK_X`, `LOOK_Y` (analógico direito) e `ZOOM`, sem tocar nas setas, que seguem na navegação de foco (teste em `InputManager.test.ts`).
+  - A aba "Nuvem / TIN" fica entre o MDT e o NDVI. Com fotos e LiDAR na mesma missão, aparece a escolha de origem (LiDAR é o padrão, se há LiDAR). Toggle "Mostrar malha TIN" desligado por padrão; legenda com contagem de pontos e as cores dos retornos. Disponível com fotos válidas ou LiDAR.
+  - Desempenho: o teste projeta e desenha a nuvem cheia (30.000 pontos + TIN) com o `Soft3DRenderer` e um contexto sem custo de raster, e exige < 20 ms por quadro (≥ 50 FPS); a medição de FPS real num navegador fica para a revisão manual.
+  - Nos testes de tela, a nuvem pronta sai de um `requestAnimationFrame` fora de `act`; é preciso um `act` vazio para o loop do canvas ligar antes de simular o controle.
+- **Status:** ✅
 
 ### T043 — Relatório completo e esteira LiDAR
 - **Fase:** F5 · **Depende de:** T042 · **REQs:** REQ-PRC-001, REQ-PRC-003, REQ-PRC-005, REQ-PRC-013, REQ-PRG-011 (*parc.*: comparativo)
