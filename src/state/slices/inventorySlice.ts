@@ -1,4 +1,9 @@
 import type { StateCreator } from 'zustand';
+import { AudioEngine } from '@/audio/AudioEngine';
+import { STRINGS } from '@/data/strings';
+import { addItems, canBuy, purchaseItems, shopItem, shopPrice } from '@/domain/economy';
+import { unlockStateFrom } from '@/domain/progression';
+import { selectModifiers } from '../selectors';
 import type { Emblem, SaveGame } from '@/types';
 import { COLORS } from '@/ui/tokens';
 import type { GameStore, InventoryActions } from '../types';
@@ -35,7 +40,7 @@ export const createInventorySlice: StateCreator<
   [],
   [],
   Pick<GameStore, 'inventory'> & InventoryActions
-> = (set) => ({
+> = (set, get) => ({
   inventory: initialInventory(),
 
   equip: (slot, cosmeticId) =>
@@ -49,6 +54,32 @@ export const createInventorySlice: StateCreator<
           }
         : s,
     ),
+
+  buyItem: (id) => {
+    const state = get();
+    const item = shopItem(id);
+    const mod = selectModifiers(state).shopPrice;
+    const check = canBuy(item, {
+      money: state.player.money,
+      inventory: state.inventory,
+      unlock: unlockStateFrom(state),
+      shopPriceMod: mod,
+    });
+    if (!check.ok) {
+      AudioEngine.get().play('DENIED');
+      get().pushToast({ type: 'error', title: check.reason ?? STRINGS.shop.cannotBuy });
+      return false;
+    }
+    const gained = purchaseItems(id, state.inventory);
+    // O saldo já foi conferido por `canBuy`; `spend` registra a transação.
+    if (!get().spend(shopPrice(item.priceBRL, mod), STRINGS.shop.purchase(item.name))) return false;
+    set((s) => ({ inventory: addItems(s.inventory, gained) }));
+    AudioEngine.get().play('CASH_REGISTER');
+    get().pushToast({ type: 'money', title: STRINGS.shop.bought(item.name) });
+    // Possuir itens é condição de alguns contratos (progression §12).
+    get().refreshUnlocks();
+    return true;
+  },
 
   setEmblem: (emblem) =>
     set((s) => ({

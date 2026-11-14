@@ -79,12 +79,13 @@ export const OFFICE_HOTSPOTS: readonly OfficeHotspot[] = [
   { id: 'GARAGE', label: 'Garagem', icon: 'Warehouse', rect: { x: 984, y: 404, w: 270, h: 228 } },
 ];
 
-/** Hotspots ativos no Escritório v1 (T020); os demais ganham painel nas tarefas de F6. */
+/** Hotspots ativos no Escritório (T020, T045); os demais ganham painel nas tarefas de F6. */
 export const ACTIVE_HOTSPOTS: ReadonlySet<OfficeHotspotId> = new Set([
   'DOOR',
   'HOLO_TABLE',
   'LAB',
   'WORKSTATION',
+  'GARAGE',
 ]);
 
 /** Falante da introdução (REQ-OFF-007). */

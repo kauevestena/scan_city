@@ -15,6 +15,7 @@ function placeHotspots() {
     DOOR: [1044, 76],
     WORKSTATION: [56, 420],
     LAB: [740, 420],
+    GARAGE: [984, 404],
   };
   for (const [id, [left, top]] of Object.entries(pos)) {
     const el = document.querySelector<HTMLElement>(`[data-hotspot="${id}"]`);
@@ -39,12 +40,13 @@ describe('OfficeScreen', () => {
     expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).toHaveFocus();
   });
 
-  it('só os 4 hotspots do v1 são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
+  it('só os 5 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     const hotspots = document.querySelectorAll('[data-hotspot]');
     expect([...hotspots].map((h) => h.getAttribute('data-hotspot')).sort()).toEqual([
       'DOOR',
+      'GARAGE',
       'HOLO_TABLE',
       'LAB',
       'WORKSTATION',
@@ -64,35 +66,34 @@ describe('OfficeScreen', () => {
     expect(get().world.avatar).toEqual({ ...DEFAULT_SPAWN, facing: 'S' });
   });
 
-  it('só com o teclado, setas e Enter alcançam e ativam os 4 hotspots', () => {
+  it('só com o teclado, setas e Enter alcançam e ativam os 5 hotspots', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     placeHotspots();
     const focused = () => (document.activeElement as HTMLElement).getAttribute('data-hotspot');
-    expect(focused()).toBe('DOOR');
     const press = (code: string) =>
       fireEvent.keyDown(document.activeElement as HTMLElement, { code });
-    press('ArrowDown');
-    expect(focused()).toBe('LAB');
-    press('ArrowLeft');
-    expect(focused()).toBe('WORKSTATION');
-    press('ArrowRight');
-    expect(focused()).toBe('LAB');
-    press('ArrowUp');
-    expect(focused()).toBe('HOLO_TABLE');
-    // Peso 2 no eixo ortogonal (input §5): da Mesa, → vai ao Laboratório, mais próximo.
-    press('ArrowRight');
-    expect(focused()).toBe('LAB');
-    press('ArrowRight');
     expect(focused()).toBe('DOOR');
-    press('ArrowLeft');
-    expect(focused()).toBe('HOLO_TABLE');
+    const seen = new Set([focused()]);
+    // Percorre a sala só com as setas; cada uma leva ao vizinho mais próximo (input §5).
+    const path: Array<[string, string]> = [
+      ['ArrowDown', 'GARAGE'],
+      ['ArrowLeft', 'LAB'],
+      ['ArrowLeft', 'WORKSTATION'],
+      ['ArrowRight', 'LAB'],
+      ['ArrowUp', 'HOLO_TABLE'],
+      ['ArrowRight', 'LAB'],
+      ['ArrowRight', 'GARAGE'],
+    ];
+    for (const [code, expected] of path) {
+      press(code);
+      expect(focused()).toBe(expected);
+      seen.add(focused());
+    }
+    expect([...seen].sort()).toEqual(['DOOR', 'GARAGE', 'HOLO_TABLE', 'LAB', 'WORKSTATION']);
     // Enter no botão focado usa a ativação nativa (clique).
-    press('ArrowRight');
-    press('ArrowLeft');
-    expect(focused()).toBe('WORKSTATION');
     fireEvent.click(document.activeElement as HTMLElement);
-    expect(screen.getByTestId('workstation-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('garage-panel')).toBeInTheDocument();
   });
 
   it('com missão pendente: toast na entrada, foco na Workstation e "Processar" leva ao processamento (T4)', () => {

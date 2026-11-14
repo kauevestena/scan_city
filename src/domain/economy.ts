@@ -99,6 +99,7 @@ export interface ShopItem {
   unlock?: UnlockCondition;
 }
 
+/** Todos os itens da loja, na ordem do catálogo. */
 const ITEMS: readonly ShopItem[] = [
   ...AIRCRAFT.map((a) => ({
     id: a.id,
@@ -143,6 +144,8 @@ const ITEMS: readonly ShopItem[] = [
     return item;
   }),
 ];
+
+export const SHOP_ITEMS: readonly ShopItem[] = ITEMS;
 
 export function shopItem(id: string): ShopItem {
   const item = ITEMS.find((i) => i.id === id);

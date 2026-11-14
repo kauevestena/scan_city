@@ -98,6 +98,12 @@ export interface PlayerActions {
 
 export interface InventoryActions {
   equip: (slot: EquipSlot, cosmeticId: string) => void;
+  /**
+   * Compra um item da loja (office §5, progression §5): confere `canBuy` com o desconto, debita,
+   * entrega os itens (o combo T2, só os que faltam) e toca `CASH_REGISTER`. Sem condição, toca
+   * `DENIED` e avisa o motivo. Devolve se a compra aconteceu.
+   */
+  buyItem: (id: string) => boolean;
   setEmblem: (emblem: Emblem) => void;
   /** Soma milho ao estoque (Atlas). */
   addCorn: (amount: number) => void;

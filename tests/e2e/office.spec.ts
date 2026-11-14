@@ -13,7 +13,7 @@ test('novo jogo: intro de 4 cartões → foco na Porta → Enter vai ao mapa', a
   await expect(page.getByTestId('world-map-screen')).toBeVisible();
 });
 
-test('só com o teclado, os 4 hotspots do escritório são alcançáveis a partir da Porta', async ({
+test('só com o teclado, os 5 hotspots do escritório são alcançáveis a partir da Porta', async ({
   page,
 }) => {
   await page.goto('/?debug=1&skipIntro=1');
@@ -35,7 +35,7 @@ test('só com o teclado, os 4 hotspots do escritório são alcançáveis a parti
       }
     }
   }
-  expect([...seen].sort()).toEqual(['DOOR', 'HOLO_TABLE', 'LAB', 'WORKSTATION']);
+  expect([...seen].sort()).toEqual(['DOOR', 'GARAGE', 'HOLO_TABLE', 'LAB', 'WORKSTATION']);
   // E o Enter ativa o hotspot focado.
   await page.focus('[data-hotspot="WORKSTATION"]');
   await page.keyboard.press('Enter');
@@ -53,4 +53,25 @@ test('Workstation → Processar leva ao processamento da missão pendente', asyn
   await expect(page.getByTestId('processing-screen')).toBeVisible();
   await expect(page.getByTestId('pipeline')).toBeVisible();
   await expect(page.getByTestId('processing-header')).toContainText('Notebook Velho Lento');
+});
+
+test('Garagem: comprar o Drone T1 debita o saldo e o card vira "Possuído"; Esc devolve o foco', async ({
+  page,
+}) => {
+  // Saldo de R$ 7.300 (progression §3 do critério de aceite).
+  await page.goto('/?debug=1&skipIntro=1&money=7300');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
+  await page.getByRole('button', { name: 'Garagem' }).click();
+  const panel = page.getByTestId('garage-panel');
+  await expect(panel).toBeVisible();
+  const t1 = panel.getByTestId('shop-item-DRONE_T1');
+  await expect(t1).toHaveAttribute('data-state', 'BUY');
+  await t1.getByRole('button', { name: 'Comprar' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Comprar' }).click();
+  await expect(t1).toHaveAttribute('data-state', 'OWNED');
+  await expect(page.getByTestId('top-bar')).toContainText('1.300');
+  // Esc fecha e devolve o foco à Garagem.
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page.locator('[data-hotspot="GARAGE"]')).toBeFocused();
 });

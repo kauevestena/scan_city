@@ -967,13 +967,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [office §5](features/office.md) (Garagem, Workstation/Hardware), [progression §5](features/progression.md)
 - **Arquivos:** \+ `src/screens/office/{GaragePanel,ShopItemCard,HardwarePanel}.tsx` · ~ `OfficeRenderer` (frota visível)
 - **Aceite:**
-  - [ ] O critério 2 de [office §8](features/office.md).
-  - [ ] Combo T2 com os itens faltantes.
-  - [ ] Hardware sequencial.
-  - [ ] Desconto `shopPrice`.
-  - [ ] Hotspot da Garagem ativo.
+  - [x] O critério 2 de [office §8](features/office.md).
+  - [x] Combo T2 com os itens faltantes.
+  - [x] Hardware sequencial.
+  - [x] Desconto `shopPrice`.
+  - [x] Hotspot da Garagem ativo.
 - **Verificação:** `npx vitest run src/screens/office`
-- **Status:** ☐
+- **Notas de implementação:**
+  - A lógica de loja já estava em `domain/economy` (`canBuy`, `shopPrice`, `purchaseItems` do combo T2, `addItems`); faltava a ação: `buyItem(id)` na store confere `canBuy` com o `shopPrice` das habilidades, debita (transação registrada), entrega os itens, toca `CASH_REGISTER` e chama `refreshUnlocks` (posse de item é condição de contratos). Sem condição, toca `DENIED` e mostra o motivo no toast ("Exige possuir …", "Bloqueado: …", "Saldo insuficiente (faltam R$ X)").
+  - `GaragePanel` (hotspot GARAGE, agora ativo): abas Aeronaves, Sensores & Lentes (câmeras, lentes e o pod), Veículos, Equipamento de Campo e Pintura (só as tintas de drone; skins e acessórios do Atlas têm painéis próprios). `ShopItemCard` mostra a tabela compacta de especificações (`shopModel.specRows`), o preço com o desconto (e o original riscado), o estado (Possuído / Comprar / "Bloqueado: Requer <item>") e, na pintura, as cores e o botão Equipar. A compra abre `ConfirmDialog`; sem saldo não há diálogo (o `buyItem` toca `DENIED` direto, como em office §7).
+  - Combo T2: o card avisa antes da compra o que já se possui ("só adiciona o que falta, sem reembolso") e a confirmação lista os itens que faltam; o preço é o do T2 (R$ 70.000), com ou sem a câmera.
+  - Hardware: a Workstation ganhou a aba Hardware (`HardwarePanel`): Atual, Substituído (os anteriores), Próximo (com Comprar) e os seguintes sem botão; a compra sequencial vem de `PURCHASE_PREREQUISITES`.
+  - A frota na garagem do `OfficeRenderer` já crescia com o inventário (`fleetSprites`, testado). Os testes de navegação por teclado do escritório passaram de 4 para 5 hotspots (a Garagem entra entre a Porta e o Laboratório). Testes: `state/shop.test.ts` (critério 2, tiers, combo, hardware, desconto), `GaragePanel.test.tsx` e o E2E de compra em `office.spec.ts`.
+- **Status:** ✅
 
 ### T046 — Quadro de Carreira: habilidades e perfil
 - **Fase:** F6 · **Depende de:** T045 · **REQs:** REQ-PRG-006, REQ-PRG-007, REQ-PRG-012
@@ -1312,8 +1318,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ☐ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |
-| REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ☐ |
-| REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ☐ |
+| REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ✅ |
+| REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ✅ |
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ☐ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
@@ -1389,9 +1395,9 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-LAB-004 | Global vs. rolling shutter | [infographic-lab](features/infographic-lab.md) | T074 | ☐ |
 | REQ-LAB-005 | Reuso do domínio | [domain-math](design/domain-math.md), [infographic-lab](features/infographic-lab.md) | T011, T073, T074 | ☐ |
 | REQ-PRG-001 | Saldo | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019 | ✅ |
-| REQ-PRG-002 | Aeronaves e sensores por tier | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
-| REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
-| REQ-PRG-004 | Hardware de processamento | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
+| REQ-PRG-002 | Aeronaves e sensores por tier | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
+| REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
+| REQ-PRG-004 | Hardware de processamento | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ☐ |
 | REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ☐ |
 | REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ☐ |

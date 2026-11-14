@@ -1,5 +1,5 @@
-import { Cpu, Monitor, Play, X } from 'lucide-react';
-import { useRef } from 'react';
+import { Cpu, HardDrive, Monitor, Play, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { HARDWARE, STAFF } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { processingBaseTimeS, processingSpeed, processingTimeS } from '@/domain/processing';
@@ -8,6 +8,7 @@ import { formatDateTime, formatDuration, formatNumber } from '@/lib/format';
 import { useGameStore } from '@/state/store';
 import type { MissionData } from '@/types';
 import { Button, Panel, Tabs } from '@/ui';
+import { HardwarePanel } from './HardwarePanel';
 
 const W = STRINGS.office.workstation;
 
@@ -15,9 +16,10 @@ function pulses(mission: MissionData): number {
   return mission.lidar?.grid.pulses.reduce((s, p) => s + p, 0) ?? 0;
 }
 
-/** Workstation v1 (office §5): a fila de processamento. A aba Hardware entra em T045. */
+/** Workstation (office §5): a fila de processamento e a aba Hardware. */
 export function WorkstationPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<'QUEUE' | 'HARDWARE'>('QUEUE');
   const pending = useGameStore((s) => s.mission.pending);
   const hardwareId = useGameStore((s) => s.inventory.hardware);
   const staff = useGameStore((s) => s.staff);
@@ -46,11 +48,15 @@ export function WorkstationPanel({ onClose }: { onClose: () => void }) {
         }
       >
         <Tabs
-          tabs={[{ id: 'QUEUE', label: W.queueTab, icon: Cpu }]}
-          value="QUEUE"
-          onChange={() => undefined}
+          tabs={[
+            { id: 'QUEUE', label: W.queueTab, icon: Cpu },
+            { id: 'HARDWARE', label: W.hardwareTab, icon: HardDrive },
+          ]}
+          value={tab}
+          onChange={setTab}
         />
-        <ul className="mt-3 flex flex-col gap-2">
+        {tab === 'HARDWARE' && <HardwarePanel />}
+        <ul className={tab === 'QUEUE' ? 'mt-3 flex flex-col gap-2' : 'hidden'}>
           {pending.length === 0 && <li className="text-sm text-slate-400">{W.empty}</li>}
           {pending.map((mission, i) => {
             const time = processingTimeS(
