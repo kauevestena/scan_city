@@ -91,6 +91,25 @@ export const STRINGS = {
     tier: (n: number) => `Tier ${n}`,
     density: (value: string) => `${value} pts/m²`,
   },
+  shop: {
+    owned: 'Você já possui este item',
+    requires: (name: string) => `Exige possuir ${name}`,
+    locked: (condition: string) => `Bloqueado: ${condition}`,
+  },
+  unlock: {
+    always: 'Disponível',
+    contract: (id: string) => `concluir o contrato ${id}`,
+    reputation: (min: number) => `reputação ${min}`,
+    level: (min: number) => `nível ${min}`,
+    owns: (name: string) => `possuir ${name}`,
+    rifts: (count: number) => `${count} fendas concluídas`,
+    all: (parts: string[]) => parts.join(' e '),
+    any: (parts: string[]) => parts.join(' ou '),
+  },
+  progression: {
+    levelUp: (level: number) => `Nível ${level}! +1 ponto de habilidade`,
+    reputationBands: ['Desconhecida', 'Promissora', 'Respeitada', 'Referência', 'Lendária'],
+  },
   pause: {
     title: 'Jogo pausado',
     resume: 'Continuar',

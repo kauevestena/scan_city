@@ -411,17 +411,23 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [domain-math §12, §13](design/domain-math.md), [progression](features/progression.md)
 - **Arquivos:** \+ `src/domain/{economy,progression,modifiers,museum,rival,fieldEvents}.ts` + testes
 - **Aceite:**
-  - [ ] G19, G20, G21 e G24 passam.
-  - [ ] `canBuy`, com todas as razões.
-  - [ ] `addXp` com múltiplos níveis.
-  - [ ] `applyModifiers` cumulativo.
-  - [ ] `evaluateUnlock`, recursivo.
-  - [ ] Roubo e retorno.
-  - [ ] Replay a 0,4.
-  - [ ] `rollFieldEvent` determinístico, respeitando o cooldown e o veículo.
-  - [ ] `offlineIncome` limitada a 2 h.
+  - [x] G19, G20, G21 e G24 passam.
+  - [x] `canBuy`, com todas as razões.
+  - [x] `addXp` com múltiplos níveis.
+  - [x] `applyModifiers` cumulativo.
+  - [x] `evaluateUnlock`, recursivo.
+  - [x] Roubo e retorno.
+  - [x] Replay a 0,4.
+  - [x] `rollFieldEvent` determinístico, respeitando o cooldown e o veículo.
+  - [x] `offlineIncome` limitada a 2 h.
 - **Verificação:** `npx vitest run src/domain --coverage` (≥ 90 % em `domain/`)
-- **Status:** ☐
+- **Notas de implementação:**
+  - `computePayment(input, roles = STAFF)` recebe o fator de qualidade pronto, calculado por `mission.qualityFactor` (ver T018); G20 é testado com `qualityFactor(0,8, …)`. `computeRewards` aplica a regra de replay: numa falha crítica em repetição, a reputação cai no máximo 3.
+  - O G21 (`processingBaseTimeS`) já foi implementado e testado em T018 (`domain/processing.ts`).
+  - Loja: `canBuy(item, state)` usa `PURCHASE_PREREQUISITES` do catálogo (tier anterior, VTOL para o pod, hardware anterior). `purchaseItems` expande o combo T2 e `addItems` aplica a compra: hardware substitui, o pod traz a câmera RGB embutida e o Drone T1 vem com a câmera de 20 MP.
+  - Portfólio do rival: `ContractProgress.bestClass` guarda a classe PEC atingida, ou `ASPRS-H5` / `ASPRS` / `FORA` nas missões ASPRS (`portfolioClass`). Convencem o cliente a classe `A` ou a `ASPRS-H5`.
+  - Museu: `museumIncomePerMin` devolve centavos possivelmente fracionários, e `accrueIncome` credita os inteiros, guardando a fração em `carryCents`.
+- **Status:** ✅
 
 ---
 
@@ -1207,7 +1213,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-LAB-003 | LiDAR vs. fotogrametria no dossel | [infographic-lab](features/infographic-lab.md) | T012, T074 | ☐ |
 | REQ-LAB-004 | Global vs. rolling shutter | [infographic-lab](features/infographic-lab.md) | T074 | ☐ |
 | REQ-LAB-005 | Reuso do domínio | [domain-math](design/domain-math.md), [infographic-lab](features/infographic-lab.md) | T011, T073, T074 | ☐ |
-| REQ-PRG-001 | Saldo | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019 | ☐ |
+| REQ-PRG-001 | Saldo | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019 | ✅ |
 | REQ-PRG-002 | Aeronaves e sensores por tier | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
 | REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
 | REQ-PRG-004 | Hardware de processamento | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ☐ |
