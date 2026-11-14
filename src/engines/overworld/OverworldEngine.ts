@@ -5,7 +5,7 @@
 import type { AxisAction } from '@/input/actions';
 import type { Facing, VehicleId } from '@/types';
 import type { MarkerView } from '@/world/overworld/markers';
-import { blockedHint, WORLD_MAP, type OverworldMap } from '@/world/overworld/tiles';
+import { blockedHint, tileAt, WORLD_MAP, type OverworldMap } from '@/world/overworld/tiles';
 import { nearestWalkable } from '@/world/overworld/pathfinding';
 import { COLORS } from '@/ui/tokens';
 import type { CanvasSurface } from '../canvas';
@@ -13,6 +13,7 @@ import type { Simulation } from '../loop';
 import { boxBlocker, stepAvatar, type AvatarState } from './avatar';
 import { clampCamera, followCamera, type CameraState } from './camera';
 import { CHUNK_TILES, ChunkCache, drawMarker, drawWater, TILE_PX } from './tileRenderer';
+import { drawAvatar, type SkinColors } from './vehicleSprites';
 
 /** Zoom de câmera em 1280 px de largura (≈ 27 × 14 tiles visíveis). */
 export const BASE_ZOOM = 1.5;
@@ -23,10 +24,7 @@ export const HINT_THROTTLE_S = 3;
 /** Chunks pré-renderizados mantidos em memória (os visíveis cabem com folga). */
 export const MAX_CACHED_CHUNKS = 20;
 
-export interface SkinColors {
-  primary: string;
-  secondary: string;
-}
+export type { SkinColors };
 
 export interface OverworldEngineOptions {
   map?: OverworldMap;
@@ -144,6 +142,15 @@ export class OverworldEngine implements Simulation {
     return this.currentTarget();
   }
 
+  /**
+   * Recusa de troca de veículo (world-map §5.3): se o novo modo não cabe no tile atual,
+   * devolve a dica correspondente; `null` se pode trocar.
+   */
+  switchRefusal(next: VehicleId): string | null {
+    const blocker = boxBlocker(this.map, this.avatar.x, this.avatar.y, next);
+    return blocker ? blockedHint(blocker, next) : null;
+  }
+
   /** Move o avatar para o centro do tile (depuração: "Teleportar para marcador"). */
   teleport(x: number, y: number): void {
     this.avatar = { ...this.avatar, x, y };
@@ -230,59 +237,13 @@ export class OverworldEngine implements Simulation {
       if (m.x >= x0 - 1 && m.x <= x1 + 1 && m.y >= y0 - 1 && m.y <= y1 + 1)
         drawMarker(ctx, m, this.timeS);
     }
-    drawFootAvatar(ctx, this.avatar, this.opts.skin(), this.moving);
+    drawAvatar(ctx, {
+      avatar: this.avatar,
+      vehicle: this.opts.vehicle(),
+      tile: tileAt(this.map, this.avatar.x, this.avatar.y),
+      skin: this.opts.skin(),
+      moving: this.moving,
+    });
     ctx.restore();
-  }
-}
-
-/** Avatar a pé (círculo + corpo) nas cores da skin, com 4 direções e "bob" de caminhada. */
-export function drawFootAvatar(
-  ctx: CanvasRenderingContext2D,
-  avatar: AvatarState,
-  skin: SkinColors,
-  moving: boolean,
-): void {
-  const cx = avatar.x * TILE_PX;
-  const cy = avatar.y * TILE_PX;
-  const bob = moving ? Math.abs(Math.sin(avatar.walked * Math.PI * 2)) * 2 : 0;
-  const dir: Record<Facing, [number, number]> = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
-  const [fx, fy] = dir[avatar.facing];
-
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.35)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + 9, 8, 3.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  const by = cy - bob;
-  // Corpo.
-  ctx.fillStyle = skin.primary;
-  ctx.strokeStyle = skin.secondary;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(cx - 6, by - 3, 12, 12, 4);
-  ctx.fill();
-  ctx.stroke();
-  // Cabeça.
-  ctx.fillStyle = '#f2c9a0';
-  ctx.beginPath();
-  ctx.arc(cx, by - 7, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  // Olhar: olhos para o sul/leste/oeste; de costas, só o cabelo.
-  if (avatar.facing === 'N') {
-    ctx.fillStyle = skin.secondary;
-    ctx.beginPath();
-    ctx.arc(cx, by - 8, 4, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.fillStyle = '#0f172a';
-    const ex = cx + fx * 2.5;
-    const ey = by - 7 + fy * 1.5;
-    if (avatar.facing === 'S') {
-      ctx.fillRect(ex - 2.5, ey - 1, 1.5, 1.5);
-      ctx.fillRect(ex + 1, ey - 1, 1.5, 1.5);
-    } else {
-      ctx.fillRect(ex - 0.75, ey - 1, 1.5, 1.5);
-    }
   }
 }

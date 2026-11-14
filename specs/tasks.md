@@ -851,15 +851,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F4 · **Depende de:** T038 · **REQs:** REQ-WLD-002, REQ-WLD-003, REQ-FLD-002, REQ-FLD-003
 - **Spec:** [world-map §5.2–§5.3](features/world-map.md), [catalog §4, §5](content/catalog.md), [field-setup §5.2](features/field-setup.md)
 - **Aceite:**
-  - [ ] `CYCLE_VEHICLE` entre os possuídos.
-  - [ ] Sprites por modo.
-  - [ ] Velocidades da tabela.
-  - [ ] Recusa ao trocar para um modo inválido no tile.
-  - [ ] Field Setup usa a união dos veículos.
-  - [ ] Toggle de instrumento (Estação Total / GNSS) com os limites.
-  - [ ] O critério 4 de [world-map §8](features/world-map.md).
+  - [x] `CYCLE_VEHICLE` entre os possuídos.
+  - [x] Sprites por modo.
+  - [x] Velocidades da tabela.
+  - [x] Recusa ao trocar para um modo inválido no tile.
+  - [x] Field Setup usa a união dos veículos.
+  - [x] Toggle de instrumento (Estação Total / GNSS) com os limites.
+  - [x] O critério 4 de [world-map §8](features/world-map.md).
 - **Verificação:** `npx vitest run src/engines/overworld src/domain/accessibility src/screens/field`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `V` (`CYCLE_VEHICLE`) agora é tratado em `WorldMapScreen`: `nextVehicle` (worldSlice) dá o próximo modo entre os possuídos, e `OverworldEngine.switchRefusal(next)` testa se a caixa do avatar cabe no tile atual com o novo modo. Se não cabe, o modo não muda e a dica é a de `blockedHint` (ex.: "Fora de estrada — carros não passam; troque para A Pé [V]"). Pausado, `V` não faz nada.
+  - Sprites em `engines/overworld/vehicleSprites.ts` (o avatar a pé saiu do engine para lá): carro, picape (com caçamba) e van (com janelas e antena), girados para os 4 rumos, nas cores da skin. O modo `FOOT_BIKE` é um só: mostra o ciclista quando está em movimento sobre via (estrada pavimentada, de terra ou ponte) e o pedestre no resto.
+  - A tabela de velocidades de catalog §5 já estava em `data/catalog`; o teste `vehicles.test.ts` agora a confere célula a célula (15 tiles × 4 veículos) e mede que 1 s de movimento percorre exatamente `tiles/s`.
+  - Field Setup: a união dos veículos já valia (`isAccessible`); passou a ter teste de tela (com a picape, um ponto vedado a pé é aceito).
+  - Toggle de instrumento: com os dois equipamentos, `GroundPointsTab` mostra [Estação Total | GNSS RTK], que grava `mission.fieldEquipmentId` (`setFieldEquipment`, só entre os possuídos) e muda o σ. Os limites (20 pontos, GCP ≤ 12, CP ≤ 8) seguem o kit GNSS enquanto ele for possuído, independentemente do instrumento escolhido (catalog §4). `placePoint` passou a validar o limite por tipo (`PointLimits`), com a recusa "Limite do instrumento (N)" do que estourou.
+- **Status:** ✅
 
 ### T040 — Eventos de campo
 - **Fase:** F4 · **Depende de:** T039 · **REQs:** REQ-WLD-006
@@ -1282,16 +1288,16 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
-| REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ☐ |
-| REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ☐ |
+| REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ✅ |
+| REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ☐ |
 | REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ☐ |
 | REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ✅ |
-| REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ☐ |
-| REQ-FLD-003 | Acessibilidade por veículo | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T017, T023, T039 | ☐ |
+| REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ✅ |
+| REQ-FLD-003 | Acessibilidade por veículo | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T017, T023, T039 | ✅ |
 | REQ-FLD-004 | Indicador de distribuição | [field-setup](features/field-setup.md) | T015, T023 | ✅ |
 | REQ-FLD-005 | Seleção de equipamento | [field-setup](features/field-setup.md) | T023 | ✅ |
 | REQ-FLD-006 | Parâmetros do plano | [field-setup](features/field-setup.md) | T023 | ✅ |

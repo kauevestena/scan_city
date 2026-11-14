@@ -1,4 +1,5 @@
 import type {
+  FieldEquipmentId,
   CentsBRL,
   ContractProgress,
   Dimension,
@@ -134,6 +135,8 @@ export interface MissionActions {
   updatePlan: (params: PlanParams, options?: PlanOptions) => void;
   setGroundPoints: (points: GroundPoint[]) => void;
   /** Resultado de um mini-game de campo; vale a melhor pontuação da missão (field-setup §5.4). */
+  /** Troca o instrumento de medição dos GCPs (só entre os possuídos). */
+  setFieldEquipment: (id: FieldEquipmentId) => void;
   recordMinigame: (kind: 'level' | 'imu', score: number) => void;
   /**
    * Decolagem (field-setup §5.5): σ dos pontos, `IN_FLIGHT` e, com Atlas, um voo da

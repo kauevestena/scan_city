@@ -1,11 +1,18 @@
 import { useMemo } from 'react';
-import { CATALOG, getAircraft, getFieldEquipment, getVehicle } from '@/data/catalog';
+import {
+  CATALOG,
+  FIELD_EQUIPMENT,
+  getAircraft,
+  getFieldEquipment,
+  getVehicle,
+} from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import type { PredictContext } from '@/domain/requirements';
 import { meanCanopy } from '@/engines/field/satellite';
 import { selectModifiers } from '@/state/selectors';
 import { useGameStore } from '@/state/store';
 import type { Contract, FieldEquipment, MissionData, Vehicle } from '@/types';
+import { pointLimits, type PointLimits } from './fieldModel';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 
@@ -16,7 +23,12 @@ export interface FieldContext {
   terrain: TerrainSampler;
   vehicles: Vehicle[];
   rules: { paintMarkers: boolean };
+  /** Instrumento de medição escolhido (define o σ dos GCPs). */
   equipment: FieldEquipment;
+  /** Equipamentos possuídos; com dois, o jogador escolhe o instrumento num toggle. */
+  ownedEquipment: FieldEquipment[];
+  /** Limites de pontos (os do kit GNSS, se possuído). */
+  limits: Required<PointLimits>;
   predict: PredictContext;
   meanCanopy: number;
 }
@@ -36,6 +48,8 @@ export function useFieldContext(mission: MissionData): FieldContext {
     vehicles,
     rules: { paintMarkers: contract.specialRules.includes('PAINT_MARKERS') },
     equipment: getFieldEquipment(mission.fieldEquipmentId),
+    ownedEquipment: FIELD_EQUIPMENT.filter((f) => inventory.fieldEquipment.includes(f.id)),
+    limits: pointLimits(inventory.fieldEquipment),
     predict: {
       catalog: CATALOG,
       ownsRtkKit: inventory.fieldEquipment.includes('GNSS_RTK_KIT'),

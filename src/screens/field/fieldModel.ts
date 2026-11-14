@@ -1,9 +1,10 @@
 /** Regras da aba "Pontos de apoio" (field-setup §5.2), sem React. */
+import { getFieldEquipment, POINT_LIMITS } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { isAccessible, snapToAccessible, type AccessRules } from '@/domain/accessibility';
 import { collinearityIndex, hullCoverage } from '@/domain/geometry';
 import { formatNumber } from '@/lib/format';
-import type { AoiPoint, Contract, FieldEquipment, GroundPoint, Vehicle } from '@/types';
+import type { AoiPoint, Contract, FieldEquipmentId, GroundPoint, Vehicle } from '@/types';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 
 const F = STRINGS.field;
@@ -109,6 +110,22 @@ export function nextPointId(points: readonly GroundPoint[], kind: GroundPoint['k
   }
 }
 
+/** Limites de pontos: o total e, opcionalmente, o de cada tipo. */
+export interface PointLimits {
+  maxPoints: number;
+  gcp?: number;
+  cp?: number;
+}
+
+/**
+ * Limites do Field Setup (catalog §4): com o kit GNSS entre os equipamentos possuídos,
+ * valem os dele (20 pontos, GCP ≤ 12, CP ≤ 8), seja qual for o instrumento de medição.
+ */
+export function pointLimits(owned: readonly FieldEquipmentId[]): Required<PointLimits> {
+  const id: FieldEquipmentId = owned.includes('GNSS_RTK_KIT') ? 'GNSS_RTK_KIT' : 'TOTAL_STATION';
+  return { maxPoints: getFieldEquipment(id).maxPoints, ...POINT_LIMITS[id] };
+}
+
 export type PlaceResult = { ok: true; points: GroundPoint[] } | { ok: false; reason: string };
 
 /** Coloca um ponto (com o limite do instrumento e a acessibilidade). */
@@ -119,10 +136,12 @@ export function placePoint(
   terrain: TerrainSampler,
   vehicles: readonly Vehicle[],
   rules: AccessRules,
-  equipment: Pick<FieldEquipment, 'maxPoints'>,
+  limits: PointLimits,
 ): PlaceResult {
-  if (points.length >= equipment.maxPoints)
-    return { ok: false, reason: F.limit(equipment.maxPoints) };
+  if (points.length >= limits.maxPoints) return { ok: false, reason: F.limit(limits.maxPoints) };
+  const perKind = kind === 'GCP' ? limits.gcp : limits.cp;
+  if (perKind !== undefined && points.filter((p) => p.kind === kind).length >= perKind)
+    return { ok: false, reason: F.limit(perKind) };
   const refusal = accessRefusal(at.u, at.v, terrain, vehicles, rules);
   if (refusal) return { ok: false, reason: refusal };
   const point: GroundPoint = {
@@ -170,7 +189,7 @@ export function suggestGcps(
   terrain: TerrainSampler,
   vehicles: readonly Vehicle[],
   rules: AccessRules,
-  equipment: Pick<FieldEquipment, 'maxPoints'>,
+  limits: PointLimits,
 ): GroundPoint[] {
   const { lengthM, widthM } = contract.aoi;
   const iu = lengthM * 0.1;
@@ -184,10 +203,10 @@ export function suggestGcps(
   ];
   let next: GroundPoint[] = points.filter((p) => p.kind === 'CP');
   for (const target of targets) {
-    if (next.length >= equipment.maxPoints) break;
+    if (next.length >= limits.maxPoints) break;
     const snapped = snapToAccessible(target, terrain, vehicles, rules);
     if (!snapped) continue;
-    const placed = placePoint(next, 'GCP', snapped, terrain, vehicles, rules, equipment);
+    const placed = placePoint(next, 'GCP', snapped, terrain, vehicles, rules, limits);
     if (placed.ok) next = placed.points;
   }
   return next;

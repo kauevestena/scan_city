@@ -12,6 +12,7 @@ import {
   nextPointId,
   overlapWarnRange,
   placePoint,
+  pointLimits,
   removePoint,
   suggestGcps,
 } from './fieldModel';
@@ -156,6 +157,37 @@ describe('colocar, mover e remover (REQ-FLD-002)', () => {
     expect(distribution(points, C00).light).toBe('GREEN');
     // Respeita o limite do instrumento.
     expect(suggestGcps([], C00, terrain, FOOT, RULES, { maxPoints: 2 })).toHaveLength(2);
+  });
+});
+
+describe('limites por instrumento (catalog §4)', () => {
+  const at = (i: number): [number, number] => [20 + (i % 10) * 10, 20 + Math.floor(i / 10) * 10];
+  const fill = (n: number, kind: GroundPoint['kind']): GroundPoint[] =>
+    Array.from({ length: n }, (_, i) => ({ ...gcp(`${kind}-${i}`, ...at(i)), kind }));
+
+  it('Estação Total: 8 pontos no total; com o kit GNSS entre os possuídos, valem os dele', () => {
+    expect(pointLimits(['TOTAL_STATION'])).toEqual({ maxPoints: 8, gcp: 8, cp: 8 });
+    expect(pointLimits(['TOTAL_STATION', 'GNSS_RTK_KIT'])).toEqual({
+      maxPoints: 20,
+      gcp: 12,
+      cp: 8,
+    });
+  });
+
+  it('GNSS: GCP ≤ 12, CP ≤ 8, total ≤ 20, cada recusa com o limite que estourou', () => {
+    const limits = pointLimits(['GNSS_RTK_KIT']);
+    const place = (pts: GroundPoint[], kind: GroundPoint['kind']) =>
+      placePoint(pts, kind, { u: 100, v: 60 }, terrain, FOOT, RULES, limits);
+    expect(place(fill(12, 'GCP'), 'GCP')).toEqual({
+      ok: false,
+      reason: 'Limite do instrumento (12)',
+    });
+    expect(place(fill(12, 'GCP'), 'CP').ok).toBe(true);
+    expect(place([...fill(12, 'GCP'), ...fill(8, 'CP')], 'CP')).toEqual({
+      ok: false,
+      reason: 'Limite do instrumento (20)',
+    });
+    expect(place(fill(8, 'CP'), 'CP')).toEqual({ ok: false, reason: 'Limite do instrumento (8)' });
   });
 });
 

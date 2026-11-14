@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { CATALOG } from '@/data/catalog';
+import { CATALOG, getVehicle } from '@/data/catalog';
 import { C00 } from '@/data/contracts';
+import { isAccessible } from '@/domain/accessibility';
 import { buildFlightPlan, validatePlan } from '@/domain/flightPlanner';
 import { estimateFromPlan, predictRequirements } from '@/domain/requirements';
 import { initialView, toScreen, viewTransform } from '@/engines/field/satellite';
@@ -360,5 +361,73 @@ describe('FieldSetupScreen', () => {
     expect(toggles()).toEqual(['Terrain Following', 'Malha cruzada', 'Oblíqua 45°', 'Oblíqua 60°']);
     fireEvent.click(screen.getByRole('tab', { name: 'Asa Fixa VTOL "Albatroz"' }));
     expect(toggles()).toEqual(['Terrain Following', 'Malha cruzada']);
+  });
+
+  describe('instrumento de medição (catalog §4)', () => {
+    const own = (equipment: Array<'TOTAL_STATION' | 'GNSS_RTK_KIT'>) =>
+      act(() =>
+        useGameStore.setState((s) => ({
+          inventory: { ...s.inventory, fieldEquipment: equipment },
+        })),
+      );
+
+    it('com só a Estação Total, não há toggle', () => {
+      render(<FieldSetupScreen />);
+      expect(screen.queryByTestId('instrument-toggle')).not.toBeInTheDocument();
+      expect(screen.getByText(/Estação Total do Avô \(σ 1,0 cm, máx\. 8\)/)).toBeInTheDocument();
+    });
+
+    it('com os dois, o toggle troca o σ (1,0 → 1,5 cm), mas os limites seguem o GNSS (20)', () => {
+      own(['TOTAL_STATION', 'GNSS_RTK_KIT']);
+      render(<FieldSetupScreen />);
+      const toggle = screen.getByTestId('instrument-toggle');
+      expect(screen.getByText(/Estação Total do Avô \(σ 1,0 cm, máx\. 20\)/)).toBeInTheDocument();
+      fireEvent.click(within(toggle).getByRole('tab', { name: 'GNSS RTK' }));
+      expect(get().mission.active?.fieldEquipmentId).toBe('GNSS_RTK_KIT');
+      expect(
+        screen.getByText(/Kit GNSS RTK Base \+ Rover \(σ 1,5 cm, máx\. 20\)/),
+      ).toBeInTheDocument();
+      fireEvent.click(within(toggle).getByRole('tab', { name: 'Estação Total' }));
+      expect(get().mission.active?.fieldEquipmentId).toBe('TOTAL_STATION');
+    });
+
+    it('só troca para um equipamento possuído', () => {
+      render(<FieldSetupScreen />);
+      act(() => get().setFieldEquipment('GNSS_RTK_KIT'));
+      expect(get().mission.active?.fieldEquipmentId).toBe('TOTAL_STATION');
+    });
+  });
+
+  it('o Field Setup usa a união dos veículos: com a picape, um ponto vedado a pé é aceito', () => {
+    const terrain = createTerrain(C00);
+    const foot = [getVehicle('FOOT_BIKE')];
+    const both = [getVehicle('FOOT_BIKE'), getVehicle('PICKUP_4X4')];
+    const rules = { paintMarkers: false };
+    let spot: { u: number; v: number } | null = null;
+    const b = terrain.bounds;
+    for (let u = b.uMin; u <= b.uMax && !spot; u += 5) {
+      for (let v = b.vMin; v <= b.vMax && !spot; v += 5) {
+        if (
+          !isAccessible(u, v, terrain, foot, rules).ok &&
+          isAccessible(u, v, terrain, both, rules).ok
+        )
+          spot = { u, v };
+      }
+    }
+    expect(spot).not.toBeNull();
+    const { u, v } = spot as { u: number; v: number };
+    // A pé: recusado. Com a picape também possuída: aceito.
+    const { unmount } = render(<FieldSetupScreen />);
+    clickMap(u, v);
+    expect(get().mission.active?.groundPoints).toHaveLength(0);
+    unmount();
+    act(() =>
+      useGameStore.setState((s) => ({
+        inventory: { ...s.inventory, vehicles: ['FOOT_BIKE', 'PICKUP_4X4'] },
+      })),
+    );
+    render(<FieldSetupScreen />);
+    clickMap(u, v);
+    expect(get().mission.active?.groundPoints).toHaveLength(1);
   });
 });

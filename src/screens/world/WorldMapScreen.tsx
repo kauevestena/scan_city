@@ -13,6 +13,7 @@ import { useGameLoop } from '@/engines/useGameLoop';
 import { InputManager } from '@/input/InputManager';
 import { useInputContext } from '@/input/useInputContext';
 import { selectModifiers } from '@/state/selectors';
+import { nextVehicle } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import type { GameStore } from '@/state/types';
 import { Tabs, type TabDef } from '@/ui';
@@ -102,7 +103,18 @@ export function WorldMapScreen() {
   useEffect(
     () =>
       InputManager.get().onAction((e) => {
-        if (e.action !== 'INTERACT' || useGameStore.getState().session.paused) return;
+        if (useGameStore.getState().session.paused) return;
+        if (e.action === 'CYCLE_VEHICLE') {
+          const { inventory, world, cycleVehicle } = useGameStore.getState();
+          const next = nextVehicle(inventory.vehicles, world.vehicleMode);
+          if (next === world.vehicleMode) return;
+          // O novo modo precisa caber no tile atual; senão, recusa com a dica.
+          const refusal = engine.switchRefusal(next);
+          if (refusal) setHint({ text: refusal, id: performance.now() });
+          else cycleVehicle();
+          return;
+        }
+        if (e.action !== 'INTERACT') return;
         const hit = engine.interact();
         if (hit?.kind === 'DOOR') {
           flushEngine(engine);

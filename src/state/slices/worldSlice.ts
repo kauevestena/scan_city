@@ -14,6 +14,13 @@ export const VEHICLE_ORDER: readonly VehicleId[] = [
 /** Centro do tile de spawn `@` (o avatar guarda a posição contínua, em tiles). */
 export const DEFAULT_SPAWN = { x: WORLD_MAP.spawn.x + 0.5, y: WORLD_MAP.spawn.y + 0.5 } as const;
 
+/** Próximo modo do ciclo entre os veículos possuídos (volta ao primeiro depois do último). */
+export function nextVehicle(owned: readonly VehicleId[], current: VehicleId): VehicleId {
+  const ordered = VEHICLE_ORDER.filter((v) => owned.includes(v));
+  const index = ordered.indexOf(current);
+  return ordered[(index + 1) % ordered.length] ?? current;
+}
+
 export function initialWorld(): SaveGame['world'] {
   return {
     avatar: { ...DEFAULT_SPAWN, facing: 'S' },
@@ -37,9 +44,7 @@ export const createWorldSlice: StateCreator<
 
   cycleVehicle: () => {
     const { inventory, world } = get();
-    const owned = VEHICLE_ORDER.filter((v) => inventory.vehicles.includes(v));
-    const index = owned.indexOf(world.vehicleMode);
-    const next = owned[(index + 1) % owned.length] ?? world.vehicleMode;
+    const next = nextVehicle(inventory.vehicles, world.vehicleMode);
     if (next !== world.vehicleMode) set((s) => ({ world: { ...s.world, vehicleMode: next } }));
     return next;
   },

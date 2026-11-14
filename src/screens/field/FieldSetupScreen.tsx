@@ -55,7 +55,7 @@ function NoMission() {
 function FieldSetup({ mission }: { mission: MissionData }) {
   useInputContext('FIELD');
   const field = useFieldContext(mission);
-  const { contract, terrain, vehicles, rules, equipment } = field;
+  const { contract, terrain, vehicles, rules, limits } = field;
   const areaRef = useRef<HTMLElement>(null);
   const [tab, setTab] = useState<FieldTab>('POINTS');
   const [tool, setTool] = useState<PointTool>('GCP');
@@ -93,7 +93,7 @@ function FieldSetup({ mission }: { mission: MissionData }) {
 
   const onPlace = (u: number, v: number): string | null => {
     const kind = tool === 'CP' ? 'CP' : 'GCP';
-    const result = placePoint(points, kind, { u, v }, terrain, vehicles, rules, equipment);
+    const result = placePoint(points, kind, { u, v }, terrain, vehicles, rules, limits);
     if (!result.ok) return result.reason;
     setPoints(result.points);
     return null;

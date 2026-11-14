@@ -31,7 +31,7 @@ export interface GroundPointsTabProps {
 
 /** Aba 1 (field-setup §5.2): ferramentas, instrumento, distribuição e sugestão do C00. */
 export function GroundPointsTab({ field, tool, onTool }: GroundPointsTabProps) {
-  const { mission, contract, equipment } = field;
+  const { mission, contract, equipment, ownedEquipment, limits } = field;
   const d = distribution(mission.groundPoints, contract);
   // Tutorial: a dica dos GCPs some quando há ao menos 3.
   useEffect(() => {
@@ -45,7 +45,7 @@ export function GroundPointsTab({ field, tool, onTool }: GroundPointsTabProps) {
       field.terrain,
       field.vehicles,
       field.rules,
-      equipment,
+      limits,
     );
     useGameStore.getState().setGroundPoints(points);
   };
@@ -63,9 +63,23 @@ export function GroundPointsTab({ field, tool, onTool }: GroundPointsTabProps) {
         value={F.instrumentValue(
           equipment.name,
           formatNumber(equipment.sigmaBaseM * 100, 1),
-          equipment.maxPoints,
+          limits.maxPoints,
         )}
       />
+      {ownedEquipment.length > 1 && (
+        <section className="flex flex-col gap-2" data-testid="instrument-toggle">
+          <h3 className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
+            {F.instrumentToggle}
+          </h3>
+          <Tabs
+            tabs={ownedEquipment.map((f) => ({ id: f.id, label: F.instrumentShort[f.id] }))}
+            value={equipment.id}
+            onChange={(id) => useGameStore.getState().setFieldEquipment(id)}
+            ariaLabel={F.instrumentToggle}
+          />
+          <p className="text-xs text-slate-400">{F.instrumentToggleHint(limits.maxPoints)}</p>
+        </section>
+      )}
       <section className="grid grid-cols-2 gap-3" data-testid="distribution">
         <Stat
           label={F.gcpCount}

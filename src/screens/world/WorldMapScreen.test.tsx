@@ -128,4 +128,63 @@ describe('WorldMapScreen', () => {
     expect(get().session.screen).toBe('FIELD_SETUP');
     expect(get().mission.active?.contractId).toBe('C00');
   });
+
+  describe('V (CYCLE_VEHICLE)', () => {
+    const press = () => {
+      fireEvent.keyDown(window, { code: 'KeyV', key: 'v' });
+      fireEvent.keyUp(window, { code: 'KeyV', key: 'v' });
+    };
+    const vehicle = () => screen.getByTestId('world-vehicle').textContent;
+
+    it('critério 4: com a picape, V passa por Picape e volta a A Pé (só os possuídos)', () => {
+      act(() =>
+        useGameStore.setState((s) => ({
+          inventory: { ...s.inventory, vehicles: ['FOOT_BIKE', 'PICKUP_4X4'] },
+        })),
+      );
+      render(<WorldMapScreen />);
+      expect(vehicle()).toBe('Veículo: A Pé / Bicicleta');
+      press();
+      expect(vehicle()).toBe('Veículo: Picape 4x4 Off-Road');
+      press();
+      expect(vehicle()).toBe('Veículo: A Pé / Bicicleta');
+    });
+
+    it('só A Pé: V não muda nada', () => {
+      render(<WorldMapScreen />);
+      press();
+      expect(get().world.vehicleMode).toBe('FOOT_BIKE');
+      expect(screen.queryByTestId('world-hint')).not.toBeInTheDocument();
+    });
+
+    it('recusa o modo que não cabe no tile e mostra a dica; o modo não muda', () => {
+      // Numa trilha o carro não passa.
+      const i = WORLD_MAP.tiles.indexOf('TRAIL');
+      expect(i).toBeGreaterThanOrEqual(0);
+      const x = (i % WORLD_MAP.width) + 0.5;
+      const y = Math.floor(i / WORLD_MAP.width) + 0.5;
+      act(() =>
+        useGameStore.setState((s) => ({
+          inventory: { ...s.inventory, vehicles: ['FOOT_BIKE', 'COMPACT_CAR'] },
+        })),
+      );
+      render(<WorldMapScreen />);
+      act(() => get().setAvatar({ x, y }));
+      press();
+      expect(get().world.vehicleMode).toBe('FOOT_BIKE');
+      expect(screen.getByTestId('world-hint')).toHaveTextContent(/carros não passam/);
+    });
+
+    it('pausado, V não troca', () => {
+      act(() =>
+        useGameStore.setState((s) => ({
+          inventory: { ...s.inventory, vehicles: ['FOOT_BIKE', 'PICKUP_4X4'] },
+        })),
+      );
+      render(<WorldMapScreen />);
+      act(() => get().setPaused(true));
+      press();
+      expect(get().world.vehicleMode).toBe('FOOT_BIKE');
+    });
+  });
 });

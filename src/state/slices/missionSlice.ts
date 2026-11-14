@@ -108,6 +108,13 @@ export const createMissionSlice: StateCreator<
         : s,
     ),
 
+  setFieldEquipment: (id) =>
+    set((s) => {
+      const active = s.mission.active;
+      if (!active || !s.inventory.fieldEquipment.includes(id)) return s;
+      return { mission: { ...s.mission, active: { ...active, fieldEquipmentId: id } } };
+    }),
+
   recordMinigame: (kind, score) =>
     set((s) => {
       const active = s.mission.active;

@@ -201,6 +201,10 @@ export const STRINGS = {
     instrument: 'Instrumento',
     instrumentValue: (name: string, sigmaCm: string, max: number) =>
       `${name} (σ ${sigmaCm} cm, máx. ${max})`,
+    instrumentToggle: 'Instrumento de medição',
+    instrumentShort: { TOTAL_STATION: 'Estação Total', GNSS_RTK_KIT: 'GNSS RTK' },
+    instrumentToggleHint: (max: number) =>
+      `A Estação Total é mais precisa; o kit GNSS permite mais pontos (até ${max}).`,
     gcpCount: 'GCPs',
     cpCount: 'CPs',
     countValue: (n: number, min: number) => `${n} / ${min}`,
