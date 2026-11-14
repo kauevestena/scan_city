@@ -5,7 +5,7 @@ import type { LoopHandle } from '@/audio/sfx';
 import { getContract } from '@/data/contracts';
 import { STRINGS } from '@/data/strings';
 import { processingSpeed } from '@/domain/processing';
-import { CATALOG, getHardware, getVehicle } from '@/data/catalog';
+import { CATALOG, getAircraft, getHardware, getVehicle } from '@/data/catalog';
 import { drawPipelineStage, cloudSamples, type PipelineAssets } from '@/engines/raster/pipelineViz';
 import { rasterCanvas } from '@/engines/raster/orthoPreview';
 import { useGameLoop } from '@/engines/useGameLoop';
@@ -18,10 +18,12 @@ import { Button, Tabs, type TabDef } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { evaluateForState, findMissionToProcess } from './evaluate';
 import { Pipeline } from './Pipeline';
-import { pipelineAt, stageDurations, type PipelineProgress } from './pipelineModel';
+import { pipelineShares } from '@/domain/processing';
+import { pipelineAt, planStages, type PipelineProgress } from './pipelineModel';
 import { ReportAccuracy } from './ReportAccuracy';
 import { ReportCoverage } from './ReportCoverage';
 import { ReportPayment } from './ReportPayment';
+import { drawLidarStage } from '@/engines/raster/lidarViz';
 import { ProductViewer } from './ProductViewer';
 import { ReportSummary } from './ReportSummary';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
@@ -89,10 +91,16 @@ function Processing({ job }: { job: Job }) {
   const { mission, report, inField } = job;
   const contract = getContract(mission.contractId);
   const hardware = useGameStore((s) => getHardware(s.inventory.hardware));
-  const durations = useMemo(
-    () => stageDurations(report.processingTimeS, job.withStaff),
-    [report.processingTimeS, job.withStaff],
-  );
+  // Esteira SfM, LiDAR ou as duas em sequência, com o tempo dividido pelos dados (§5.1).
+  const stages = useMemo(() => {
+    const pulses = mission.lidar?.grid.pulses.reduce((sum, p) => sum + p, 0) ?? 0;
+    return planStages(
+      report.processingTimeS,
+      pipelineShares(mission.shots.length, pulses),
+      job.withStaff,
+    );
+  }, [report.processingTimeS, job.withStaff, mission]);
+  const durations = useMemo(() => stages.map((st) => st.durationS), [stages]);
   const [progress, setProgress] = useState<PipelineProgress>(() => pipelineAt(0, durations));
   const [tab, setTab] = useState<ReportTab>('SUMMARY');
   // A falha crítica (fora do replay) pode ter levado o contrato para a MegaMap.
@@ -124,6 +132,20 @@ function Processing({ job }: { job: Job }) {
       seed: assetsSeed,
     };
     if (report.lens) result.lens = report.lens;
+    if (mission.lidar) {
+      const samples = mission.lidar.samples;
+      const stride = Math.max(1, Math.ceil(samples.length / 1500));
+      const state = useGameStore.getState();
+      const rtk =
+        getAircraft(mission.plan.params.aircraftId).rtk &&
+        state.inventory.fieldEquipment.includes('GNSS_RTK_KIT');
+      result.lidar = {
+        samples: samples.filter((_, k) => k % stride === 0),
+        // σ da trajetória: o RTK fixo e a IMU calibrada a reduzem.
+        sigmaCm: (rtk ? 2.5 : 6) * (1 - 0.12 * (mission.minigames.imuScore ?? 0)),
+        pulses: mission.lidar.grid.pulses.reduce((sum, p) => sum + p, 0),
+      };
+    }
     return result;
   }, [contract, mission, report.lens]);
 
@@ -145,13 +167,18 @@ function Processing({ job }: { job: Job }) {
           lastStage = now.stage;
         }
         const ctx = canvasRef.current?.getContext('2d');
-        if (ctx && !now.done) {
-          drawPipelineStage(ctx, assets, now.stage, now.progress, timeS, P.viz);
+        const stage = stages[now.stage];
+        if (ctx && stage && !now.done) {
+          if (stage.track === 'LIDAR') {
+            drawLidarStage(ctx, assets, stage.index, now.progress, P.lidarViz);
+          } else {
+            drawPipelineStage(ctx, assets, stage.index, now.progress, timeS, P.viz);
+          }
         }
         setProgress(now);
       },
     };
-  }, [done, durations, assets]);
+  }, [done, durations, stages, assets]);
 
   // Ventilador da Workstation durante a esteira, proporcional ao fator de velocidade.
   useEffect(() => {
@@ -180,7 +207,7 @@ function Processing({ job }: { job: Job }) {
         {P.header(contract.title, hardware.name, formatNumber(job.speed, 1))}
         {job.withStaff && ` ${P.withStaff}`}
       </header>
-      {!done && <Pipeline progress={progress} stages={durations.length} canvasRef={canvasRef} />}
+      {!done && <Pipeline progress={progress} stages={stages} canvasRef={canvasRef} />}
       {done && (
         <div className="flex flex-col gap-5" data-testid="report">
           <Tabs
@@ -194,7 +221,7 @@ function Processing({ job }: { job: Job }) {
           />
           <TutorialHint step={4} className="w-fit" />
           {tab === 'SUMMARY' && <ReportSummary report={report} mission={mission} />}
-          {tab === 'ACCURACY' && <ReportAccuracy report={report} />}
+          {tab === 'ACCURACY' && <ReportAccuracy report={report} mission={mission} />}
           {tab === 'COVERAGE' && <ReportCoverage report={report} mission={mission} />}
           {tab === 'PRODUCTS' && <ProductViewer report={report} mission={mission} />}
           {tab === 'PAYMENT' && <ReportPayment report={report} stolen={stolen} />}

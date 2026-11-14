@@ -1,5 +1,5 @@
 import { processingBaseTimeS, processingTimeS } from '@/domain/processing';
-import { pipelineAt, stageDurations } from './pipelineModel';
+import { pipelineAt, planStages, stageDurations } from './pipelineModel';
 
 describe('esteira: tempo e etapas', () => {
   it('C00 de referência no notebook: 6 + 0,08 · 96 = 13,68 s, dividido pelos pesos', () => {
@@ -25,5 +25,48 @@ describe('esteira: tempo e etapas', () => {
     expect(pipelineAt(10, d)).toEqual({ stage: 6, progress: 1, done: true, remainingS: 0 });
     expect(pipelineAt(-1, d).stage).toBe(0);
     expect(pipelineAt(0, [0, 1]).stage).toBe(1);
+  });
+});
+
+describe('planStages (§5.1, §5.3)', () => {
+  const sum = (stages: Array<{ durationS: number }>) => stages.reduce((a, b) => a + b.durationS, 0);
+
+  it('só SfM: as mesmas durações de stageDurations', () => {
+    const plan = planStages(10, { sfm: 1, lidar: 0 }, false);
+    expect(plan.map((s) => s.durationS)).toEqual(stageDurations(10, false));
+    expect(plan.every((s) => s.track === 'SFM')).toBe(true);
+    expect(plan.map((s) => s.index)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it('só LiDAR: 6 etapas da trilha LiDAR com os mesmos pesos', () => {
+    const plan = planStages(10, { sfm: 0, lidar: 1 }, false);
+    expect(plan).toHaveLength(6);
+    expect(plan.every((s) => s.track === 'LIDAR')).toBe(true);
+    expect(plan.map((s) => s.durationS)).toEqual(stageDurations(10, false));
+  });
+
+  it('missão mista: as duas em sequência (SfM e depois LiDAR), T dividido pelos dados', () => {
+    const plan = planStages(14, { sfm: 8 / 14, lidar: 6 / 14 }, false);
+    expect(plan.map((s) => s.track)).toEqual([...Array(6).fill('SFM'), ...Array(6).fill('LIDAR')]);
+    expect(sum(plan)).toBeCloseTo(14, 9);
+    expect(sum(plan.filter((s) => s.track === 'SFM'))).toBeCloseTo(8, 9);
+    expect(sum(plan.filter((s) => s.track === 'LIDAR'))).toBeCloseTo(6, 9);
+    // Cada trilha respeita os pesos das 6 etapas.
+    expect(plan[3]?.durationS).toBeCloseTo(0.25 * 8, 9);
+    expect(plan[9]?.durationS).toBeCloseTo(0.25 * 6, 9);
+  });
+
+  it('com equipe, a vetorização soma 10 % de T no fim', () => {
+    const plan = planStages(10, { sfm: 0.5, lidar: 0.5 }, true);
+    expect(plan).toHaveLength(13);
+    expect(plan[12]).toEqual({ track: 'STAFF', index: 6, durationS: 1 });
+    expect(sum(plan)).toBeCloseTo(11, 9);
+    // A esteira atravessa as duas trilhas na ordem.
+    expect(
+      pipelineAt(
+        5.1,
+        plan.map((s) => s.durationS),
+      ).stage,
+    ).toBe(6);
   });
 });

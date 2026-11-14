@@ -17,6 +17,21 @@ export function processingBaseTimeS(nPhotos: number, nPulses: number): number {
   return 6 + 0.08 * nPhotos + 0.12 * (nPulses / 1e6);
 }
 
+/**
+ * Divisão do tempo entre as esteiras (processing-results §5.1): só fotos → toda a SfM; só LiDAR
+ * → toda a LiDAR; as duas → proporcional aos dados (0,08 s por foto, 0,12 s por milhão de
+ * pulsos). Sem nenhum dado, vale a SfM.
+ */
+export function pipelineShares(nPhotos: number, nPulses: number): { sfm: number; lidar: number } {
+  const photo = nPhotos > 0 ? 0.08 * nPhotos : 0;
+  const lidar = nPulses > 0 ? 0.12 * (nPulses / 1e6) : 0;
+  if (nPhotos <= 0 && nPulses <= 0) return { sfm: 1, lidar: 0 };
+  if (nPulses <= 0) return { sfm: 1, lidar: 0 };
+  if (nPhotos <= 0) return { sfm: 0, lidar: 1 };
+  const total = photo + lidar;
+  return { sfm: photo / total, lidar: lidar / total };
+}
+
 /** Fator de velocidade: hardware (ou Van em campo) × (1 + bônus da equipe). */
 export function processingSpeed(
   hardware: Pick<Hardware, 'speedFactor'>,

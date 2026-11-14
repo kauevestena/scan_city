@@ -929,14 +929,20 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F5 · **Depende de:** T042 · **REQs:** REQ-PRC-001, REQ-PRC-003, REQ-PRC-005, REQ-PRC-013, REQ-PRG-011 (*parc.*: comparativo)
 - **Spec:** [processing-results §5.3, §5.5, §5.6 (camada LiDAR)](features/processing-results.md)
 - **Aceite:**
-  - [ ] Esteira LiDAR nas missões LiDAR e as duas em sequência nas mistas.
-  - [ ] Multiplicadores listados com rótulos pt-BR.
-  - [ ] Calibração de lente determinística.
-  - [ ] Volumetria exibida quando exigida.
-  - [ ] Card do comparativo MegaMap.
-  - [ ] O critério 2 de [processing-results §8](features/processing-results.md).
+  - [x] Esteira LiDAR nas missões LiDAR e as duas em sequência nas mistas.
+  - [x] Multiplicadores listados com rótulos pt-BR.
+  - [x] Calibração de lente determinística.
+  - [x] Volumetria exibida quando exigida.
+  - [x] Card do comparativo MegaMap.
+  - [x] O critério 2 de [processing-results §8](features/processing-results.md).
 - **Verificação:** `npx vitest run src/screens/processing src/engines/raster`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Planejamento das etapas: `domain/processing.pipelineShares(fotos, pulsos)` divide T entre as esteiras (só fotos → SfM; só pulsos → LiDAR; as duas, proporcional a 0,08 s por foto e 0,12 s por milhão de pulsos; sem dados, SfM) e `pipelineModel.planStages` monta a lista: SfM e depois LiDAR, cada uma com os pesos das 6 etapas, e a vetorização da equipe (10 % de T) por último. A tela decide a trilha pelos dados da missão (fotos e `mission.lidar`), não pelo contrato.
+  - `Pipeline` lista as etapas pelo plano (rótulos da LiDAR em `STRINGS.processing.stagesLidar`), com o título de cada trilha só quando as duas rodam. `engines/raster/lidarViz.ts` traz os 6 visuais: trajetória SBET com o σ (2,5 cm com RTK e kit, 6 cm sem, × `1 − 0,12·imuScore`), georreferenciamento com o contador de pontos, histograma de discrepâncias que estreita de 12 para 3 cm, classificação (cinza → cor do retorno numa varredura), MDT/MDS por varredura e exportação do LAS (375 B de cabeçalho + 30 B por ponto, valor meu: a spec só pede "barra de tamanho").
+  - Já existiam, e ganharam teste de tela: calibração de lente (determinística, teste de domínio de T012), volumetria (só aparece se o relatório a traz, ou seja, quando o contrato a exige), multiplicadores com rótulos em `STRINGS.accuracy.multipliers` (teste confere que todos são pt-BR, sem códigos soltos) e o critério 2 (3 GCPs colineares, T022).
+  - Card do comparativo MegaMap na aba Acurácia (`MegaMapCard`, `engines/raster/megaMap.ts`): a orto de 192 px de lado deformada por barril (k = 0,28) e deslocada de 2 a 6 m (módulo e direção por hash da seed da missão), com "RMSE declarado: ± 1,5 m (sem pontos de controle)", o selo "Reprovado PEC-PCD" e, abaixo, o RMSE planimétrico e a classe do jogador para comparar.
+  - `ReportAccuracy` passou a receber `mission` (a seed do card).
+- **Status:** ✅
 
 ### T044 — Van Lab e etapa da equipe
 - **Fase:** F5 · **Depende de:** T043 · **REQs:** REQ-PRC-011, REQ-PRC-012
@@ -1352,11 +1358,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
 | REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ✅ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
-| REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ☐ |
+| REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
-| REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ☐ |
+| REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ✅ |
 | REQ-PRC-004 | Tabela de resíduos e RMSE | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
-| REQ-PRC-005 | Penalidades de acurácia | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T043 | ☐ |
+| REQ-PRC-005 | Penalidades de acurácia | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T043 | ✅ |
 | REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
 | REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ✅ |
 | REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ✅ |
@@ -1364,7 +1370,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ☐ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ☐ |
-| REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ☐ |
+| REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ✅ |
 | REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-003 | Setores mapeados | [holo-table](features/holo-table.md) | T026 | ✅ |
@@ -1388,7 +1394,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ☐ |
 | REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ☐ |
 | REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ☐ |
-| REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ☐ |
+| REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |
 | REQ-PRG-012 | Reputação | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046, T051 | ☐ |
 | REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ☐ |
 | REQ-CNT-001 | Contratos reais | [contracts-real](content/contracts-real.md), [data-model](design/data-model.md) | T022, T053, T054, T055, T056, T057, T058 | ☐ |

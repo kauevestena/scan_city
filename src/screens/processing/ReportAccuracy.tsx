@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { STRINGS } from '@/data/strings';
 import { formatNumber, formatPct } from '@/lib/format';
-import type { QualityReport, RmseSet } from '@/types';
+import type { MissionData, QualityReport, RmseSet } from '@/types';
+import { MegaMapCard } from './MegaMapCard';
 import { cx } from '@/ui';
 
 const P = STRINGS.processing;
@@ -35,7 +36,13 @@ function RmseRow({ label, rmse }: { label: string; rmse: RmseSet }) {
   );
 }
 
-export function ReportAccuracy({ report }: { report: QualityReport }) {
+export function ReportAccuracy({
+  report,
+  mission,
+}: {
+  report: QualityReport;
+  mission: MissionData;
+}) {
   const { pec, asprs, lens } = report;
   return (
     <div className="grid gap-6 lg:grid-cols-2" data-testid="report-accuracy">
@@ -187,6 +194,7 @@ export function ReportAccuracy({ report }: { report: QualityReport }) {
             </p>
           </Block>
         )}
+        <MegaMapCard report={report} mission={mission} />
       </div>
     </div>
   );

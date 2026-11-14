@@ -32,7 +32,22 @@ export interface PipelineAssets {
   roads: readonly Polyline[];
   homogeneous: boolean;
   lens?: LensCalibration;
+  /** Dados LiDAR da missão (esteira LiDAR). */
+  lidar?: LidarAssets;
   seed: number;
+}
+
+export interface LidarAssets {
+  samples: ReadonlyArray<{
+    u: number;
+    v: number;
+    z: number;
+    ret: 'FIRST' | 'INTERMEDIATE' | 'GROUND';
+  }>;
+  /** σ da trajetória GNSS/IMU, cm. */
+  sigmaCm: number;
+  /** Pulsos registrados (define o tamanho do arquivo LAS). */
+  pulses: number;
 }
 
 /** Amostras da nuvem densa: pontos do MDS com a cor da hipsometria. */
@@ -61,11 +76,11 @@ export function cloudSamples(
   });
 }
 
-function easeProgress(p: number): number {
+export function easeProgress(p: number): number {
   return Math.min(1, Math.max(0, p));
 }
 
-function label(
+export function label(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -259,7 +274,7 @@ function stageCloud(
   label(ctx, texts.points(formatNumber(Math.round(a.cloud.length * p), 0)), 20, 14);
 }
 
-function stageSweep(
+export function stageSweep(
   ctx: CanvasRenderingContext2D,
   a: PipelineAssets,
   image: CanvasImageSource,

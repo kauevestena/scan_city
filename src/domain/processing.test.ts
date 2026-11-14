@@ -2,6 +2,7 @@ import { mulberry32 } from '@/lib/rng';
 import { HARDWARE, STAFF, getVehicle } from '@/data/catalog';
 import {
   lensCalibration,
+  pipelineShares,
   processingBaseTimeS,
   processingSpeed,
   processingTimeS,
@@ -65,5 +66,23 @@ describe('lensCalibration (§12.4)', () => {
     const b = lensCalibration(pigeon, 0.0045, mulberry32(7), 1.2);
     expect(a).toEqual(b);
     expect(a.k1).not.toBe(-0.12);
+  });
+});
+
+describe('pipelineShares (§5.1)', () => {
+  it('só fotos: toda a SfM; só LiDAR: toda a LiDAR; sem dados: SfM', () => {
+    expect(pipelineShares(96, 0)).toEqual({ sfm: 1, lidar: 0 });
+    expect(pipelineShares(0, 5_000_000)).toEqual({ sfm: 0, lidar: 1 });
+    expect(pipelineShares(0, 0)).toEqual({ sfm: 1, lidar: 0 });
+  });
+
+  it('as duas: proporcional aos dados (0,08 s/foto e 0,12 s por milhão de pulsos)', () => {
+    // 100 fotos = 8 s; 50 milhões de pulsos = 6 s.
+    const s = pipelineShares(100, 50_000_000);
+    expect(s.sfm).toBeCloseTo(8 / 14, 12);
+    expect(s.lidar).toBeCloseTo(6 / 14, 12);
+    expect(s.sfm + s.lidar).toBeCloseTo(1, 12);
+    // Mais pulsos, mais parcela da LiDAR.
+    expect(pipelineShares(100, 200_000_000).lidar).toBeGreaterThan(s.lidar);
   });
 });
