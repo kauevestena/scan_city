@@ -1,13 +1,15 @@
 /**
  * Visuais da esteira SfM (processing-results §5.2), num canvas 640 × 360. Tudo é
- * determinístico (RNG seedado pela missão). A etapa 4 usa uma projeção 2D simples da
- * nuvem girando em Y; o `soft3d` a substitui em T026.
+ * determinístico (RNG seedado pela missão). A etapa 4 desenha a nuvem densa em 3D com o
+ * `soft3d`, girando devagar.
  */
 import { formatNumber } from '@/lib/format';
 import { mulberry32, type Rng } from '@/lib/rng';
 import type { AoiPoint, LensCalibration, WorldObject } from '@/types';
 import { COLORS, FONTS, withAlpha } from '@/ui/tokens';
 import type { Polyline, TerrainSampler } from '@/world/terrain/TerrainSampler';
+import { OrbitCamera } from '../soft3d/OrbitCamera';
+import { Soft3DRenderer } from '../soft3d/Renderer';
 import { hypsometricColor } from './orthoPreview';
 
 export const VIZ_W = 640;
@@ -53,7 +55,8 @@ export function cloudSamples(
   }
   const span = Math.max(1e-6, hi - lo);
   return pts.map((p) => {
-    const [r, g, b] = hypsometricColor((p.z - lo) / span);
+    // 12 faixas de cor: a nuvem é desenhada por grupo.
+    const [r, g, b] = hypsometricColor(Math.round(((p.z - lo) / span) * 11) / 11);
     return { ...p, color: `rgb(${r | 0}, ${g | 0}, ${b | 0})` };
   });
 }
@@ -209,6 +212,32 @@ function stageBundle(
   }
 }
 
+const cloudCache = new WeakMap<PipelineAssets, Array<{ color: string; positions: Float32Array }>>();
+const cloudRenderer = new Soft3DRenderer();
+
+/** Nuvem em coordenadas normalizadas (lado maior = 2), agrupada por cor. */
+function cloudBuckets(a: PipelineAssets): Array<{ color: string; positions: Float32Array }> {
+  const hit = cloudCache.get(a);
+  if (hit) return hit;
+  const side = Math.max(a.aoi.lengthM, a.aoi.widthM);
+  const zs = a.cloud.map((p) => p.z);
+  const lo = Math.min(...zs);
+  const span = Math.max(1e-6, Math.max(...zs) - lo);
+  const groups = new Map<string, number[]>();
+  for (const p of a.cloud) {
+    const list = groups.get(p.color) ?? [];
+    list.push(
+      ((p.u - a.aoi.lengthM / 2) / side) * 2,
+      ((p.z - lo) / span) * 0.35,
+      ((p.v - a.aoi.widthM / 2) / side) * 2,
+    );
+    groups.set(p.color, list);
+  }
+  const out = [...groups].map(([color, list]) => ({ color, positions: new Float32Array(list) }));
+  cloudCache.set(a, out);
+  return out;
+}
+
 function stageCloud(
   ctx: CanvasRenderingContext2D,
   a: PipelineAssets,
@@ -216,22 +245,18 @@ function stageCloud(
   timeS: number,
   texts: VizTexts,
 ): void {
-  const n = Math.round(a.cloud.length * p);
-  const angle = timeS * 0.4;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const scale = 260 / Math.max(a.aoi.lengthM, a.aoi.widthM);
-  const cu = a.aoi.lengthM / 2;
-  const cv = a.aoi.widthM / 2;
-  for (let k = 0; k < n; k++) {
-    const pt = a.cloud[k];
-    if (!pt) break;
-    const x = (pt.u - cu) * cos - (pt.v - cv) * sin;
-    const depth = (pt.u - cu) * sin + (pt.v - cv) * cos;
-    ctx.fillStyle = pt.color;
-    ctx.fillRect(VIZ_W / 2 + x * scale, 200 - pt.z * 2 + depth * scale * 0.35, 2, 2);
-  }
-  label(ctx, texts.points(formatNumber(n, 0)), 20, 14);
+  const camera = new OrbitCamera(1.2);
+  camera.yaw = timeS * 0.4;
+  camera.pitch = (30 * Math.PI) / 180;
+  camera.distance = 2.6;
+  // A densidade cresce com o progresso: cada grupo mostra a mesma fração dos pontos.
+  const points = cloudBuckets(a).map((b) => ({
+    color: b.color,
+    size: 2,
+    positions: b.positions.subarray(0, Math.floor((b.positions.length / 3) * p) * 3),
+  }));
+  cloudRenderer.render(ctx, VIZ_W, VIZ_H, camera.matrix(VIZ_W / VIZ_H), [], [], points);
+  label(ctx, texts.points(formatNumber(Math.round(a.cloud.length * p), 0)), 20, 14);
 }
 
 function stageSweep(

@@ -596,12 +596,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [holo-table](features/holo-table.md) §5.1, §5.2, §5.3 (só `ORTHO`), §5.6 (sem dimensão e modos)
 - **Arquivos:** \+ `src/engines/soft3d/{vec3,mat4,OrbitCamera,Renderer,picking}.ts`, `src/engines/holo/{HoloEngine,sceneBuilder}.ts`, `src/screens/holo/{HoloTableScreen,SectorCard}.tsx` + testes · ~ `OfficeRenderer` (preview da mesa) · ~ etapa 4 da esteira (nuvem 3D)
 - **Aceite:**
-  - [ ] O critério 1 de [holo-table §8](features/holo-table.md).
-  - [ ] Testes de `mat4`, `OrbitCamera` (clamp) e `pickSector`.
-  - [ ] O *fly-to* e a animação de esculpir funcionam ao chegar do processamento.
-  - [ ] ≥ 55 FPS em Alta.
+  - [x] O critério 1 de [holo-table §8](features/holo-table.md).
+  - [x] Testes de `mat4`, `OrbitCamera` (clamp) e `pickSector`.
+  - [x] O *fly-to* e a animação de esculpir funcionam ao chegar do processamento.
+  - [x] ≥ 55 FPS em Alta.
 - **Verificação:** `npx vitest run src/engines/soft3d src/engines/holo` · E2E `holo.spec.ts` (parcial).
-- **Status:** ☐
+- **Notas de implementação:**
+  - Painter's algorithm e polígonos grandes: o tampo de vidro da mesa (leque de triângulos) tinha profundidade média menor que a de setores sobre ele e os cobria. Malhas marcadas como `background` são desenhadas antes, fora da ordenação.
+  - Backface culling pela área assinada do quad projetado; quads com vértice atrás da câmera são descartados inteiros.
+  - Os slots da grade sem contrato no catálogo aparecem em gesso sem nome ("Setor não mapeado"); os do catálogo em névoa mostram "Contrato: <nome> — não mapeado".
+  - O AOI (retangular) é mapeado no setor 1 × 1. A altura dos prédios usa a mesma escala do relevo, limitada a 0,5 unidade, com amplitude mínima de 10 m para relevos muito planos.
+  - Miniaturas: `trajectoryAt` percorre as linhas da melhor missão e as ligações entre elas num ciclo de 12 s. O sprite reaproveita os de `aircraftSprite`, com a unidade em px ajustada.
+  - Esc na mesa: o voltar vem de uma camada de foco (`onBack`), e não de um ouvinte global, que deixava o Esc cair também no fallback de pausa.
+  - O preview do escritório (`HoloPreview`) e a etapa 4 da esteira (nuvem 3D) usam o mesmo `soft3d`.
+  - Medição: 57–60 FPS em Alta na mesa, com o C00 esculpido.
+- **Status:** ✅
 
 ### T027 — Integração do Vertical Slice
 - **Fase:** F2 · **Depende de:** T026 · **REQs:** REQ-CORE-004 (*parc.*: E2E), REQ-CNT-007 (*parc.*: tutorial dirigido)
@@ -1253,14 +1262,14 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ☐ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ☐ |
 | REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ☐ |
-| REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ☐ |
-| REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ☐ |
-| REQ-HOL-003 | Setores mapeados | [holo-table](features/holo-table.md) | T026 | ☐ |
+| REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ✅ |
+| REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ✅ |
+| REQ-HOL-003 | Setores mapeados | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-004 | Miniaturas animadas | [holo-table](features/holo-table.md) | T072 | ☐ |
 | REQ-HOL-005 | Chave dimensional | [holo-table](features/holo-table.md) | T059, T072 | ☐ |
 | REQ-HOL-006 | Modos de exibição | [holo-table](features/holo-table.md) | T072 | ☐ |
 | REQ-HOL-007 | Gestão das alas | [holo-table](features/holo-table.md) | T072 | ☐ |
-| REQ-HOL-008 | Seleção de setor | [holo-table](features/holo-table.md) | T026 | ☐ |
+| REQ-HOL-008 | Seleção de setor | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-LAB-001 | Óptica e GSD | [infographic-lab](features/infographic-lab.md) | T073 | ☐ |
 | REQ-LAB-002 | Estereoscopia e paralaxe | [infographic-lab](features/infographic-lab.md) | T012, T073 | ☐ |
 | REQ-LAB-003 | LiDAR vs. fotogrametria no dossel | [infographic-lab](features/infographic-lab.md) | T012, T074 | ☐ |

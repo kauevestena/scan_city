@@ -24,6 +24,8 @@ export interface SpriteParams {
   accessory?: SpriteColors | null;
   /** Translúcida (invulnerável com `reduceFlashes`). */
   alpha?: number;
+  /** Tamanho da unidade do desenho em px (miniaturas); por padrão, pela escala. */
+  unitPx?: number;
 }
 
 /** Sombra no chão, menor quanto maior o AGL. */
@@ -118,7 +120,7 @@ function drawVtol(ctx: CanvasRenderingContext2D, p: SpriteParams, u: number): vo
 
 export function drawAircraft(ctx: CanvasRenderingContext2D, p: SpriteParams): void {
   // Unidade do desenho: ~0,6 m de envergadura por "u", com um mínimo legível.
-  const u = Math.max(10, p.scale * 0.6);
+  const u = p.unitPx ?? Math.max(10, p.scale * 0.6);
   ctx.save();
   ctx.globalAlpha = p.alpha ?? 1;
   ctx.translate(p.x, p.y);

@@ -33,7 +33,8 @@ test('C00: autopilot → mapa → sede → Workstation → esteira → relatóri
   await expect(page.getByTestId('souvenir-card')).toContainText('Caderneta de Campo do Avô');
 
   await page.getByTestId('send-museum').click();
-  await expect(page.getByTestId('screen-name')).toHaveText('HOLO_TABLE_VIEW');
+  await expect(page.getByTestId('holo-screen')).toBeVisible();
+  await expect(page.getByTestId('sector-card')).toContainText('Sítio do Avô');
   // O saldo da barra superior subiu com o pagamento.
   await expect(page.getByTestId('top-bar')).not.toHaveText(money ?? '');
 });

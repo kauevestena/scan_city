@@ -17,6 +17,17 @@ export interface OfficeSceneState {
   staff: Readonly<Record<StaffRoleId, number>>;
   /** Cores do acessório do Atlas, ou `null` sem acessório. */
   atlasAccessory: { primary: string; secondary: string } | null;
+  /** Preview `soft3d` da maquete do museu sobre a mesa; sem ele, o relevo em linhas. */
+  holo?: {
+    draw(
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      timeS: number,
+    ): void;
+  } | null;
 }
 
 const PAL = {
@@ -124,7 +135,7 @@ export class OfficeRenderer {
     this.drawLamps(ctx);
     this.drawShelf(ctx, state.souvenirColors);
     this.drawCareer(ctx);
-    this.drawHoloTable(ctx);
+    this.drawHoloTable(ctx, state.holo ?? null);
     this.drawPerch(ctx, state.atlasAccessory);
     this.drawDoor(ctx);
     this.drawWorkstation(ctx, state.hardware);
@@ -229,7 +240,7 @@ export class OfficeRenderer {
     }
   }
 
-  private drawHoloTable(ctx: CanvasRenderingContext2D): void {
+  private drawHoloTable(ctx: CanvasRenderingContext2D, holo: OfficeSceneState['holo']): void {
     const h = rect('HOLO_TABLE');
     const cx = h.x + h.w / 2;
     const top = h.y + 110;
@@ -250,6 +261,11 @@ export class OfficeRenderer {
     glow.addColorStop(1, withAlpha(COLORS.radar, 0));
     ctx.fillStyle = glow;
     ctx.fillRect(h.x, h.y - 20, h.w, 140);
+    if (holo) {
+      // A maquete do museu, girando sobre a mesa.
+      holo.draw(ctx, h.x + 10, h.y - 20, h.w - 20, 130, this.timeS);
+      return;
+    }
     ctx.strokeStyle = withAlpha(COLORS.radar, 0.7);
     ctx.lineWidth = 1;
     for (let row = 0; row < 7; row++) {

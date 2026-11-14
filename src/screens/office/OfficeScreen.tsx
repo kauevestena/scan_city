@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACTIVE_HOTSPOTS, DOOR_HINT_MS, OFFICE_HOTSPOTS, type OfficeHotspot } from '@/data/office';
 import { STRINGS } from '@/data/strings';
 import { COSMETICS } from '@/data/cosmetics';
 import { SOUVENIRS } from '@/data/souvenirs';
+import { HoloPreview } from '@/engines/holo/HoloPreview';
+import { buildHoloScene } from '@/engines/holo/sceneBuilder';
 import { fitOffice, hotspotStyle } from '@/engines/office/hotspots';
 import { OfficeRenderer, type OfficeSceneState } from '@/engines/office/OfficeRenderer';
 import { useCanvas } from '@/engines/useCanvas';
@@ -14,12 +16,13 @@ import type { GameStore } from '@/state/types';
 import { cx, FOCUS_RING } from '@/ui';
 import { NamedIcon } from '@/ui/iconRegistry';
 import { useElementSize } from '@/ui/useElementSize';
+import { createTerrain } from '@/world/terrain/createTerrain';
 import { IntroSequence } from './IntroSequence';
 import { WorkstationPanel } from './WorkstationPanel';
 
 type PanelId = 'WORKSTATION';
 
-function sceneState(s: GameStore): OfficeSceneState {
+function sceneState(s: GameStore, holo: OfficeSceneState['holo']): OfficeSceneState {
   const accessory = COSMETICS.find((c) => c.id === s.inventory.equipped.atlasAccessory);
   return {
     aircraft: s.inventory.aircraft,
@@ -28,6 +31,7 @@ function sceneState(s: GameStore): OfficeSceneState {
     souvenirColors: SOUVENIRS.filter((sv) => s.souvenirs.includes(sv.id)).map((sv) => sv.color),
     staff: s.staff,
     atlasAccessory: accessory && accessory.id !== 'ATLAS_NONE' ? accessory.colors : null,
+    holo,
   };
 }
 
@@ -103,6 +107,22 @@ export function OfficeScreen() {
     return () => window.clearTimeout(timer);
   }, [doorHint]);
 
+  const sectors = useGameStore((s) => s.museum.sectors);
+  const contracts = useGameStore((s) => s.contracts);
+  const quality = useGameStore((s) => s.settings.quality);
+  // Preview com a resolução baixa: a mesa é pequena no escritório.
+  const holo = useMemo(
+    () =>
+      new HoloPreview(
+        buildHoloScene(sectors, contracts, quality === 'HIGH' ? 'MEDIUM' : 'LOW', createTerrain),
+      ),
+    [sectors, contracts, quality],
+  );
+  const holoRef = useRef(holo);
+  useEffect(() => {
+    holoRef.current = holo;
+  }, [holo]);
+
   useGameLoop(() => {
     if (!surface) return null;
     const renderer = new OfficeRenderer();
@@ -111,7 +131,7 @@ export function OfficeScreen() {
       render: () =>
         renderer.render(
           surface.ctx,
-          sceneState(useGameStore.getState()),
+          sceneState(useGameStore.getState(), holoRef.current),
           surface.width,
           surface.height,
         ),

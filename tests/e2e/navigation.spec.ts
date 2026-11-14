@@ -8,6 +8,7 @@ const REAL_SCREENS: Record<string, string> = {
   FIELD_SETUP: 'field-setup-screen',
   SURVEY_FLIGHT: 'survey-flight-screen',
   PROCESSING_RESULTS: 'processing-screen',
+  HOLO_TABLE_VIEW: 'holo-screen',
 };
 
 async function go(page: Page, transition: string, expected: string) {

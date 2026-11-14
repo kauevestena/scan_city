@@ -3,6 +3,7 @@ import { useGameStore } from '@/state/store';
 import type { ScreenId } from '@/types';
 import { FieldSetupScreen } from '@/screens/field/FieldSetupScreen';
 import { SurveyFlightScreen } from '@/screens/flight/SurveyFlightScreen';
+import { HoloTableScreen } from '@/screens/holo/HoloTableScreen';
 import { OfficeScreen } from '@/screens/office/OfficeScreen';
 import { ProcessingResultsScreen } from '@/screens/processing/ProcessingResultsScreen';
 import { WorldMapScreen } from '@/screens/world/WorldMapScreen';
@@ -15,6 +16,7 @@ export const SCREEN_COMPONENTS: Partial<Record<ScreenId, ComponentType>> = {
   FIELD_SETUP: FieldSetupScreen,
   SURVEY_FLIGHT: SurveyFlightScreen,
   PROCESSING_RESULTS: ProcessingResultsScreen,
+  HOLO_TABLE_VIEW: HoloTableScreen,
 };
 
 export function ScreenRouter() {

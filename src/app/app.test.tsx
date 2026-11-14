@@ -61,7 +61,7 @@ describe('App + ScreenRouter', () => {
   });
 
   it('as ações rápidas dão dinheiro e geram missão pendente', () => {
-    open('/?debug=1&screen=HOLO_TABLE_VIEW');
+    open('/?debug=1&screen=INFOGRAPHIC_LAB');
     fireEvent.click(screen.getByRole('button', { name: /^\+ R\$/ }));
     expect(get().player.money).toBe(1_500_000);
     expect(screen.getByTestId('debug-money').textContent?.replace(/\s/g, ' ')).toBe(
@@ -98,8 +98,8 @@ describe('App + ScreenRouter', () => {
   });
 
   it('?debug=1&screen=X abre a tela pedida', () => {
-    open('/?debug=1&screen=HOLO_TABLE_VIEW&money=42');
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('HOLO_TABLE_VIEW');
+    open('/?debug=1&screen=INFOGRAPHIC_LAB&money=42');
+    expect(screen.getByTestId('screen-name')).toHaveTextContent('INFOGRAPHIC_LAB');
     expect(get().player.money).toBe(4200);
   });
 
