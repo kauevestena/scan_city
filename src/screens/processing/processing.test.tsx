@@ -127,6 +127,22 @@ describe('ProcessingResultsScreen', () => {
     expect(get().session.payload).toEqual({ focusSectorId: 'C00' });
   }, 15000);
 
+  it('aba Produtos: "Ver produtos" abre o visualizador; NDVI vem desabilitado no C00', async () => {
+    fastHardware();
+    queue();
+    render(<ProcessingResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('report')).toBeInTheDocument(), {
+      timeout: 8000,
+    });
+    expect(screen.getByRole('tab', { name: 'Produtos' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver produtos' }));
+    expect(screen.getByTestId('report-products')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Produtos' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'NDVI' })).toHaveAttribute('aria-disabled', 'true');
+    // Já na aba, o atalho some.
+    expect(screen.queryByRole('button', { name: 'Ver produtos' })).not.toBeInTheDocument();
+  }, 15000);
+
   it('sair durante a esteira não aplica as recompensas (a missão segue na fila)', async () => {
     const mission = queue();
     const money = get().player.money;

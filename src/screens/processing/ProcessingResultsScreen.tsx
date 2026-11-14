@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Landmark } from 'lucide-react';
+import { ArrowLeft, Check, Landmark, Layers } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AudioEngine } from '@/audio/AudioEngine';
 import type { LoopHandle } from '@/audio/sfx';
@@ -22,13 +22,14 @@ import { pipelineAt, stageDurations, type PipelineProgress } from './pipelineMod
 import { ReportAccuracy } from './ReportAccuracy';
 import { ReportCoverage } from './ReportCoverage';
 import { ReportPayment } from './ReportPayment';
+import { ProductViewer } from './ProductViewer';
 import { ReportSummary } from './ReportSummary';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
 
 const P = STRINGS.processing;
-type ReportTab = 'SUMMARY' | 'ACCURACY' | 'COVERAGE' | 'PAYMENT';
+type ReportTab = 'SUMMARY' | 'ACCURACY' | 'COVERAGE' | 'PRODUCTS' | 'PAYMENT';
 const TABS: ReadonlyArray<TabDef<ReportTab>> = (
-  ['SUMMARY', 'ACCURACY', 'COVERAGE', 'PAYMENT'] as const
+  ['SUMMARY', 'ACCURACY', 'COVERAGE', 'PRODUCTS', 'PAYMENT'] as const
 ).map((id) => ({
   id,
   label: P.tabs[id],
@@ -195,8 +196,14 @@ function Processing({ job }: { job: Job }) {
           {tab === 'SUMMARY' && <ReportSummary report={report} mission={mission} />}
           {tab === 'ACCURACY' && <ReportAccuracy report={report} />}
           {tab === 'COVERAGE' && <ReportCoverage report={report} mission={mission} />}
+          {tab === 'PRODUCTS' && <ProductViewer report={report} mission={mission} />}
           {tab === 'PAYMENT' && <ReportPayment report={report} stolen={stolen} />}
           <div className="flex justify-end gap-3 border-t border-slate-800 pt-4">
+            {tab !== 'PRODUCTS' && (
+              <Button variant="ghost" icon={Layers} onClick={() => setTab('PRODUCTS')}>
+                {P.viewProducts}
+              </Button>
+            )}
             <Button variant="ghost" icon={inField ? ArrowLeft : Check} onClick={finish}>
               {inField ? P.finishField : P.finishOffice}
             </Button>

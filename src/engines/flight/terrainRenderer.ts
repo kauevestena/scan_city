@@ -374,7 +374,7 @@ const NO_SHADOW: ReadonlySet<WorldObjectKind> = new Set([
   'ENERGY_BEAM',
   'POLE',
 ]);
-const castsShadow = (kind: WorldObjectKind) => !NO_SHADOW.has(kind);
+export const castsShadow = (kind: WorldObjectKind) => !NO_SHADOW.has(kind);
 
 /** Sombra projetada no chão, afastada do sol (alfa 0,3). */
 function drawShadow(

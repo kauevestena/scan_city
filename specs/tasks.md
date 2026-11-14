@@ -894,12 +894,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [processing-results §5.7](features/processing-results.md)
 - **Arquivos:** \+ `src/engines/raster/products.ts`, `src/screens/processing/ProductViewer.tsx` + testes
 - **Aceite:**
-  - [ ] Os 4 rasters têm 256², são determinísticos e geram em fatias sem travar (cada fatia < 8 ms).
-  - [ ] Máscaras de sem-dados e hachuras.
-  - [ ] Abas indisponíveis com o motivo (critério 5 de [processing-results §8](features/processing-results.md)).
-  - [ ] Features capturadas são marcadas.
+  - [x] Os 4 rasters têm 256², são determinísticos e geram em fatias sem travar (cada fatia < 8 ms).
+  - [x] Máscaras de sem-dados e hachuras.
+  - [x] Abas indisponíveis com o motivo (critério 5 de [processing-results §8](features/processing-results.md)).
+  - [x] Features capturadas são marcadas.
 - **Verificação:** `npx vitest run src/engines/raster src/screens/processing`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `engines/raster/products.ts`: `ProductJob(kind, inputs)` gera Orto, MDS, MDT e NDVI em 256 × 256 (a spec diz "256 × 256 sobre a AOI", então o pixel não é quadrado e o canvas é esticado por CSS à proporção da AOI; a prévia antiga do `orthoPreview` segue em 256 no lado maior). As fatias são por orçamento de tempo (`runSlice(4 ms)`): cada tarefa é uma linha do raster ou a sombra de um objeto, bem menor que a fatia, e o teste mede cada fatia < 8 ms nos 4 produtos (com `GOLDEN_HOUR`, o pior caso). As fatias não alteram o resultado. O ruído é por hash da seed da missão.
+  - Ortofoto: cobertura × hillshade; luz difusa achata o relevo; `GOLDEN_HOUR` põe tom quente e sombras longas (caixa deslocada para SE, a mesma direção da vista de satélite). Células com < 3 fotos ficam borradas (média ao longo de u) e com ruído; sem foto, ou excluídas (água), viram xadrez cinza (`noData`). MDS: `surface` + ruído do RMSE_z do relatório, na rampa hipsométrica × hillshade. MDT: `elevation`; sob dossel > 0,6 sem LiDAR vira hachura diagonal; com LiDAR, a hachura só fica onde a densidade de solo < 1 pt/m², e células com solo < 1 pt/m² são suavizadas (média 3 × 3). NDVI: rampa vermelho → amarelo → verde com histograma de 22 faixas.
+  - `productModel.ts` decide a disponibilidade e o motivo (tooltip da aba): Orto exige fotos RGB válidas e câmera RGB/multiespectral; MDS, fotos válidas ou LiDAR; MDT, LiDAR ou fotos com área aberta; NDVI, câmera multiespectral. Foto "válida" é a de `isShotValid` (sem borrão, névoa em RGB ou reflexo na água).
+  - `ProductViewer.tsx` gera um produto por vez, uma fatia por frame, com cache por produto, barra de progresso, legendas (elevação, NDVI, sem-dados, hachura) e marcadores com rótulo das features capturadas (`events.featuresCaptured`) sobre o raster. A aba "Produtos" e o botão "Ver produtos" entraram no relatório; a "Nuvem / TIN" é a T042.
+  - Ajustei `castsShadow` para exportado (`terrainRenderer`).
+- **Status:** ✅
 
 ### T042 — Visualizador de nuvem de pontos e TIN
 - **Fase:** F5 · **Depende de:** T041 · **REQs:** REQ-PRC-008
@@ -1346,7 +1352,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-005 | Penalidades de acurácia | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T043 | ☐ |
 | REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
 | REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ✅ |
-| REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ☐ |
+| REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ✅ |
 | REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025 | ✅ |
 | REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ☐ |
