@@ -174,10 +174,10 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - `beforeunload`.
   6. Ação `newGame()`: backup, reset e `goTo` forçado para `OFFICE`. A UI vem em T075.
 - **Aceite:**
-  - [ ] Testes: round-trip save/load; JSON truncado → backup criado + novo jogo; campo ausente → idem; migração fictícia v0→v1 (registrar `MIGRATIONS[0]` de teste); settings sobrevivem ao `newGame`.
-  - [ ] E2E: mudar o saldo via debug (`?money=12345`), recarregar e conferir que persistiu.
+  - [x] Testes: round-trip save/load; JSON truncado → backup criado + novo jogo; campo ausente → idem; migração fictícia v0→v1 (registrar `MIGRATIONS[0]` de teste); settings sobrevivem ao `newGame`.
+  - [x] E2E: mudar o saldo via debug (`?money=12345`), recarregar e conferir que persistiu.
 - **Verificação:** `npx vitest run src/state` · `npx playwright test tests/e2e/persistence.spec.ts`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T007 — Game loop, Canvas e FPS
 - **Fase:** F0 · **Depende de:** T006 · **REQs:** REQ-CORE-008, REQ-CORE-003 (*parc.*: congelar loops), REQ-NFR-001 (*parc.*: medição)
@@ -1079,7 +1079,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
 | REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ☐ |
-| REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ☐ |
+| REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ☐ |
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ☐ |
