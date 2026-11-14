@@ -92,6 +92,11 @@ export interface PlayerActions {
   changeReputation: (delta: number) => void;
   /** Soma XP, com um toast e o som `LEVEL_UP` por nível subido. */
   grantXp: (amount: number) => void;
+  /**
+   * Adquire uma habilidade (progression §6): exige pontos suficientes e o pré-requisito.
+   * Debita os pontos e adiciona o nó; devolve se aconteceu.
+   */
+  unlockSkill: (id: string) => boolean;
   /** Soma os deltas às estatísticas da carreira. */
   addStats: (delta: Partial<SaveGame['stats']>) => void;
 }

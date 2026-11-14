@@ -1,7 +1,8 @@
 import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
-import { addXp } from '@/domain/progression';
+import { SKILLS } from '@/data/skills';
+import { addXp, canUnlockSkill } from '@/domain/progression';
 import { formatBRL } from '@/lib/format';
 import { clamp } from '@/lib/math';
 import type { SaveGame } from '@/types';
@@ -98,6 +99,22 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
       get().pushToast({ type: 'success', title: STRINGS.progression.levelUp(level) });
       setTimeout(() => AudioEngine.get().play('LEVEL_UP'), 300 * k);
     }
+  },
+
+  unlockSkill: (id) => {
+    const { skills, player } = get();
+    const node = SKILLS.find((n) => n.id === id);
+    if (!node || !canUnlockSkill(node, player.skillPoints, skills)) {
+      AudioEngine.get().play('DENIED');
+      return false;
+    }
+    set((s) => ({
+      skills: [...s.skills, id],
+      player: { ...s.player, skillPoints: s.player.skillPoints - node.cost },
+    }));
+    AudioEngine.get().play('COLLECT');
+    get().pushToast({ type: 'success', title: STRINGS.progression.skillUnlocked(node.name) });
+    return true;
   },
 
   changeReputation: (delta) => {

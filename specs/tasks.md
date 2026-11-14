@@ -985,12 +985,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T045 · **REQs:** REQ-PRG-006, REQ-PRG-007, REQ-PRG-012
 - **Spec:** [office §5](features/office.md) (Quadro de Carreira), [progression §6, §9](features/progression.md)
 - **Aceite:**
-  - [ ] O critério 4 de [office §8](features/office.md).
-  - [ ] Árvore com estados (bloqueado, disponível, adquirido).
-  - [ ] Perfil com faixas de reputação, estatísticas e o rival.
-  - [ ] **Todos** os 13 modificadores conectados aos consumidores ([progression §6](features/progression.md)), com 1 teste por consumidor.
+  - [x] O critério 4 de [office §8](features/office.md).
+  - [x] Árvore com estados (bloqueado, disponível, adquirido).
+  - [x] Perfil com faixas de reputação, estatísticas e o rival.
+  - [x] **Todos** os 13 modificadores conectados aos consumidores ([progression §6](features/progression.md)), com 1 teste por consumidor.
 - **Verificação:** `npx vitest run src/screens/office src/domain/modifiers`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Nova ação `unlockSkill(id)` na store: exige pontos e o pré-requisito (`canUnlockSkill`), debita e soma o nó, toca `COLLECT` e mostra o toast; recusa com `DENIED`. `CareerPanel` (hotspot CAREER ativo) tem as abas Habilidades e Perfil; a aba Visual entra na T049.
+  - Árvore: 3 colunas (ramos) × 4 nós (`skillTreeModel`): Adquirida, Disponível (pontos e pré-requisito OK; pulsa, e fica estática com `reduceFlashes`) ou Bloqueada, com o motivo ("Requer <nó anterior>" ou "Falta/Faltam N ponto(s)"). A aquisição pede `ConfirmDialog`. Critério 4 testado: 2 pontos, adquirir `PIL_1` → 1 ponto e `windDrift` 0,8.
+  - Perfil: nível, barra de XP (`xpToNext`), reputação com a faixa de `reputationBand`, estatísticas (contratos, fotos, tempo de voo, quedas, distância em tiles) e o rival MegaMap (placar de contratos tomados e o histórico de roubos e contrapropostas).
+  - Os 13 modificadores: auditei os consumidores e 12 já estavam ligados; o `rivalChance` tem o consumidor `rollCounterOffer` (domínio), mas a chamada na interface (modal de contraproposta ao aceitar o contrato) é a T051. `domain/modifiers.test.ts` traz um teste por consumidor (`driftVelocityMs`, `drainPerSecond`/plano de voo, `stepAvatar`, `thermalLiftMs`, os multiplicadores `skills`, `texture` e `rollingShutter`, `lidarRmseZ`, `computePayment`, `museumIncomePerMin`, `shopPrice`, `computeRewards`, `rollCounterOffer`), mais a cobertura das 13 chaves pelas 12 habilidades e o seletor `selectModifiers`.
+  - Os testes de navegação por teclado do escritório viraram uma busca em largura pelas setas sobre os retângulos reais dos hotspots (agora 6 ativos; o E2E também).
+- **Status:** ✅
 
 ### T047 — Equipe
 - **Fase:** F6 · **Depende de:** T046 · **REQs:** REQ-PRG-005
@@ -1399,13 +1405,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-004 | Hardware de processamento | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ☐ |
-| REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ☐ |
-| REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ☐ |
+| REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ✅ |
+| REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ☐ |
 | REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ☐ |
 | REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ☐ |
 | REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |
-| REQ-PRG-012 | Reputação | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046, T051 | ☐ |
+| REQ-PRG-012 | Reputação | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046, T051 | ✅ |
 | REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ☐ |
 | REQ-CNT-001 | Contratos reais | [contracts-real](content/contracts-real.md), [data-model](design/data-model.md) | T022, T053, T054, T055, T056, T057, T058 | ☐ |
 | REQ-CNT-002 | Fendas | [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md) | T059, T060–T070, T071 | ☐ |

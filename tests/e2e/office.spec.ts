@@ -13,7 +13,7 @@ test('novo jogo: intro de 4 cartões → foco na Porta → Enter vai ao mapa', a
   await expect(page.getByTestId('world-map-screen')).toBeVisible();
 });
 
-test('só com o teclado, os 5 hotspots do escritório são alcançáveis a partir da Porta', async ({
+test('só com o teclado, os 6 hotspots do escritório são alcançáveis a partir da Porta', async ({
   page,
 }) => {
   await page.goto('/?debug=1&skipIntro=1');
@@ -35,7 +35,14 @@ test('só com o teclado, os 5 hotspots do escritório são alcançáveis a parti
       }
     }
   }
-  expect([...seen].sort()).toEqual(['DOOR', 'GARAGE', 'HOLO_TABLE', 'LAB', 'WORKSTATION']);
+  expect([...seen].sort()).toEqual([
+    'CAREER',
+    'DOOR',
+    'GARAGE',
+    'HOLO_TABLE',
+    'LAB',
+    'WORKSTATION',
+  ]);
   // E o Enter ativa o hotspot focado.
   await page.focus('[data-hotspot="WORKSTATION"]');
   await page.keyboard.press('Enter');

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createDebugMission } from '@/app/debugFixtures';
-import { INTRO_LINES } from '@/data/office';
+import { INTRO_LINES, OFFICE_HOTSPOTS } from '@/data/office';
 import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
@@ -8,18 +8,14 @@ import { OfficeScreen } from './OfficeScreen';
 
 const get = () => useGameStore.getState();
 
-/** jsdom não faz layout: coloca os hotspots onde o canvas os desenharia. */
+/** jsdom não faz layout: coloca os hotspots onde o canvas os desenharia (os retângulos dos dados). */
 function placeHotspots() {
-  const pos: Record<string, [number, number]> = {
-    HOLO_TABLE: [500, 190],
-    DOOR: [1044, 76],
-    WORKSTATION: [56, 420],
-    LAB: [740, 420],
-    GARAGE: [984, 404],
-  };
-  for (const [id, [left, top]] of Object.entries(pos)) {
-    const el = document.querySelector<HTMLElement>(`[data-hotspot="${id}"]`);
-    if (el) el.getBoundingClientRect = () => ({ left, top, width: 200, height: 160 }) as DOMRect;
+  for (const h of OFFICE_HOTSPOTS) {
+    const el = document.querySelector<HTMLElement>(`[data-hotspot="${h.id}"]`);
+    if (el) {
+      el.getBoundingClientRect = () =>
+        ({ left: h.rect.x, top: h.rect.y, width: h.rect.w, height: h.rect.h }) as DOMRect;
+    }
   }
 }
 
@@ -40,11 +36,12 @@ describe('OfficeScreen', () => {
     expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).toHaveFocus();
   });
 
-  it('só os 5 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
+  it('só os 6 hotspots ativos são botões; a Porta, a Mesa e o Laboratório trocam de tela', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     const hotspots = document.querySelectorAll('[data-hotspot]');
     expect([...hotspots].map((h) => h.getAttribute('data-hotspot')).sort()).toEqual([
+      'CAREER',
       'DOOR',
       'GARAGE',
       'HOLO_TABLE',
@@ -66,34 +63,41 @@ describe('OfficeScreen', () => {
     expect(get().world.avatar).toEqual({ ...DEFAULT_SPAWN, facing: 'S' });
   });
 
-  it('só com o teclado, setas e Enter alcançam e ativam os 5 hotspots', () => {
+  it('só com o teclado, setas e Enter alcançam e ativam os 6 hotspots', () => {
     get().setFlags({ introSeen: true });
     render(<OfficeScreen />);
     placeHotspots();
-    const focused = () => (document.activeElement as HTMLElement).getAttribute('data-hotspot');
-    const press = (code: string) =>
-      fireEvent.keyDown(document.activeElement as HTMLElement, { code });
-    expect(focused()).toBe('DOOR');
-    const seen = new Set([focused()]);
-    // Percorre a sala só com as setas; cada uma leva ao vizinho mais próximo (input §5).
-    const path: Array<[string, string]> = [
-      ['ArrowDown', 'GARAGE'],
-      ['ArrowLeft', 'LAB'],
-      ['ArrowLeft', 'WORKSTATION'],
-      ['ArrowRight', 'LAB'],
-      ['ArrowUp', 'HOLO_TABLE'],
-      ['ArrowRight', 'LAB'],
-      ['ArrowRight', 'GARAGE'],
-    ];
-    for (const [code, expected] of path) {
-      press(code);
-      expect(focused()).toBe(expected);
-      seen.add(focused());
+    const focusedId = () => (document.activeElement as HTMLElement).getAttribute('data-hotspot');
+    const focusHotspot = (id: string) =>
+      document.querySelector<HTMLElement>(`[data-hotspot="${id}"]`)?.focus();
+    expect(focusedId()).toBe('DOOR');
+    // Busca em largura: de cada hotspot alcançado, tenta as 4 direções (como o E2E).
+    const seen = new Set(['DOOR']);
+    const queue = ['DOOR'];
+    while (queue.length > 0) {
+      const from = queue.shift() as string;
+      for (const code of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+        focusHotspot(from);
+        fireEvent.keyDown(document.activeElement as HTMLElement, { code });
+        const to = focusedId();
+        if (to && !seen.has(to)) {
+          seen.add(to);
+          queue.push(to);
+        }
+      }
     }
-    expect([...seen].sort()).toEqual(['DOOR', 'GARAGE', 'HOLO_TABLE', 'LAB', 'WORKSTATION']);
+    expect([...seen].sort()).toEqual([
+      'CAREER',
+      'DOOR',
+      'GARAGE',
+      'HOLO_TABLE',
+      'LAB',
+      'WORKSTATION',
+    ]);
     // Enter no botão focado usa a ativação nativa (clique).
+    focusHotspot('CAREER');
     fireEvent.click(document.activeElement as HTMLElement);
-    expect(screen.getByTestId('garage-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('career-panel')).toBeInTheDocument();
   });
 
   it('com missão pendente: toast na entrada, foco na Workstation e "Processar" leva ao processamento (T4)', () => {

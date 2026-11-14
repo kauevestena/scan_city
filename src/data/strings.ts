@@ -111,6 +111,7 @@ export const STRINGS = {
   },
   progression: {
     levelUp: (level: number) => `Nível ${level}! +1 ponto de habilidade`,
+    skillUnlocked: (name: string) => `Habilidade adquirida: ${name}`,
     reputationBands: ['Desconhecida', 'Promissora', 'Respeitada', 'Referência', 'Lendária'],
   },
   topBar: {
@@ -146,6 +147,44 @@ export const STRINGS = {
       hardwareSpeed: (x: string) => `Velocidade de processamento ×${x}`,
       buy: (price: string) => `Comprar (${price})`,
       sequenceHint: 'O hardware segue uma sequência: cada upgrade exige o anterior.',
+    },
+    career: {
+      title: 'Quadro de Carreira',
+      tabs: { SKILLS: 'Habilidades', PROFILE: 'Perfil' },
+      points: (n: number) => (n === 1 ? '1 ponto de habilidade' : `${n} pontos de habilidade`),
+      cost: (n: number) => (n === 1 ? 'Custo: 1 ponto' : `Custo: ${n} pontos`),
+      states: { ACQUIRED: 'Adquirida', AVAILABLE: 'Disponível', LOCKED: 'Bloqueada' },
+      needsPrevious: (name: string) => `Requer ${name}`,
+      needsPoints: (n: number) => (n === 1 ? 'Falta 1 ponto' : `Faltam ${n} pontos`),
+      acquire: 'Adquirir',
+      confirmTitle: (name: string) => `Adquirir ${name}?`,
+      confirmMessage: (cost: number) =>
+        cost === 1
+          ? 'Isto gasta 1 ponto de habilidade.'
+          : `Isto gasta ${cost} pontos de habilidade.`,
+      branches: {
+        PILOT: 'Pilotagem & Campo',
+        ENGINEERING: 'Engenharia & Sensores',
+        MANAGEMENT: 'Gestão & Curadoria',
+      },
+      profile: {
+        level: 'Nível',
+        xp: (xp: number, next: number) => `${xp} / ${next} XP`,
+        reputation: 'Reputação',
+        reputationValue: (n: number, band: string) => `${n} · ${band}`,
+        stats: 'Estatísticas',
+        contracts: 'Contratos concluídos',
+        photos: 'Fotos tiradas',
+        flightTime: 'Tempo de voo',
+        crashes: 'Quedas',
+        distance: 'Distância percorrida',
+        distanceValue: (tiles: string) => `${tiles} tiles`,
+        rival: 'Rival: MegaMap',
+        rivalScore: (n: number) => `Contratos perdidos para a MegaMap: ${n}`,
+        rivalNone: 'A MegaMap ainda não tomou nenhum contrato.',
+        rivalSteal: (id: string) => `Contrato ${id} tomado pela MegaMap`,
+        rivalOffer: (id: string) => `Contraproposta em ${id}`,
+      },
     },
     garage: {
       title: 'Garagem',

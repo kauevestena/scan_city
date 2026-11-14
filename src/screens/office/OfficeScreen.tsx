@@ -17,11 +17,12 @@ import { cx, FOCUS_RING } from '@/ui';
 import { NamedIcon } from '@/ui/iconRegistry';
 import { useElementSize } from '@/ui/useElementSize';
 import { createTerrain } from '@/world/terrain/createTerrain';
+import { CareerPanel } from './CareerPanel';
 import { GaragePanel } from './GaragePanel';
 import { IntroSequence } from './IntroSequence';
 import { WorkstationPanel } from './WorkstationPanel';
 
-type PanelId = 'WORKSTATION' | 'GARAGE';
+type PanelId = 'WORKSTATION' | 'GARAGE' | 'CAREER';
 
 function sceneState(s: GameStore, holo: OfficeSceneState['holo']): OfficeSceneState {
   const accessory = COSMETICS.find((c) => c.id === s.inventory.equipped.atlasAccessory);
@@ -149,6 +150,7 @@ export function OfficeScreen() {
     else if (id === 'LAB') goTo('INFOGRAPHIC_LAB');
     else if (id === 'WORKSTATION') setPanel('WORKSTATION');
     else if (id === 'GARAGE') setPanel('GARAGE');
+    else if (id === 'CAREER') setPanel('CAREER');
   };
 
   return (
@@ -186,6 +188,14 @@ export function OfficeScreen() {
           onClose={() => {
             setPanel(null);
             areaRef.current?.querySelector<HTMLElement>('[data-hotspot="GARAGE"]')?.focus();
+          }}
+        />
+      )}
+      {panel === 'CAREER' && (
+        <CareerPanel
+          onClose={() => {
+            setPanel(null);
+            areaRef.current?.querySelector<HTMLElement>('[data-hotspot="CAREER"]')?.focus();
           }}
         />
       )}
