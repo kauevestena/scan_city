@@ -65,4 +65,10 @@
 - **Contexto:** [data-model §4](design/data-model.md) diz que `MIN_COVERAGE_GREEN` "exclui água se SPECULAR_WATER", e [domain-math §9](design/domain-math.md) diz que as células de água são excluídas "sempre".
 - **Opções:** A) sempre (domain-math §9); B) só com `SPECULAR_WATER`.
 - **Padrão provisório:** A, porque a domain-math é a especificação normativa das fórmulas e água não tem *tie points* em nenhum caso. `summarizeCoverage` recebe as células excluídas por parâmetro, e quem decide é `evaluateMission` (T018).
+- **Resolução:** A. A tabela de regras de [contracts-real §1](content/contracts-real.md) (`SPECULAR_WATER`) também diz "Células de água são sempre excluídas da cobertura". O comentário de data-model §4 é que está impreciso (2026-11-14, T018).
+
+### OQ-008 — Cobertura e score de missões LiDAR
+- **Aberta em:** 2026-11-14 por T018
+- **Contexto:** o score (domain-math §10.1) usa `cov` a partir da cobertura de fotos (≥ 5 fotos por célula). Missões LiDAR (C03, R04, R10) podem não ter fotos, e a cobertura ficaria toda vermelha, mesmo com a nuvem densa.
+- **Padrão provisório:** em missões cujo contrato exige `SENSOR_KIND = LIDAR` e que tenham grade LiDAR, cada célula conta como `min(5, ⌊5 · densidade / ref⌋)` "fotos", com `ref` = o valor de `MIN_LIDAR_DENSITY` do contrato (ou 10 pts/m²). Ou seja, a célula é verde com a densidade exigida. As demais missões usam a cobertura de fotos.
 - **Resolução:** —

@@ -61,8 +61,11 @@ describe('isAccessible — C00', () => {
       expect(isAccessible(u, v, t(), FOOT, NONE), `${u},${v}`).toEqual({ ok: true });
   });
 
-  it('PAINT_MARKERS ignora o alcance, mas não a água', () => {
+  it('PAINT_MARKERS ignora o alcance e o dossel, mas não a água nem o telhado', () => {
     expect(isAccessible(288, -31, t(), FOOT, { paintMarkers: true })).toEqual({ ok: true });
+    const tree = t().objects.find((o) => o.kind === 'TREE') as { u: number; v: number };
+    expect(isAccessible(tree.u, tree.v, t(), FOOT, { paintMarkers: true })).toEqual({ ok: true });
+    expect(isAccessible(HOUSE.u, HOUSE.v, t(), FOOT, { paintMarkers: true }).reason).toBe('ROOF');
     expect(isAccessible(POND.u, POND.v, t(), FOOT, { paintMarkers: true }).reason).toBe('WATER');
   });
 

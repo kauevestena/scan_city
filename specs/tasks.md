@@ -390,12 +390,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   3. `evaluateMission`, que compõe cobertura, acurácia, normas, volumetria e score. O cálculo do pagamento chega por injeção de dependência (`deps.computePayment`), porque é implementado em T019. Nos testes desta tarefa, use um *stub* de teste.
   4. `capturedFeatures(mission, sampler)`.
 - **Aceite:**
-  - [ ] G22 (cone) passa.
-  - [ ] Cenário golden: uma missão sintética do C00 (shots gerados pelo plano de referência, sem ruído) é aprovada com score ≥ 0,85.
-  - [ ] Com só 2 GCPs, o requisito `MIN_GCP(3)` (MAJOR) falha: a missão continua aprovada, com o fator ×0,85 no `qualityFactor` e o multiplicador `gcpCount` aplicado.
-  - [ ] Cada `check.type` é avaliado em ao menos 1 teste.
+  - [x] G22 (cone) passa.
+  - [x] Cenário golden: uma missão sintética do C00 (shots gerados pelo plano de referência, sem ruído) é aprovada com score ≥ 0,85.
+  - [x] Com só 2 GCPs, o requisito `MIN_GCP(3)` (MAJOR) falha: a missão continua aprovada, com o fator ×0,85 no `qualityFactor` e o multiplicador `gcpCount` aplicado.
+  - [x] Cada `check.type` é avaliado em ao menos 1 teste.
 - **Verificação:** `npx vitest run src/domain/requirements src/domain/mission src/domain/volumetrics src/domain/features`
-- **Status:** ☐
+- **Notas de implementação:**
+  - **Contratos entre tarefas:** o fator de qualidade `Q` (§12.1) é calculado em `mission.qualityFactor` e chega pronto ao `computePayment` (T019), que só monta o pagamento. XP e reputação também são injetados (`deps.computeRewards`). Assim, o aceite "×0,85 no qualityFactor" é verificado com o stub.
+  - `processingBaseTimeS`, `processingSpeed` e `STAGE_WEIGHTS` (§12.4) estão em `domain/processing.ts`, já com o G21, porque o `QualityReport` exige `processingTimeS`. A calibração de lente (`lensCalibration`) fica para T043.
+  - `modifiers.ts` nasce com `neutralModifiers()`; `applyModifiers` vem em T019.
+  - `predictRequirements(plan, contract, groundPoints, ctx)` recebe um contexto (catálogo, kit RTK, instrumento, mini-games, modificadores) no lugar do inventário. `estimateFromPlan` faz a previsão de acurácia com fotos ideais: `m̄ = 1/((1 − p)(1 − q))`, sem buracos e com o blur previsto.
+  - `evaluateRequirements(plan, measures, contract, catalog)` recebe as medições já calculadas por `evaluateMission`: GSD efetivo, mediana de `p_real`, `q` estimado pelo espaçamento real entre linhas vizinhas, acurácia de requisito, densidades e volume.
+  - A captura de features segue contracts-real §1 (`PHOTO`: ≥ 3 fotos válidas cobrindo o centro; `LIDAR`: ≥ 50 pulsos/m² na célula do centro). Cobertura de missões LiDAR em OQ-008.
+  - O PRNG da missão é injetado (`ctx.rng`) e bifurcado em `residuals` e `volume`: o mesmo terreno e a mesma seed dão o mesmo relatório.
+  - Correção em T017: com `PAINT_MARKERS`, o dossel também é ignorado (contracts-real §1: "só água e telhado continuam inválidos").
+- **Status:** ✅
 
 ### T019 — Economia, progressão, modificadores, museu, rival e eventos
 - **Fase:** F1 · **Depende de:** T018 · **REQs:** REQ-PRG-001, REQ-PRG-006, REQ-PRG-007 (*parc.*), REQ-PRG-009 (*parc.*), REQ-PRG-011 (*parc.*), REQ-PRG-012 (*parc.*), REQ-CNT-003 (*parc.*), REQ-CNT-005 (*parc.*), REQ-WLD-006 (*parc.*)

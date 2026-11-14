@@ -6,7 +6,21 @@
 import { SIGMA_Z_FACTOR } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import type { Rng } from '@/lib/rng';
-import type { FieldEquipmentId, GroundPoint, LightingId, Residual, RmseSet, Shot } from '@/types';
+import type {
+  AoiPoint,
+  CameraSensor,
+  Contract,
+  FieldEquipmentId,
+  GroundPoint,
+  LightingId,
+  ModifierSet,
+  Residual,
+  RmseSet,
+  Shot,
+  SpecialRuleId,
+} from '@/types';
+import { collinearityIndex, hullCoverage } from './geometry';
+import { lidarRmseXY, lidarRmseZ } from './lidar';
 import { gsd } from './photogrammetry';
 
 const L = STRINGS.accuracy.multipliers;
@@ -246,4 +260,102 @@ export function requirementAccuracy(residuals: readonly Residual[]): {
     dzM: r.dzM * NO_CP_FACTOR,
   }));
   return { rmse: rmseSet(scaled), residuals: scaled, verifiable: false };
+}
+
+// --- Montagem do contexto (compartilhada entre a previsão e a avaliação) ---------------
+
+export interface PhotoAccuracyInput {
+  gsdEffM: number;
+  phi: number;
+  gcps: readonly AoiPoint[];
+  aoi: Contract['aoi'];
+  camera: CameraSensor;
+  meanSkewPx: number;
+  lighting: LightingId;
+  specialRules: readonly SpecialRuleId[];
+  forwardOverlapPct: number;
+  meanCount: number;
+  redFraction: number;
+  blurFraction: number;
+  emImmune: boolean;
+  atlasCalibrated: boolean;
+  imuScore: number;
+  mods: ModifierSet;
+}
+
+/** Contexto de §6.3 a partir das medições (ou da previsão) da missão. */
+export function photoAccuracyContext(i: PhotoAccuracyInput): AccuracyContext {
+  return {
+    gcpCount: i.gcps.length,
+    phi: i.phi,
+    hullCoverage: hullCoverage(i.gcps, i.aoi),
+    collinearity: collinearityIndex(i.gcps),
+    rollingShutter: i.camera.shutter === 'ROLLING',
+    meanSkewPx: i.meanSkewPx,
+    rgbPhotos: i.camera.kind === 'RGB',
+    lighting: i.lighting,
+    homogeneousTexture: i.specialRules.includes('HOMOGENEOUS_TEXTURE'),
+    forwardOverlapPct: i.forwardOverlapPct,
+    specularWater: i.specialRules.includes('SPECULAR_WATER'),
+    meanCount: i.meanCount,
+    redFraction: i.redFraction,
+    blurFraction: i.blurFraction,
+    emInterference: i.specialRules.includes('EM_INTERFERENCE'),
+    emImmune: i.emImmune,
+    cameraPenalty: i.camera.qualityPenalty,
+    atlasCalibrated: i.atlasCalibrated,
+    imuScore: i.imuScore,
+    mods: {
+      rmseGlobal: i.mods.rmseGlobal,
+      texturePenalty: i.mods.texturePenalty,
+      rollingShutterPenalty: i.mods.rollingShutterPenalty,
+    },
+  };
+}
+
+/** Modelo fotogramétrico: base × multiplicadores. */
+export function photoModel(input: PhotoAccuracyInput): {
+  model: AxisPair;
+  multipliers: Multiplier[];
+} {
+  const multipliers = accuracyMultipliers(photoAccuracyContext(input));
+  return { model: modelRmse(baseRmse(input.gsdEffM, input.phi), multipliers), multipliers };
+}
+
+/** EM ativo e aeronave não imune: fator 1,2 também no LiDAR (§6.7). */
+export const EM_FACTOR = 1.2;
+
+/** §6.7 — Modelo LiDAR: ruído de §4.3 com EM e habilidades. */
+export function lidarModel(
+  rangeAccuracyM: number,
+  aglM: number,
+  phi: number,
+  imuScore: number,
+  mods: Pick<ModifierSet, 'lidarNoise' | 'rmseGlobal'>,
+  emActive: boolean,
+): { model: AxisPair; multipliers: Multiplier[] } {
+  const em = emActive ? EM_FACTOR : 1;
+  const multipliers: Multiplier[] = [];
+  if (emActive) multipliers.push({ key: 'em', label: L.em, xy: em, z: em });
+  if (mods.rmseGlobal !== 1) {
+    multipliers.push({ key: 'skills', label: L.skills, xy: mods.rmseGlobal, z: mods.rmseGlobal });
+  }
+  return {
+    model: {
+      xy: lidarRmseXY(aglM, phi, em) * mods.rmseGlobal,
+      z: lidarRmseZ(rangeAccuracyM, aglM, imuScore, mods.lidarNoise, phi, em) * mods.rmseGlobal,
+    },
+    multipliers,
+  };
+}
+
+/** RMSE de requisito previsto a partir do alvo: CPs no alvo, ou GCPs × 0,55 × 1,8. */
+export function predictedRequirementRmse(
+  target: { x: number; y: number; z: number },
+  hasCps: boolean,
+): { rmse: RmseSet; verifiable: boolean } {
+  const f = hasCps ? 1 : GCP_RESIDUAL_FACTOR * NO_CP_FACTOR;
+  const x = target.x * f;
+  const y = target.y * f;
+  return { rmse: { x, y, z: target.z * f, r: Math.hypot(x, y) }, verifiable: hasCps };
 }

@@ -2,7 +2,8 @@
  * Acessibilidade dos pontos de apoio (catalog §5, field-setup §6). Um ponto é inválido se:
  * 1. está na água; 2. está num telhado; 3. o dossel passa de 0,6 (sem visada aérea do alvo);
  * 4. nenhum veículo possuído alcança o ponto (rede, distância, declividade e brejo).
- * A regra `PAINT_MARKERS` (R11) ignora o item 4.
+ * A regra `PAINT_MARKERS` (R11) ignora os itens 3 e 4: só água e telhado continuam inválidos
+ * (contracts-real §1).
  */
 import type { AoiPoint, Vehicle } from '@/types';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
@@ -54,8 +55,8 @@ export function isAccessible(
   const cover = terrain.landCover(u, v);
   if (cover === 'WATER') return { ok: false, reason: 'WATER' };
   if (cover === 'ROOF') return { ok: false, reason: 'ROOF' };
-  if (terrain.canopy(u, v) > MAX_GCP_CANOPY) return { ok: false, reason: 'CANOPY' };
   if (rules.paintMarkers) return { ok: true };
+  if (terrain.canopy(u, v) > MAX_GCP_CANOPY) return { ok: false, reason: 'CANOPY' };
 
   // União sobre os veículos: basta um alcançar. O motivo mais próximo de dar certo é o relatado.
   const swamp = cover === 'SWAMP';
