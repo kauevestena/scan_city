@@ -663,13 +663,20 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T028 · **REQs:** REQ-FLT-012, REQ-FLT-021
 - **Spec:** [survey-flight §5.3 (névoa, água), §5.4 (sombras), §5.5](features/survey-flight.md), [contracts-real §1](content/contracts-real.md) (BLIZZARD_DRAIN visual, MAGIC_FOG, SPECULAR_WATER)
 - **Aceite:**
-  - [ ] As 5 iluminações produzem paletas e sombras distintas (snapshot da draw list: presença e comprimento dos polígonos de sombra).
-  - [ ] `SPECULAR_WATER` + `SUN_HIGH` marca `overWater` e desenha o brilho.
-  - [ ] `MAGIC_FOG` marca `inFog`.
-  - [ ] As partículas de neve respeitam o vento.
-  - [ ] `reduceFlashes` desliga o shake.
+  - [x] As 5 iluminações produzem paletas e sombras distintas (snapshot da draw list: presença e comprimento dos polígonos de sombra).
+  - [x] `SPECULAR_WATER` + `SUN_HIGH` marca `overWater` e desenha o brilho.
+  - [x] `MAGIC_FOG` marca `inFog`.
+  - [x] As partículas de neve respeitam o vento.
+  - [x] `reduceFlashes` desliga o shake.
 - **Verificação:** `npx vitest run src/engines/flight` · manual: `?debug=1&screen=SURVEY_FLIGHT&contract=C00` alternando a iluminação no plano.
-- **Status:** ☐
+- **Notas de implementação:**
+  - As sombras entram na draw list (`SHADOW`, com o comprimento de `shadowLengthM`) antes do objeto da faixa, só em `SUN_HIGH` e `GOLDEN_HOUR`. Fios, anéis, postes, feixes, holofotes e alvos não projetam. Direção: oposta ao sol de SE (§5.3).
+  - O brilho especular (`GLINT`) é uma elipse branca aditiva e cintilante no centro de cada quad de água, só com `SPECULAR_WATER` sob `SUN_HIGH`. A spec fala em "posição refletida do sol"; a posição exata ficou simplificada.
+  - `overWater` e `inFog` já eram marcados por `recordShot`; a regra de validade (que zera a cobertura) é de `isShotValid`. Foram acrescentados testes.
+  - Partículas (`particles.ts`): neve (260) com a deriva proporcional ao vento cruzado e vaga-lumes (60), no máximo 300, com RNG seedado. Poeira da mina e faíscas elétricas entram com os biomas e a regra `ELECTRIC_CREATURES`.
+  - O dreno 2× do `BLIZZARD_DRAIN` já vinha do T024. O shake desligado com `reduceFlashes` é de T028.
+  - Os contratos reais não oferecem todas as janelas ao mesmo tempo; o manual com 5 janelas depende dos contratos de F7.
+- **Status:** ✅
 
 ### T030 — Vento, térmicas, EM e RTK
 - **Fase:** F3 · **Depende de:** T029 · **REQs:** REQ-FLT-013, REQ-FLT-020, REQ-FLT-022
@@ -1250,7 +1257,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-009 | Sensor LiDAR | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T012, T033 | ☐ |
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ☐ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
-| REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ☐ |
+| REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ☐ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ☐ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ☐ |
@@ -1259,7 +1266,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
 | REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ☐ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ☐ |
-| REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ☐ |
+| REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ☐ |
 | REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ☐ |

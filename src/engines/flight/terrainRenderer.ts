@@ -4,6 +4,7 @@
  * intercalados por faixa (oclusão natural). `buildDrawList` registra a mesma sequência que
  * `renderTerrain` desenha, para testar a ordem sem pixels.
  */
+import { shadowLengthM } from '@/domain/flightPhysics';
 import { LIGHTING } from '@/domain/photogrammetry';
 import type { LandCover, LightingId, Rgb, WorldObjectKind } from '@/types';
 import { drawSceneObject, type SceneObject } from './objectRenderer';
@@ -66,6 +67,8 @@ export interface TerrainScene {
   /** Vetor do sol no frame do *run* (X à direita, Z à frente). */
   sun: { x: number; z: number; up: number } | null;
   reliefM: number;
+  /** Regra `SPECULAR_WATER`: brilho na água sob `SUN_HIGH`. */
+  specularWater?: boolean;
   timeS: number;
   objects: readonly SceneObject[];
   marks: readonly GroundMark[];
@@ -73,6 +76,8 @@ export interface TerrainScene {
 
 export type DrawCommand =
   | { type: 'QUAD'; band: number; z: number; color: string }
+  | { type: 'GLINT'; band: number; z: number }
+  | { type: 'SHADOW'; band: number; id: number; lengthM: number }
   | { type: 'CONTOUR'; band: number; master: boolean }
   | { type: 'OBJECT'; band: number; z: number; id: number; kind: WorldObjectKind }
   | { type: 'MARK'; band: number; z: number; id: string };
@@ -123,6 +128,8 @@ interface Sink {
   quad(band: number, z: number, pts: Float64Array, color: string): void;
   contour(band: number, x1: number, y1: number, x2: number, y2: number, master: boolean): void;
   object(band: number, o: SceneObject, scene: TerrainScene): void;
+  shadow(band: number, o: SceneObject, scene: TerrainScene, lengthM: number): void;
+  glint(band: number, z: number, pts: Float64Array, timeS: number): void;
   mark(band: number, m: GroundMark, scene: TerrainScene): void;
 }
 
@@ -203,7 +210,17 @@ function traverse(scene: TerrainScene, sink: Sink): void {
   };
   for (const o of scene.objects) {
     const b = bandOf(o.Z);
-    if (b >= 0) byBand[b]?.push({ z: o.Z, draw: (band) => sink.object(band, o, scene) });
+    if (b >= 0) {
+      byBand[b]?.push({
+        z: o.Z,
+        draw: (band) => {
+          // Sombras só com sol (SUN_HIGH e GOLDEN_HOUR), no chão, antes do objeto.
+          const len = castsShadow(o.kind) ? shadowLengthM(o.heightM + o.baseM, scene.lighting) : 0;
+          if (len > 0 && scene.sun) sink.shadow(band, o, scene, len);
+          sink.object(band, o, scene);
+        },
+      });
+    }
   }
   for (const mk of scene.marks) {
     const b = bandOf(mk.Z);
@@ -254,6 +271,9 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       pts[6] = g.sx[k10] as number;
       pts[7] = y10;
       sink.quad(i, Zi, pts, quantizedColor(r, gg, b));
+      if (cover === 'WATER' && scene.specularWater && scene.lighting === 'SUN_HIGH') {
+        sink.glint(i, Zi, pts, scene.timeS);
+      }
       corner[0] = pts[0] as number;
       corner[1] = y00;
       corner[2] = e00;
@@ -317,6 +337,8 @@ export function buildDrawList(scene: TerrainScene): DrawCommand[] {
     quad: (band, z, _pts, color) => list.push({ type: 'QUAD', band, z, color }),
     contour: (band, _x1, _y1, _x2, _y2, master) => list.push({ type: 'CONTOUR', band, master }),
     object: (band, o) => list.push({ type: 'OBJECT', band, z: o.Z, id: o.id, kind: o.kind }),
+    shadow: (band, o, _s, lengthM) => list.push({ type: 'SHADOW', band, id: o.id, lengthM }),
+    glint: (band, z) => list.push({ type: 'GLINT', band, z }),
     mark: (band, mk) => list.push({ type: 'MARK', band, z: mk.Z, id: mk.id }),
   });
   return list;
@@ -344,6 +366,60 @@ function drawMark(ctx: CanvasRenderingContext2D, mk: GroundMark, scene: TerrainS
   }
 }
 
+const NO_SHADOW: ReadonlySet<WorldObjectKind> = new Set([
+  'WIRE',
+  'RING',
+  'SEARCHLIGHT',
+  'GCP_TARGET',
+  'ENERGY_BEAM',
+  'POLE',
+]);
+const castsShadow = (kind: WorldObjectKind) => !NO_SHADOW.has(kind);
+
+/** Sombra projetada no chão, afastada do sol (alfa 0,3). */
+function drawShadow(
+  ctx: CanvasRenderingContext2D,
+  o: SceneObject,
+  s: TerrainScene,
+  lengthM: number,
+): void {
+  const sun = s.sun;
+  if (!sun) return;
+  const h = Math.hypot(sun.x, sun.z) || 1;
+  const dx = (-sun.x / h) * lengthM;
+  const dz = (-sun.z / h) * lengthM;
+  const g = (X: number, Z: number) => projectAbs(X, s.elevation(X, Z), Z, s.cam);
+  const half = o.widthM / 2;
+  const a = g(o.X - half, o.Z);
+  const b = g(o.X + half, o.Z);
+  const c = g(o.X + half + dx, o.Z + dz);
+  const d = g(o.X - half + dx, o.Z + dz);
+  if (!a || !b || !c || !d) return;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Brilho especular na água: elipse branca aditiva que cintila. */
+function drawGlint(ctx: CanvasRenderingContext2D, p: Float64Array, timeS: number): void {
+  const cx = ((p[0] as number) + (p[2] as number) + (p[4] as number) + (p[6] as number)) / 4;
+  const cy = ((p[1] as number) + (p[3] as number) + (p[5] as number) + (p[7] as number)) / 4;
+  const w = Math.abs((p[2] as number) - (p[0] as number));
+  const a = 0.18 + 0.14 * Math.sin(timeS * 3 + cx * 0.05);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, Math.max(1, w * 0.45), Math.max(0.5, w * 0.08), 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 /** Desenha o terreno, os objetos e os alvos da missão. */
 export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene): void {
   ctx.lineWidth = 1;
@@ -368,6 +444,8 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
       ctx.lineTo(x2, y2);
       ctx.stroke();
     },
+    shadow: (_band, o, s, lengthM) => drawShadow(ctx, o, s, lengthM),
+    glint: (_band, _z, p, timeS) => drawGlint(ctx, p, timeS),
     object: (_band, o, s) =>
       drawSceneObject(ctx, o, {
         cam: s.cam,

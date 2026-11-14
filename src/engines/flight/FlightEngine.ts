@@ -30,6 +30,7 @@ import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
 import { drawAircraft, drawGroundShadow, type SpriteColors } from './aircraftSprite';
+import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
   CRASH_S,
@@ -186,6 +187,7 @@ export class FlightEngine implements Simulation {
   private readonly windNoise = valueNoise2D(0x51d);
   private readonly hud = new HudThrottle();
   private surface: CanvasSurface | null = null;
+  private weather: WeatherParticles | null = null;
   private ended = false;
 
   constructor(private readonly opts: FlightEngineOptions) {
@@ -222,6 +224,11 @@ export class FlightEngine implements Simulation {
 
   attach(surface: CanvasSurface): void {
     this.surface = surface;
+    this.weather = new WeatherParticles(
+      this.opts.mission.plan.params.lighting,
+      surface.width,
+      surface.height,
+    );
   }
 
   setPhase(phase: FlightPhase): void {
@@ -343,6 +350,7 @@ export class FlightEngine implements Simulation {
     this.phaseT += dtS;
     this.sortieT += dtS;
     this.manualCooldown = Math.max(0, this.manualCooldown - dtS);
+    this.weather?.update(dtS, this.crossWind, this.sortieT);
     this.invulnerableS = Math.max(0, this.invulnerableS - dtS);
     this.shakeS = Math.max(0, this.shakeS - dtS);
     this.updateWind();
@@ -668,11 +676,13 @@ export class FlightEngine implements Simulation {
       lighting: plan.params.lighting,
       sun: sunInRunFrame(plan.params.lighting, frame.dir, frame.right),
       reliefM: this.opts.contract.terrainReliefM,
+      specularWater: this.opts.contract.specialRules.includes('SPECULAR_WATER'),
       timeS: this.sortieT,
       objects,
       marks,
     });
     this.drawFootprints(ctx, cam);
+    this.weather?.draw(ctx, this.sortieT);
     this.drawAircraftSprite(ctx, cam);
     if (this.sortieT < this.flashUntil) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
