@@ -58,6 +58,12 @@ export interface ObjectSpec {
   solid?: boolean;
   rotationRad?: number;
   baseM?: number;
+  collectible?: boolean;
+  motion?: WorldObject['motion'];
+  activePeriod?: WorldObject['activePeriod'];
+  /** Extremidade 2 do fio. */
+  u2?: number;
+  v2?: number;
 }
 
 /** Monta um `WorldObject` com id novo; `solid` padrão verdadeiro. */
@@ -75,5 +81,10 @@ export function makeObject(nextId: () => number, spec: ObjectSpec): WorldObject 
   };
   if (spec.rotationRad !== undefined) o.rotationRad = spec.rotationRad;
   if (spec.baseM !== undefined) o.baseM = spec.baseM;
+  if (spec.collectible !== undefined) o.collectible = spec.collectible;
+  if (spec.motion) o.motion = spec.motion;
+  if (spec.activePeriod) o.activePeriod = spec.activePeriod;
+  if (spec.u2 !== undefined) o.u2 = spec.u2;
+  if (spec.v2 !== undefined) o.v2 = spec.v2;
   return o;
 }

@@ -6,6 +6,7 @@
  */
 import { LIGHTING } from '@/domain/photogrammetry';
 import type { LandCover, LightingId, Rgb, WorldObjectKind } from '@/types';
+import { drawSceneObject, type SceneObject } from './objectRenderer';
 import type { BiomePalette } from '@/world/terrain/TerrainSampler';
 import {
   CAMERA_OFFSET_M,
@@ -45,24 +46,14 @@ export function bandDistance(
   return cam.zNear + (cam.zFar - cam.zNear) * (i / n) ** 2.2;
 }
 
-export interface SceneObject {
-  id: number;
-  kind: WorldObjectKind;
-  /** Coordenadas do *run* relativas à aeronave. */
-  X: number;
-  Z: number;
-  widthM: number;
-  heightM: number;
-  baseM: number;
-  color: Rgb;
-}
-
 export interface GroundMark {
   id: string;
   kind: 'GCP' | 'CP';
   X: number;
   Z: number;
 }
+
+export type { SceneObject };
 
 export interface TerrainScene {
   cam: FlightCamera;
@@ -331,38 +322,6 @@ export function buildDrawList(scene: TerrainScene): DrawCommand[] {
   return list;
 }
 
-function drawObject(ctx: CanvasRenderingContext2D, o: SceneObject, scene: TerrainScene): void {
-  const ground = scene.elevation(o.X, o.Z);
-  const base = projectAbs(o.X, ground + o.baseM, o.Z, scene.cam);
-  const top = projectAbs(o.X, ground + o.baseM + o.heightM, o.Z, scene.cam);
-  if (!base || !top) return;
-  const w = o.widthM * base.scale;
-  if (w < 1 && base.y - top.y < 1) return;
-  const fog = fogFactor(o.Z, fogDistance(scene.lighting));
-  const [r, g, b] = mix(o.color, scene.palette.fog, fog);
-  if (o.kind === 'TREE') {
-    const trunkW = Math.max(1, w * 0.15);
-    ctx.fillStyle = quantizedColor(90 * (1 - fog) + scene.palette.fog[0] * fog, 64, 40);
-    ctx.fillRect(
-      base.x - trunkW / 2,
-      top.y + (base.y - top.y) * 0.5,
-      trunkW,
-      (base.y - top.y) * 0.5,
-    );
-    ctx.fillStyle = quantizedColor(r, g, b);
-    ctx.beginPath();
-    ctx.arc(base.x, top.y + (base.y - top.y) * 0.35, Math.max(1, w / 2), 0, Math.PI * 2);
-    ctx.fill();
-    return;
-  }
-  if (o.kind === 'WIRE') return;
-  // Face voltada à câmera (×0,85) e topo (×1,0).
-  ctx.fillStyle = quantizedColor(r * 0.85, g * 0.85, b * 0.85);
-  ctx.fillRect(base.x - w / 2, top.y, w, base.y - top.y);
-  ctx.fillStyle = quantizedColor(r, g, b);
-  ctx.fillRect(base.x - w / 2, top.y - Math.max(1, w * 0.12), w, Math.max(1, w * 0.12));
-}
-
 function drawMark(ctx: CanvasRenderingContext2D, mk: GroundMark, scene: TerrainScene): void {
   const e = scene.elevation(mk.X, mk.Z);
   const c = projectAbs(mk.X, e, mk.Z, scene.cam);
@@ -409,7 +368,14 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
       ctx.lineTo(x2, y2);
       ctx.stroke();
     },
-    object: (_band, o, s) => drawObject(ctx, o, s),
+    object: (_band, o, s) =>
+      drawSceneObject(ctx, o, {
+        cam: s.cam,
+        elevation: s.elevation,
+        fog: fogFactor(o.Z, fogDistance(s.lighting)),
+        fogColor: s.palette.fog,
+        timeS: s.timeS,
+      }),
     mark: (_band, mk, s) => drawMark(ctx, mk, s),
   });
 }

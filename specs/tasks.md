@@ -643,12 +643,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [survey-flight §5.4, §5.11](features/survey-flight.md), [terrain §4](design/terrain.md)
 - **Arquivos:** \+ `src/engines/flight/{objectRenderer,collision,effects}.ts` · ~ `FlightEngine`, `missionSlice.endSortie` (descarte) · ~ `ruralTutorial` (árvores e casa como sólidos)
 - **Aceite:**
-  - [ ] Testes de `checkCollision` para cada forma (caixa, cilindro, esfera, fio, arco com vão livre, beam on/off).
-  - [ ] O critério 2 de [survey-flight §8](features/survey-flight.md).
-  - [ ] Uma queda descarta só os dados da surtida (teste do slice).
-  - [ ] Atlas "volta para casa" sem custo de reparo.
+  - [x] Testes de `checkCollision` para cada forma (caixa, cilindro, esfera, fio, arco com vão livre, beam on/off).
+  - [x] O critério 2 de [survey-flight §8](features/survey-flight.md).
+  - [x] Uma queda descarta só os dados da surtida (teste do slice).
+  - [x] Atlas "volta para casa" sem custo de reparo.
 - **Verificação:** `npx vitest run src/engines/flight`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `collision.ts` é puro: recebe o terreno por `groundAt` e o estado de feixes e móveis por `t` (`isBeamOn`, `motionOffset`). Formas: caixa com rotação, árvore (tronco r = 0,6 + copa esférica no topo), PIPE/POLE (cilindros), fio (distância 3D ao segmento, raio 0,5), arco (duas colunas de 20 % da largura + viga de 20 % da altura, vão livre), feixe (só ligado) e perigo móvel (esfera). Anel, holofote e alvo não colidem.
+  - A copa da árvore e a viga do arco são proporções minhas (a spec dá só o raio da copa e que o vão é livre).
+  - `makeObject` passou a repassar `motion`, `activePeriod`, `u2`/`v2` e `collectible`, que os biomes de fenda vão usar.
+  - Colisão com objeto: casco −1, velocidade a 30 %, 1,5 s de invulnerabilidade (pisca; com `reduceFlashes`, translúcida), shake de 0,3 s a 8 px (desligado com `reduceFlashes`) e `CRASH`. Casco 0, terreno ou energia esgotada iniciam a fase `CRASHED` (2 s: gira, cai e solta fumaça) e só então encerram a surtida.
+  - As colisões da surtida somam em `events.collisions` mesmo quando os dados são descartados; `events.crashes` conta só as quedas.
+  - Atlas: o pós-voo mostra "Atlas se assustou e voltou para casa". O custo de reparo já é zero porque o preço do Atlas é R$ 0 (teste).
+  - `objectRenderer.ts` desenha cada tipo (caixa com 3 faces, árvore, cilindros, fio com catenária, arco, anel, feixe com pulso, perigo com sombra, holofote). O render da árvore e da casa do C00 usa o mesmo código.
+  - O índice de objetos é por `u`, então a busca de colisão usa uma janela de ±40 m em torno da aeronave.
+- **Status:** ✅
 
 ### T029 — Iluminação, céu, sombras e clima
 - **Fase:** F3 · **Depende de:** T028 · **REQs:** REQ-FLT-012, REQ-FLT-021
@@ -1240,7 +1249,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
 | REQ-FLT-009 | Sensor LiDAR | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T012, T033 | ☐ |
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ☐ |
-| REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ☐ |
+| REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ☐ |
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ☐ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ☐ |

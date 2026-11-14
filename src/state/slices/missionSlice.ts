@@ -146,6 +146,7 @@ export const createMissionSlice: StateCreator<
           events: {
             ...active.events,
             crashes: active.events.crashes + (result.outcome === 'CRASH' ? 1 : 0),
+            collisions: active.events.collisions + (result.collisions ?? 0),
           },
         },
       },

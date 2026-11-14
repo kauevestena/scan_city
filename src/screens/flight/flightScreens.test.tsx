@@ -107,6 +107,8 @@ describe('PostFlightDialog', () => {
     durationS: 216,
     completedLines: [0, 1, 2, 3, 4, 5],
     photos: 96,
+    collisions: 0,
+    atlas: false,
   };
 
   it('com dados: "Levar dados" põe a missão na fila e volta ao mapa (T10, QUEUED)', () => {

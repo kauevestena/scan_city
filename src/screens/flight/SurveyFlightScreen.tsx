@@ -57,6 +57,8 @@ function createEngine(
     shotOffset: mission.shots.length,
     onShots: (batch) => useGameStore.getState().appendShots(batch),
     onShutter: () => AudioEngine.get().play('SHUTTER'),
+    onCollision: () => AudioEngine.get().play('CRASH'),
+    onCrash: () => AudioEngine.get().play('CRASH'),
     onHud,
     onSortieEnd: (result) => {
       useGameStore.getState().endSortie(result);

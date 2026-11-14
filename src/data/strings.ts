@@ -302,6 +302,7 @@ export const STRINGS = {
         ABORTED: 'Voo interrompido',
       },
       lost: 'Os dados desta surtida foram perdidos.',
+      atlasScared: 'Atlas se assustou e voltou para casa.',
       lines: 'Linhas completas',
       linesValue: (done: number, total: number) => `${done} / ${total}`,
       photos: 'Fotos',

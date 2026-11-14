@@ -3,7 +3,8 @@ import { C00 } from '@/data/contracts';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { neutralModifiers } from '@/domain/modifiers';
 import { referenceParams } from '@/test/fixtures/syntheticMission';
-import type { MissionData, Shot } from '@/types';
+import type { MissionData, Shot, WorldObject } from '@/types';
+import { makeObject } from '@/world/terrain/objects';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { FlightEngine, meanAoiElevation, SHOT_BATCH, type SortieResult } from './FlightEngine';
 import type { FlightHudSnapshot, FlightPhase } from './hudPublisher';
@@ -163,11 +164,15 @@ describe('FlightEngine — controles, alertas e HUD', () => {
     expect(results).toHaveLength(1);
   });
 
-  it('energia esgotada encerra a surtida como ENERGY_DEPLETED', () => {
-    const { e, results } = engine();
+  it('energia esgotada: queda de 2 s e depois ENERGY_DEPLETED', () => {
+    const { e, results, phases } = engine();
     e.energy = 0.0001;
     for (let t = 0; t < 1; t += 1 / 60) e.update(1 / 60);
+    expect(e.phase).toBe('CRASHED');
+    expect(results).toHaveLength(0);
+    for (let t = 0; t < 2.1; t += 1 / 60) e.update(1 / 60);
     expect(results[0]?.outcome).toBe('ENERGY_DEPLETED');
+    expect(phases).toContain('CRASHED');
   });
 
   it('linhas já concluídas ficam de fora numa nova surtida', () => {
@@ -195,5 +200,106 @@ describe('FlightEngine — controles, alertas e HUD', () => {
       before,
     );
     expect(calls.some((c) => c[2] === 1280 && c[3] === 720)).toBe(false);
+  });
+});
+
+/** Terreno do C00 com um único objeto no caminho da linha 1 (v ≈ −2,2 m). */
+function terrainWith(...objects: WorldObject[]) {
+  const base = createTerrain(C00);
+  return { ...base, objects, objectsInRange: () => objects } as typeof base;
+}
+const wall = (over: Partial<WorldObject> = {}): WorldObject =>
+  makeObject(() => 1, {
+    kind: 'BUILDING',
+    u: 60,
+    v: -2.2,
+    widthM: 10,
+    depthM: 10,
+    heightM: 200,
+    color: [1, 2, 3],
+    ...over,
+  });
+
+describe('FlightEngine — colisão, dano e queda (§5.11)', () => {
+  it('prédio no caminho: casco −1, CRASH, velocidade a 30 %, 1,5 s de invulnerabilidade', () => {
+    let crashes = 0;
+    const { e } = engine({ terrain: terrainWith(wall()), onCollision: () => crashes++ });
+    let vAtHit = 0;
+    for (let t = 0; t < 30 && e.collisions === 0; t += 1 / 60) {
+      e.update(1 / 60);
+      vAtHit = e.ac.v;
+    }
+    expect(e.collisions).toBe(1);
+    expect(crashes).toBe(1);
+    expect(e.hull).toBe(e.aircraft.hull - 1);
+    expect(vAtHit).toBeCloseTo(3, 0);
+    // Atravessando o prédio durante a invulnerabilidade: não perde mais casco.
+    for (let t = 0; t < 1.4; t += 1 / 60) e.update(1 / 60);
+    expect(e.collisions).toBe(1);
+    expect(e.snapshot().hull).toBe(e.aircraft.hull - 1);
+  });
+
+  it('casco zerado: queda e a surtida termina CRASH (Atlas: "voltou para casa")', () => {
+    const { e, results, huds } = engine({ terrain: terrainWith(wall()) });
+    e.hull = 1;
+    for (let t = 0; t < 40 && e.phase !== 'CRASHED'; t += 1 / 60) e.update(1 / 60);
+    expect(e.phase).toBe('CRASHED');
+    for (let t = 0; t < 2.1; t += 1 / 60) e.update(1 / 60);
+    expect(results[0]).toMatchObject({ outcome: 'CRASH', atlas: true, collisions: 1 });
+    expect(huds.at(-1)?.hull).toBe(0);
+  });
+
+  it('terreno acima da aeronave: queda imediata', () => {
+    const base = createTerrain(C00);
+    // Um paredão de 500 m a partir de u = 50: a aeronave (H = 60 m) bate no relevo.
+    const hill = { ...base, elevation: (u: number) => (u > 50 ? 500 : 0) } as typeof base;
+    const { e } = engine({ terrain: hill });
+    for (let t = 0; t < 20 && e.phase !== 'CRASHED'; t += 1 / 60) e.update(1 / 60);
+    expect(e.phase).toBe('CRASHED');
+    expect(e.hull).toBe(0);
+  });
+
+  it('objeto não sólido não bate; o render de fio, feixe e perigo não quebra', () => {
+    const wire = makeObject(() => 2, {
+      kind: 'WIRE',
+      u: 40,
+      v: -2.2,
+      u2: 80,
+      v2: -2.2,
+      widthM: 0.1,
+      depthM: 0.1,
+      heightM: 5,
+      baseM: 60,
+      color: [0, 0, 0],
+    });
+    const beam = makeObject(() => 3, {
+      kind: 'ENERGY_BEAM',
+      u: 50,
+      v: 10,
+      widthM: 3,
+      depthM: 3,
+      heightM: 40,
+      color: [9, 9, 9],
+      activePeriod: { onS: 2, offS: 3, phase: 0 },
+    });
+    const hazard = makeObject(() => 4, {
+      kind: 'MOVING_HAZARD',
+      u: 50,
+      v: 30,
+      widthM: 6,
+      depthM: 6,
+      heightM: 6,
+      baseM: 30,
+      color: [9, 9, 9],
+      motion: { axis: 'u', amplitudeM: 10, periodS: 4, phase: 0 },
+    });
+    const { e } = engine({ terrain: terrainWith(wall({ solid: false }), wire, beam, hazard) });
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    e.attach({ ctx, width: 1280, height: 720, dpr: 1 });
+    for (let t = 0; t < 6; t += 1 / 60) {
+      e.update(1 / 60);
+      if (Math.round(t * 60) % 30 === 0) e.render();
+    }
+    expect(e.collisions).toBe(0);
   });
 });

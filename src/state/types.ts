@@ -110,6 +110,8 @@ export interface SortieReport {
   outcome: SortieOutcome;
   durationS: number;
   completedLines: number[];
+  /** Colisões da surtida (somam em `events.collisions`, mesmo com os dados descartados). */
+  collisions?: number;
 }
 
 export interface MissionActions {

@@ -68,6 +68,11 @@ export function PostFlightDialog({ result, totalLines, energyLeft }: PostFlightD
     <>
       <Modal open title={P.outcomes[result.outcome]} size="md" dismissable={false} footer={footer}>
         <div className="flex flex-col gap-4" data-testid="post-flight">
+          {result.outcome === 'CRASH' && result.atlas && (
+            <p className="text-sm text-amber-200" data-testid="atlas-scared">
+              {P.atlasScared}
+            </p>
+          )}
           {lost && <p className="text-sm text-rose-300">{P.lost}</p>}
           <div className="grid grid-cols-2 gap-3">
             <Stat label={P.lines} value={P.linesValue(mission.completedLines.length, totalLines)} />

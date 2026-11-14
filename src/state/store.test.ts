@@ -226,6 +226,20 @@ describe('mission', () => {
     expect(get().stats).toMatchObject({ photosTaken: 20, flightTimeS: 130, crashes: 1 });
   });
 
+  it('queda: descarta só os dados da surtida; as colisões ficam contadas', () => {
+    const shots = createDebugMission('C00', true).shots;
+    get().startMission('C00', 1);
+    get().appendShots(shots.slice(0, 10));
+    get().endSortie({ outcome: 'RTH', durationS: 50, completedLines: [0], collisions: 0 });
+    get().appendShots(shots.slice(10, 15).map((s) => ({ ...s, sortie: 1 })));
+    get().endSortie({ outcome: 'CRASH', durationS: 20, completedLines: [1], collisions: 3 });
+    const m = get().mission.active;
+    expect(m?.shots).toHaveLength(10);
+    expect(m?.shots.every((s) => s.sortie === 0)).toBe(true);
+    expect(m?.completedLines).toEqual([0]);
+    expect(m?.events).toMatchObject({ crashes: 1, collisions: 3 });
+  });
+
   it('resumePlanning volta a missão ao planejamento; sem missão, nada muda', () => {
     get().startMission('C00', 1);
     get().launchMission();

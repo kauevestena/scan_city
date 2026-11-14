@@ -30,6 +30,16 @@ import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
 import { drawAircraft, drawGroundShadow, type SpriteColors } from './aircraftSprite';
+import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
+import {
+  CRASH_S,
+  crashPose,
+  IMPACT_SPEED_FACTOR,
+  INVULNERABLE_S,
+  invulnerableAlpha,
+  SHAKE_S,
+  shakeOffset,
+} from './effects';
 import { autopilotInput } from './autopilot';
 import {
   cameraModel,
@@ -77,6 +87,9 @@ export interface SortieResult {
   durationS: number;
   completedLines: number[];
   photos: number;
+  collisions: number;
+  /** A aeronave é o Atlas: a queda vira "voltou para casa", sem custo de reparo. */
+  atlas: boolean;
 }
 
 export interface FlightInputSource {
@@ -105,6 +118,8 @@ export interface FlightEngineOptions {
   onSortieEnd?: (result: SortieResult) => void;
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
+  onCollision?: () => void;
+  onCrash?: () => void;
   now?: () => number;
 }
 
@@ -142,6 +157,13 @@ export class FlightEngine implements Simulation {
   private frame: RunFrame;
   ac: AircraftState;
   energy = 1;
+  hull: number;
+  /** Colisões desta surtida. */
+  collisions = 0;
+  private invulnerableS = 0;
+  private shakeS = 0;
+  private crashOutcome: SortieOutcome | null = null;
+  private crashAlt = 0;
   private sortieT = 0;
   /** Tempo de curva real (não apresentado) somado à duração. */
   private extraTimeS = 0;
@@ -169,6 +191,7 @@ export class FlightEngine implements Simulation {
   constructor(private readonly opts: FlightEngineOptions) {
     const { aircraft } = planEquipment(opts.mission.plan, opts.catalog);
     this.aircraft = aircraft;
+    this.hull = aircraft.hull;
     this.camera = cameraModel(opts.mission.plan, opts.catalog);
     // Primárias em zigue-zague e depois as cruzadas: a ordem do plano. Só as que faltam.
     const done = new Set(opts.mission.completedLines);
@@ -320,6 +343,8 @@ export class FlightEngine implements Simulation {
     this.phaseT += dtS;
     this.sortieT += dtS;
     this.manualCooldown = Math.max(0, this.manualCooldown - dtS);
+    this.invulnerableS = Math.max(0, this.invulnerableS - dtS);
+    this.shakeS = Math.max(0, this.shakeS - dtS);
     this.updateWind();
     switch (this.phase) {
       case 'TAKEOFF': {
@@ -344,11 +369,50 @@ export class FlightEngine implements Simulation {
         if (k >= 1) this.endSortie('COMPLETED');
         break;
       }
+      case 'CRASHED':
+        if (this.phaseT >= CRASH_S && this.crashOutcome) this.endSortie(this.crashOutcome);
+        break;
       default:
         break;
     }
-    if (this.energy <= 0 && !this.ended && this.phase !== 'LANDING')
-      this.endSortie('ENERGY_DEPLETED');
+    if (this.energy <= 0 && !this.ended && this.phase !== 'LANDING' && this.phase !== 'CRASHED') {
+      this.crash('ENERGY_DEPLETED');
+    }
+  }
+
+  /** Início da queda (casco 0, terreno ou energia): 2 s de animação e depois o pós-voo. */
+  private crash(outcome: SortieOutcome): void {
+    if (this.phase === 'CRASHED' || this.ended) return;
+    this.crashOutcome = outcome;
+    this.crashAlt = this.ac.alt;
+    this.shakeS = SHAKE_S;
+    this.opts.onCrash?.();
+    this.setPhase('CRASHED');
+  }
+
+  private collide(): void {
+    const body = { u: 0, v: 0, alt: this.ac.alt, radiusM: this.aircraft.collisionRadiusM };
+    const p = aoiPoint(this.frame, this.ac.s, this.ac.x);
+    body.u = p.u;
+    body.v = p.v;
+    const ground = (u: number, v: number) => this.opts.terrain.elevation(u, v);
+    if (hitsTerrain(body, ground)) {
+      this.hull = 0;
+      this.crash('CRASH');
+      return;
+    }
+    if (this.invulnerableS > 0) return;
+    // Móveis podem sair do índice de `u` em até a amplitude: margem de 40 m.
+    const near = this.opts.terrain.objectsInRange(p.u - 40, p.u + 40);
+    const hit = checkCollision(body, near, this.sortieT, ground);
+    if (!hit) return;
+    this.hull -= 1;
+    this.collisions += 1;
+    this.invulnerableS = INVULNERABLE_S;
+    this.shakeS = SHAKE_S;
+    this.ac = { ...this.ac, v: this.ac.v * IMPACT_SPEED_FACTOR };
+    this.opts.onCollision?.();
+    if (this.hull <= 0) this.crash('CRASH');
   }
 
   private stepRun(dtS: number): void {
@@ -371,6 +435,8 @@ export class FlightEngine implements Simulation {
       dtS,
     );
     this.drain(dtS);
+    this.collide();
+    if (this.phase !== 'RUN') return;
     const window = inShotWindow(this.ac.s, this.frame, plan.stats.baseM);
     if (this.timer.step(dtS, plan.stats.intervalS, window)) this.fire(false);
     const line = this.line;
@@ -423,6 +489,8 @@ export class FlightEngine implements Simulation {
       durationS: this.sortieT + this.extraTimeS,
       completedLines: [...this.completedLines].sort((a, b) => a - b),
       photos: this.shots.length,
+      collisions: this.collisions,
+      atlas: this.aircraft.kind === 'BIRD',
     });
     this.publish(true);
   }
@@ -494,7 +562,7 @@ export class FlightEngine implements Simulation {
       energyUnit: this.aircraft.energyUnit,
       timeLeftS: this.energy / drainCruise,
       rthAlert: false,
-      hull: this.aircraft.hull,
+      hull: Math.max(0, this.hull),
       hullMax: this.aircraft.hull,
       rtk: this.rtk(),
       activeSensor: 'RGB',
@@ -544,6 +612,8 @@ export class FlightEngine implements Simulation {
     const plan = this.opts.mission.plan;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const shake = shakeOffset(this.shakeS, this.sortieT, this.opts.reduceFlashes());
+    ctx.translate(shake.x, shake.y);
     drawSky(ctx, width, height, cam.horizonY, terrain.palette, plan.params.lighting);
 
     const at = (X: number, Z: number) => aoiPoint(frame, s0 + Z, X);
@@ -552,16 +622,30 @@ export class FlightEngine implements Simulation {
       const r = toRun(frame, o);
       const Z = r.s - s0;
       if (Z < -20 || Z > cam.zFar) continue;
-      objects.push({
+      const m = motionOffset(o, this.sortieT);
+      const scene: SceneObject = {
         id: o.id,
         kind: o.kind,
-        X: r.x,
-        Z,
+        X: r.x + m.du * frame.right.u + m.dv * frame.right.v,
+        Z: Z + m.du * frame.dir.u + m.dv * frame.dir.v,
         widthM: o.widthM,
+        depthM: o.depthM,
         heightM: o.heightM,
-        baseM: o.baseM ?? 0,
+        baseM: (o.baseM ?? 0) + m.dh,
         color: o.color,
-      });
+      };
+      if (o.kind === 'WIRE') {
+        const r2 = toRun(frame, { u: o.u2 ?? o.u, v: o.v2 ?? o.v });
+        scene.X2 = r2.x;
+        scene.Z2 = r2.s - s0;
+      }
+      if (o.kind === 'ENERGY_BEAM') {
+        scene.on = isBeamOn(o, this.sortieT);
+        // Pulsa 0,5 s antes de ligar.
+        const next = o.activePeriod ? isBeamOn(o, this.sortieT + 0.5) : false;
+        scene.pulse = !scene.on && next ? 1 : 0;
+      }
+      objects.push(scene);
     }
     const marks: GroundMark[] = [];
     for (const g of this.opts.mission.groundPoints) {
@@ -629,10 +713,14 @@ export class FlightEngine implements Simulation {
 
   private drawAircraftSprite(ctx: CanvasRenderingContext2D, cam: FlightCamera): void {
     const ground = this.elevationAt(this.ac.s, this.ac.x);
+    const crashed = this.phase === 'CRASHED';
+    const pose = crashed ? crashPose(this.phaseT) : null;
+    // Na queda, a altitude desce até o chão.
+    const alt = pose ? this.crashAlt + (ground + 0.5 - this.crashAlt) * pose.fall : this.ac.alt;
     const shadow = projectAbs(this.ac.x, ground, 0, cam);
-    const body = projectAbs(this.ac.x, this.ac.alt, 0, cam);
+    const body = projectAbs(this.ac.x, alt, 0, cam);
     if (!body) return;
-    if (shadow) drawGroundShadow(ctx, shadow.x, shadow.y, shadow.scale, this.ac.alt - ground);
+    if (shadow) drawGroundShadow(ctx, shadow.x, shadow.y, shadow.scale, alt - ground);
     drawAircraft(ctx, {
       kind: this.aircraft.kind,
       x: body.x,
@@ -640,9 +728,25 @@ export class FlightEngine implements Simulation {
       scale: body.scale,
       timeS: this.sortieT,
       speedMs: this.ac.v,
-      bankRad: (this.input.moveX * 20 * Math.PI) / 180,
+      bankRad: pose ? pose.spin : (this.input.moveX * 20 * Math.PI) / 180,
       colors: this.opts.colors,
       accessory: this.opts.accessory ?? null,
+      alpha: invulnerableAlpha(this.invulnerableS, this.opts.reduceFlashes()),
     });
+    if (pose && pose.smoke > 0) {
+      ctx.fillStyle = `rgba(100, 116, 139, ${0.5 * (1 - pose.smoke * 0.5)})`;
+      for (let k = 0; k < 6; k++) {
+        const rise = (k + 1) * 10 * pose.smoke;
+        ctx.beginPath();
+        ctx.arc(
+          body.x + Math.sin(this.sortieT * 3 + k) * 6,
+          body.y - rise,
+          4 + k * 2 * pose.smoke,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    }
   }
 }
