@@ -104,6 +104,21 @@ describe('cenário golden — missão sintética do C00', () => {
     expect(report.multipliers.map((m) => m.key)).toContain('camera');
   });
 
+  it('imuScore (mini-game da IMU) entra como multiplicador e reduz o RMSE do modelo', () => {
+    const ctx = context();
+    const base = syntheticMission(C00, ctx.terrain);
+    const withImu = (imuScore?: number): MissionData => ({
+      ...base,
+      minigames: { ...base.minigames, imuScore },
+    });
+    const none = run(withImu(undefined));
+    const full = run(withImu(1));
+    const imu = (r: typeof none) => r.multipliers.find((m) => m.key === 'imu');
+    expect(imu(none)).toBeUndefined();
+    expect(imu(full)).toMatchObject({ xy: 0.92, z: 0.88 });
+    expect(full.rmse.gcp.z).toBeLessThan(none.rmse.gcp.z);
+  });
+
   it('é determinístico: mesmo terreno e mesma seed → relatório idêntico (REQ-CORE-006)', () => {
     expect(run()).toEqual(run());
     expect(run().residuals).not.toEqual(run(undefined, C00, { rng: mulberry32(99) }).residuals);

@@ -837,10 +837,15 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F4 · **Depende de:** T037 · **REQs:** REQ-FLD-011
 - **Spec:** [field-setup §5.4](features/field-setup.md)
 - **Aceite:**
-  - [ ] `scoreLemniscate` é puro: um cursor exatamente sobre o guia dá 1, e um cursor a 40 px dá 0.
-  - [ ] O `imuScore` aplicado reduz a deriva no voo e o multiplicador `imu` na acurácia.
+  - [x] `scoreLemniscate` é puro: um cursor exatamente sobre o guia dá 1, e um cursor a 40 px dá 0.
+  - [x] O `imuScore` aplicado reduz a deriva no voo e o multiplicador `imu` na acurácia.
 - **Verificação:** `npx vitest run src/domain/minigameScoring src/engines/field`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `scoreLemniscate(distâncias)` é `clamp(1 − média/40)`; o `LemniscateSim` amostra a distância a 30 Hz (360 amostras em 12 s, qualquer que seja o passo). O guia dá 2 voltas em 12 s sobre a curva de Bernoulli com `a = 200 px`.
+  - Cursor: o mouse (só passar sobre o canvas, sem clicar) tem prioridade; sem ele, os eixos `MOVE` movem o cursor a 350 px/s. A aba 3 passa a ter os dois mini-games, um por vez (iniciar um encerra o outro). Vale a melhor pontuação da missão, e sem jogar o `imuScore` é 0.
+  - "Deriva giroscópica (°/h)": a spec só diz que cai com a pontuação. Defini `20 · (1 − 0,8·score)`: 20 °/h sem calibrar, 4 °/h com score 1. É só leitura de HUD, com o valor em tempo real durante o jogo.
+  - Efeito no jogo: não há deriva de IMU separada no voo. O `imuScore` entra pelo multiplicador `imu` da acurácia (`1 − 0,08s` em XY, `1 − 0,12s` em Z) e pelo ruído do LiDAR (`1 − 0,12s`), que já liam `mission.minigames.imuScore`; o teste em `mission.test.ts` confirma o multiplicador e a queda do RMSE.
+- **Status:** ✅
 
 ### T039 — Veículos: locomoção no mapa e acessibilidade de campo
 - **Fase:** F4 · **Depende de:** T038 · **REQs:** REQ-WLD-002, REQ-WLD-003, REQ-FLD-002, REQ-FLD-003
@@ -1294,7 +1299,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
 | REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ✅ |
-| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ☐ |
+| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ✅ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |

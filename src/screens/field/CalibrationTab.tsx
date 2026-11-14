@@ -1,8 +1,9 @@
-import { Crosshair } from 'lucide-react';
+import { Compass, Crosshair } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getAircraft } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { gcpSigma } from '@/domain/accuracy';
+import { gyroDriftDegPerHour } from '@/domain/minigameScoring';
 import {
   BUBBLE_CANVAS_PX,
   BubbleSim,
@@ -10,6 +11,14 @@ import {
   type BubbleColors,
   type Vec2,
 } from '@/engines/field/minigames/bubble';
+import {
+  drawLemniscate,
+  LEMNISCATE_CANVAS_H,
+  LEMNISCATE_CANVAS_W,
+  LEMNISCATE_DURATION_S,
+  LemniscateSim,
+  type LemniscateColors,
+} from '@/engines/field/minigames/lemniscate';
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
 import { InputManager } from '@/input/InputManager';
@@ -29,16 +38,32 @@ const BUBBLE_COLORS: BubbleColors = {
   bubble: COLORS.radar,
 };
 
+const LEMNISCATE_COLORS: LemniscateColors = {
+  bg: COLORS.bgBase,
+  curve: COLORS.border,
+  cursor: COLORS.radar,
+  guide: COLORS.warn,
+};
+
+type Game = 'LEVEL' | 'IMU';
+
 /** Aba 3 (field-setup §5.4): mini-games opcionais de calibração. */
 export function CalibrationTab({ field }: { field: FieldContext }) {
   const { mission, equipment, predict } = field;
   const [attempt, setAttempt] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  // Um mini-game por vez: iniciar um encerra o outro.
+  const [playing, setPlaying] = useState<Game | null>(null);
   const [lastOutcome, setLastOutcome] = useState<'LOCKED' | 'TIMEOUT' | null>(null);
   const level = mission.minigames.levelScore;
+  const imu = mission.minigames.imuScore;
   const sigma = gcpSigma(equipment.sigmaBaseM, equipment.id, level);
   const rtkAircraft = getAircraft(mission.plan.params.aircraftId).rtk;
   const rtkNote = level !== undefined && predict.ownsRtkKit && rtkAircraft;
+  const start = (game: Game) => {
+    setAttempt((n) => n + 1);
+    setLastOutcome(null);
+    setPlaying(game);
+  };
 
   return (
     <div className="flex flex-col gap-5" data-testid="calibration-tab">
@@ -46,29 +71,22 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
       <Panel title={C.levelTitle}>
         <div className="flex flex-col gap-3">
           <p className="text-xs text-slate-400">{C.levelHelp}</p>
-          {playing ? (
+          {playing === 'LEVEL' ? (
             <BubbleGame
               key={attempt}
               seed={hashString(mission.id) + attempt}
               onFinish={(score, outcome) => {
                 useGameStore.getState().recordMinigame('level', score);
                 setLastOutcome(outcome);
-                setPlaying(false);
+                setPlaying(null);
               }}
             />
           ) : (
-            <Button
-              icon={Crosshair}
-              onClick={() => {
-                setAttempt((n) => n + 1);
-                setLastOutcome(null);
-                setPlaying(true);
-              }}
-            >
+            <Button icon={Crosshair} onClick={() => start('LEVEL')}>
               {level === undefined ? C.levelStart : C.levelRetry}
             </Button>
           )}
-          {lastOutcome && !playing && (
+          {lastOutcome && playing === null && (
             <p className="text-sm text-slate-200" data-testid="level-outcome">
               {lastOutcome === 'LOCKED' ? C.levelLocked : C.levelDone}
             </p>
@@ -87,6 +105,38 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
             {C.sigma(formatNumber(sigma.xy * 100, 1))}
           </p>
           {rtkNote && <p className="text-xs text-emerald-300">{C.rtkLevel}</p>}
+        </div>
+      </Panel>
+      <Panel title={C.imuTitle}>
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-slate-400">{C.imuHelp}</p>
+          {playing === 'IMU' ? (
+            <ImuGame
+              key={attempt}
+              onFinish={(score) => {
+                useGameStore.getState().recordMinigame('imu', score);
+                setLastOutcome(null);
+                setPlaying(null);
+              }}
+            />
+          ) : (
+            <Button icon={Compass} onClick={() => start('IMU')}>
+              {imu === undefined ? C.imuStart : C.imuRetry}
+            </Button>
+          )}
+          <p
+            className={
+              imu !== undefined && imu >= 0.9
+                ? 'text-sm text-emerald-300'
+                : 'text-sm text-slate-200'
+            }
+            data-testid="imu-score"
+          >
+            {imu === undefined ? C.imuDefault : C.imuScore(formatNumber(imu * 100, 0))}
+          </p>
+          <p className="font-mono text-sm text-amber-300" data-testid="imu-drift">
+            {C.gyroDrift(formatNumber(gyroDriftDegPerHour(imu ?? 0), 1))}
+          </p>
         </div>
       </Panel>
     </div>
@@ -181,6 +231,96 @@ function BubbleGame({ seed, onFinish }: BubbleGameProps) {
           <ProgressBar value={Math.min(1, holdS / 3)} />
         </div>
       </div>
+    </div>
+  );
+}
+
+interface ImuGameProps {
+  onFinish: (score: number) => void;
+}
+
+/** O canvas 480×300 da lemniscata; o mouse (sem clicar) ou o analógico guiam o cursor. */
+function ImuGame({ onFinish }: ImuGameProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const surface = useCanvas(canvasRef);
+  const [sim] = useState(() => new LemniscateSim());
+  const [elapsedS, setElapsedS] = useState(0);
+  const [liveScore, setLiveScore] = useState(0);
+  const pointer = useRef<Vec2 | null>(null);
+  const finished = useRef(false);
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  });
+
+  useGameLoop(() => {
+    if (!surface) return null;
+    const { ctx } = surface;
+    return {
+      update(dtS) {
+        if (finished.current) return;
+        const im = InputManager.get();
+        sim.setInput({
+          moveX: im.axis('MOVE_X'),
+          moveY: im.axis('MOVE_Y'),
+          pointer: pointer.current,
+        });
+        sim.update(dtS);
+        if (sim.phase === 'DONE') {
+          finished.current = true;
+          onFinishRef.current(sim.score);
+        }
+      },
+      render() {
+        drawLemniscate(ctx, sim, LEMNISCATE_COLORS);
+      },
+    };
+  }, [surface, sim]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setElapsedS(sim.elapsedS);
+      setLiveScore(sim.score);
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [sim]);
+
+  const toLocal = (e: React.PointerEvent<HTMLCanvasElement>): Vec2 => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scale = LEMNISCATE_CANVAS_W / (rect.width || LEMNISCATE_CANVAS_W);
+    return {
+      x: (e.clientX - rect.left) * scale - LEMNISCATE_CANVAS_W / 2,
+      y: (e.clientY - rect.top) * scale - LEMNISCATE_CANVAS_H / 2,
+    };
+  };
+
+  return (
+    <div className="flex flex-col gap-2" data-testid="imu-game">
+      <div
+        className="w-full overflow-hidden rounded-md border border-slate-700"
+        style={{ aspectRatio: `${LEMNISCATE_CANVAS_W} / ${LEMNISCATE_CANVAS_H}` }}
+      >
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={C.imuCanvas}
+          className="block h-full w-full touch-none"
+          data-testid="imu-canvas"
+          onPointerMove={(e) => {
+            pointer.current = toLocal(e);
+          }}
+          onPointerLeave={() => {
+            pointer.current = null;
+          }}
+        />
+      </div>
+      <div className="flex items-center justify-between font-mono text-xs text-slate-300">
+        <span>{C.imuTime(formatNumber(elapsedS, 1))}</span>
+        <span className="text-amber-300">
+          {C.gyroDrift(formatNumber(gyroDriftDegPerHour(liveScore), 1))}
+        </span>
+      </div>
+      <ProgressBar value={Math.min(1, elapsedS / LEMNISCATE_DURATION_S)} />
     </div>
   );
 }

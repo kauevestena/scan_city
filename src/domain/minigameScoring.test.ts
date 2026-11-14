@@ -3,7 +3,9 @@ import {
   BUBBLE_TARGET_R,
   BUBBLE_WINDOW_S,
   bubbleWeight,
+  gyroDriftDegPerHour,
   scoreBubble,
+  scoreLemniscate,
   type BubbleSample,
 } from './minigameScoring';
 
@@ -47,5 +49,32 @@ describe('scoreBubble', () => {
 
   it('sem amostras: 0', () => {
     expect(scoreBubble([])).toBe(0);
+  });
+});
+
+describe('scoreLemniscate', () => {
+  it('cursor exatamente sobre o guia dá 1; a 40 px dá 0', () => {
+    expect(scoreLemniscate(Array(360).fill(0))).toBe(1);
+    expect(scoreLemniscate(Array(360).fill(40))).toBe(0);
+    expect(scoreLemniscate(Array(360).fill(200))).toBe(0);
+  });
+
+  it('é linear na distância média: 10 px dão 0,75; 20 px dão 0,5', () => {
+    expect(scoreLemniscate(Array(10).fill(10))).toBeCloseTo(0.75, 10);
+    expect(scoreLemniscate([0, 40])).toBeCloseTo(0.5, 10);
+  });
+
+  it('sem amostras: 0', () => {
+    expect(scoreLemniscate([])).toBe(0);
+  });
+});
+
+describe('gyroDriftDegPerHour', () => {
+  it('cai com o score e fica limitado', () => {
+    expect(gyroDriftDegPerHour(0)).toBe(20);
+    expect(gyroDriftDegPerHour(1)).toBeCloseTo(4, 10);
+    expect(gyroDriftDegPerHour(0.5)).toBeLessThan(gyroDriftDegPerHour(0.25));
+    expect(gyroDriftDegPerHour(2)).toBeCloseTo(4, 10);
+    expect(gyroDriftDegPerHour(-1)).toBe(20);
   });
 });

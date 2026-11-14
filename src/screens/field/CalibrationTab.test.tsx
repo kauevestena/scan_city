@@ -74,4 +74,23 @@ describe('aba 3 — Calibração (bolha)', () => {
     const launched = get().launchMission();
     expect(launched?.groundPoints[0]?.sigmaM).toBeCloseTo(base().sigmaBaseM, 10);
   });
+
+  it('"Calibrar IMU" abre o canvas da lemniscata; um mini-game por vez', () => {
+    expect(screen.getByTestId('imu-score')).toHaveTextContent('Sem calibrar');
+    expect(screen.getByTestId('imu-drift')).toHaveTextContent('Deriva giroscópica: 20,0 °/h');
+    fireEvent.click(screen.getByRole('button', { name: 'Calibrar IMU' }));
+    expect(screen.getByTestId('imu-game')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Curva em forma de 8/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
+    expect(screen.queryByTestId('imu-game')).not.toBeInTheDocument();
+    expect(screen.getByTestId('bubble-game')).toBeInTheDocument();
+  });
+
+  it('o imuScore guardado baixa a leitura de deriva e vale o melhor resultado', () => {
+    act(() => get().recordMinigame('imu', 0.9));
+    expect(screen.getByTestId('imu-score')).toHaveTextContent('IMU: 90 %');
+    expect(screen.getByTestId('imu-drift')).toHaveTextContent('Deriva giroscópica: 5,6 °/h');
+    act(() => get().recordMinigame('imu', 0.3));
+    expect(get().mission.active?.minigames.imuScore).toBe(0.9);
+  });
 });
