@@ -311,13 +311,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. `validatePlan(plan, inventory): PlanValidation`.
   3. `defaultPlanParams(contract, inventory)`.
 - **Aceite:**
-  - [ ] G23 (C00) passa: 6 linhas, 96 fotos, 231,45 s.
-  - [ ] A malha cruzada gera as linhas perpendiculares (contagem igual à soma).
-  - [ ] As linhas alternam a direção.
-  - [ ] `validatePlan` cobre os 5 bloqueios.
-  - [ ] Teste de propriedade: aumentar q nunca reduz o nº de linhas.
+  - [x] G23 (C00) passa: 6 linhas, 96 fotos, 231,45 s.
+  - [x] A malha cruzada gera as linhas perpendiculares (contagem igual à soma).
+  - [x] As linhas alternam a direção.
+  - [x] `validatePlan` cobre os 5 bloqueios.
+  - [x] Teste de propriedade: aumentar q nunca reduz o nº de linhas.
 - **Verificação:** `npx vitest run src/domain/flightPlanner`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `validatePlan(plan, inventory, contract, catalog)` recebe também o contrato (teto e vento) e o catálogo.
+  - `buildFlightPlan` aceita `{ enduranceMod, meanCanopy }` para as baterias e a densidade de solo previstas.
+  - Na malha cruzada, o zigue-zague continua pelas linhas perpendiculares, e o tempo de voo usa a mesma fórmula, com o comprimento somado das linhas.
+  - A densidade LiDAR média é `lidarDensityWithOverlap` com a sobreposição efetiva `1 − S/faixa`, o que vale tanto com LiDAR quanto com RGB como sensor primário.
+  - Avisos de energia: "O voo precisará de N surtidas" e, se faltar energia, "Energia para M de N surtidas". As surtidas disponíveis são 1 + reservas, ou os papos de milho (papo + estoque).
+- **Status:** ✅
 
 ### T015 — Geometria e cobertura
 - **Fase:** F1 · **Depende de:** T014 · **REQs:** REQ-FLD-004 (*parc.*), REQ-PRC-007 (*parc.*)

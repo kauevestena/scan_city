@@ -21,6 +21,19 @@ export const STRINGS = {
     writeFailedTitle: 'Não foi possível salvar',
     writeFailedBody: 'O navegador recusou a gravação. O progresso desta sessão pode se perder.',
   },
+  plan: {
+    noAircraft: 'Nenhuma aeronave selecionada',
+    sensorIncompatible: (sensor: string, aircraft: string) =>
+      `O sensor ${sensor} não serve na aeronave ${aircraft}`,
+    heightOutOfRange: (min: number, max: number) => `Altura fora dos limites (${min}–${max} m)`,
+    noLines: 'O plano não tem nenhuma linha de voo',
+    noCorn: 'O Atlas está sem milho (papo e estoque vazios)',
+    sorties: (n: number) => `O voo precisará de ${n} surtidas`,
+    notEnoughEnergy: (needed: number, available: number) =>
+      `Energia para ${available} de ${needed} surtidas: leve mais baterias ou milho`,
+    windAboveTolerance: (windMs: string, toleranceMs: string) =>
+      `Vento de até ${windMs} m/s acima da tolerância da aeronave (${toleranceMs} m/s)`,
+  },
   pause: {
     title: 'Jogo pausado',
     resume: 'Continuar',
