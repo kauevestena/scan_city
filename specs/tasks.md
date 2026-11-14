@@ -621,11 +621,16 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. E2E completo com `?debug=1&autopilot=1&skipIntro=1`: escritório → porta → teleporte (F9) para C00 → aceitar → sugestão de GCPs → decolar → autopilot → levar dados → andar ou teleportar à sede → Workstation → processar → enviar ao museu → mesa mostra o setor.
   3. Recarregar no meio (após o voo) e verificar a missão pendente preservada.
 - **Aceite:**
-  - [ ] `slice.spec.ts` verde.
-  - [ ] Tutorial: as dicas aparecem uma vez cada e avançam `tutorialStep`.
-  - [ ] Nenhum `DebugScreenShell` é usado no fluxo do C00 (o `INFOGRAPHIC_LAB` ainda usa o shell).
+  - [x] `slice.spec.ts` verde.
+  - [x] Tutorial: as dicas aparecem uma vez cada e avançam `tutorialStep`.
+  - [x] Nenhum `DebugScreenShell` é usado no fluxo do C00 (o `INFOGRAPHIC_LAB` ainda usa o shell).
 - **Verificação:** `npm run verify && npm run e2e`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Cada dica aparece só na etapa corrente de `flags.tutorialStep` e avança com "Entendi" ou com a ação que ela ensina: abrir o briefing (0), ter ao menos 3 GCPs (1), mexer na altura (2), terminar a surtida (3) e abrir a aba Cobertura (4).
+  - O painel F9 no mapa ganhou o teleporte "Sede" (porta), além dos marcadores.
+  - `slice.spec.ts` cobre o fluxo inteiro com o autopilot a ×8, recarrega a página depois do voo (a missão segue na fila pelo autosave) e confere que nenhuma tela usou o `DebugScreenShell`.
+  - Revisão manual do M1 (jogar o C00 sem depuração em ≤ 10 min): não feita por pessoa. Estimativa pelo próprio jogo: intro ~1 min, caminhada até o C00 ~10 s, planejamento ~1 min, voo ~3,6 min a ×1 (216 s), volta e processamento ~1 min no notebook (≈ 13 s de esteira). Cerca de 7 min no total.
+- **Status:** ✅
 
 > **Marco M1 — Vertical Slice jogável.** Revisão manual: jogar o C00 do zero, sem debug, em ≤ 10 min.
 
@@ -1177,7 +1182,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
-| REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ☐ |
+| REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ✅ |
 | REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ✅ |
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
@@ -1294,7 +1299,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-004 | Regras especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md), [terrain](design/terrain.md) | T052, T053, T054, T055, T056, T057, T058, T060–T070 | ☐ |
 | REQ-CNT-005 | Repetição | [contracts-real](content/contracts-real.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T071 | ☐ |
 | REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md) | T059, T060–T070, T079 | ☐ |
-| REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ☐ |
+| REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ☐ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077 | ☐ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ☐ |

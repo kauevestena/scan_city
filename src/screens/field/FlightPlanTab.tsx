@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import { cx, FOCUS_RING, Slider, Tabs, type TabDef } from '@/ui';
 import { heightWarnRange, overlapWarnRange } from './fieldModel';
 import { PlanStats } from './PlanStats';
+import { completeTutorialStep } from '../common/TutorialHint';
 import type { FieldContext } from './useFieldContext';
 
 const F = STRINGS.field;
@@ -168,7 +169,10 @@ export function FlightPlanTab({ field }: { field: FieldContext }) {
         max={limits.heightM.max}
         unit="m"
         warnRange={heightWarnRange(contract, mission.plan.stats, limits.heightM.max)}
-        onChange={(v) => set('heightM', v)}
+        onChange={(v) => {
+          set('heightM', v);
+          completeTutorialStep(2);
+        }}
       />
       <Slider
         label={F.forwardOverlap}

@@ -19,6 +19,7 @@ import { Button } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { FlightHud } from './FlightHud';
 import { PostFlightDialog } from './PostFlightDialog';
+import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
 
 /** Aceleração do autopilot de depuração (survey-flight §5.14: o debug permite ×8). */
 export const AUTOPILOT_TIME_SCALE = 8;
@@ -59,6 +60,7 @@ function createEngine(
     onHud,
     onSortieEnd: (result) => {
       useGameStore.getState().endSortie(result);
+      completeTutorialStep(3);
       onEnd(result);
     },
   });
@@ -143,6 +145,7 @@ function Flight({ mission }: { mission: MissionData }) {
         data-testid="flight-canvas"
       />
       {hud && <FlightHud snap={hud} />}
+      <TutorialHint step={3} className="absolute top-28 left-1/2 -translate-x-1/2" />
       {result && (
         <PostFlightDialog
           result={result}

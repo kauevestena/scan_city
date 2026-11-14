@@ -4,6 +4,7 @@ import { transitionsFrom } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import { Button, Panel } from '@/ui';
 import { markerViews } from '@/world/overworld/markers';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createDebugMission, DEBUG_CONTRACT_ID, prepareDebugTransition } from './debugFixtures';
 import { getDebugFlags } from './debugFlags';
 
@@ -91,6 +92,18 @@ export function DebugPanel() {
               Teleportar para marcador
             </p>
             <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                icon={MapPin}
+                data-teleport="HQ"
+                onClick={() =>
+                  useGameStore
+                    .getState()
+                    .setAvatar({ x: WORLD_MAP.door.x + 0.5, y: WORLD_MAP.door.y + 0.5 })
+                }
+              >
+                Sede
+              </Button>
               {markers.map((m) => (
                 <Button
                   key={m.contractId}

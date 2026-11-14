@@ -23,6 +23,7 @@ import { ReportAccuracy } from './ReportAccuracy';
 import { ReportCoverage } from './ReportCoverage';
 import { ReportPayment } from './ReportPayment';
 import { ReportSummary } from './ReportSummary';
+import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
 
 const P = STRINGS.processing;
 type ReportTab = 'SUMMARY' | 'ACCURACY' | 'COVERAGE' | 'PAYMENT';
@@ -181,7 +182,16 @@ function Processing({ job }: { job: Job }) {
       {!done && <Pipeline progress={progress} stages={durations.length} canvasRef={canvasRef} />}
       {done && (
         <div className="flex flex-col gap-5" data-testid="report">
-          <Tabs tabs={TABS} value={tab} onChange={setTab} ariaLabel={P.title} />
+          <Tabs
+            tabs={TABS}
+            value={tab}
+            onChange={(next) => {
+              setTab(next);
+              if (next === 'COVERAGE') completeTutorialStep(4);
+            }}
+            ariaLabel={P.title}
+          />
+          <TutorialHint step={4} className="w-fit" />
           {tab === 'SUMMARY' && <ReportSummary report={report} mission={mission} />}
           {tab === 'ACCURACY' && <ReportAccuracy report={report} />}
           {tab === 'COVERAGE' && <ReportCoverage report={report} mission={mission} />}

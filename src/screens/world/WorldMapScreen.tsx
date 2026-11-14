@@ -20,6 +20,7 @@ import { markerViews, type MarkerView } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { BriefingModal } from './BriefingModal';
 import { MarkerLayer } from './MarkerLayer';
+import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
 
 const W = STRINGS.world;
 /** Tempo que a dica de bloqueio fica na tela. */
@@ -107,7 +108,10 @@ export function WorldMapScreen() {
           flushEngine(engine);
           useGameStore.getState().goTo('OFFICE');
         } else if (hit?.kind === 'MARKER') {
-          const open = () => setBriefing(hit.marker.contractId);
+          const open = () => {
+            setBriefing(hit.marker.contractId);
+            completeTutorialStep(0);
+          };
           // Pelo teclado, abre ao soltar a tecla: o Espaço solto já no modal "clicaria" o
           // diálogo que recebe o foco.
           if (e.device === 'KEYBOARD') window.addEventListener('keyup', open, { once: true });
@@ -191,6 +195,7 @@ export function WorldMapScreen() {
       </div>
 
       <MarkerLayer target={target} />
+      <TutorialHint step={0} className="absolute top-16 left-1/2 -translate-x-1/2" />
 
       <div
         role="status"

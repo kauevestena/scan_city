@@ -425,6 +425,18 @@ export const STRINGS = {
     finishField: 'Voltar ao mapa',
     museumOnlyApproved: 'Só relatórios aprovados vão ao Museu',
   },
+  tutorial: {
+    label: 'Dica',
+    dismiss: 'Entendi',
+    /** Tutorial dirigido do C00 (contracts-real, C00): uma dica por tela, na ordem. */
+    steps: [
+      { before: 'Encoste no marcador e aperte', action: 'INTERACT', after: '' },
+      { before: 'Clique para cravar ao menos 3 GCPs', action: null, after: '' },
+      { before: 'Observe o GSD mudar com a altura', action: null, after: '' },
+      { before: 'Mantenha-se na linha — fotos saem sozinhas', action: null, after: '' },
+      { before: 'Veja o mapa de calor: verde = ≥ 5 fotos', action: null, after: '' },
+    ],
+  },
   holo: {
     title: 'Mesa Holográfica — Museu da Terra',
     back: 'Voltar',

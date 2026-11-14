@@ -13,6 +13,7 @@ import { FlightPlanTab } from './FlightPlanTab';
 import { GroundPointsTab } from './GroundPointsTab';
 import { SatelliteView } from './SatelliteView';
 import { useFieldContext } from './useFieldContext';
+import { TutorialHint } from '../common/TutorialHint';
 
 const F = STRINGS.field;
 
@@ -141,6 +142,10 @@ function FieldSetup({ mission }: { mission: MissionData }) {
       </header>
       <div className="flex min-h-0 flex-1">
         <section className="relative min-w-0 flex-1">
+          <div className="pointer-events-none absolute top-3 left-3 z-10">
+            {tab === 'POINTS' && <TutorialHint step={1} />}
+            {tab === 'PLAN' && <TutorialHint step={2} />}
+          </div>
           <SatelliteView
             contract={contract}
             terrain={terrain}

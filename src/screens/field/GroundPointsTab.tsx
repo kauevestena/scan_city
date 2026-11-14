@@ -3,7 +3,9 @@ import { STRINGS } from '@/data/strings';
 import { formatNumber, formatPct } from '@/lib/format';
 import { useGameStore } from '@/state/store';
 import { Button, cx, Stat, Tabs, type StatusTone, type TabDef } from '@/ui';
+import { useEffect } from 'react';
 import { distribution, suggestGcps, type Light, type PointTool } from './fieldModel';
+import { completeTutorialStep } from '../common/TutorialHint';
 import type { FieldContext } from './useFieldContext';
 
 const F = STRINGS.field;
@@ -31,6 +33,10 @@ export interface GroundPointsTabProps {
 export function GroundPointsTab({ field, tool, onTool }: GroundPointsTabProps) {
   const { mission, contract, equipment } = field;
   const d = distribution(mission.groundPoints, contract);
+  // Tutorial: a dica dos GCPs some quando há ao menos 3.
+  useEffect(() => {
+    if (d.gcps >= 3) completeTutorialStep(1);
+  }, [d.gcps]);
 
   const suggest = () => {
     const points = suggestGcps(
