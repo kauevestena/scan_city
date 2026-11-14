@@ -367,12 +367,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   3. A receita `RURAL_TUTORIAL`.
   4. `isAccessible(u, v, sampler, vehicles, rules)` e `snapToAccessible(p, …, maxR = 30)`.
 - **Aceite:**
-  - [ ] Determinismo: dois `createTerrain` com a mesma seed → mesmas amostras em 1.000 pontos e mesmos objetos.
-  - [ ] `elevation` custa < 2 µs/chamada (benchmark Vitest: 100.000 chamadas em < 200 ms).
-  - [ ] `distanceToRoad` é 0 sobre a estrada.
-  - [ ] `isAccessible` retorna cada motivo em pontos construídos para isso (água do açude, telhado da casa, longe da estrada com FOOT_BIKE).
+  - [x] Determinismo: dois `createTerrain` com a mesma seed → mesmas amostras em 1.000 pontos e mesmos objetos.
+  - [x] `elevation` custa < 2 µs/chamada (benchmark Vitest: 100.000 chamadas em < 200 ms).
+  - [x] `distanceToRoad` é 0 sobre a estrada.
+  - [x] `isAccessible` retorna cada motivo em pontos construídos para isso (água do açude, telhado da casa, longe da estrada com FOOT_BIKE).
 - **Verificação:** `npx vitest run src/world src/domain/accessibility`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `createTerrain` mora em `world/terrain/createTerrain.ts` (e não em `TerrainSampler.ts`) para evitar import circular com as receitas de bioma, que importam os tipos do sampler. As receitas ficam registradas em `biomes/index.ts`.
+  - O sampler expõe, além de architecture §5: `aoi`, `bounds` (AOI + margem de 20 %), `biome`, `palette`, `roads`, `guaranteedAccessible` e `distanceToTrack` (estradas + trilhas). A rede `ROADS` mede por `distanceToRoad`; `ROADS_TRAILS` e `OFFROAD`, por `distanceToTrack`.
+  - O telhado (`ROOF`) e a estrada (`ROAD`) são aplicados de forma genérica sobre a cobertura da receita, a partir dos prédios e das polilinhas de via. Sob a copa de uma árvore isolada o dossel é 0,85.
+  - `isAccessible` detalha o "fora do alcance" em `TOO_STEEP` e `SWAMP` quando é isso que impede todos os veículos. `snapToAccessible` busca em anéis de 2 m até `maxR`.
+  - No `RURAL_TUTORIAL`, a casa, o pomar, as árvores esparsas e a cerca foram posicionados para que os 7 pontos de apoio do plano de referência do C00 fiquem acessíveis a pé.
+- **Status:** ✅
 
 ### T018 — Requisitos, avaliação da missão e volumetria
 - **Fase:** F1 · **Depende de:** T017 · **REQs:** REQ-FLD-009 (*parc.*), REQ-PRC-009 (*parc.*: score), REQ-PRC-013 (*parc.*), REQ-FLT-024 (*parc.*: avaliação de features)
@@ -1096,7 +1102,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
 | REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ☐ |
 | REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
-| REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ☐ |
+| REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ✅ |
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ✅ |
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
