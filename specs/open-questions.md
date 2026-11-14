@@ -47,3 +47,15 @@
 - **Contexto:** o original cita "IPHAN" como cliente do C05.
 - **Padrão provisório:** usar "Instituto do Patrimônio Histórico" no jogo. A referência ao IPHAN fica só na spec.
 - **Resolução:** —
+
+### OQ-006 — Detalhes do `stepAircraft` não fixados em domain-math §5
+- **Aberta em:** 2026-11-14 por T013
+- **Contexto:** a spec define os limites, mas não três detalhes de dinâmica:
+  1. a velocidade lateral-alvo da asa fixa com `MOVE_X = ±1` (só a aceleração `aLat ≤ v²/R` é dada);
+  2. como a altitude "persegue" o alvo do Terrain Following;
+  3. o que fazer quando o relevo sobe acima do piso `elev + 2` sem comando do piloto, já que a spec diz ao mesmo tempo que a altitude é limitada a `[elev + 2, …]` e que "colidir com o terreno ainda é possível".
+- **Padrão provisório** (implementado em `src/domain/flightPhysics.ts`):
+  1. alvo lateral = `MOVE_X · v · sin(30°)`, ou seja, proa máxima de 30° em relação à linha;
+  2. `vz = clamp(2 · (alvo − alt), ±climbRateMs)`, mais as térmicas;
+  3. o piso só impede a **descida comandada** abaixo de `elev + 2`. A aeronave não é empurrada para cima, e o relevo pode alcançá-la (a colisão é tratada pelo engine em T028).
+- **Resolução:** —

@@ -291,15 +291,16 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. Implementar `stepAircraft` com todos os limites.
   3. `terrainFollowTargetAlt` recebe uma função `elevationAlong(s)` (sem acoplar ao sampler).
 - **Aceite:**
-  - [ ] G12 (crab) e G17 (sombras) passam.
-  - [ ] A velocidade nunca sai de [vMin, vMax], em 1.000 passos aleatórios.
-  - [ ] Asa fixa com `MOVE_X = 1` respeita `aLat ≤ v²/R`.
-  - [ ] TF sobre uma rampa de 30 % mantém o AGL dentro de ±15 %.
-  - [ ] `drainPerSecond` no cruzeiro sem vento = 1/endurance.
-  - [ ] `BLIZZARD_DRAIN` dobra o dreno.
-  - [ ] `rthRequired` dispara no limiar.
+  - [x] G12 (crab) e G17 (sombras) passam.
+  - [x] A velocidade nunca sai de [vMin, vMax], em 1.000 passos aleatórios.
+  - [x] Asa fixa com `MOVE_X = 1` respeita `aLat ≤ v²/R`.
+  - [x] TF sobre uma rampa de 30 % mantém o AGL dentro de ±15 %.
+  - [x] `drainPerSecond` no cruzeiro sem vento = 1/endurance.
+  - [x] `BLIZZARD_DRAIN` dobra o dreno.
+  - [x] `rthRequired` dispara no limiar.
 - **Verificação:** `npx vitest run src/domain/flightPhysics src/domain/energy`
-- **Status:** ☐
+- **Notas de implementação:** `FlightEnv` recebe a elevação sob a aeronave e uma função `elevationAhead(d)`, usada pelo TF (sem acoplar ao sampler). O estado guarda a velocidade lateral comandada (`vLat`) separada da deriva (`drift`). Detalhes de dinâmica não fixados na spec em OQ-006.
+- **Status:** ✅
 
 ### T014 — Planejador de voo
 - **Fase:** F1 · **Depende de:** T013 · **REQs:** REQ-FLD-008 (*parc.*), REQ-FLD-012 (*parc.*), REQ-FLD-013 (*parc.*)
