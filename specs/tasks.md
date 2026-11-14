@@ -276,11 +276,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [domain-math §3, §4](design/domain-math.md)
 - **Arquivos:** \+ `src/domain/lidar.ts`, `src/domain/stereo.ts` + testes
 - **Aceite:**
-  - [ ] G8, G9, G14, G15 e G16 passam.
-  - [ ] A identidade da paralaxe vale (1e-9) para 50 combinações aleatórias seedadas.
-  - [ ] `lidarRmseZ`/`XY` seguem as fórmulas (3 casos).
+  - [x] G8, G9, G14, G15 e G16 passam.
+  - [x] A identidade da paralaxe vale (1e-9) para 50 combinações aleatórias seedadas.
+  - [x] `lidarRmseZ`/`XY` seguem as fórmulas (3 casos).
 - **Verificação:** `npx vitest run src/domain/lidar src/domain/stereo`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T013 — Dinâmica de voo e energia (puro)
 - **Fase:** F1 · **Depende de:** T012 · **REQs:** REQ-FLT-004 (*parc.*), REQ-FLT-013 (*parc.*), REQ-FLT-014 (*parc.*), REQ-FLT-016 (*parc.*)
