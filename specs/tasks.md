@@ -63,12 +63,12 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   6. Criar o `App` com uma tela de boot real: título "Scan City", versão de `package.json` e fundo `slate-950`.
   7. Escrever `check-placeholders.mjs` (grep de `TODO|FIXME|XXX` em `src/`, sai com código 1 se encontrar) e `check-assets.mjs` (lista `dist/`, falha em extensões proibidas).
 - **Aceite:**
-  - [ ] `npm run dev` abre a página com o título.
-  - [ ] `npm run verify` passa (com um teste trivial de `App`).
-  - [ ] `npm run e2e` passa com `boot.spec.ts` (o título está visível).
-  - [ ] `npm run check:assets` passa após o build.
+  - [x] `npm run dev` abre a página com o título.
+  - [x] `npm run verify` passa (com um teste trivial de `App`).
+  - [x] `npm run e2e` passa com `boot.spec.ts` (o título está visível).
+  - [x] `npm run check:assets` passa após o build.
 - **Verificação:** `npm run verify && npm run e2e && npm run check:assets`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T002 — Bibliotecas base (`lib/`)
 - **Fase:** F0 · **Depende de:** T001 · **REQs:** REQ-CORE-006 (*parc.*), REQ-NFR-008
@@ -88,13 +88,13 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - `formatCm(m)`, `formatUm(m)`, `formatMm(m)`;
      - `formatDistance(m)` → "1,2 km" / "340 m".
 - **Aceite:**
-  - [ ] O mesmo `seed` produz a mesma sequência de 1.000 valores.
-  - [ ] `normal()` tem média ≈ 0 e desvio ≈ 1 em 10.000 amostras (tolerância de 0,05).
-  - [ ] `fork('x')` é determinístico e independente do consumo do pai.
-  - [ ] `formatBRL(1234567) === 'R$ 12.345,67'` (normalizando o espaço não separável do Intl).
-  - [ ] Cobertura de `lib/` ≥ 90 %.
+  - [x] O mesmo `seed` produz a mesma sequência de 1.000 valores.
+  - [x] `normal()` tem média ≈ 0 e desvio ≈ 1 em 10.000 amostras (tolerância de 0,05).
+  - [x] `fork('x')` é determinístico e independente do consumo do pai.
+  - [x] `formatBRL(1234567) === 'R$ 12.345,67'` (normalizando o espaço não separável do Intl).
+  - [x] Cobertura de `lib/` ≥ 90 %.
 - **Verificação:** `npx vitest run src/lib --coverage`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T003 — Tipos canônicos
 - **Fase:** F0 · **Depende de:** T002 · **REQs:** — (fundação para todos)
@@ -105,11 +105,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   2. Exportar tudo de `index.ts`.
   3. Criar um teste de tipos (`expectTypeOf` do Vitest) para 3 objetos de exemplo (Contract, SaveGame, Shot).
 - **Aceite:**
-  - [ ] `npm run typecheck` passa.
-  - [ ] Nenhum `any`.
-  - [ ] Os nomes batem com o data-model.
+  - [x] `npm run typecheck` passa.
+  - [x] Nenhum `any`.
+  - [x] Os nomes batem com o data-model.
 - **Verificação:** `npm run typecheck && npx vitest run src/types`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T004 — Tokens visuais e kit de UI
 - **Fase:** F0 · **Depende de:** T003 · **REQs:** REQ-UI-001, REQ-UI-002, REQ-UI-004, REQ-UI-005, REQ-NFR-004 (*parc.*), REQ-NFR-007 (*parc.*: foco)
@@ -124,11 +124,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - O `InputGlyph` ainda não existe; o `Button.glyph` fica opcional e é ligado em T008.
   3. Criar a galeria `UiKitGallery` com todos os estados, acessível via `?screen=UIKIT`. O `App` lê o query param diretamente; em T005 isso passa para o debugFlags.
 - **Aceite:**
-  - [ ] Todos os 16 componentes renderizam na galeria.
-  - [ ] Testes RTL: `Slider` (teclado ←/→ altera o valor, limites), `Modal` (Esc fecha quando `dismissable`, foco preso), `ToastHost` (máximo 4, expira em 4 s com timers falsos), `DialogueBox` (avanço).
-  - [ ] Nenhuma cor hex fora de `tokens.ts`/`index.css`, conferido com `grep -rnE "#[0-9a-fA-F]{6}" src/ui src/app`, que deve achar só o arquivo de tokens.
+  - [x] Todos os 16 componentes renderizam na galeria.
+  - [x] Testes RTL: `Slider` (teclado ←/→ altera o valor, limites), `Modal` (Esc fecha quando `dismissable`, foco preso), `ToastHost` (máximo 4, expira em 4 s com timers falsos), `DialogueBox` (avanço).
+  - [x] Nenhuma cor hex fora de `tokens.ts`/`index.css`, conferido com `grep -rnE "#[0-9a-fA-F]{6}" src/ui src/app`, que deve achar só o arquivo de tokens.
 - **Verificação:** `npx vitest run src/ui` · manual: abrir `/?screen=UIKIT`.
-- **Status:** ☐
+- **Status:** ✅
 
 ### T005 — Store, máquina de estados, roteador e flags de debug
 - **Fase:** F0 · **Depende de:** T004 · **REQs:** REQ-CORE-001, REQ-CORE-002, REQ-CORE-003 (*parc.*: overlay), REQ-CORE-007, REQ-UI-004
@@ -144,12 +144,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. `PauseOverlay` (por enquanto: Continuar), aberto pela tecla Esc via listener simples. Em T008, passa ao `InputManager`.
   5. `debugFlags.ts`: parse de `debug`, `seed`, `screen`, `contract`, `autopilot`, `unlockAll`, `money` e `skipIntro`. `screen=UIKIT|SOUNDBOARD` roteia para as galerias.
 - **Aceite:**
-  - [ ] Teste de tabela: todas as 16 transições aceitas, e todas as outras combinações (42 − 16 = 26) rejeitadas.
-  - [ ] Em `DEV` lança erro, e em `PROD` (mock de `import.meta.env`) faz `console.warn` sem mudar a tela.
-  - [ ] É possível navegar por todas as telas pelo shell.
-  - [ ] O overlay de pausa aparece com Esc e congela `session.paused`.
+  - [x] Teste de tabela: todas as 16 transições aceitas, e todas as outras combinações (42 − 16 = 26) rejeitadas.
+  - [x] Em `DEV` lança erro, e em `PROD` (mock de `import.meta.env`) faz `console.warn` sem mudar a tela.
+  - [x] É possível navegar por todas as telas pelo shell.
+  - [x] O overlay de pausa aparece com Esc e congela `session.paused`.
 - **Verificação:** `npx vitest run src/state src/app` · E2E: `tests/e2e/navigation.spec.ts` (percorre T1→T15 pelo shell com `?debug=1`).
-- **Status:** ☐
+- **Notas de implementação:**
+  - As guardas que dependem de sistemas futuros ficam na forma mínima e são completadas na tarefa do sistema: T8 exige a missão ativa do payload (o `validatePlan` entra em T023), e T11 exige o setor do contrato em `museum.sectors` (um relatório aprovado sempre esculpe o setor; ver T025).
+  - As flags `debug`, `screen`, `contract`, `money` e `skipIntro` já têm efeito. `unlockAll` é aplicada em T010 (itens) e T022 (contratos), `autopilot` em T024 e `seed` em T019/T040 (eventos e rival).
+  - O painel de depuração (`DebugPanel`) vive dentro do `DebugScreenShell`. O atalho `F9`, para abri-lo por cima das telas reais, entra em T020, quando a primeira tela real existir.
+  - A posição inicial do avatar é o centro do mapa até T021 definir o tile de spawn `@`.
+- **Status:** ✅
 
 ### T006 — Persistência, migrações e novo jogo
 - **Fase:** F0 · **Depende de:** T005 · **REQs:** REQ-CORE-004, REQ-CORE-005, REQ-CORE-009 (*parc.*: lógica)
@@ -169,10 +174,10 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
      - `beforeunload`.
   6. Ação `newGame()`: backup, reset e `goTo` forçado para `OFFICE`. A UI vem em T075.
 - **Aceite:**
-  - [ ] Testes: round-trip save/load; JSON truncado → backup criado + novo jogo; campo ausente → idem; migração fictícia v0→v1 (registrar `MIGRATIONS[0]` de teste); settings sobrevivem ao `newGame`.
-  - [ ] E2E: mudar o saldo via debug (`?money=12345`), recarregar e conferir que persistiu.
+  - [x] Testes: round-trip save/load; JSON truncado → backup criado + novo jogo; campo ausente → idem; migração fictícia v0→v1 (registrar `MIGRATIONS[0]` de teste); settings sobrevivem ao `newGame`.
+  - [x] E2E: mudar o saldo via debug (`?money=12345`), recarregar e conferir que persistiu.
 - **Verificação:** `npx vitest run src/state` · `npx playwright test tests/e2e/persistence.spec.ts`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T007 — Game loop, Canvas e FPS
 - **Fase:** F0 · **Depende de:** T006 · **REQs:** REQ-CORE-008, REQ-CORE-003 (*parc.*: congelar loops), REQ-NFR-001 (*parc.*: medição)
@@ -1070,13 +1075,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 
 | REQ | Título | Spec de detalhe | Tarefas | Status |
 | :--- | :--- | :--- | :--- | :-: |
-| REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ☐ |
-| REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ☐ |
+| REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ✅ |
+| REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
 | REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ☐ |
-| REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ☐ |
+| REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ☐ |
-| REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ☐ |
+| REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ☐ |
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
 | REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ☐ |
@@ -1088,11 +1093,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ☐ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ☐ |
-| REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ☐ |
+| REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ☐ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ☐ |
-| REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ☐ |
+| REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ☐ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ☐ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ☐ |
@@ -1199,5 +1204,5 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ☐ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ☐ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ☐ |
-| REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ☐ |
+| REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078 | ☐ |
