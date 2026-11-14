@@ -202,6 +202,42 @@ describe('mission', () => {
     expect(get().inventory.atlasCalibrationFlights).toBe(0);
   });
 
+  it('appendShots e endSortie: concluída guarda os dados e as linhas; queda descarta a surtida', () => {
+    const debug = createDebugMission('C00', true);
+    const shots = debug.shots.slice(0, 20);
+    get().startMission('C00', 1);
+    get().appendShots(shots.slice(0, 10));
+    get().appendShots(shots.slice(10));
+    get().appendShots([]);
+    get().endSortie({ outcome: 'COMPLETED', durationS: 100, completedLines: [0, 1] });
+    expect(get().mission.active).toMatchObject({
+      completedLines: [0, 1],
+      sorties: [{ index: 0, outcome: 'COMPLETED', durationS: 100 }],
+    });
+    expect(get().mission.active?.shots).toHaveLength(20);
+    expect(get().stats).toMatchObject({ photosTaken: 20, flightTimeS: 100, crashes: 0 });
+
+    // Segunda surtida cai: os disparos dela somem, os da primeira ficam.
+    get().appendShots([{ ...(shots[0] as (typeof shots)[0]), i: 20, sortie: 1 }]);
+    get().endSortie({ outcome: 'CRASH', durationS: 30, completedLines: [2] });
+    expect(get().mission.active?.shots).toHaveLength(20);
+    expect(get().mission.active?.completedLines).toEqual([0, 1]);
+    expect(get().mission.active?.events.crashes).toBe(1);
+    expect(get().stats).toMatchObject({ photosTaken: 20, flightTimeS: 130, crashes: 1 });
+  });
+
+  it('resumePlanning volta a missão ao planejamento; sem missão, nada muda', () => {
+    get().startMission('C00', 1);
+    get().launchMission();
+    get().resumePlanning();
+    expect(get().mission.active?.status).toBe('PLANNING');
+    get().discardActive();
+    get().resumePlanning();
+    get().endSortie({ outcome: 'COMPLETED', durationS: 1, completedLines: [] });
+    get().appendShots(createDebugMission('C00', true).shots.slice(0, 1));
+    expect(get().mission.active).toBeNull();
+  });
+
   it('novo jogo: C00 disponível', () => {
     expect(get().contracts.C00).toEqual({ status: 'AVAILABLE', completions: 0, bestScore: 0 });
   });

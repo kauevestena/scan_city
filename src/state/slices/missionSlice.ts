@@ -98,6 +98,57 @@ export const createMissionSlice: StateCreator<
     return launched;
   },
 
+  appendShots: (shots) =>
+    set((s) => {
+      const active = s.mission.active;
+      if (!active || shots.length === 0) return s;
+      return {
+        mission: { ...s.mission, active: { ...active, shots: [...active.shots, ...shots] } },
+      };
+    }),
+
+  endSortie: (result) => {
+    const active = get().mission.active;
+    if (!active) return;
+    const index = active.sorties.length;
+    const lost = result.outcome === 'CRASH' || result.outcome === 'ENERGY_DEPLETED';
+    const shots = lost ? active.shots.filter((shot) => shot.sortie !== index) : active.shots;
+    const completed = lost
+      ? active.completedLines
+      : [...new Set([...active.completedLines, ...result.completedLines])].sort((a, b) => a - b);
+    const kept = shots.filter((shot) => shot.sortie === index).length;
+    set((s) => ({
+      mission: {
+        ...s.mission,
+        active: {
+          ...active,
+          shots,
+          completedLines: completed,
+          sorties: [
+            ...active.sorties,
+            { index, outcome: result.outcome, durationS: result.durationS },
+          ],
+          events: {
+            ...active.events,
+            crashes: active.events.crashes + (result.outcome === 'CRASH' ? 1 : 0),
+          },
+        },
+      },
+    }));
+    get().addStats({
+      photosTaken: kept,
+      flightTimeS: result.durationS,
+      crashes: result.outcome === 'CRASH' ? 1 : 0,
+    });
+  },
+
+  resumePlanning: () =>
+    set((s) =>
+      s.mission.active
+        ? { mission: { ...s.mission, active: { ...s.mission.active, status: 'PLANNING' } } }
+        : s,
+    ),
+
   queueActive: () =>
     set((s) => {
       const { active } = s.mission;

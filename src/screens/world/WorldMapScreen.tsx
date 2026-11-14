@@ -90,6 +90,13 @@ export function WorldMapScreen() {
     });
   });
 
+  // Volta do voo com dados (world-map §3): lembra de levá-los à Workstation.
+  useEffect(() => {
+    const { session, pushToast } = useGameStore.getState();
+    const payload = session.payload as { outcome?: unknown } | undefined;
+    if (payload?.outcome === 'QUEUED') pushToast({ type: 'info', title: W.queuedToast });
+  }, []);
+
   // INTERACT chega como ação discreta (teclado na hora, gamepad no poll).
   useEffect(
     () =>

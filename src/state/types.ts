@@ -6,6 +6,8 @@ import type {
   GroundPoint,
   MissionData,
   PlanParams,
+  Shot,
+  SortieOutcome,
   SaveGame,
   ScreenId,
   Settings,
@@ -103,6 +105,12 @@ export interface ContractsActions {
   markStolen: (contractId: string) => void;
 }
 
+export interface SortieReport {
+  outcome: SortieOutcome;
+  durationS: number;
+  completedLines: number[];
+}
+
 export interface MissionActions {
   /**
    * Cria a missão ativa do contrato em planejamento, com os padrões do plano
@@ -117,6 +125,15 @@ export interface MissionActions {
    * calibração da câmera. Devolve a missão, ou `null` sem missão ativa.
    */
   launchMission: () => MissionData | null;
+  /** Disparos da surtida em andamento (em lotes, survey-flight §6). */
+  appendShots: (shots: Shot[]) => void;
+  /**
+   * Fim de surtida: registra o resultado e as linhas completas. Em queda ou energia
+   * esgotada, descarta os disparos desta surtida. Atualiza as estatísticas.
+   */
+  endSortie: (result: SortieReport) => void;
+  /** "Tentar de novo": a missão sem dados volta ao planejamento. */
+  resumePlanning: () => void;
   /** Torna `mission` a missão ativa (em planejamento ou em voo). */
   beginMission: (mission: MissionData) => void;
   /** Move a missão ativa para a fila de processamento. */

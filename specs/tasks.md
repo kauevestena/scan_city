@@ -549,12 +549,23 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   7. Autopilot de debug.
   8. Pós-voo: "Levar dados" → `queueActive` → T10, ou "Processar agora" se houver Van. A Van vem em T044, mas o botão já respeita a guarda.
 - **Aceite:**
-  - [ ] Teste de draw list (morro oclui objeto). Nesta tarefa, o "objeto" pode ser um GCP_TARGET marcado como teste.
-  - [ ] O critério 1 de [survey-flight §8](features/survey-flight.md), com autopilot.
-  - [ ] Pausa congela o voo (E2E).
-  - [ ] ≥ 55 FPS em Alta no C00 (overlay, manual).
+  - [x] Teste de draw list (morro oclui objeto). Nesta tarefa, o "objeto" pode ser um GCP_TARGET marcado como teste.
+  - [x] O critério 1 de [survey-flight §8](features/survey-flight.md), com autopilot.
+  - [x] Pausa congela o voo (E2E).
+  - [x] ≥ 55 FPS em Alta no C00 (overlay, manual).
 - **Verificação:** `npx vitest run src/engines/flight src/screens/flight` · E2E `flight.spec.ts`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - `buildDrawList` e `renderTerrain` percorrem a grade pela mesma função (`traverse`), com um destino diferente: a lista de comandos nos testes e o canvas no jogo. Assim a ordem testada é a desenhada.
+  - Curvas de nível: em cada quad, todos os níveis cruzados (até 6), não só o maior; com faixas largas ao longe, um nível só pularia as mestras.
+  - Sombreamento: com sol, ambiente 0,45 + difusa 0,65 (a spec fixa só os valores da luz difusa, 0,75 + 0,25).
+  - O primeiro disparo automático de cada linha sai ao entrar na janela `[aoiStartS − B, aoiEndS + B]`, e os seguintes pelo temporizador; assim a série fica alinhada com a base do plano (16 fotos por linha no C00).
+  - A duração da surtida conta o tempo real das curvas (a apresentação dura até 2,5 s) e 4,5 s de decolagem e pouso. O tempo de voo do plano reserva 20 s para isso, então a surtida do C00 dura ~216 s contra 231 s previstos.
+  - Energia esgotada encerra a surtida como `ENERGY_DEPLETED` (dados descartados), ainda sem a animação de queda, que entra com as colisões (T028).
+  - O autopilot de depuração voa a ×8 (o `TIME_WARP` do jogador entra em T036) e confirma "Levar dados" 1,5 s depois do pós-voo, para o E2E ver o diálogo.
+  - O HUD lê um snapshot publicado a 10 Hz de tempo real. O minimapa do HUD é um SVG.
+  - A transição de depuração T8 lança a missão (`launchMission`), e o mapa mostra o toast "Dados salvos…" ao voltar com `outcome = 'QUEUED'`.
+  - Medição: 60 FPS em Alta a 1280 × 720 no C00 (Chromium headless).
+- **Status:** ✅
 
 ### T025 — Processamento e relatório v1
 - **Fase:** F2 · **Depende de:** T024 · **REQs:** REQ-PRC-001, REQ-PRC-002, REQ-PRC-004, REQ-PRC-006, REQ-PRC-007, REQ-PRC-009, REQ-PRC-010, REQ-PRG-010 (*parc.*), REQ-OFF-003 (*parc.*: fila)
@@ -1197,11 +1208,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ☐ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ☐ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
-| REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ☐ |
-| REQ-FLT-002 | Terreno com relevo | [architecture](design/architecture.md), [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T024 | ☐ |
-| REQ-FLT-003 | Decolagem cinematográfica | [survey-flight](features/survey-flight.md) | T024 | ☐ |
-| REQ-FLT-004 | Controles de voo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T013, T024 | ☐ |
-| REQ-FLT-005 | Linhas como corridas | [survey-flight](features/survey-flight.md) | T024 | ☐ |
+| REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
+| REQ-FLT-002 | Terreno com relevo | [architecture](design/architecture.md), [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
+| REQ-FLT-003 | Decolagem cinematográfica | [survey-flight](features/survey-flight.md) | T024 | ✅ |
+| REQ-FLT-004 | Controles de voo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T013, T024 | ✅ |
+| REQ-FLT-005 | Linhas como corridas | [survey-flight](features/survey-flight.md) | T024 | ✅ |
 | REQ-FLT-006 | Câmera RGB | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
 | REQ-FLT-007 | Sobreposição real e faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T035 | ☐ |
 | REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |

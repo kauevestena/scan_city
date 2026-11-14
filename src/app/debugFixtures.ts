@@ -207,7 +207,12 @@ export function prepareDebugTransition(
       store.getState().startMission(contractId, 1);
       return { contractId, rivalAdjustment: 1 };
     }
-    case 'T8':
+    case 'T8': {
+      // Decolar: a missão em planejamento passa a voar, como no botão do Field Setup.
+      const mission = ensureActiveMission(store, contractId, false);
+      if (mission.status !== 'IN_FLIGHT') store.getState().launchMission();
+      return { missionId: mission.id };
+    }
     case 'T16':
       return { missionId: ensureActiveMission(store, contractId, false).id };
     case 'T9': {

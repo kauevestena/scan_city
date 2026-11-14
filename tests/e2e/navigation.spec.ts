@@ -6,6 +6,7 @@ const REAL_SCREENS: Record<string, string> = {
   OFFICE: 'office-screen',
   WORLD_MAP: 'world-map-screen',
   FIELD_SETUP: 'field-setup-screen',
+  SURVEY_FLIGHT: 'survey-flight-screen',
 };
 
 async function go(page: Page, transition: string, expected: string) {
