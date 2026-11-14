@@ -190,12 +190,12 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. `FpsOverlay` (`?debug=1` ou `settings.showFps`).
   5. Demonstração: uma cena de teste no `DebugScreenShell` desenha um quadrado girando no Canvas.
 - **Aceite:**
-  - [ ] Teste com rAF falso: `dt = 0,2 s` vira clamp de 0,05 s e 3 sub-passos (com `stepS = 1/60`).
-  - [ ] `timeScale = 4` multiplica os sub-passos.
-  - [ ] Pausado = 0 updates e 1 render.
-  - [ ] O canvas mantém a nitidez em DPR 2 (largura do buffer = 2 × CSS).
+  - [x] Teste com rAF falso: `dt = 0,2 s` vira clamp de 0,05 s e 3 sub-passos (com `stepS = 1/60`).
+  - [x] `timeScale = 4` multiplica os sub-passos.
+  - [x] Pausado = 0 updates e 1 render.
+  - [x] O canvas mantém a nitidez em DPR 2 (largura do buffer = 2 × CSS).
 - **Verificação:** `npx vitest run src/engines`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T008 — Sistema de input unificado
 - **Fase:** F0 · **Depende de:** T007 · **REQs:** REQ-INP-001 a REQ-INP-006
@@ -1082,7 +1082,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ☐ |
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
-| REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ☐ |
+| REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ✅ |
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
 | REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ☐ |
 | REQ-INP-002 | Detecção de gamepad | [input](design/input.md) | T008 | ☐ |

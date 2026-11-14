@@ -1,5 +1,6 @@
 import { Construction } from 'lucide-react';
 import { useGameStore } from '@/state/store';
+import { DebugCanvasDemo } from './DebugCanvasDemo';
 import { DebugPanel } from './DebugPanel';
 
 /**
@@ -24,6 +25,7 @@ export function DebugScreenShell() {
           {JSON.stringify(payload ?? null)}
         </pre>
       </header>
+      <DebugCanvasDemo />
       <DebugPanel />
     </main>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { applyDebugFlags } from '@/app/debugFixtures';
 import { getDebugFlags } from '@/app/debugFlags';
+import { FpsOverlay } from '@/app/FpsOverlay';
 import { PauseOverlay } from '@/app/PauseOverlay';
 import { ScreenRouter } from '@/app/ScreenRouter';
 import { UiKitGallery } from '@/app/UiKitGallery';
@@ -29,6 +30,7 @@ export function App() {
           <PauseOverlay />
         </>
       )}
+      <FpsOverlay />
       <ToastHost />
     </div>
   );
