@@ -160,6 +160,48 @@ describe('mission', () => {
     expect(() => get().startMission('C99', 1)).toThrow(RangeError);
   });
 
+  it('updatePlan recalcula o plano; setGroundPoints troca os pontos', () => {
+    const mission = get().startMission('C00', 1);
+    get().updatePlan({
+      ...mission.plan.params,
+      heightM: 60,
+      forwardOverlapPct: 70,
+      sideOverlapPct: 60,
+      speedMs: 10,
+    });
+    // G23: plano de referência do C00.
+    const plan = get().mission.active?.plan;
+    expect(plan?.stats.nLines).toBe(6);
+    expect(plan?.stats.totalPhotos).toBe(96);
+    const points = [{ id: 'GCP-01', kind: 'GCP' as const, u: 25, v: 20, elevM: 3, sigmaM: 0 }];
+    get().setGroundPoints(points);
+    expect(get().mission.active?.groundPoints).toEqual(points);
+  });
+
+  it('sem missão ativa, as ações de planejamento não fazem nada', () => {
+    get().updatePlan(createDebugMission('C00', false).plan.params);
+    get().setGroundPoints([]);
+    expect(get().launchMission()).toBeNull();
+    expect(get().mission.active).toBeNull();
+  });
+
+  it('launchMission: σ dos pontos, IN_FLIGHT e um voo da calibração do Atlas', () => {
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, atlasCalibrationFlights: 3 } }));
+    get().startMission('C00', 1);
+    get().setGroundPoints([{ id: 'GCP-01', kind: 'GCP', u: 25, v: 20, elevM: 3, sigmaM: 0 }]);
+    const launched = get().launchMission();
+    // Estação total σ 1 cm, nivelamento padrão 0,5: σ = 1 × (1 + 2 × 0,5) = 2 cm.
+    expect(launched?.groundPoints[0]?.sigmaM).toBeCloseTo(0.02, 9);
+    expect(launched).toMatchObject({ status: 'IN_FLIGHT', atlasCalibrated: true });
+    expect(get().inventory.atlasCalibrationFlights).toBe(2);
+    expect(get().mission.active).toBe(launched);
+    // Sem calibração restante, o Atlas voa descalibrado.
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, atlasCalibrationFlights: 0 } }));
+    get().startMission('C00', 1);
+    expect(get().launchMission()?.atlasCalibrated).toBe(false);
+    expect(get().inventory.atlasCalibrationFlights).toBe(0);
+  });
+
   it('novo jogo: C00 disponível', () => {
     expect(get().contracts.C00).toEqual({ status: 'AVAILABLE', completions: 0, bestScore: 0 });
   });

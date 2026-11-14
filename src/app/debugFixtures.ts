@@ -203,6 +203,8 @@ export function prepareDebugTransition(
           pending: state.mission.pending.filter((m) => m.contractId !== contractId),
         },
       });
+      // Como o Aceitar do briefing: a missão nasce em planejamento.
+      store.getState().startMission(contractId, 1);
       return { contractId, rivalAdjustment: 1 };
     }
     case 'T8':

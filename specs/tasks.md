@@ -519,11 +519,21 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. Aba 4: checklist e decolagem.
   5. A aba 3 (Calibração) **não** é renderizada nesta tarefa. Ela entra em T037 com os mini-games de verdade.
 - **Aceite:**
-  - [ ] Os critérios 1, 2, 3 e 6 de [field-setup §8](features/field-setup.md).
-  - [ ] As estatísticas recalculam em < 16 ms (`performance.now` em teste).
-  - [ ] A sugestão automática de GCPs funciona no C00.
+  - [x] Os critérios 1, 2, 3 e 6 de [field-setup §8](features/field-setup.md).
+  - [x] As estatísticas recalculam em < 16 ms (`performance.now` em teste).
+  - [x] A sugestão automática de GCPs funciona no C00.
 - **Verificação:** `npx vitest run src/screens/field src/engines/field` · E2E `field.spec.ts`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - O raster tem 512 px no lado **maior** e segue a proporção da área (AOI + margem), para não esticar o pixel: 512 × 341 no C00. É gerado uma vez por sampler (cerca de 140 ms) e guardado num `WeakMap`. O sampler é o mesmo `createTerrain(contract)` memoizado do voo (REQ-FLD-001).
+  - Os objetos vistos de cima (telhados, copas) e suas sombras são desenhados numa camada por iluminação. A sombra vai para SE, oposta ao sol de NO (o azimute de 315° do hillshade; a spec não fixa o do sol). Com luz difusa não há sombra.
+  - Pan pelo teclado (WASD) e pelo analógico esquerdo; arrastar com o botão direito ou do meio; zoom pela roda, em torno do cursor. A **retícula de gamepad** de §5.1 fica para T078 (REQ-INP-006).
+  - Pontos: as recusas trazem os números ("Declividade 45 % > 30 %", "Fora do alcance (189 m da via mais próxima > 150 m)"), tocam `DENIED` e piscam no mapa. O σ dos pontos só é calculado na decolagem (`launchMission`).
+  - Esc: na aba 1 pede para cancelar; nas abas 2 e 4 volta para a anterior.
+  - Checklist: requisito previsto em falha aparece ⚠ se for `MINOR` e ✗ nos demais.
+  - Malha cruzada: as perpendiculares cobrem a outra dimensão da AOI, então o total só "dobra" em AOIs quadradas (no C00 com o DRONE_T1 a 80 m: 5 + 7 linhas).
+  - A iluminação mostra as consequências num texto abaixo das abas, em vez de tooltip.
+  - Depuração: a transição T6 do painel F9 também cria a missão (`startMission`), como o Aceitar do briefing.
+- **Status:** ✅
 
 ### T024 — Motor de voo v1
 - **Fase:** F2 · **Depende de:** T023 · **REQs:** REQ-FLT-001, REQ-FLT-002, REQ-FLT-003, REQ-FLT-004, REQ-FLT-005, REQ-FLT-006 (*parc.*: automático), REQ-FLT-018 (*parc.*), REQ-FLT-019 (*parc.*: sem nova surtida)
@@ -1174,19 +1184,19 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ☐ |
 | REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ✅ |
-| REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ☐ |
+| REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ✅ |
 | REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ☐ |
 | REQ-FLD-003 | Acessibilidade por veículo | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T017, T023, T039 | ☐ |
-| REQ-FLD-004 | Indicador de distribuição | [field-setup](features/field-setup.md) | T015, T023 | ☐ |
-| REQ-FLD-005 | Seleção de equipamento | [field-setup](features/field-setup.md) | T023 | ☐ |
-| REQ-FLD-006 | Parâmetros do plano | [field-setup](features/field-setup.md) | T023 | ☐ |
-| REQ-FLD-007 | Estatísticas ao vivo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md) | T011, T023 | ☐ |
-| REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ☐ |
-| REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ☐ |
+| REQ-FLD-004 | Indicador de distribuição | [field-setup](features/field-setup.md) | T015, T023 | ✅ |
+| REQ-FLD-005 | Seleção de equipamento | [field-setup](features/field-setup.md) | T023 | ✅ |
+| REQ-FLD-006 | Parâmetros do plano | [field-setup](features/field-setup.md) | T023 | ✅ |
+| REQ-FLD-007 | Estatísticas ao vivo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md) | T011, T023 | ✅ |
+| REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
+| REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
 | REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ☐ |
 | REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ☐ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ☐ |
-| REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ☐ |
+| REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ☐ |
 | REQ-FLT-002 | Terreno com relevo | [architecture](design/architecture.md), [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T024 | ☐ |
 | REQ-FLT-003 | Decolagem cinematográfica | [survey-flight](features/survey-flight.md) | T024 | ☐ |

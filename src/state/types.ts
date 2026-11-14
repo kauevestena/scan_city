@@ -3,12 +3,15 @@ import type {
   ContractProgress,
   Dimension,
   Emblem,
+  GroundPoint,
   MissionData,
+  PlanParams,
   SaveGame,
   ScreenId,
   Settings,
   VehicleId,
 } from '@/types';
+import type { PlanOptions } from '@/domain/flightPlanner';
 import type { ToastData } from '@/ui/Toast';
 
 /** Payload de entrada de cada tela (architecture §2.1). */
@@ -106,6 +109,14 @@ export interface MissionActions {
    * (field-setup §5.3). `COMPLETED` vira replay (progression §12).
    */
   startMission: (contractId: string, rivalAdjustment: number) => MissionData;
+  /** Troca os parâmetros do plano da missão ativa e recalcula o plano. */
+  updatePlan: (params: PlanParams, options?: PlanOptions) => void;
+  setGroundPoints: (points: GroundPoint[]) => void;
+  /**
+   * Decolagem (field-setup §5.5): σ dos pontos, `IN_FLIGHT` e, com Atlas, um voo da
+   * calibração da câmera. Devolve a missão, ou `null` sem missão ativa.
+   */
+  launchMission: () => MissionData | null;
   /** Torna `mission` a missão ativa (em planejamento ou em voo). */
   beginMission: (mission: MissionData) => void;
   /** Move a missão ativa para a fila de processamento. */

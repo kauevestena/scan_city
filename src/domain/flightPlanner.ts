@@ -284,6 +284,23 @@ function meetsCritical(
   });
 }
 
+/**
+ * A aeronave atende aos requisitos **críticos** de tipo, tier e sensor do contrato com o
+ * equipamento possuído? Na aba 2, a que não atende aparece desabilitada com o motivo.
+ */
+export function aircraftMeetsCritical(
+  aircraft: Aircraft,
+  contract: PlannerContract,
+  inventory: PlanInventory,
+  catalog: Catalog,
+): boolean {
+  const owned = (sensorId: string) =>
+    sensorId === 'POD_LIDAR'
+      ? inventory.payloads.includes('POD_LIDAR')
+      : inventory.sensors.includes(sensorId);
+  return meetsCritical(aircraft, contract, owned, catalog);
+}
+
 /** Parâmetros iniciais da aba "Plano de voo" (field-setup §5.3, "Padrões ao entrar"). */
 export function defaultPlanParams(
   contract: PlannerContract,

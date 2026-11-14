@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
-import { CATALOG, FIELD_EQUIPMENT } from '@/data/catalog';
+import { CATALOG, FIELD_EQUIPMENT, getAircraft, getFieldEquipment } from '@/data/catalog';
+import { gcpSigma } from '@/domain/accuracy';
 import { getContract } from '@/data/contracts';
 import { buildFlightPlan, defaultPlanParams } from '@/domain/flightPlanner';
 import type { MissionData } from '@/types';
@@ -54,6 +55,47 @@ export const createMissionSlice: StateCreator<
     };
     set((s) => ({ mission: { ...s.mission, active: mission } }));
     return mission;
+  },
+
+  updatePlan: (params, options = {}) => {
+    const state = get();
+    const active = state.mission.active;
+    if (!active) return;
+    const plan = buildFlightPlan(params, getContract(active.contractId), CATALOG, {
+      enduranceMod: selectModifiers(state).endurance,
+      ...options,
+    });
+    set((s) => ({ mission: { ...s.mission, active: { ...active, plan } } }));
+  },
+
+  setGroundPoints: (points) =>
+    set((s) =>
+      s.mission.active
+        ? { mission: { ...s.mission, active: { ...s.mission.active, groundPoints: points } } }
+        : s,
+    ),
+
+  launchMission: () => {
+    const { mission, inventory } = get();
+    const active = mission.active;
+    if (!active) return null;
+    const equipment = getFieldEquipment(active.fieldEquipmentId);
+    const sigma = gcpSigma(equipment.sigmaBaseM, equipment.id, active.minigames.levelScore);
+    const atlas = getAircraft(active.plan.params.aircraftId).energyUnit === 'CORN';
+    const calibrated = atlas && inventory.atlasCalibrationFlights > 0;
+    const launched: MissionData = {
+      ...active,
+      groundPoints: active.groundPoints.map((p) => ({ ...p, sigmaM: sigma.xy })),
+      atlasCalibrated: calibrated,
+      status: 'IN_FLIGHT',
+    };
+    set((s) => ({
+      mission: { ...s.mission, active: launched },
+      inventory: calibrated
+        ? { ...s.inventory, atlasCalibrationFlights: s.inventory.atlasCalibrationFlights - 1 }
+        : s.inventory,
+    }));
+    return launched;
   },
 
   queueActive: () =>

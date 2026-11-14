@@ -1,0 +1,305 @@
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { C00 } from '@/data/contracts';
+import { initialView, toScreen, viewTransform } from '@/engines/field/satellite';
+import { useGameStore } from '@/state/store';
+import { resetGameStore } from '@/test/resetStore';
+import type { GroundPoint } from '@/types';
+import { createTerrain } from '@/world/terrain/createTerrain';
+import { FieldSetupScreen } from './FieldSetupScreen';
+
+const get = () => useGameStore.getState();
+const W = 800;
+const H = 600;
+const gcp = (id: string, u: number, v: number): GroundPoint => ({
+  id,
+  kind: 'GCP',
+  u,
+  v,
+  elevM: 0,
+  sigmaM: 0,
+});
+
+/** jsdom não faz layout: o canvas mede 800 × 600 a partir de (0, 0). */
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => W });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get: () => H,
+  });
+});
+afterAll(() => {
+  // Volta ao comportamento do jsdom (0).
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 0 });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get: () => 0,
+  });
+});
+
+beforeEach(() => {
+  resetGameStore();
+  act(() => {
+    get().goTo('WORLD_MAP');
+    get().startMission('C00', 1);
+    get().goTo('FIELD_SETUP', { contractId: 'C00', rivalAdjustment: 1 });
+  });
+});
+
+function canvasAt(u: number, v: number) {
+  const t = viewTransform(createTerrain(C00), initialView(createTerrain(C00)), W, H);
+  return toScreen(t, u, v);
+}
+
+function clickMap(u: number, v: number) {
+  const { x, y } = canvasAt(u, v);
+  const canvas = screen.getByTestId('satellite-canvas');
+  fireEvent.pointerDown(canvas, { button: 0, clientX: x, clientY: y });
+  fireEvent.pointerUp(canvas, { button: 0, clientX: x, clientY: y });
+}
+
+const tab = (name: RegExp) => fireEvent.click(screen.getByRole('tab', { name }));
+
+describe('FieldSetupScreen', () => {
+  it('cabeçalho com o contrato e as abas 1, 2 e 4 (a 3 entra com os mini-games)', () => {
+    render(<FieldSetupScreen />);
+    expect(screen.getByTestId('field-contract')).toHaveTextContent('Sítio do Avô');
+    const tabs = within(
+      screen.getByRole('tablist', { name: 'Planejamento de campo' }),
+    ).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      '1 · Pontos de apoio',
+      '2 · Plano de voo',
+      '4 · Checklist',
+    ]);
+  });
+
+  it('clique coloca um GCP; a pé, um ponto fora do alcance é recusado com o motivo', () => {
+    render(<FieldSetupScreen />);
+    clickMap(25, 20);
+    expect(get().mission.active?.groundPoints.map((p) => p.id)).toEqual(['GCP-01']);
+    clickMap(-44, 188);
+    expect(screen.getByTestId('satellite-refusal')).toHaveTextContent(
+      /^Fora do alcance \(\d+ m da via mais próxima > 150 m\)$/,
+    );
+    expect(get().mission.active?.groundPoints).toHaveLength(1);
+  });
+
+  it('teclas C e X trocam a ferramenta: CP e borracha', () => {
+    render(<FieldSetupScreen />);
+    fireEvent.keyDown(window, { code: 'KeyC', key: 'c' });
+    clickMap(70, 50);
+    expect(get().mission.active?.groundPoints.map((p) => p.id)).toEqual(['CP-01']);
+    fireEvent.keyDown(window, { code: 'KeyX', key: 'x' });
+    expect(screen.getByRole('tab', { name: 'Borracha' })).toHaveAttribute('aria-selected', 'true');
+    clickMap(70, 50);
+    expect(get().mission.active?.groundPoints).toEqual([]);
+  });
+
+  it('limite do instrumento: o 9º ponto é recusado', () => {
+    act(() =>
+      get().setGroundPoints(
+        Array.from({ length: 8 }, (_, i) => gcp(`GCP-0${i + 1}`, 20 + i * 25, 100)),
+      ),
+    );
+    render(<FieldSetupScreen />);
+    clickMap(30, 20);
+    expect(screen.getByTestId('satellite-refusal')).toHaveTextContent('Limite do instrumento (8)');
+  });
+
+  it('arrastar move o ponto; soltar num lugar inválido devolve com o motivo', () => {
+    act(() => get().setGroundPoints([gcp('GCP-01', 25, 20)]));
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    const a = canvasAt(25, 20);
+    const b = canvasAt(40, 30);
+    fireEvent.pointerDown(canvas, { button: 0, clientX: a.x, clientY: a.y });
+    fireEvent.pointerMove(canvas, { clientX: b.x, clientY: b.y });
+    fireEvent.pointerUp(canvas, { button: 0, clientX: b.x, clientY: b.y });
+    const moved = get().mission.active?.groundPoints[0];
+    expect(moved?.u).toBeCloseTo(40, 6);
+    expect(moved?.v).toBeCloseTo(30, 6);
+    const far = canvasAt(-44, 188);
+    fireEvent.pointerDown(canvas, { button: 0, clientX: b.x, clientY: b.y });
+    fireEvent.pointerMove(canvas, { clientX: far.x, clientY: far.y });
+    fireEvent.pointerUp(canvas, { button: 0, clientX: far.x, clientY: far.y });
+    expect(get().mission.active?.groundPoints[0]?.u).toBeCloseTo(40, 6);
+    expect(screen.getByTestId('satellite-refusal')).toHaveTextContent(/Fora do alcance/);
+  });
+
+  it('cursor mostra (u, v, z); a roda e o arraste com o botão direito mexem na vista', () => {
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    const p = canvasAt(100, 50);
+    fireEvent.pointerMove(canvas, { clientX: p.x, clientY: p.y });
+    expect(screen.getByTestId('satellite-cursor')).toHaveTextContent(
+      /^u 100,0 m · v 50,0 m · z -?\d+,\d m$/,
+    );
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: p.x, clientY: p.y });
+    fireEvent.pointerDown(canvas, { button: 2, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(canvas, { clientX: 60, clientY: 10 });
+    fireEvent.pointerUp(canvas, { button: 2, clientX: 60, clientY: 10 });
+    fireEvent.pointerMove(canvas, { clientX: p.x, clientY: p.y });
+    // Depois do zoom e do pan, o mesmo pixel aponta para outro lugar.
+    expect(screen.getByTestId('satellite-cursor')).not.toHaveTextContent(/^u 100,0 m · v 50,0 m/);
+  });
+
+  it('3 GCPs colineares: semáforo vermelho e dica do eixo Z; a sugestão automática corrige', () => {
+    act(() =>
+      get().setGroundPoints([
+        gcp('GCP-01', 20, 20),
+        gcp('GCP-02', 120, 80),
+        gcp('GCP-03', 220, 140),
+      ]),
+    );
+    render(<FieldSetupScreen />);
+    expect(screen.getByTestId('distribution-light')).toHaveAttribute('data-light', 'RED');
+    expect(screen.getByTestId('distribution-hint')).toHaveTextContent(
+      'Pontos quase alinhados: o Z vai sofrer',
+    );
+    fireEvent.click(screen.getByTestId('suggest-gcps'));
+    expect(get().mission.active?.groundPoints.filter((p) => p.kind === 'GCP')).toHaveLength(5);
+    expect(screen.getByTestId('distribution-light')).toHaveAttribute('data-light', 'GREEN');
+  });
+
+  it('plano de referência do C00: GSD 2,52 cm, 6 linhas, 96 fotos e 03:51 (G23), em < 16 ms', () => {
+    render(<FieldSetupScreen />);
+    tab(/Plano de voo/);
+    const params = get().mission.active?.plan.params;
+    if (!params) throw new Error('sem plano');
+    const t0 = performance.now();
+    act(() =>
+      get().updatePlan({
+        ...params,
+        heightM: 60,
+        forwardOverlapPct: 70,
+        sideOverlapPct: 60,
+        speedMs: 10,
+      }),
+    );
+    expect(performance.now() - t0).toBeLessThan(16);
+    expect(screen.getByTestId('stat-gsd').textContent?.replace(/\s/g, ' ')).toBe('2,52 cm');
+    expect(screen.getByTestId('stat-lines')).toHaveTextContent('6');
+    expect(screen.getByTestId('stat-photos')).toHaveTextContent('96');
+    expect(screen.getByTestId('stat-time')).toHaveTextContent('03:51');
+  });
+
+  it('sliders nos limites da aeronave e do teto; com Atlas, sem modos especiais', () => {
+    render(<FieldSetupScreen />);
+    tab(/Plano de voo/);
+    const h = screen.getByRole('slider', { name: 'Altura (H)' });
+    expect(h).toHaveAttribute('aria-valuemin', '20');
+    expect(h).toHaveAttribute('aria-valuemax', '80');
+    expect(screen.getByRole('slider', { name: 'Sobreposição longitudinal (p)' })).toHaveAttribute(
+      'aria-valuemax',
+      '85',
+    );
+    expect(screen.getByRole('slider', { name: 'Sobreposição lateral (q)' })).toHaveAttribute(
+      'aria-valuemin',
+      '50',
+    );
+    expect(screen.getByRole('slider', { name: 'Velocidade (v)' })).toHaveAttribute(
+      'aria-valuemax',
+      '16',
+    );
+    expect(screen.queryByTestId('plan-modes')).not.toBeInTheDocument();
+    expect(screen.getByTestId('lighting-hint')).toHaveTextContent(/1\/2000 s/);
+    fireEvent.click(screen.getByRole('tab', { name: 'Nublado' }));
+    expect(get().mission.active?.plan.params.lighting).toBe('OVERCAST');
+    expect(screen.getByTestId('lighting-hint')).toHaveTextContent(/sem sombras/);
+    // Seta para a direita no slider muda o plano.
+    fireEvent.keyDown(screen.getByRole('slider', { name: 'Sobreposição lateral (q)' }), {
+      key: 'ArrowRight',
+    });
+    expect(get().mission.active?.plan.params.sideOverlapPct).toBe(66);
+  });
+
+  it('trocar a aeronave troca o sensor incompatível (toast); a malha cruzada acrescenta as perpendiculares', () => {
+    act(() =>
+      useGameStore.setState((s) => ({
+        inventory: {
+          ...s.inventory,
+          aircraft: ['ATLAS', 'DRONE_T1'],
+          sensors: ['CAM_PIGEON', 'CAM_20MP_RS'],
+        },
+      })),
+    );
+    render(<FieldSetupScreen />);
+    tab(/Plano de voo/);
+    // Só os sensores compatíveis com a aeronave aparecem.
+    expect(
+      within(screen.getByRole('tablist', { name: 'Sensor / carga' })).getAllByRole('tab'),
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole('tab', { name: 'Drone Amador "Faísca"' }));
+    expect(get().mission.active?.plan.params).toMatchObject({
+      aircraftId: 'DRONE_T1',
+      sensorId: 'CAM_20MP_RS',
+    });
+    expect(get().session.toasts.at(-1)?.title).toMatch(/^Sensor trocado para /);
+    const primary = get().mission.active?.plan.lines.length ?? 0;
+    fireEvent.click(screen.getByTestId('toggle-cross-grid'));
+    const lines = get().mission.active?.plan.lines ?? [];
+    const cross = lines.filter((l) => l.pass === 'CROSS').length;
+    // Linhas perpendiculares sobre a outra dimensão da AOI (240 × 160 m).
+    expect(cross).toBeGreaterThan(0);
+    expect(lines.length).toBe(primary + cross);
+    expect(screen.getByTestId('stat-lines')).toHaveTextContent(`${primary} + ${cross}`);
+  });
+
+  it('checklist: requisitos previstos; sem bloqueantes, DECOLAR vai ao voo com a missão IN_FLIGHT', () => {
+    act(() =>
+      get().setGroundPoints([
+        gcp('GCP-01', 25, 20),
+        gcp('GCP-02', 215, 20),
+        gcp('GCP-03', 120, 140),
+      ]),
+    );
+    render(<FieldSetupScreen />);
+    tab(/Checklist/);
+    expect(
+      within(screen.getByTestId('checklist-requirements')).getAllByRole('listitem'),
+    ).toHaveLength(6);
+    expect(screen.queryByTestId('checklist-blocking')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('takeoff'));
+    expect(get().session.screen).toBe('SURVEY_FLIGHT');
+    expect(get().mission.active?.status).toBe('IN_FLIGHT');
+    expect(get().session.payload).toEqual({ missionId: get().mission.active?.id });
+  });
+
+  it('Atlas sem milho: bloqueante em vermelho e DECOLAR desabilitado', () => {
+    act(() =>
+      useGameStore.setState((s) => ({
+        inventory: { ...s.inventory, corn: { crop: 0, stock: 0 } },
+      })),
+    );
+    render(<FieldSetupScreen />);
+    tab(/Checklist/);
+    expect(screen.getByTestId('checklist-blocking')).toHaveTextContent('O Atlas está sem milho');
+    expect(screen.getByTestId('takeoff')).toBeDisabled();
+  });
+
+  it('Cancelar (ou Esc na aba 1) pede confirmação e volta ao mapa descartando a missão', () => {
+    render(<FieldSetupScreen />);
+    tab(/Plano de voo/);
+    // Na aba 2, o Esc volta para a aba 1.
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    expect(screen.getByRole('tab', { name: /Pontos de apoio/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+    const dialog = screen.getByRole('dialog', { name: 'Abandonar o planejamento?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar planejando' }));
+    expect(get().session.screen).toBe('FIELD_SETUP');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Abandonar' }));
+    expect(get().session.screen).toBe('WORLD_MAP');
+    expect(get().mission.active).toBeNull();
+  });
+
+  it('sem missão ativa, oferece voltar ao mapa', () => {
+    act(() => get().discardActive());
+    render(<FieldSetupScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao mapa' }));
+    expect(get().session.screen).toBe('WORLD_MAP');
+  });
+});

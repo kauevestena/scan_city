@@ -92,6 +92,6 @@ test('teleporta até o C00, abre o briefing e aceita: vai ao planejamento de cam
   await page.keyboard.press('Enter');
   await expect(briefing).toBeVisible();
   await briefing.getByRole('button', { name: 'Aceitar' }).click();
-  await expect(page.getByTestId('screen-name')).toHaveText('FIELD_SETUP');
-  await expect(page.getByTestId('screen-payload')).toContainText('"contractId":"C00"');
+  await expect(page.getByTestId('field-setup-screen')).toBeVisible();
+  await expect(page.getByTestId('field-contract')).toHaveText('Sítio do Avô');
 });

@@ -36,16 +36,17 @@ describe('App + ScreenRouter', () => {
     expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
   });
 
-  it('o mapa é uma tela real; as telas sem implementação usam o shell', () => {
+  it('mapa e campo são telas reais; as sem implementação usam o shell', () => {
     open('/?debug=1&screen=WORLD_MAP');
     expect(screen.getByTestId('world-map-screen')).toBeInTheDocument();
     expect(screen.getByTestId('top-bar')).toBeInTheDocument();
     // Sobre telas reais, o painel de depuração abre com F9 e continua aberto entre elas.
     fireEvent.keyDown(window, { key: 'F9' });
     fireEvent.click(screen.getByRole('button', { name: 'T6 → FIELD_SETUP' }));
-    expect(screen.getByTestId('screen-payload')).toHaveTextContent(
-      '{"contractId":"C00","rivalAdjustment":1}',
-    );
+    // O planejamento de campo é real: a transição de depuração já cria a missão.
+    expect(screen.getByTestId('field-setup-screen')).toBeInTheDocument();
+    expect(get().session.payload).toEqual({ contractId: 'C00', rivalAdjustment: 1 });
+    expect(get().mission.active).toMatchObject({ contractId: 'C00', status: 'PLANNING' });
     expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'T8 → SURVEY_FLIGHT' }));
     expect(get().session.screen).toBe('SURVEY_FLIGHT');
