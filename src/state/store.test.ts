@@ -390,6 +390,24 @@ describe('world', () => {
     expect(get().world.vehicleMode).toBe('FOOT_BIKE');
   });
 
+  it('grantXp sobe de nível com um toast por nível; addCorn e markFieldEvent', () => {
+    get().grantXp(100);
+    expect(get().player.level).toBe(2);
+    expect(get().session.toasts.map((t) => t.title)).toContain('Nível 2! +1 ponto de habilidade');
+    const xp = get().player.xp;
+    get().grantXp(0);
+    expect(get().player.xp).toBe(xp);
+
+    const stock = get().inventory.corn.stock;
+    get().addCorn(3);
+    expect(get().inventory.corn.stock).toBe(stock + 3);
+    get().addCorn(-1000);
+    expect(get().inventory.corn.stock).toBe(0);
+
+    get().markFieldEvent(1234);
+    expect(get().world.lastEventAt).toBe(1234);
+  });
+
   it('dimensão e fendas descobertas', () => {
     get().setDimensionTab('RIFT');
     expect(get().world.dimensionTab).toBe('RIFT');

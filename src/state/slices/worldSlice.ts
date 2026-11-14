@@ -51,6 +51,8 @@ export const createWorldSlice: StateCreator<
 
   setDimensionTab: (tab) => set((s) => ({ world: { ...s.world, dimensionTab: tab } })),
 
+  markFieldEvent: (nowS) => set((s) => ({ world: { ...s.world, lastEventAt: nowS } })),
+
   discoverRift: (contractId) =>
     set((s) =>
       s.world.discoveredRifts.includes(contractId)

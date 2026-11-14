@@ -90,6 +90,8 @@ export interface PlayerActions {
   /** Debita se houver saldo; senão, não altera nada, avisa e retorna `false`. */
   spend: (amount: CentsBRL, reason: string) => boolean;
   changeReputation: (delta: number) => void;
+  /** Soma XP, com um toast e o som `LEVEL_UP` por nível subido. */
+  grantXp: (amount: number) => void;
   /** Soma os deltas às estatísticas da carreira. */
   addStats: (delta: Partial<SaveGame['stats']>) => void;
 }
@@ -97,6 +99,8 @@ export interface PlayerActions {
 export interface InventoryActions {
   equip: (slot: EquipSlot, cosmeticId: string) => void;
   setEmblem: (emblem: Emblem) => void;
+  /** Soma milho ao estoque (Atlas). */
+  addCorn: (amount: number) => void;
 }
 
 export interface ContractsActions {
@@ -184,6 +188,8 @@ export interface WorldActions {
   cycleVehicle: () => VehicleId;
   setDimensionTab: (tab: Dimension) => void;
   discoverRift: (contractId: string) => void;
+  /** Marca o instante (s) do último evento de campo, para o intervalo mínimo. */
+  markFieldEvent: (nowS: number) => void;
 }
 
 export interface RivalActions {

@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
+import { addXp } from '@/domain/progression';
 import { formatBRL } from '@/lib/format';
 import { clamp } from '@/lib/math';
 import type { SaveGame } from '@/types';
@@ -87,6 +88,17 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
       }
       return { stats };
     }),
+
+  grantXp: (amount) => {
+    // Um LEVEL_UP por nível, 300 ms entre eles (processing-results §7).
+    const { levelsGained, ...player } = addXp(get().player, amount);
+    set({ player });
+    for (let k = 0; k < levelsGained; k++) {
+      const level = player.level - levelsGained + k + 1;
+      get().pushToast({ type: 'success', title: STRINGS.progression.levelUp(level) });
+      setTimeout(() => AudioEngine.get().play('LEVEL_UP'), 300 * k);
+    }
+  },
 
   changeReputation: (delta) => {
     set((s) => ({

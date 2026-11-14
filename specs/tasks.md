@@ -872,11 +872,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [world-map §5.5](features/world-map.md), [catalog §12](content/catalog.md)
 - **Arquivos:** \+ `src/data/fieldEvents.ts`, `src/screens/world/FieldEventModal.tsx` + testes
 - **Aceite:**
-  - [ ] Os 6 eventos implementados, com efeitos e escolhas.
-  - [ ] Seed fixa gera a sequência esperada (teste de domínio já existe; aqui, teste RTL do modal e da aplicação dos efeitos).
-  - [ ] Pausa congela os timers do evento.
+  - [x] Os 6 eventos implementados, com efeitos e escolhas.
+  - [x] Seed fixa gera a sequência esperada (teste de domínio já existe; aqui, teste RTL do modal e da aplicação dos efeitos).
+  - [x] Pausa congela os timers do evento.
 - **Verificação:** `npx vitest run src/screens/world`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Dados em `src/data/fieldEvents.ts` (efeitos, custos e durações do catalog §12); o estado do evento em curso vive em `engines/overworld/fieldEventRuntime.ts`, uma classe sem React nem store, com efeitos injetados. `screens/world/fieldEventDeps.ts` a liga à store, ao áudio e aos textos, e `FieldEventModal.tsx` tem o modal (pneu, marco, proprietário) e o banner do gado.
+  - Sorteio: o engine chama `onTile` a cada tile inteiro percorrido; a tela faz `rollFieldEvent` com `mulberry32(createdAt ⊕ tiles·φ)`, em que `tiles = stats.distanceTiles + distância ainda não gravada`. O jogo não tem uma "seed global" própria; usei o `createdAt` do save. O intervalo de 20 s usa o relógio de parede (`world.lastEventAt` em segundos, via `markFieldEvent`). Um sorteio só vale se não houver outro evento em curso.
+  - FLAT_TIRE: avatar parado e modal sem fechar. "Trocar pneu" vira a barra de 10 toques (`INTERACT` ou `UI_CONFIRM`, porque o modal põe o contexto de input em UI); "Guincho" debita R$ 150 e fica desabilitado sem saldo. CATTLE: bloqueio de 3 s com banner e contagem em décimos; cada buzina (`INTERACT`) tira 1 s, com som `RTH_BEEP`, e o toque não abre porta/marcador. LOST_BENCHMARK: +50 XP e R$ 100 entram na hora, com `COLLECT`, toast e diálogo curto. SUSPICIOUS_OWNER: autorização (reputação ≥ 40: +1; senão −1) ou café (−R$ 50, +1; sem saldo, não vale). SUDDEN_RAIN: velocidade × 0,7 por 15 s e partículas (riscos inclinados, em tela). ATLAS_FINDS_CORN: +3 no estoque, `PIGEON_COO` e toast; a spec não exige o Atlas como aeronave, então vale sempre.
+  - Pausa: os timers (gado e chuva) andam em `runtime.update(dt)`, que o `GameLoop` não chama pausado; a buzina também é ignorada pausado. Teste de tela confirma o congelamento.
+  - Novas ações da store: `grantXp` (a lógica de XP e toasts de nível saiu de `applyMissionResult`), `addCorn` e `markFieldEvent`.
+  - O teste de "seed fixa gera a sequência esperada" continua no domínio (`fieldEvents.test.ts`); a tela aceita um `eventRuntime` por prop só para os testes.
+- **Status:** ✅
 
 ---
 
@@ -1292,7 +1299,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ☐ |
 | REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ✅ |
-| REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ☐ |
+| REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ✅ |
 | REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ✅ |

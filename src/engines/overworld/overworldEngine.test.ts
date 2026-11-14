@@ -243,3 +243,60 @@ describe('render de tiles e minimapa', () => {
     expect(ctx.drawImage).toHaveBeenCalledWith(mini, 0, 0);
   });
 });
+
+describe('eventos de campo: ganchos do engine', () => {
+  const GRASS_ROW = parseMap(['..............', '..............', '..............']);
+  const make = (extra: Partial<ConstructorParameters<typeof OverworldEngine>[0]> = {}) => {
+    const input = fakeInput();
+    const tiles: string[] = [];
+    const engine = new OverworldEngine({
+      map: GRASS_ROW,
+      input,
+      start: { x: 1.5, y: 1.5, facing: 'E' },
+      vehicle: () => 'FOOT_BIKE',
+      speedMod: () => 1,
+      skin: () => SKIN,
+      markers: () => [],
+      onTile: (t) => tiles.push(t),
+      ...extra,
+    });
+    return { engine, input, tiles };
+  };
+
+  it('onTile dispara uma vez por tile inteiro percorrido', () => {
+    const { engine, input, tiles } = make();
+    input.axes.MOVE_X = 1;
+    run(engine, 1.05); // 3 tiles/s na grama: 3,15 tiles
+    expect(tiles).toEqual(['GRASS', 'GRASS', 'GRASS']);
+    expect(engine.pendingDistance).toBeCloseTo(3.15, 4);
+  });
+
+  it('parado ou bloqueado, não anda nem sorteia', () => {
+    let blocked = true;
+    const { engine, input, tiles } = make({ blocked: () => blocked });
+    input.axes.MOVE_X = 1;
+    run(engine, 2);
+    expect(engine.position.x).toBe(1.5);
+    expect(tiles).toEqual([]);
+    expect(engine.isMoving).toBe(false);
+    blocked = false;
+    run(engine, 1);
+    expect(engine.position.x).toBeGreaterThan(3);
+  });
+
+  it('com chuva, desenha a camada de partículas; sem chuva, não', () => {
+    const strokes = (rain: boolean) => {
+      const { engine } = make({ rain: () => rain });
+      const s = surface();
+      let n = 0;
+      vi.spyOn(s.ctx, 'stroke').mockImplementation(() => {
+        n++;
+      });
+      engine.attach(s);
+      engine.update(1 / 60);
+      engine.render();
+      return n;
+    };
+    expect(strokes(true)).toBeGreaterThan(strokes(false));
+  });
+});

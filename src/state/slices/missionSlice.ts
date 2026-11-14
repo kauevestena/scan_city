@@ -1,13 +1,11 @@
 import type { StateCreator } from 'zustand';
 import { CATALOG, FIELD_EQUIPMENT, getAircraft, getFieldEquipment } from '@/data/catalog';
-import { AudioEngine } from '@/audio/AudioEngine';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
 import { gcpSigma } from '@/domain/accuracy';
 import { createCoverageGrid } from '@/domain/coverage';
 import { sectorIncomePerMin } from '@/domain/museum';
 import { canStartNewSortie, feedCrop } from '@/domain/sorties';
-import { addXp } from '@/domain/progression';
 import { getContract } from '@/data/contracts';
 import { buildFlightPlan, defaultPlanParams } from '@/domain/flightPlanner';
 import type { LidarGrid, MissionData } from '@/types';
@@ -298,15 +296,7 @@ export const createMissionSlice: StateCreator<
       get().earn(report.payment.totalBRL, STRINGS.contracts.payment(contract.title));
     }
 
-    // XP: um LEVEL_UP por nível, 300 ms entre eles (processing-results §7).
-    const leveled = addXp(get().player, report.xp);
-    const { levelsGained, ...player } = leveled;
-    set({ player });
-    for (let k = 0; k < levelsGained; k++) {
-      const level = player.level - levelsGained + k + 1;
-      get().pushToast({ type: 'success', title: STRINGS.progression.levelUp(level) });
-      setTimeout(() => AudioEngine.get().play('LEVEL_UP'), 300 * k);
-    }
+    get().grantXp(report.xp);
 
     // Contrato: aprovação conclui; falha crítica (fora do replay) é roubada pela MegaMap.
     const better = report.qualityScore > progress.bestScore;

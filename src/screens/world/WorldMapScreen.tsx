@@ -20,6 +20,12 @@ import { Tabs, type TabDef } from '@/ui';
 import { markerViews, type MarkerView } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { BriefingModal } from './BriefingModal';
+import { rollFieldEvent } from '@/domain/fieldEvents';
+import { mulberry32 } from '@/lib/rng';
+import type { FieldEventRuntime } from '@/engines/overworld/fieldEventRuntime';
+import { createFieldEventRuntime } from './fieldEventDeps';
+import { CattleBanner, FieldEventModal } from './FieldEventModal';
+
 import { MarkerLayer } from './MarkerLayer';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
 
@@ -68,7 +74,7 @@ function flushEngine(engine: OverworldEngine): void {
 }
 
 /** Mapa-múndi (world-map §3–§5.3): exploração a pé, câmera, minimapa e porta da sede. */
-export function WorldMapScreen() {
+export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRuntime } = {}) {
   useInputContext('OVERWORLD');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const minimapRef = useRef<HTMLCanvasElement>(null);
@@ -78,18 +84,32 @@ export function WorldMapScreen() {
   const [briefing, setBriefing] = useState<string | null>(null);
   const [hint, setHint] = useState<{ text: string; id: number } | null>(null);
 
+  const [runtime] = useState(() => eventRuntime ?? createFieldEventRuntime());
   const [engine] = useState(() => {
     const s = useGameStore.getState();
-    return new OverworldEngine({
+    const e: OverworldEngine = new OverworldEngine({
       input: InputManager.get(),
       start: s.world.avatar,
       vehicle: () => useGameStore.getState().world.vehicleMode,
-      speedMod: () => selectModifiers(useGameStore.getState()).overworldSpeed,
+      speedMod: () => selectModifiers(useGameStore.getState()).overworldSpeed * runtime.speedFactor,
       skin: skinColors,
       markers: currentMarkers,
       onHint: (text) => setHint({ text, id: performance.now() }),
       onTargetChange: setTarget,
+      blocked: () => runtime.blocking,
+      rain: () => runtime.rainActive,
+      // Um sorteio por tile inteiro, com o RNG de (save, distância percorrida).
+      onTile: (tile) => {
+        if (runtime.blocking) return;
+        const { stats, createdAt, world } = useGameStore.getState();
+        const tiles = Math.floor(stats.distanceTiles + e.pendingDistance);
+        const rng = mulberry32((createdAt ^ Math.imul(tiles, 0x9e3779b1)) >>> 0);
+        const nowS = Date.now() / 1000;
+        const id = rollFieldEvent(rng, tile, world.vehicleMode, nowS, world.lastEventAt);
+        if (id && runtime.trigger(id)) useGameStore.getState().markFieldEvent(nowS);
+      },
     });
+    return e;
   });
 
   // Volta do voo com dados (world-map §3): lembra de levá-los à Workstation.
@@ -114,6 +134,9 @@ export function WorldMapScreen() {
           else cycleVehicle();
           return;
         }
+        // Pneu e gado consomem o toque (mash / buzina); com um evento em curso, o mapa não interage.
+        if ((e.action === 'INTERACT' || e.action === 'UI_CONFIRM') && runtime.interact()) return;
+        if (runtime.blocking) return;
         if (e.action !== 'INTERACT') return;
         const hit = engine.interact();
         if (hit?.kind === 'DOOR') {
@@ -130,7 +153,7 @@ export function WorldMapScreen() {
           else open();
         }
       }),
-    [engine],
+    [engine, runtime],
   );
 
   // Teleporte de depuração: a store muda o avatar por fora do engine.
@@ -165,7 +188,10 @@ export function WorldMapScreen() {
     engine.attach(surface);
     const mini = minimapRef.current?.getContext('2d') ?? null;
     return {
-      update: (dt) => engine.update(dt),
+      update: (dt) => {
+        runtime.update(dt);
+        engine.update(dt);
+      },
       render: () => {
         engine.render();
         if (mini) {
@@ -180,7 +206,7 @@ export function WorldMapScreen() {
         }
       },
     };
-  }, [surface, engine]);
+  }, [surface, engine, runtime]);
 
   return (
     <main
@@ -237,6 +263,8 @@ export function WorldMapScreen() {
           data-testid="world-minimap"
         />
       </figure>
+      <CattleBanner runtime={runtime} />
+      <FieldEventModal runtime={runtime} />
       {briefing && <BriefingModal contractId={briefing} onClose={() => setBriefing(null)} />}
     </main>
   );

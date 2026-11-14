@@ -3,7 +3,8 @@
  * camada animada e porta da sede. Não conhece React nem o store: recebe getters e callbacks.
  */
 import type { AxisAction } from '@/input/actions';
-import type { Facing, VehicleId } from '@/types';
+import { hash2 } from '@/lib/rng';
+import type { Facing, TileType, VehicleId } from '@/types';
 import type { MarkerView } from '@/world/overworld/markers';
 import { blockedHint, tileAt, WORLD_MAP, type OverworldMap } from '@/world/overworld/tiles';
 import { nearestWalkable } from '@/world/overworld/pathfinding';
@@ -36,6 +37,12 @@ export interface OverworldEngineOptions {
   /** Marcadores visíveis na aba atual, com status. */
   markers: () => readonly MarkerView[];
   onHint?: (text: string) => void;
+  /** O avatar completou mais um tile de percurso; `tile` é o tipo sob ele (world-map §5.5). */
+  onTile?: (tile: TileType) => void;
+  /** Movimento travado (evento de campo em curso). */
+  blocked?: () => boolean;
+  /** Chuva ativa (evento `SUDDEN_RAIN`): desenha as partículas. */
+  rain?: () => boolean;
   /** O alvo de `INTERACT` mudou (porta, marcador ou nada). */
   onTargetChange?: (target: InteractTarget | null) => void;
 }
@@ -65,6 +72,8 @@ export class OverworldEngine implements Simulation {
   /** Começa vazio: o primeiro `update` avisa se o avatar já nasce num alvo. */
   private target: InteractTarget | null = null;
   private moving = false;
+  /** Percurso acumulado desde o último tile inteiro, em tiles. */
+  private tileProgress = 0;
   private surface: CanvasSurface | null = null;
   private readonly chunks: ChunkCache;
 
@@ -105,6 +114,11 @@ export class OverworldEngine implements Simulation {
 
   get isMoving(): boolean {
     return this.moving;
+  }
+
+  /** Tiles percorridos que ainda não foram lidos por `takeDistance`. */
+  get pendingDistance(): number {
+    return this.distance;
   }
 
   /** Devolve e zera a distância acumulada (para `stats.distanceTiles`). */
@@ -164,10 +178,19 @@ export class OverworldEngine implements Simulation {
     const vehicle = this.opts.vehicle();
     const mx = this.opts.input.axis('MOVE_X');
     const my = this.opts.input.axis('MOVE_Y');
-    const result = stepAvatar(this.map, this.avatar, mx, my, vehicle, this.opts.speedMod(), dtS);
+    const frozen = this.opts.blocked?.() ?? false;
+    const result = frozen
+      ? { state: this.avatar, moved: 0, blockedBy: null }
+      : stepAvatar(this.map, this.avatar, mx, my, vehicle, this.opts.speedMod(), dtS);
     this.avatar = result.state;
     this.distance += result.moved;
     this.moving = result.moved > 0;
+    // Um sorteio de evento por tile inteiro percorrido.
+    this.tileProgress += result.moved;
+    while (this.tileProgress >= 1) {
+      this.tileProgress -= 1;
+      this.opts.onTile?.(tileAt(this.map, this.avatar.x, this.avatar.y));
+    }
     if (result.blockedBy && this.timeS - this.lastHintS >= HINT_THROTTLE_S) {
       this.lastHintS = this.timeS;
       this.opts.onHint?.(blockedHint(result.blockedBy, vehicle));
@@ -245,5 +268,35 @@ export class OverworldEngine implements Simulation {
       moving: this.moving,
     });
     ctx.restore();
+    if (this.opts.rain?.()) drawRain(ctx, width, height, dpr, this.timeS);
   }
+}
+
+const RAIN_DROPS = 140;
+const RAIN_SEED = 0x7a1e;
+
+/** Chuva em coordenadas de tela: riscos inclinados e determinísticos pelo tempo. */
+export function drawRain(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  dpr: number,
+  timeS: number,
+): void {
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = 'rgba(186, 230, 253, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < RAIN_DROPS; i++) {
+    const speed = 520 + hash2(i, 2, RAIN_SEED) * 320;
+    const x = hash2(i, 0, RAIN_SEED) * width;
+    const y = (hash2(i, 1, RAIN_SEED) * height + timeS * speed) % height;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - 3, y + 12);
+  }
+  ctx.stroke();
+  ctx.restore();
 }

@@ -57,4 +57,12 @@ export const createInventorySlice: StateCreator<
         emblem: { ...emblem, initials: emblem.initials.toUpperCase().slice(0, 4) },
       },
     })),
+
+  addCorn: (amount) =>
+    set((s) => ({
+      inventory: {
+        ...s.inventory,
+        corn: { ...s.inventory.corn, stock: Math.max(0, s.inventory.corn.stock + amount) },
+      },
+    })),
 });
