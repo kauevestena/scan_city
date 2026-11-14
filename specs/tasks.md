@@ -344,14 +344,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [domain-math §6, §8](design/domain-math.md)
 - **Arquivos:** \+ `src/domain/accuracy.ts`, `src/domain/standards.ts` + testes
 - **Aceite:**
-  - [ ] G18 e G25 passam.
-  - [ ] Cada linha da tabela de multiplicadores (§6.3) tem um teste.
-  - [ ] `generateResiduals` reproduz exatamente o RMSE-alvo dos CPs (1e-9) e é determinístico por seed.
-  - [ ] Sem CPs, usa GCP × 1,8.
-  - [ ] `classifyPec` retorna 'FORA' quando nenhuma classe passa.
-  - [ ] A regra dos 90 % ≤ PEC é testada com 1 ponto fora em 10.
+  - [x] G18 e G25 passam.
+  - [x] Cada linha da tabela de multiplicadores (§6.3) tem um teste.
+  - [x] `generateResiduals` reproduz exatamente o RMSE-alvo dos CPs (1e-9) e é determinístico por seed.
+  - [x] Sem CPs, usa GCP × 1,8.
+  - [x] `classifyPec` retorna 'FORA' quando nenhuma classe passa.
+  - [x] A regra dos 90 % ≤ PEC é testada com 1 ponto fora em 10.
 - **Verificação:** `npx vitest run src/domain/accuracy src/domain/standards`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `classifyPec(residuals, M, Eq?, requiredClass = 'A')` recebe a classe exigida para preencher o `PecResult`: `epM`, `pecM` e `pct90` se referem a ela, e `pass` diz se a classe atingida é igual ou melhor.
+  - `accuracyMultipliers` lista só os multiplicadores diferentes de 1, com o rótulo pt-BR de `STRINGS.accuracy.multipliers`.
+  - `requirementAccuracy(residuals)` centraliza a regra "sem CPs, GCP × 1,8 e não verificável".
+- **Status:** ✅
 
 ### T017 — Terreno procedural (framework + bioma do tutorial) e acessibilidade
 - **Fase:** F1 · **Depende de:** T016 · **REQs:** REQ-CORE-006, REQ-FLD-001 (*parc.*), REQ-FLD-003 (*parc.*)

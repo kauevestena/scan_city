@@ -34,6 +34,30 @@ export const STRINGS = {
     windAboveTolerance: (windMs: string, toleranceMs: string) =>
       `Vento de até ${windMs} m/s acima da tolerância da aeronave (${toleranceMs} m/s)`,
   },
+  accuracy: {
+    multipliers: {
+      gcpCount: 'Poucos GCPs',
+      gcpGeometry: 'Geometria dos GCPs',
+      rollingShutter: 'Rolling shutter',
+      rollingShutterNoRtk: 'Rolling shutter sem RTK',
+      lighting: {
+        GOLDEN_HOUR: 'Sombras longas (hora dourada)',
+        BLIZZARD: 'Nevasca',
+        MAGIC_FOG: 'Névoa',
+      },
+      texture: 'Textura homogênea',
+      specular: 'Reflexo especular na água',
+      overlap: 'Poucas fotos por célula',
+      holes: 'Buracos na cobertura',
+      blur: 'Fotos borradas',
+      em: 'Interferência eletromagnética',
+      camera: 'Qualidade da câmera',
+      cameraCalibrated: 'Câmera do Atlas (calibrada)',
+      imu: 'Calibração da IMU',
+      skills: 'Habilidades de engenharia',
+    },
+    notVerifiable: 'Acurácia não verificável — estimativa conservadora (GCP × 1,8)',
+  },
   pause: {
     title: 'Jogo pausado',
     resume: 'Continuar',
