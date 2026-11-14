@@ -263,13 +263,13 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Arquivos:** \+ `src/domain/photogrammetry.ts` + teste
 - **Passos:** escrever primeiro os testes G1–G7, G10, G11 e G13. Depois, implementar todas as funções de §1 e §2.
 - **Aceite:**
-  - [ ] Golden values G1–G7, G10, G11 e G13 passam.
-  - [ ] Propriedade: `gsd` é linear em H (teste com 3 alturas).
-  - [ ] `blurClass` nos limites 0,5 e 1,0.
-  - [ ] `obliqueFootprint` limita θ + α/2 a 85°.
-  - [ ] Cobertura ≥ 95 %.
+  - [x] Golden values G1–G7, G10, G11 e G13 passam.
+  - [x] Propriedade: `gsd` é linear em H (teste com 3 alturas).
+  - [x] `blurClass` nos limites 0,5 e 1,0.
+  - [x] `obliqueFootprint` limita θ + α/2 a 85°.
+  - [x] Cobertura ≥ 95 %.
 - **Verificação:** `npx vitest run src/domain/photogrammetry --coverage`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T012 — LiDAR e estereoscopia
 - **Fase:** F1 · **Depende de:** T011 · **REQs:** REQ-FLT-009 (*parc.*), REQ-LAB-002 (*parc.*), REQ-LAB-003 (*parc.*)
