@@ -63,7 +63,7 @@ function clickMap(u: number, v: number) {
 const tab = (name: RegExp) => fireEvent.click(screen.getByRole('tab', { name }));
 
 describe('FieldSetupScreen', () => {
-  it('cabeçalho com o contrato e as abas 1, 2 e 4 (a 3 entra com os mini-games)', () => {
+  it('cabeçalho com o contrato e as quatro abas', () => {
     render(<FieldSetupScreen />);
     expect(screen.getByTestId('field-contract')).toHaveTextContent('Sítio do Avô');
     const tabs = within(
@@ -72,6 +72,7 @@ describe('FieldSetupScreen', () => {
     expect(tabs.map((t) => t.textContent)).toEqual([
       '1 · Pontos de apoio',
       '2 · Plano de voo',
+      '3 · Calibração',
       '4 · Checklist',
     ]);
   });

@@ -133,6 +133,8 @@ export interface MissionActions {
   /** Troca os parâmetros do plano da missão ativa e recalcula o plano. */
   updatePlan: (params: PlanParams, options?: PlanOptions) => void;
   setGroundPoints: (points: GroundPoint[]) => void;
+  /** Resultado de um mini-game de campo; vale a melhor pontuação da missão (field-setup §5.4). */
+  recordMinigame: (kind: 'level' | 'imu', score: number) => void;
   /**
    * Decolagem (field-setup §5.5): σ dos pontos, `IN_FLIGHT` e, com Atlas, um voo da
    * calibração da câmera. Devolve a missão, ou `null` sem missão ativa.

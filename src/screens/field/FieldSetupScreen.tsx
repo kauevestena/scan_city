@@ -7,6 +7,7 @@ import { useInputContext } from '@/input/useInputContext';
 import { useGameStore } from '@/state/store';
 import type { MissionData } from '@/types';
 import { Button, ConfirmDialog, Tabs, type TabDef } from '@/ui';
+import { CalibrationTab } from './CalibrationTab';
 import { ChecklistTab } from './ChecklistTab';
 import { movePoint, placePoint, removePoint, type PointTool } from './fieldModel';
 import { FlightPlanTab } from './FlightPlanTab';
@@ -17,9 +18,8 @@ import { TutorialHint } from '../common/TutorialHint';
 
 const F = STRINGS.field;
 
-/** A aba 3 (Calibração) entra em T037, com os mini-games. */
-export type FieldTab = 'POINTS' | 'PLAN' | 'CHECKLIST';
-const TAB_ORDER: readonly FieldTab[] = ['POINTS', 'PLAN', 'CHECKLIST'];
+export type FieldTab = 'POINTS' | 'PLAN' | 'CALIBRATION' | 'CHECKLIST';
+const TAB_ORDER: readonly FieldTab[] = ['POINTS', 'PLAN', 'CALIBRATION', 'CHECKLIST'];
 const TABS: ReadonlyArray<TabDef<FieldTab>> = TAB_ORDER.map((id) => ({ id, label: F.tabs[id] }));
 
 const TOOL_KEYS: Readonly<Record<string, PointTool>> = { KeyG: 'GCP', KeyC: 'CP', KeyX: 'ERASER' };
@@ -165,6 +165,7 @@ function FieldSetup({ mission }: { mission: MissionData }) {
         >
           {tab === 'POINTS' && <GroundPointsTab field={field} tool={tool} onTool={setTool} />}
           {tab === 'PLAN' && <FlightPlanTab field={field} />}
+          {tab === 'CALIBRATION' && <CalibrationTab field={field} />}
           {tab === 'CHECKLIST' && <ChecklistTab field={field} onTakeoff={takeoff} />}
         </aside>
       </div>

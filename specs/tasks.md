@@ -819,12 +819,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [field-setup §5.4](features/field-setup.md)
 - **Arquivos:** \+ `src/engines/field/minigames/bubble.ts`, `src/domain/minigameScoring.ts`, `src/screens/field/CalibrationTab.tsx` + testes
 - **Aceite:**
-  - [ ] `scoreBubble` é puro e testado.
-  - [ ] O critério 5 de [field-setup §8](features/field-setup.md), com input simulado.
-  - [ ] `levelScore` alimenta o σ dos GCPs e é visível no texto.
-  - [ ] A aba 3 aparece no wizard.
+  - [x] `scoreBubble` é puro e testado.
+  - [x] O critério 5 de [field-setup §8](features/field-setup.md), com input simulado.
+  - [x] `levelScore` alimenta o σ dos GCPs e é visível no texto.
+  - [x] A aba 3 aparece no wizard.
 - **Verificação:** `npx vitest run src/domain/minigameScoring src/engines/field`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `scoreBubble(samples)` recebe `{ d, dtS }[]` (distância e passo de cada amostra), para não depender do tamanho do sub-passo. Se as amostras cobrem menos de 8 s, é o caso do nível travado: extrapola a média e aplica o piso de 0,9.
+  - `BubbleSim` (`engines/field/minigames/bubble.ts`) segue a física da spec: deriva por `valueNoise2D` (120 px/s², varia no tempo), chutes de 250 px/s² a cada 1,5–3 s, arrasto 2,5, entrada de 400 px/s² e raio máximo de 150 px. A spec não dá a duração do chute: usei 0,2 s. O estado inicial é a 40 px do centro, em direção sorteada. A seed é `hash(missionId) + tentativa`, então repetir o jogo muda a cena.
+  - Entrada: WASD ou analógico (eixos `MOVE` do contexto `FIELD`) ou arrastar com o mouse, que puxa a bolha para o ponteiro com ganho cheio a partir de 60 px.
+  - Critério 5 testado com um controlador PD como jogador simulado (5 seeds, todos ≥ 0,9). Sem entrada, a média de 10 seeds fica abaixo de 0,5; uma seed ou outra, por sorte, trava sozinha.
+  - `recordMinigame('level' | 'imu', score)` guarda a melhor pontuação da missão. O σ dos GCPs sai de `gcpSigma` com o `levelScore` (já usado em `launchMission` e nas previsões) e aparece no texto da aba: "Precisão do apoio: σ = X cm", mais "Base RTK nivelada: FIX mais estável" com kit RTK e aeronave RTK.
+  - A aba 3 mostra só o nivelamento por enquanto; a lemniscata (IMU) entra na T038.
+- **Status:** ✅
 
 ### T038 — Mini-game de calibração da IMU (lemniscata)
 - **Fase:** F4 · **Depende de:** T037 · **REQs:** REQ-FLD-011
@@ -1286,7 +1293,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-007 | Estatísticas ao vivo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md) | T011, T023 | ✅ |
 | REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
-| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ☐ |
+| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ✅ |
 | REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ☐ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |

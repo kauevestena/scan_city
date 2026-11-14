@@ -108,6 +108,21 @@ export const createMissionSlice: StateCreator<
         : s,
     ),
 
+  recordMinigame: (kind, score) =>
+    set((s) => {
+      const active = s.mission.active;
+      if (!active) return s;
+      const key = kind === 'level' ? 'levelScore' : 'imuScore';
+      const clamped = Math.max(0, Math.min(1, score));
+      const best = Math.max(active.minigames[key] ?? 0, clamped);
+      return {
+        mission: {
+          ...s.mission,
+          active: { ...active, minigames: { ...active.minigames, [key]: best } },
+        },
+      };
+    }),
+
   launchMission: () => {
     const { mission, inventory } = get();
     const active = mission.active;

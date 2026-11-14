@@ -153,7 +153,29 @@ export const STRINGS = {
   },
   field: {
     title: 'Planejamento de campo',
-    tabs: { POINTS: '1 · Pontos de apoio', PLAN: '2 · Plano de voo', CHECKLIST: '4 · Checklist' },
+    tabs: {
+      POINTS: '1 · Pontos de apoio',
+      PLAN: '2 · Plano de voo',
+      CALIBRATION: '3 · Calibração',
+      CHECKLIST: '4 · Checklist',
+    },
+    calibration: {
+      intro:
+        'Os dois mini-games são opcionais e podem ser repetidos: vale a melhor pontuação desta missão.',
+      levelTitle: 'Nivelar o instrumento',
+      levelHelp:
+        'Mantenha a bolha no alvo por 8 s (WASD, analógico ou arrastando com o mouse). Três segundos seguidos no alvo travam o nível.',
+      levelStart: 'Nivelar instrumento',
+      levelRetry: 'Nivelar de novo',
+      levelCanvas: 'Nível de bolha circular',
+      levelHold: (s: string) => `No alvo: ${s} s`,
+      levelLocked: 'Nível travado!',
+      levelDone: 'Tempo esgotado.',
+      levelScore: (pct: string) => `Nivelamento: ${pct} %`,
+      levelDefault: 'Sem nivelar: vale o padrão de 50 %.',
+      sigma: (cm: string) => `Precisão do apoio: σ = ${cm} cm`,
+      rtkLevel: 'Base RTK nivelada: FIX mais estável',
+    },
     cancel: 'Cancelar',
     cancelTitle: 'Abandonar o planejamento?',
     cancelMessage: 'Os pontos e o plano desta missão serão descartados.',
