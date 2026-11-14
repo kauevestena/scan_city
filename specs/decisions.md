@@ -135,3 +135,16 @@
   - o script `verify` só passa a incluir `check:terms` em T059, quando o script é criado (como já diz o [README §3](README.md)).
 - **Consequências:** atualizar o TypeScript ou o Playwright exige revisar esta ADR. Nenhuma dependência de runtime além das quatro permitidas.
 - **Status:** Aceita · 2026-11-14
+
+### ADR-022 — Precedência do `detectFamily` e camadas de input
+- **Contexto:** em T008, dois pontos do [input](design/input.md) precisaram de ajuste ou detalhe:
+  - a regra de `detectFamily` testava a PlayStation primeiro, com o termo "wireless controller". O id do Xbox no Chrome ("Xbox Wireless Controller (… 045e …)"), que é um dos casos de teste exigidos em input §6, seria classificado como PlayStation;
+  - a spec não dizia como a UI (eventos) e os engines (estado por frame) dividem o input, nem como o `Esc` convive entre "voltar" e "pausar".
+- **Decisão:**
+  - `detectFamily` testa a família Xbox antes da PlayStation;
+  - teclado na UI por eventos imediatos, gamepad por `poll`; `poll(timeMs)` ignora a segunda chamada no mesmo frame;
+  - pilha de camadas (modais acima), `Esc` = voltar ou, se não houver para onde voltar, pausar;
+  - `UI_CONFIRM` do teclado fica com a ativação nativa dos botões.
+  - Os detalhes estão em input §3.1 e §3.2.
+- **Consequências:** os 6 IDs reais de controles são classificados corretamente. O mesmo `Esc` fecha modais e pausa a partir das telas. Enter não ativa um botão duas vezes.
+- **Status:** Aceita · 2026-11-14

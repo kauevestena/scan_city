@@ -1,6 +1,7 @@
 import { LoaderCircle, type LucideIcon } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import type { ButtonAction } from '@/input/actions';
+import { InputGlyph } from '@/input/InputGlyph';
 import { cx, FOCUS_RING } from './classes';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'rift';
@@ -69,6 +70,12 @@ export function Button({
         Icon && <Icon size={s.icon} strokeWidth={1.75} aria-hidden />
       )}
       {children}
+      {glyph && (
+        // Dica visual; o nome acessível do botão é só o rótulo.
+        <span aria-hidden className="ml-1 inline-flex">
+          <InputGlyph action={glyph} />
+        </span>
+      )}
     </button>
   );
 }

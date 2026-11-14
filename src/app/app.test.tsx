@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from '@/App';
+import { InputManager } from '@/input/InputManager';
+import { Button, Modal } from '@/ui';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { resetDebugFlagsCache } from './debugFlags';
@@ -76,6 +78,41 @@ describe('App + ScreenRouter', () => {
   });
 });
 
+describe('InputDriver', () => {
+  it('avisa conexão de controle, mapeamento não padrão e desconexão', () => {
+    open('/');
+    const pad = { id: '054c-0ce6-Wireless Controller', index: 0, mapping: '' };
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('gamepadconnected'), { gamepad: pad }));
+    });
+    expect(get().session.toasts.map((t) => t.title)).toEqual([
+      'Controle conectado: PlayStation',
+      'Controle com mapeamento não padrão — botões podem variar',
+    ]);
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('gamepaddisconnected'), { gamepad: pad }));
+    });
+    expect(get().session.toasts.at(-1)?.title).toBe('Controle desconectado: PlayStation');
+  });
+
+  it('marca o dispositivo ativo na raiz, para o anel de foco do gamepad', () => {
+    open('/');
+    expect(document.documentElement.dataset.inputDevice).toBe('KEYBOARD');
+    const pad = {
+      id: 'Xbox Wireless Controller',
+      index: 0,
+      connected: true,
+      mapping: 'standard',
+      axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === 0, value: i === 0 ? 1 : 0 })),
+    };
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [pad], configurable: true });
+    act(() => InputManager.get().poll(5));
+    expect(document.documentElement.dataset.inputDevice).toBe('GAMEPAD');
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true });
+  });
+});
+
 describe('PauseOverlay', () => {
   it('Esc abre a pausa e congela session.paused; Continuar retoma', () => {
     open('/');
@@ -113,13 +150,43 @@ describe('PauseOverlay', () => {
     input.remove();
   });
 
-  it('não abre a pausa por cima de outro modal', () => {
+  it('não abre a pausa por cima de outro modal; Esc fecha o modal em vez de pausar', () => {
     open('/');
-    const other = document.createElement('div');
-    other.setAttribute('role', 'dialog');
-    document.body.appendChild(other);
-    fireEvent.keyDown(window, { key: 'Escape' });
+    const other = render(
+      <Modal open title="Briefing" onClose={() => other.unmount()}>
+        <Button>Aceitar</Button>
+      </Modal>,
+    );
+    fireEvent.keyDown(window, { key: 'm' });
     expect(get().session.paused).toBe(false);
-    other.remove();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Briefing' })).not.toBeInTheDocument();
+    expect(get().session.paused).toBe(false);
+    // Sem modal, o mesmo Esc pausa.
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(get().session.paused).toBe(true);
+  });
+
+  it('o botão Menu/Options do controle alterna a pausa', () => {
+    open('/');
+    const pad = {
+      id: 'Xbox Wireless Controller',
+      index: 0,
+      connected: true,
+      mapping: 'standard',
+      axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
+    };
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [pad], configurable: true });
+    const press = (t: number, down: boolean) => {
+      pad.buttons[9] = { pressed: down, value: down ? 1 : 0 };
+      act(() => InputManager.get().poll(t));
+    };
+    press(1, true);
+    expect(get().session.paused).toBe(true);
+    press(2, false);
+    press(3, true);
+    expect(get().session.paused).toBe(false);
+    Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true });
   });
 });

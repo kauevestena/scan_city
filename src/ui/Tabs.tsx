@@ -42,6 +42,8 @@ export function Tabs<T extends string = string>({
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
+    // As setas trocam de aba aqui; não devem mover o foco pela navegação espacial.
+    e.stopPropagation();
     const next = nextEnabledTab(tabs, value, e.key === 'ArrowRight' ? 1 : -1);
     if (next !== value) onChange(next);
   };

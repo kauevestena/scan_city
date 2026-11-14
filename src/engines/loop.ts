@@ -13,8 +13,8 @@ export interface GameLoopOptions {
   stepS?: number;
   /** Fator de aceleração do tempo (TIME_WARP). Padrão: 1. */
   timeScale?: () => number;
-  /** Chamado no início de cada frame, antes dos sub-passos (ex.: `InputManager.poll`). */
-  beforeFrame?: () => void;
+  /** Chamado no início de cada frame, com o tempo do rAF, antes dos sub-passos (ex.: `InputManager.poll`). */
+  beforeFrame?: (timeMs: number) => void;
   /** `requestAnimationFrame`/`cancelAnimationFrame` injetáveis para testes. */
   raf?: (cb: (timeMs: number) => void) => number;
   caf?: (handle: number) => void;
@@ -60,7 +60,7 @@ export class GameLoop {
   private readonly maxDtS: number;
   private readonly stepS: number;
   private readonly timeScale: () => number;
-  private readonly beforeFrame: (() => void) | undefined;
+  private readonly beforeFrame: ((timeMs: number) => void) | undefined;
   private readonly raf: (cb: (timeMs: number) => void) => number;
   private readonly caf: (handle: number) => void;
   private readonly meter = new FpsMeter();
@@ -114,7 +114,7 @@ export class GameLoop {
     this.lastTimeMs = timeMs;
     this.meter.tick(timeMs);
 
-    this.beforeFrame?.();
+    this.beforeFrame?.(timeMs);
 
     if (!this.paused) {
       const dtS = Math.min(Math.max(elapsedS, 0), this.maxDtS);

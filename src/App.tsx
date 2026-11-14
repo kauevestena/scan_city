@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { applyDebugFlags } from '@/app/debugFixtures';
 import { getDebugFlags } from '@/app/debugFlags';
 import { FpsOverlay } from '@/app/FpsOverlay';
+import { InputDriver } from '@/app/InputDriver';
 import { PauseOverlay } from '@/app/PauseOverlay';
 import { ScreenRouter } from '@/app/ScreenRouter';
 import { UiKitGallery } from '@/app/UiKitGallery';
@@ -30,6 +31,7 @@ export function App() {
           <PauseOverlay />
         </>
       )}
+      <InputDriver />
       <FpsOverlay />
       <ToastHost />
     </div>

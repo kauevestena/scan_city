@@ -209,11 +209,12 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   5. `useFocusNavigation`, com navegação espacial e repetição.
   6. Ligar o `PAUSE` global.
 - **Aceite:**
-  - [ ] Testes do [input §6](design/input.md), 6 casos.
-  - [ ] Na galeria, o glyph troca ao apertar uma tecla ou um botão de controle real (verificação manual com controle, se disponível).
-  - [ ] Os modais navegam com as setas e fecham com Esc.
+  - [x] Testes do [input §6](design/input.md), 6 casos.
+  - [x] Na galeria, o glyph troca ao apertar uma tecla ou um botão de controle real (verificação manual com controle, se disponível).
+  - [x] Os modais navegam com as setas e fecham com Esc.
 - **Verificação:** `npx vitest run src/input` · manual: `/?debug=1&screen=UIKIT`.
-- **Status:** ☐
+- **Notas de implementação:** a verificação manual com um controle físico não foi possível no ambiente de desenvolvimento. O gamepad foi coberto por testes com `navigator.getGamepads` mockado (Xbox e DualSense, botões, eixos, gatilhos, repetição), e o teclado, por E2E no Chromium. A troca de glyph com controle real fica para a auditoria de T078. Decisões em ADR-022.
+- **Status:** ✅
 
 ### T009 — Áudio procedural
 - **Fase:** F0 · **Depende de:** T008 · **REQs:** REQ-AUD-001, REQ-AUD-002, REQ-AUD-003 (*parc.*: API)
@@ -1084,11 +1085,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ✅ |
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
-| REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ☐ |
-| REQ-INP-002 | Detecção de gamepad | [input](design/input.md) | T008 | ☐ |
-| REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008 | ☐ |
-| REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008 | ☐ |
-| REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ☐ |
+| REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
+| REQ-INP-002 | Detecção de gamepad | [input](design/input.md) | T008 | ✅ |
+| REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
+| REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008 | ✅ |
+| REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ☐ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ☐ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |

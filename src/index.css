@@ -4,6 +4,9 @@
  * Tokens visuais (ui-style §1). Os valores fixam as entradas da paleta Tailwind
  * usadas como tokens, para que DOM e Canvas (src/ui/tokens.ts) usem o mesmo hex.
  */
+/* Foco visível também no foco programático do gamepad (ver src/ui/classes.ts). */
+@custom-variant pad (&:where([data-input-device='GAMEPAD'] *));
+
 @theme {
   --color-slate-950: #020617; /* bg-base */
   --color-slate-900: #0f172a; /* bg-panel */

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type DependencyList, type RefObject } from 'react';
+import { InputManager } from '@/input/InputManager';
 import { useGameStore } from '@/state/store';
 import { GameLoop, type GameLoopOptions, type Simulation } from './loop';
 
@@ -22,7 +23,11 @@ export function useGameLoop(
   useEffect(() => {
     const sim = simFactory();
     if (!sim) return;
-    const loop = new GameLoop(sim, optionsRef.current);
+    // Ordem por frame (architecture §4): input → sub-passos → render.
+    const loop = new GameLoop(sim, {
+      beforeFrame: (timeMs) => InputManager.get().poll(timeMs),
+      ...optionsRef.current,
+    });
     loopRef.current = loop;
     loop.setPaused(useGameStore.getState().session.paused);
     const unsubscribe = useGameStore.subscribe((state, prev) => {

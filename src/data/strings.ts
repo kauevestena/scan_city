@@ -25,6 +25,19 @@ export const STRINGS = {
     title: 'Jogo pausado',
     resume: 'Continuar',
   },
+  input: {
+    padConnected: (family: string) => `Controle conectado: ${family}`,
+    padDisconnected: (family: string) => `Controle desconectado: ${family}`,
+    nonStandardMapping: 'Controle com mapeamento não padrão — botões podem variar',
+    families: { XBOX: 'Xbox', PLAYSTATION: 'PlayStation', GENERIC: 'Genérico' },
+    devices: { AUTO: 'Automático', KEYBOARD: 'Teclado', XBOX: 'Xbox', PLAYSTATION: 'PlayStation' },
+    keys: {
+      space: 'Espaço',
+      arrows: 'Setas',
+      wheel: 'Roda',
+      drag: 'Arrastar',
+    },
+  },
   ui: {
     close: 'Fechar',
     cancel: 'Cancelar',

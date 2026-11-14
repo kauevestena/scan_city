@@ -4,8 +4,12 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
 }
 
 /** Foco visível padrão (input §5). */
+/**
+ * Foco visível padrão (input §5). Com o gamepad ativo (`data-input-device="GAMEPAD"` na
+ * raiz), o foco programático também mostra o anel, já que `:focus-visible` não o cobre.
+ */
 export const FOCUS_RING =
-  'outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+  'outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 pad:focus:ring-2 pad:focus:ring-cyan-400 pad:focus:ring-offset-2 pad:focus:ring-offset-slate-950';
 
 export type StatusTone = 'ok' | 'warn' | 'danger' | 'neutral';
 

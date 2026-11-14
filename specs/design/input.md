@@ -88,14 +88,25 @@ class InputManager {
 - **Dispositivo ativo:** muda para o último dispositivo que gerou input significativo, ou seja, tecla, clique, movimento do mouse > 4 px, botão, ou eixo > 0,5.
 - **Perda de foco** (`blur`): limpa todas as teclas pressionadas.
 - **Repetição de navegação de UI:** D-pad ou analógico mantido gera `UI_*` a cada 180 ms, depois de um atraso inicial de 350 ms.
-- **`preventDefault`** nas teclas do jogo (setas, espaço, Tab) quando o foco não estiver num `<input>`.
+- **`preventDefault`** nas teclas do jogo (setas, espaço, Tab) quando o foco não estiver num `<input>`. Enter e Espaço sobre um botão ou link focado ficam com a ativação nativa do navegador.
+- **Um `poll()` por frame:** o driver de input do `App` e os `GameLoop`s chamam `poll(timeMs)` com o tempo do rAF; a segunda chamada no mesmo frame é ignorada, para que as bordas (`pressed`/`released`) não se percam (ADR-022).
+
+### 3.2 Camadas de UI e ações discretas (ADR-022)
+- A tela define o **contexto base** (`setContext`, via `useInputContext`). Painéis e modais empilham **camadas** (`pushLayer`, via `useFocusNavigation`); o contexto efetivo é o da camada do topo. Camadas **modais** ficam sempre acima das demais.
+- A UI recebe **ações discretas** (`ActionEvent`): as do teclado, na hora do `keydown`; as do gamepad, no `poll`. Só a camada do topo recebe; o que ela não tratar vai aos ouvintes globais (`onAction`). `PAUSE` vai sempre aos ouvintes globais.
+- **`Esc` = voltar ou pausar:** nos contextos com `UI_BACK`, o `Esc` é `UI_BACK`; se a camada do topo não tiver para onde voltar, vira `PAUSE`. Nos contextos sem `UI_BACK` (voo, mapa), o `Esc` é `PAUSE` direto. O `B`/`○` do controle é só `UI_BACK` (ou `RTH` no voo); a pausa no controle é sempre `Menu`/`Options`.
+- A pausa não abre por cima de um modal (há uma camada modal ativa); com o jogo pausado, `PAUSE` retoma.
+- **`UI_CONFIRM` do teclado** não chama `click()`: Enter/Espaço já ativam o botão focado nativamente. O do gamepad clica no elemento focado.
+- **Foco do gamepad:** o `InputDriver` marca `data-input-device="GAMEPAD"` na raiz, e o anel de foco aparece também no foco programático (variante `pad:` do Tailwind), que o `:focus-visible` não cobre.
 
 ### 3.1 Detecção da família do controle (`gamepad.ts`)
 ```ts
 detectFamily(id: string): 'XBOX' | 'PLAYSTATION' | 'GENERIC'
-// minúsculas; contém '054c' | 'dualsense' | 'dualshock' | 'wireless controller' | 'playstation' → PLAYSTATION
-// contém '045e' | 'xbox' | 'xinput' → XBOX ; senão GENERIC (usa glyphs Xbox)
+// minúsculas; contém '045e' | 'xbox' | 'xinput' → XBOX  (testado primeiro, ver ADR-022)
+// contém '054c' | 'dualsense' | 'dualshock' | 'wireless controller' | 'playstation' → PLAYSTATION
+// senão GENERIC (usa glyphs Xbox)
 ```
+- A ordem importa: o id do controle Xbox no Chrome ("Xbox **Wireless Controller** …") contém o termo que identifica o DualShock 4 ("Wireless Controller").
 - Se `gamepad.mapping !== 'standard'`, o sistema exibe o toast "Controle com mapeamento não padrão — botões podem variar" e usa os mesmos índices.
 
 ---

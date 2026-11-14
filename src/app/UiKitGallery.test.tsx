@@ -17,13 +17,14 @@ const KIT = [
   'ProgressBar',
   'ChecklistItem',
   'Tooltip',
+  'InputGlyph',
   'EmblemBadge',
   'MoneyText',
   'DialogueBox',
 ];
 
 describe('UiKitGallery', () => {
-  it('renderiza os 16 componentes do kit', () => {
+  it('renderiza os 17 componentes do kit', () => {
     const { container } = render(<UiKitGallery />);
     const sections = Array.from(container.querySelectorAll('[data-kit-component]')).map((el) =>
       el.getAttribute('data-kit-component'),
@@ -52,6 +53,11 @@ describe('UiKitGallery', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Plano de voo' }));
     expect(screen.getByText('Aba ativa: plan')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'PlayStation' }));
+    expect(screen.getByTestId('glyph-grid')).toHaveTextContent('✕');
+    fireEvent.click(screen.getByRole('tab', { name: 'Teclado' }));
+    expect(screen.getByTestId('glyph-grid')).toHaveTextContent('WASD');
 
     fireEvent.keyDown(screen.getByRole('slider', { name: 'Altura de voo' }), { key: 'ArrowRight' });
     expect(screen.getByRole('slider', { name: 'Altura de voo' })).toHaveAttribute(
