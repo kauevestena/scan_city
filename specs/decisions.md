@@ -125,3 +125,13 @@
 - **Contexto:** os voos de referência duram de 4 a 13 min a ×1, o que fica longo para o ritmo arcade.
 - **Decisão:** `TIME_WARP` de ×2 e ×4 nas retas, com volta automática a ×1 diante de riscos.
 - **Status:** Aceita · 2026-11-13
+
+### ADR-021 — Versões fixadas do ferramental
+- **Contexto:** a constitution pede "Vite (última estável)" e React 18+. No bootstrap (T001), as últimas versões estáveis eram Vite 8, React 19, Tailwind 4, Vitest 5, ESLint 10 e TypeScript 7. O `typescript-eslint` 8 só aceita TypeScript `< 6.1`, e os navegadores do Playwright disponíveis no ambiente de desenvolvimento correspondem à versão 1.63.0.
+- **Decisão:**
+  - TypeScript fixado em `~6.0` até o `typescript-eslint` suportar a linha 7;
+  - `@playwright/test` fixado em `1.63.0` (sem `^`), para casar com o Chromium instalado;
+  - `@eslint/js` entra como devDependency, por ser a fonte de `eslint.configs.recommended` no flat config;
+  - o script `verify` só passa a incluir `check:terms` em T059, quando o script é criado (como já diz o [README §3](README.md)).
+- **Consequências:** atualizar o TypeScript ou o Playwright exige revisar esta ADR. Nenhuma dependência de runtime além das quatro permitidas.
+- **Status:** Aceita · 2026-11-14

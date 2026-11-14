@@ -63,12 +63,12 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   6. Criar o `App` com uma tela de boot real: título "Scan City", versão de `package.json` e fundo `slate-950`.
   7. Escrever `check-placeholders.mjs` (grep de `TODO|FIXME|XXX` em `src/`, sai com código 1 se encontrar) e `check-assets.mjs` (lista `dist/`, falha em extensões proibidas).
 - **Aceite:**
-  - [ ] `npm run dev` abre a página com o título.
-  - [ ] `npm run verify` passa (com um teste trivial de `App`).
-  - [ ] `npm run e2e` passa com `boot.spec.ts` (o título está visível).
-  - [ ] `npm run check:assets` passa após o build.
+  - [x] `npm run dev` abre a página com o título.
+  - [x] `npm run verify` passa (com um teste trivial de `App`).
+  - [x] `npm run e2e` passa com `boot.spec.ts` (o título está visível).
+  - [x] `npm run check:assets` passa após o build.
 - **Verificação:** `npm run verify && npm run e2e && npm run check:assets`
-- **Status:** ☐
+- **Status:** ✅
 
 ### T002 — Bibliotecas base (`lib/`)
 - **Fase:** F0 · **Depende de:** T001 · **REQs:** REQ-CORE-006 (*parc.*), REQ-NFR-008
