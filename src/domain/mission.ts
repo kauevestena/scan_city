@@ -454,7 +454,7 @@ export function evaluateMission(
   const penaltiesBRL = Math.round(
     (mission.events.crashes * aircraft.priceBRL * aircraft.repairCostPct) / 100,
   );
-  const payment = ctx.deps.computePayment({
+  const basePayment = ctx.deps.computePayment({
     baseBRL: contract.basePaymentBRL,
     isReplay: mission.isReplay,
     qualityFactor: qualityFactor(score, critical, requirements, betterClass),
@@ -463,6 +463,14 @@ export function evaluateMission(
     staff: ctx.staff,
     penaltiesBRL,
   });
+  // Bônus de anéis (R$ 50 cada), só em contratos com `COLLECTIBLE_RINGS`.
+  const ringBonusBRL = rules.includes('COLLECTIBLE_RINGS')
+    ? mission.events.ringsCollected * 5000
+    : 0;
+  const payment =
+    ringBonusBRL > 0
+      ? { ...basePayment, ringBonusBRL, totalBRL: basePayment.totalBRL + ringBonusBRL }
+      : basePayment;
   const rewards = ctx.deps.computeRewards({
     xp: contract.xp,
     reputationReward: contract.reputationReward,

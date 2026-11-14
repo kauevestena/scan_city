@@ -93,6 +93,10 @@ export interface FlightHudSnapshot {
   lidarDensity?: number;
   groundDensity?: number;
   alerts: FlightAlert[];
+  /** Tempo seguido num cone de holofote, de 0 a 1 do limite. */
+  detectedProgress?: number;
+  /** Anéis coletados (regra `COLLECTIBLE_RINGS`). */
+  rings?: number;
   minimap: {
     lines: Array<[AoiPoint, AoiPoint]>;
     shots: AoiPoint[];

@@ -24,6 +24,7 @@ export function paymentRows(p: QualityReport['payment']): Array<[string, string]
   if (p.staffBonus !== 1) rows.push([R.staff, factor(p.staffBonus)]);
   if (p.staffCostBRL > 0) rows.push([R.staffCost, `− ${formatBRL(p.staffCostBRL)}`]);
   if (p.penaltiesBRL > 0) rows.push([R.penalties, `− ${formatBRL(p.penaltiesBRL)}`]);
+  if (p.ringBonusBRL) rows.push([R.rings, `+ ${formatBRL(p.ringBonusBRL)}`]);
   return rows;
 }
 

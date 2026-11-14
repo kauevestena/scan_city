@@ -61,6 +61,20 @@ function context(over: Partial<MissionContext> = {}): MissionContext {
 
 beforeEach(() => clearTerrainCache());
 
+describe('bônus de anéis (COLLECTIBLE_RINGS)', () => {
+  it('R$ 50 por anel coletado, somados ao total, só com a regra', () => {
+    const ctx = context();
+    const base = syntheticMission(C00, ctx.terrain);
+    const withRings = { ...base, events: { ...base.events, ringsCollected: 4 } };
+    const plain = evaluateMission(withRings, C00, ctx);
+    expect(plain.payment.ringBonusBRL).toBeUndefined();
+    const contract = { ...C00, specialRules: ['COLLECTIBLE_RINGS' as const] };
+    const rings = evaluateMission(withRings, contract, context());
+    expect(rings.payment.ringBonusBRL).toBe(20_000);
+    expect(rings.payment.totalBRL).toBe(plain.payment.totalBRL + 20_000);
+  });
+});
+
 describe('cenário golden — missão sintética do C00', () => {
   const run = (
     mission?: MissionData,

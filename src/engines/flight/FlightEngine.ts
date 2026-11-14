@@ -6,6 +6,7 @@
 import type { Catalog } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { drainPerSecond, rthRequired } from '@/domain/energy';
+import { capturedFeatures } from '@/domain/features';
 import {
   crabAngleRad,
   thermalLiftMs,
@@ -46,6 +47,21 @@ import {
   type DistractionPlan,
   type DistractionState,
 } from './atlas';
+import {
+  detectionProgress,
+  ElectricSchedule,
+  initialDetection,
+  insideSearchlight,
+  nearestSearchlightM,
+  nextWarp,
+  ringCollected,
+  searchlightSpot,
+  shouldResetWarp,
+  solidAheadOf,
+  stepDetection,
+  type DetectionState,
+  type TimeWarp,
+} from './fieldElements';
 import { LidarSensor, TOGGLE_COOLDOWN_S, type LidarHit } from './lidarSensor';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
@@ -112,6 +128,12 @@ export interface SortieResult {
   completedLines: number[];
   photos: number;
   collisions: number;
+  /** Detectado por um holofote nesta surtida. */
+  detected: boolean;
+  /** Anéis coletados na surtida. */
+  rings: number;
+  /** Alvos capturados com os dados acumulados (surtidas anteriores + esta). */
+  featuresCaptured: string[];
   /** Pulsos e amostras LiDAR da surtida (`null` sem Pod). */
   lidar: LidarBatch | null;
   /** Milho consumido na surtida (só Atlas). */
@@ -147,6 +169,10 @@ export interface FlightEngineOptions {
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
   onCollision?: () => void;
+  /** Anel coletado (som `COLLECT`). */
+  onRing?: () => void;
+  /** Detectado por um holofote (som `ALERT`). */
+  onDetected?: () => void;
   /** O sensor ativo mudou (liga/desliga o zumbido do LiDAR e mostra dicas). */
   onSensorChange?: (sensor: 'RGB' | 'LIDAR', scanHz: number) => void;
   /** Dica curta ("Sem LiDAR a bordo", "Ative a câmera [Tab]"). */
@@ -230,6 +256,11 @@ export class FlightEngine implements Simulation {
   private lastRtk: RtkStatus = 'NONE';
   private rthConfirmUntil = -1;
   readonly lidar: LidarSensor | null;
+  /** Aceleração de tempo do jogador (×1/×2/×4); o loop lê `timeWarp`. */
+  timeWarp: TimeWarp = 1;
+  private detection: DetectionState = initialDetection();
+  private readonly collectedRings = new Set<number>();
+  private readonly electric: ElectricSchedule | null;
   activeSensor: 'RGB' | 'LIDAR' = 'RGB';
   private toggleCooldown = 0;
   private lineLidarData = false;
@@ -247,6 +278,11 @@ export class FlightEngine implements Simulation {
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
     this.em = emActive(opts.contract.specialRules, aircraft);
+    // Criaturas elétricas: o Atlas é imune; os picos são seedados pela missão.
+    this.electric =
+      opts.contract.specialRules.includes('ELECTRIC_CREATURES') && !aircraft.emImmune
+        ? new ElectricSchedule(mulberry32(hashString(`${opts.mission.id}:electric`)))
+        : null;
     const pod = planEquipment(opts.mission.plan, opts.catalog);
     const payload = pod.podId ? opts.catalog.payloads.find((p) => p.id === pod.podId) : undefined;
     this.lidar = payload ? new LidarSensor(payload, opts.terrain, opts.contract.aoi) : null;
@@ -590,7 +626,11 @@ export class FlightEngine implements Simulation {
     }
     this.drain(dtS);
     this.collide();
-    if (this.phase !== 'RUN') return;
+    if (this.phase !== 'RUN') {
+      this.timeWarp = 1;
+      return;
+    }
+    this.stepFieldElements(dtS);
     const window = inShotWindow(this.ac.s, this.frame, plan.stats.baseM);
     if (this.activeSensor === 'RGB' && this.timer.step(dtS, plan.stats.intervalS, window))
       this.fire(false);
@@ -659,6 +699,10 @@ export class FlightEngine implements Simulation {
       completedLines: [...this.completedLines].sort((a, b) => a - b),
       photos: this.shots.length,
       collisions: this.collisions,
+      detected: this.detection.detected,
+      rings: this.collectedRings.size,
+      featuresCaptured:
+        outcome === 'CRASH' || outcome === 'ENERGY_DEPLETED' ? [] : this.evaluateFeatures(),
       lidar: this.lidar ? this.lidar.drainBatch() : null,
       cornUsed: this.aircraft.energyUnit === 'CORN' ? cornUsed(this.startEnergy, this.energy) : 0,
       atlas: this.aircraft.kind === 'BIRD',
@@ -728,6 +772,87 @@ export class FlightEngine implements Simulation {
     return rthRequired(this.energy, this.distanceHomeM(), this.aircraft.vCruiseMs, drainCruise);
   }
 
+  /** `TIME_WARP`: ×1 → ×2 → ×4 → ×1 (só durante o `RUN`). */
+  cycleTimeWarp(): TimeWarp {
+    if (this.phase !== 'RUN') {
+      this.timeWarp = 1;
+      return this.timeWarp;
+    }
+    this.timeWarp = nextWarp(this.timeWarp);
+    return this.timeWarp;
+  }
+
+  /** Alvos (`FEATURE_TARGETS`) capturados pelos dados desta e das surtidas anteriores. */
+  private evaluateFeatures(): string[] {
+    const { camera, focalM } = planEquipment(this.opts.mission.plan, this.opts.catalog);
+    const prior = this.opts.mission.lidar;
+    const lidar = this.lidar
+      ? {
+          grid: {
+            ...this.lidar.grid,
+            pulses: this.lidar.grid.pulses.map((p, i) => p + (prior?.grid.pulses[i] ?? 0)),
+          },
+          samples: [],
+        }
+      : prior;
+    return capturedFeatures(
+      { shots: [...this.opts.mission.shots, ...this.shots], ...(lidar ? { lidar } : {}) },
+      this.opts.terrain,
+      {
+        aoi: this.opts.contract.aoi,
+        aircraftKind: this.aircraft.kind,
+        sensor: camera,
+        focalM,
+        rules: {
+          sensorKind: camera.kind,
+          specularWater: this.opts.contract.specialRules.includes('SPECULAR_WATER'),
+        },
+      },
+    );
+  }
+
+  /** Holofotes, anéis, picos elétricos e a volta do time warp a ×1, a cada passo do `RUN`. */
+  private stepFieldElements(dtS: number): void {
+    const p = this.pos();
+    const zones = this.opts.terrain.zones;
+    if (zones.some((z) => z.kind === 'SEARCHLIGHT')) {
+      const inside = insideSearchlight(zones, p.u, p.v, this.sortieT);
+      const before = this.detection.detected;
+      this.detection = stepDetection(this.detection, inside, dtS, this.aircraft.kind === 'BIRD');
+      if (!before && this.detection.detected) this.opts.onDetected?.();
+    }
+    if (this.electric) {
+      const push = this.electric.lateralMs(this.sortieT);
+      if (push !== 0) this.ac = { ...this.ac, x: this.ac.x + push * dtS };
+    }
+    const nearby = this.opts.terrain.objectsInRange(p.u - 150, p.u + 150);
+    const ground = (u: number, v: number) => this.opts.terrain.elevation(u, v);
+    for (const o of nearby) {
+      if (o.kind !== 'RING' || this.collectedRings.has(o.id)) continue;
+      if (ringCollected(o, { u: p.u, v: p.v, alt: this.ac.alt }, ground)) {
+        this.collectedRings.add(o.id);
+        this.opts.onRing?.();
+      }
+    }
+    if (this.timeWarp > 1) {
+      const rel = nearby.map((o) => {
+        const r = toRun(this.frame, o);
+        return { solid: o.solid, X: r.x, Z: r.s - this.ac.s };
+      });
+      const critical = this.alerts().some((a) => a.level === 'critical');
+      if (
+        shouldResetWarp({
+          phase: this.phase,
+          solidAhead: solidAheadOf(rel, this.ac.x),
+          criticalAlert: critical,
+          searchlightM: nearestSearchlightM(zones, p.u, p.v),
+        })
+      ) {
+        this.timeWarp = 1;
+      }
+    }
+  }
+
   /** Libera os efeitos contínuos (o zumbido do LiDAR) ao sair da tela. */
   dispose(): void {
     if (this.lidar && this.activeSensor === 'LIDAR')
@@ -760,6 +885,7 @@ export class FlightEngine implements Simulation {
     if (this.aircraft.kind === 'FIXED_WING_VTOL' && this.ac.v <= this.aircraft.vMinMs + 0.05) {
       list.push(makeAlert('MIN_SPEED'));
     }
+    if (this.detection.detected) list.push(makeAlert('DETECTED'));
     if (this.rthRecommended()) list.push(makeAlert('RTH'));
     if (isDistracted(this.distraction)) list.push(makeAlert('ATLAS_DISTRACTED'));
     if (windAboveTolerance(this.opts.contract.wind, this.aircraft))
@@ -811,14 +937,18 @@ export class FlightEngine implements Simulation {
       speedMs: this.ac.v,
       windCrossMs: this.crossWind,
       crabDeg: (crabAngleRad(this.crossWind, Math.max(0.1, this.ac.v)) * 180) / Math.PI,
-      timeScale: 1,
+      timeScale: this.timeWarp,
       energy: this.energy,
       energyUnit: this.aircraft.energyUnit,
       ...(this.aircraft.energyUnit === 'CORN' ? { cornLeft: cornLeft(this.energy) } : {}),
       timeLeftS: this.energy / drainCruise,
       rthAlert: this.phase === 'RUN' && this.rthRecommended(),
       rthConfirm: this.rthConfirming,
-      emGlitch: this.em,
+      emGlitch: this.em || (this.electric?.at(this.sortieT) ?? null) !== null,
+      ...(this.hasSearchlights()
+        ? { detectedProgress: detectionProgress(this.detection, this.aircraft.kind === 'BIRD') }
+        : {}),
+      ...(this.hasRings() ? { rings: this.collectedRings.size } : {}),
       hull: Math.max(0, this.hull),
       hullMax: this.aircraft.hull,
       rtk: this.rtk(),
@@ -840,6 +970,14 @@ export class FlightEngine implements Simulation {
       },
     };
     return snap;
+  }
+
+  private hasSearchlights(): boolean {
+    return this.opts.terrain.zones.some((z) => z.kind === 'SEARCHLIGHT');
+  }
+
+  private hasRings(): boolean {
+    return this.opts.contract.specialRules.includes('COLLECTIBLE_RINGS');
   }
 
   private lidarHud(): { lidarDensity?: number; groundDensity?: number } {
@@ -899,6 +1037,7 @@ export class FlightEngine implements Simulation {
         heightM: o.heightM,
         baseM: (o.baseM ?? 0) + m.dh,
         color: o.color,
+        ...(this.collectedRings.has(o.id) ? { collected: true } : {}),
       };
       if (o.kind === 'WIRE') {
         const r2 = toRun(frame, { u: o.u2 ?? o.u, v: o.v2 ?? o.v });
@@ -940,6 +1079,7 @@ export class FlightEngine implements Simulation {
       marks,
     });
     this.drawFootprints(ctx, cam);
+    this.drawSearchlights(ctx, cam);
     this.drawLidar(ctx, cam);
     this.weather?.draw(ctx, this.sortieT);
     this.drawAircraftSprite(ctx, cam);
@@ -956,6 +1096,31 @@ export class FlightEngine implements Simulation {
       ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();
+  }
+
+  /** Manchas dos holofotes no chão: elipses amarelas translúcidas. */
+  private drawSearchlights(ctx: CanvasRenderingContext2D, cam: FlightCamera): void {
+    for (const z of this.opts.terrain.zones) {
+      if (z.kind !== 'SEARCHLIGHT') continue;
+      const spot = searchlightSpot(z, this.sortieT);
+      const r = toRun(this.frame, { u: spot.u, v: spot.v });
+      const c = projectAbs(r.x, this.elevationAt(r.s, r.x), r.s - this.ac.s, cam);
+      if (!c) continue;
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(
+        c.x,
+        c.y,
+        Math.max(2, spot.r * c.scale),
+        Math.max(1, spot.r * c.scale * 0.35),
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      ctx.stroke();
+    }
   }
 
   /** Leque de 24 feixes e a nuvem viva (impactos que persistem 1,5 s). */

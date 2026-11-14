@@ -110,6 +110,18 @@ describe('FlightHud', () => {
     expect(screen.getByText('VELOCIDADE MÍNIMA')).toBeInTheDocument();
   });
 
+  it('time warp em âmbar, anéis e a barra de detecção do holofote', () => {
+    const { rerender } = render(<FlightHud snap={snap()} />);
+    expect(screen.queryByTestId('hud-warp')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hud-rings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hud-detection')).not.toBeInTheDocument();
+    rerender(<FlightHud snap={snap({ timeScale: 4, rings: 3, detectedProgress: 0.5 })} />);
+    expect(screen.getByTestId('hud-warp')).toHaveTextContent('×4');
+    expect(screen.getByTestId('hud-warp')).toHaveClass('text-amber-400');
+    expect(screen.getByTestId('hud-rings')).toHaveTextContent('Anéis: 3');
+    expect(screen.getByTestId('hud-detection')).toBeInTheDocument();
+  });
+
   it('LiDAR ativo: mostra a densidade total e a de solo', () => {
     render(
       <FlightHud snap={snap({ activeSensor: 'LIDAR', lidarDensity: 158, groundDensity: 17 })} />,
@@ -150,6 +162,9 @@ describe('PostFlightDialog', () => {
     collisions: 0,
     cornUsed: 0,
     lidar: null,
+    detected: false,
+    rings: 0,
+    featuresCaptured: [],
     atlas: false,
   };
 

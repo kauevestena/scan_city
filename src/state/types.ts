@@ -115,6 +115,11 @@ export interface SortieReport {
   collisions?: number;
   /** Milho consumido do papo (Atlas). */
   cornUsed?: number;
+  /** Detectado por um holofote (vale mesmo com os dados descartados). */
+  detected?: boolean;
+  /** Anéis coletados e alvos capturados: só contam se a surtida não foi perdida. */
+  rings?: number;
+  featuresCaptured?: string[];
   /** Dados LiDAR da surtida; entram na missão só se a surtida não foi perdida. */
   lidar?: LidarBatch | null;
 }

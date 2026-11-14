@@ -102,6 +102,16 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
           <span>{snap.sensorName}</span>
           <span className="text-slate-500">·</span>
           <span data-testid="hud-rtk">{T.rtk(snap.rtk)}</span>
+          {snap.timeScale > 1 && (
+            <span className="font-mono font-bold text-amber-400" data-testid="hud-warp">
+              {T.warp(snap.timeScale)}
+            </span>
+          )}
+          {snap.rings !== undefined && (
+            <span className="font-mono text-amber-300" data-testid="hud-rings">
+              {T.rings}: {snap.rings}
+            </span>
+          )}
           <span className="ml-auto font-mono text-cyan-300" data-testid="hud-line">
             {T.line(snap.lineIndex, snap.nLines)}
           </span>
@@ -112,6 +122,14 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
             {energyText}
           </span>
         </div>
+        {snap.detectedProgress !== undefined && snap.detectedProgress > 0 && (
+          <div className="mx-auto flex w-64 items-center gap-2" data-testid="hud-detection">
+            <span className="text-[10px] tracking-widest text-rose-300">{T.detection}</span>
+            <div className="flex-1">
+              <ProgressBar value={snap.detectedProgress} />
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-center gap-3">
           <span className="text-[10px] tracking-widest text-slate-400">{T.deviation}</span>
           <div className="relative h-2 w-48 rounded-full bg-slate-800">
@@ -230,6 +248,7 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
         <div className="flex justify-center gap-4 text-xs text-slate-300">
           <InputGlyph action="FIRE" label={T.hints.photo} />
           <InputGlyph action="RTH" label={T.hints.rth} />
+          <InputGlyph action="TIME_WARP" label={T.hints.warp} />
           <InputGlyph action="PAUSE" label={T.hints.pause} />
         </div>
       </div>

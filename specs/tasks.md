@@ -790,15 +790,23 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T035 · **REQs:** REQ-FLT-023, REQ-FLT-024
 - **Spec:** [survey-flight §5.13, §5.14](features/survey-flight.md), [contracts-real §1](content/contracts-real.md) (`SEARCHLIGHTS`, `MOVING_HAZARDS`, `ENERGY_BEAMS`, `COLLECTIBLE_RINGS`, `ELECTRIC_CREATURES`, `FEATURE_TARGETS`)
 - **Aceite:**
-  - [ ] *Time warp* com as regras de volta para ×1 (teste).
-  - [ ] Holofote: detecção em 1,5 s (Atlas 3 s).
-  - [ ] Anéis coletados somam.
-  - [ ] Features avaliadas no fim da surtida.
-  - [ ] Picos elétricos seedados.
-  - [ ] Hazards móveis e beams com estado por `t`.
-  - [ ] Cada regra tem uma cena de teste num bioma sintético (`src/world/terrain/biomes/testArena.ts`, usado só em testes).
+  - [x] *Time warp* com as regras de volta para ×1 (teste).
+  - [x] Holofote: detecção em 1,5 s (Atlas 3 s).
+  - [x] Anéis coletados somam.
+  - [x] Features avaliadas no fim da surtida.
+  - [x] Picos elétricos seedados.
+  - [x] Hazards móveis e beams com estado por `t`.
+  - [x] Cada regra tem uma cena de teste num bioma sintético (`src/world/terrain/biomes/testArena.ts`, usado só em testes).
 - **Verificação:** `npx vitest run src/engines/flight`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `fieldElements.ts` reúne a lógica pura (holofote, anéis, picos elétricos, regras do time warp); o engine a chama a cada passo do `RUN`. A arena sintética está em `src/world/terrain/biomes/testArena.ts` (plana, com objetos, zonas e alvos sob medida) e cada regra tem uma cena em `fieldElements.test.ts`.
+  - Holofote: a spec não define a geometria da mancha. Interpretei `sweepRad` como a amplitude do giro (`ângulo = sweepRad · sin(2π t / período)`), com a mancha a 50 % do raio da zona e raio de 35 % dele. Detecção: mais de 1,5 s seguidos dentro (Atlas: 3 s); sair do cone zera; a detecção é permanente na surtida e o voo continua. `events.detected` vale mesmo que a surtida seja perdida.
+  - Time warp (tecla T): ×1 → ×2 → ×4 → ×1, só no `RUN`. Volta a ×1 com objeto sólido a < 150 m à frente e |X − Xobj| < 15 m, com alerta **crítico** ativo (a spec diz "prioridade ≥ 2"; adotei qualquer alerta de nível crítico), fora do `RUN` ou com holofote a < 100 m. O autopilot de depuração segue a ×8.
+  - Anéis: coletados a < 3 m do centro (em 3D), com som `COLLECT` e o anel some. Só contam se a surtida não for perdida. O bônus de R$ 50 por anel entra no `evaluateMission` (`payment.ringBonusBRL`) só em contratos com `COLLECTIBLE_RINGS`, e aparece na aba Pagamento.
+  - Picos elétricos: seedados por missão, de 8 a 12 s, 2 s de 3 m/s para o lado sorteado; o Atlas é imune (`emImmune`). O glitch do HUD também liga durante o pico. As faíscas visuais não foram desenhadas.
+  - Features: `capturedFeatures` roda no fim de cada surtida com as fotos e os pulsos acumulados de todas as surtidas, e vai para `events.featuresCaptured` (só sem queda). A exigência de sensor térmico das tocas `DEN_*` continua na avaliação dos requisitos.
+  - Hazards móveis e feixes têm o estado calculado por `t` (T028); aqui entraram os testes de cena.
+- **Status:** ✅
 
 > **Marco M2 — Motor de voo completo.**
 
@@ -1304,8 +1312,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
-| REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ☐ |
-| REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ☐ |
+| REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ✅ |
+| REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ☐ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ☐ |

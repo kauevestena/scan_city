@@ -192,6 +192,16 @@ export const createMissionSlice: StateCreator<
             ...active.events,
             crashes: active.events.crashes + (result.outcome === 'CRASH' ? 1 : 0),
             collisions: active.events.collisions + (result.collisions ?? 0),
+            detected: active.events.detected || (result.detected ?? false),
+            ringsCollected: active.events.ringsCollected + (lost ? 0 : (result.rings ?? 0)),
+            featuresCaptured: lost
+              ? active.events.featuresCaptured
+              : [
+                  ...new Set([
+                    ...active.events.featuresCaptured,
+                    ...(result.featuresCaptured ?? []),
+                  ]),
+                ],
           },
         },
       },

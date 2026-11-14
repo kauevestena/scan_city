@@ -63,6 +63,8 @@ function createEngine(
     onShots: (batch) => useGameStore.getState().appendShots(batch),
     onShutter: () => AudioEngine.get().play('SHUTTER'),
     onCollision: () => AudioEngine.get().play('CRASH'),
+    onRing: () => AudioEngine.get().play('COLLECT'),
+    onDetected: () => AudioEngine.get().play('ALERT'),
     onSensorChange: (sensor, scanHz) => {
       lidarLoop?.stop(0.2);
       lidarLoop = null;
@@ -142,6 +144,7 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         if (e.action === 'FIRE') engine.manualShot();
         else if (e.action === 'RTH') engine.requestRth();
         else if (e.action === 'TOGGLE_SENSOR') engine.toggleSensor();
+        else if (e.action === 'TIME_WARP') engine.cycleTimeWarp();
         // O Esc cancela a confirmação do RTH (e também pausa).
         else if (e.action === 'PAUSE') engine.cancelRth();
       }),
@@ -176,7 +179,7 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
       return engine;
     },
     [surface, engine],
-    { timeScale: () => (autopilot ? AUTOPILOT_TIME_SCALE : 1) },
+    { timeScale: () => (autopilot ? AUTOPILOT_TIME_SCALE : engine.timeWarp) },
   );
 
   return (
