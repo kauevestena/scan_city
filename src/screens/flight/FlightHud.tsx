@@ -206,6 +206,12 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
             <span data-testid="hud-photos">
               <Readout label={T.photos} value={`${snap.photos} / ${snap.photosPlanned}`} />
             </span>
+            {snap.lidarDensity !== undefined && (
+              <Readout
+                label="LiDAR"
+                value={`${formatNumber(snap.lidarDensity, 0)} pts/m² · solo ${formatNumber(snap.groundDensity ?? 0, 0)}`}
+              />
+            )}
             <Readout
               label={T.blur}
               value={`${formatNumber(snap.blurPx, 1)} px`}

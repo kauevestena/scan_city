@@ -739,11 +739,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [survey-flight §5.9, §5.10](features/survey-flight.md), [domain-math §4.4](design/domain-math.md)
 - **Arquivos:** \+ `src/engines/flight/lidarSensor.ts` · ~ `missionSlice.mergeLidar`
 - **Aceite:**
-  - [ ] O critério 4 de [survey-flight §8](features/survey-flight.md).
-  - [ ] O acúmulo na grade bate com `lidarDensityWithOverlap` ± 10 % no centro da AOI após um voo de autopilot (teste de integração do engine, sem render).
-  - [ ] Amostras limitadas a 50.000.
+  - [x] O critério 4 de [survey-flight §8](features/survey-flight.md).
+  - [x] O acúmulo na grade bate com `lidarDensityWithOverlap` ± 10 % no centro da AOI após um voo de autopilot (teste de integração do engine, sem render).
+  - [x] Amostras limitadas a 50.000.
 - **Verificação:** `npx vitest run src/engines/flight`
-- **Status:** ☐
+- **Notas de implementação:**
+  - O acúmulo reparte `PRR · dt` pulsos por até 96 × 4 pontos da faixa `v·dt × swath` sob a aeronave; cada ponto soma na célula 64 × 64 que o contém, com `ground = pulsos · P_solo(dossel)` (dossel 1 sobre telhado) e `firstAbove = pulsos · dossel`. Num voo de autopilot do C00 (DRONE_T2 + Pod, H 60 m, q 60 %), a densidade no centro da AOI fica a ±10 % de `lidarDensityWithOverlap` (teste).
+  - Os lotes (células + amostras) ficam no sensor durante a surtida e entram na missão no **fim** dela (`endSortie` → `mergeLidar`), e não a cada 0,5 s como diz a spec: assim uma queda ou energia esgotada descarta os dados LiDAR da surtida sem precisar desfazer fusões, como o descarte das fotos.
+  - Visual: 24 feixes em `θ(t − k·δ)` com o impacto na superfície (copa ou solo), e os impactos persistem 1,5 s (ciano no 1º retorno, esmeralda no solo). O raymarch contra objetos (passo de 2 m) não foi feito: o impacto usa `surface(u, v)` no ponto do feixe.
+  - `TOGGLE_SENSOR` (Tab, 1, 2): cooldown de 0,5 s; sem Pod é no-op com o toast "Sem LiDAR a bordo"; no LiDAR não há disparo automático nem manual ("Ative a câmera [Tab]"). `LIDAR_HUM` toca enquanto o LiDAR é o sensor ativo, com `rate` = frequência de varredura, e para ao sair.
+  - Uma linha só de LiDAR conta como completa se houve pulsos na janela da AOI.
+  - Risco: até 50.000 amostras por missão vão no save (localStorage, ≈ 2 MB). Se estourar a cota, o autosave avisa (T006); T077 pode reduzir a amostragem.
+- **Status:** ✅
 
 ### T034 — Modos especiais em voo (TF, malha cruzada, oblíqua)
 - **Fase:** F3 · **Depende de:** T033 · **REQs:** REQ-FLT-016, REQ-FLD-012
@@ -1272,8 +1279,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-006 | Câmera RGB | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |
 | REQ-FLT-007 | Sobreposição real e faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T035 | ☐ |
 | REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
-| REQ-FLT-009 | Sensor LiDAR | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T012, T033 | ☐ |
-| REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ☐ |
+| REQ-FLT-009 | Sensor LiDAR | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T012, T033 | ✅ |
+| REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |

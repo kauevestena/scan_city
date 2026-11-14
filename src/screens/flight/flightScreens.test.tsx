@@ -88,6 +88,13 @@ describe('FlightHud', () => {
     expect(screen.queryByTestId('hud-glitch')).not.toBeInTheDocument();
   });
 
+  it('LiDAR ativo: mostra a densidade total e a de solo', () => {
+    render(
+      <FlightHud snap={snap({ activeSensor: 'LIDAR', lidarDensity: 158, groundDensity: 17 })} />,
+    );
+    expect(screen.getByTestId('flight-hud')).toHaveTextContent('158 pts/m² · solo 17');
+  });
+
   it('bateria e fase fora do RUN', () => {
     render(
       <FlightHud
@@ -120,6 +127,7 @@ describe('PostFlightDialog', () => {
     photos: 96,
     collisions: 0,
     cornUsed: 0,
+    lidar: null,
     atlas: false,
   };
 

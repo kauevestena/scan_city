@@ -283,7 +283,13 @@ export const STRINGS = {
     rthConfirm: 'Retornar à base?',
     rthConfirmKeys: 'confirmar',
     rthCancelKeys: 'cancelar',
-    hints: { photo: 'foto manual', rth: 'RTH', pause: 'pausa' },
+    hints: {
+      photo: 'foto manual',
+      rth: 'RTH',
+      pause: 'pausa',
+      noLidar: 'Sem LiDAR a bordo',
+      activateCamera: 'Ative a câmera [Tab]',
+    },
     alerts: {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
       RTH: () => 'RTH RECOMENDADO',

@@ -4,12 +4,13 @@ import { AudioEngine } from '@/audio/AudioEngine';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
 import { gcpSigma } from '@/domain/accuracy';
+import { createCoverageGrid } from '@/domain/coverage';
 import { sectorIncomePerMin } from '@/domain/museum';
 import { canStartNewSortie, feedCrop } from '@/domain/sorties';
 import { addXp } from '@/domain/progression';
 import { getContract } from '@/data/contracts';
 import { buildFlightPlan, defaultPlanParams } from '@/domain/flightPlanner';
-import type { MissionData } from '@/types';
+import type { LidarGrid, MissionData } from '@/types';
 import { selectModifiers } from '../selectors';
 import type { GameStore, MissionActions, MissionState } from '../types';
 
@@ -21,6 +22,22 @@ export function canBeStolen(contracts: GameStore['contracts'], contractId: strin
   return Object.entries(contracts).some(
     ([id, p]) => id !== contractId && (p.status === 'AVAILABLE' || p.status === 'COMPLETED'),
   );
+}
+
+export const MAX_LIDAR_SAMPLES = 50_000;
+
+function emptyLidarGrid(contractId: string): LidarGrid {
+  const aoi = getContract(contractId).aoi;
+  const g = createCoverageGrid(aoi);
+  const n = g.cols * g.rows;
+  return {
+    cols: g.cols,
+    rows: g.rows,
+    pulses: new Array<number>(n).fill(0),
+    firstAbove: new Array<number>(n).fill(0),
+    ground: new Array<number>(n).fill(0),
+    cellAreaM2: g.cellLengthM * g.cellWidthM,
+  };
 }
 
 export function initialMission(): MissionState {
@@ -129,6 +146,27 @@ export const createMissionSlice: StateCreator<
       };
     }),
 
+  mergeLidar: (batch) =>
+    set((s) => {
+      const active = s.mission.active;
+      if (!active) return s;
+      const grid = active.lidar?.grid ?? emptyLidarGrid(active.contractId);
+      const pulses = [...grid.pulses];
+      const firstAbove = [...grid.firstAbove];
+      const ground = [...grid.ground];
+      for (const [k, p, f, g] of batch.cells) {
+        pulses[k] = (pulses[k] ?? 0) + p;
+        firstAbove[k] = (firstAbove[k] ?? 0) + f;
+        ground[k] = (ground[k] ?? 0) + g;
+      }
+      const samples = [...(active.lidar?.samples ?? []), ...batch.samples].slice(
+        0,
+        MAX_LIDAR_SAMPLES,
+      );
+      const lidar = { grid: { ...grid, pulses, firstAbove, ground }, samples };
+      return { mission: { ...s.mission, active: { ...active, lidar } } };
+    }),
+
   endSortie: (result) => {
     const active = get().mission.active;
     if (!active) return;
@@ -158,6 +196,8 @@ export const createMissionSlice: StateCreator<
         },
       },
     }));
+    // Os dados LiDAR de uma surtida perdida nunca chegam à missão.
+    if (!lost && result.lidar) get().mergeLidar(result.lidar);
     if (result.cornUsed) {
       // O voo gasta milho do papo; o estoque só entra quando o Atlas é alimentado.
       set((s) => ({

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getDebugFlags } from '@/app/debugFlags';
 import { AudioEngine } from '@/audio/AudioEngine';
+import type { LoopHandle } from '@/audio/sfx';
 import { CATALOG } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { COSMETICS } from '@/data/cosmetics';
@@ -36,6 +37,8 @@ function createEngine(
 ): FlightEngine {
   const state = useGameStore.getState();
   const contract = getContract(mission.contractId);
+  // Zumbido contínuo do LiDAR, enquanto o sensor ativo for o LiDAR.
+  let lidarLoop: LoopHandle | null = null;
   const { equipped } = state.inventory;
   const atlas = mission.plan.params.aircraftId === 'ATLAS';
   const paint = colorsOf(equipped.dronePaint) ?? { primary: '#64748b', secondary: '#0f172a' };
@@ -60,6 +63,15 @@ function createEngine(
     onShots: (batch) => useGameStore.getState().appendShots(batch),
     onShutter: () => AudioEngine.get().play('SHUTTER'),
     onCollision: () => AudioEngine.get().play('CRASH'),
+    onSensorChange: (sensor, scanHz) => {
+      lidarLoop?.stop(0.2);
+      lidarLoop = null;
+      if (sensor === 'LIDAR') {
+        lidarLoop = AudioEngine.get().startLoop('LIDAR_HUM');
+        lidarLoop.setParam('rate', scanHz);
+      }
+    },
+    onHint: (text) => useGameStore.getState().pushToast({ type: 'info', title: text }),
     onRthBeep: () => AudioEngine.get().play('RTH_BEEP'),
     onRtkChange: (status) => {
       if (status === 'FLOAT') {
@@ -71,6 +83,8 @@ function createEngine(
     onCrash: () => AudioEngine.get().play('CRASH'),
     onHud,
     onSortieEnd: (result) => {
+      lidarLoop?.stop(0.2);
+      lidarLoop = null;
       useGameStore.getState().endSortie(result);
       completeTutorialStep(3);
       onEnd(result);
@@ -127,11 +141,15 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         if (useGameStore.getState().session.paused) return;
         if (e.action === 'FIRE') engine.manualShot();
         else if (e.action === 'RTH') engine.requestRth();
+        else if (e.action === 'TOGGLE_SENSOR') engine.toggleSensor();
         // O Esc cancela a confirmação do RTH (e também pausa).
         else if (e.action === 'PAUSE') engine.cancelRth();
       }),
     [engine],
   );
+
+  // Ao sair da tela, o zumbido do LiDAR para.
+  useEffect(() => () => engine.dispose(), [engine]);
 
   // O autopilot de depuração leva os dados sozinho (para o E2E).
   useEffect(() => {

@@ -4,6 +4,7 @@ import type {
   Dimension,
   Emblem,
   GroundPoint,
+  LidarBatch,
   MissionData,
   PlanParams,
   QualityReport,
@@ -114,6 +115,8 @@ export interface SortieReport {
   collisions?: number;
   /** Milho consumido do papo (Atlas). */
   cornUsed?: number;
+  /** Dados LiDAR da surtida; entram na missão só se a surtida não foi perdida. */
+  lidar?: LidarBatch | null;
 }
 
 export interface MissionActions {
@@ -132,6 +135,8 @@ export interface MissionActions {
   launchMission: () => MissionData | null;
   /** Disparos da surtida em andamento (em lotes, survey-flight §6). */
   appendShots: (shots: Shot[]) => void;
+  /** Soma um lote de pulsos e amostras LiDAR à missão ativa (até 50.000 amostras). */
+  mergeLidar: (batch: LidarBatch) => void;
   /**
    * Fim de surtida: registra o resultado e as linhas completas. Em queda ou energia
    * esgotada, descarta os disparos desta surtida. Atualiza as estatísticas.

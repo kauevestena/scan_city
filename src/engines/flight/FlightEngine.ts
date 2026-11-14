@@ -4,6 +4,7 @@
  * store recebe os eventos pelos callbacks.
  */
 import type { Catalog } from '@/data/catalog';
+import { STRINGS } from '@/data/strings';
 import { drainPerSecond, rthRequired } from '@/domain/energy';
 import {
   crabAngleRad,
@@ -22,6 +23,7 @@ import type {
   Aircraft,
   AoiPoint,
   Contract,
+  LidarBatch,
   MissionData,
   ModifierSet,
   RtkStatus,
@@ -44,6 +46,7 @@ import {
   type DistractionPlan,
   type DistractionState,
 } from './atlas';
+import { LidarSensor, TOGGLE_COOLDOWN_S, type LidarHit } from './lidarSensor';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
@@ -107,6 +110,8 @@ export interface SortieResult {
   completedLines: number[];
   photos: number;
   collisions: number;
+  /** Pulsos e amostras LiDAR da surtida (`null` sem Pod). */
+  lidar: LidarBatch | null;
   /** Milho consumido na surtida (só Atlas). */
   cornUsed: number;
   /** A aeronave é o Atlas: a queda vira "voltou para casa", sem custo de reparo. */
@@ -140,6 +145,10 @@ export interface FlightEngineOptions {
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
   onCollision?: () => void;
+  /** O sensor ativo mudou (liga/desliga o zumbido do LiDAR e mostra dicas). */
+  onSensorChange?: (sensor: 'RGB' | 'LIDAR', scanHz: number) => void;
+  /** Dica curta ("Sem LiDAR a bordo", "Ative a câmera [Tab]"). */
+  onHint?: (text: string) => void;
   /** Energia inicial (0–1); o Atlas parte do papo. Padrão: 1. */
   initialEnergy?: number;
   /** Bip de RTH recomendado (a cada 1,5 s). */
@@ -218,6 +227,11 @@ export class FlightEngine implements Simulation {
   private emHeading = 0;
   private lastRtk: RtkStatus = 'NONE';
   private rthConfirmUntil = -1;
+  readonly lidar: LidarSensor | null;
+  activeSensor: 'RGB' | 'LIDAR' = 'RGB';
+  private toggleCooldown = 0;
+  private lineLidarData = false;
+  private fan: LidarHit[] = [];
   private distractionPlan: DistractionPlan | null = null;
   private distraction: DistractionState = initialDistraction();
   private lineT = 0;
@@ -231,6 +245,11 @@ export class FlightEngine implements Simulation {
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
     this.em = emActive(opts.contract.specialRules, aircraft);
+    const pod = planEquipment(opts.mission.plan, opts.catalog);
+    const payload = pod.podId ? opts.catalog.payloads.find((p) => p.id === pod.podId) : undefined;
+    this.lidar = payload ? new LidarSensor(payload, opts.terrain, opts.contract.aoi) : null;
+    if (this.lidar)
+      this.activeSensor = opts.mission.plan.params.primarySensor === 'LIDAR' ? 'LIDAR' : 'RGB';
     // O Atlas começa com o que há no papo (0–10 unidades).
     if (opts.initialEnergy !== undefined) this.energy = opts.initialEnergy;
     this.atlasRng =
@@ -276,6 +295,7 @@ export class FlightEngine implements Simulation {
   /** Ao começar cada linha, o Atlas sorteia (seedado) uma distração. */
   private beginLineAtlas(): void {
     this.lineT = 0;
+    this.lineLidarData = false;
     this.distraction = initialDistraction();
     this.distractionPlan = null;
     const line = this.line;
@@ -295,6 +315,10 @@ export class FlightEngine implements Simulation {
   /** Disparo manual (`FIRE`), com cooldown de 0,3 s, em qualquer ponto do *run*. */
   manualShot(): boolean {
     if (this.phase !== 'RUN' || this.manualCooldown > 0) return false;
+    if (this.activeSensor === 'LIDAR') {
+      this.opts.onHint?.(STRINGS.flight.hints.activateCamera);
+      return false;
+    }
     this.manualCooldown = MANUAL_COOLDOWN_S;
     this.fire(true);
     return true;
@@ -420,6 +444,7 @@ export class FlightEngine implements Simulation {
       // O autopilot de depuração pede e confirma o RTH sozinho.
       if (this.opts.autopilot) this.requestRth();
     }
+    this.toggleCooldown = Math.max(0, this.toggleCooldown - dtS);
     this.invulnerableS = Math.max(0, this.invulnerableS - dtS);
     this.shakeS = Math.max(0, this.shakeS - dtS);
     this.updateWind();
@@ -502,6 +527,7 @@ export class FlightEngine implements Simulation {
   private stepRun(dtS: number): void {
     const plan = this.opts.mission.plan;
     this.input = this.readInput();
+    const s0 = this.ac.s;
     this.ac = stepAircraft(
       this.ac,
       this.input,
@@ -553,7 +579,22 @@ export class FlightEngine implements Simulation {
     this.collide();
     if (this.phase !== 'RUN') return;
     const window = inShotWindow(this.ac.s, this.frame, plan.stats.baseM);
-    if (this.timer.step(dtS, plan.stats.intervalS, window)) this.fire(false);
+    if (this.activeSensor === 'RGB' && this.timer.step(dtS, plan.stats.intervalS, window))
+      this.fire(false);
+    if (this.activeSensor === 'LIDAR' && this.lidar) {
+      const agl = this.ac.alt - this.opts.terrain.elevation(this.pos().u, this.pos().v);
+      const pulses = this.lidar.sweep({
+        frame: this.frame,
+        s0,
+        s1: this.ac.s,
+        x: this.ac.x,
+        aglM: agl,
+        dtS,
+      });
+      if (pulses > 0 && window) this.lineLidarData = true;
+      this.fan = this.lidar.beams(this.sortieT, this.ac.s, this.ac.x, this.ac.alt, this.frame);
+      this.lidar.trackHits(this.fan, dtS);
+    }
     const line = this.line;
     if (line && this.ac.s >= this.frame.aoiEndS + plan.stats.baseM) {
       const inAoi = this.lineShots.some((s) => {
@@ -563,7 +604,7 @@ export class FlightEngine implements Simulation {
           r.s <= this.frame.aoiEndS + plan.stats.baseM
         );
       });
-      if (inAoi) this.completedLines.add(line.index);
+      if (inAoi || this.lineLidarData) this.completedLines.add(line.index);
     }
     if (this.ac.s >= this.frame.lengthM) {
       if (this.lineCursor + 1 < this.lines.length) {
@@ -605,10 +646,29 @@ export class FlightEngine implements Simulation {
       completedLines: [...this.completedLines].sort((a, b) => a - b),
       photos: this.shots.length,
       collisions: this.collisions,
+      lidar: this.lidar ? this.lidar.drainBatch() : null,
       cornUsed: this.aircraft.energyUnit === 'CORN' ? cornUsed(this.startEnergy, this.energy) : 0,
       atlas: this.aircraft.kind === 'BIRD',
     });
     this.publish(true);
+  }
+
+  /**
+   * `TOGGLE_SENSOR` (só com o Pod LiDAR a bordo, cooldown de 0,5 s): alterna RGB ↔ LiDAR.
+   * Sem Pod, é um no-op com a dica "Sem LiDAR a bordo".
+   */
+  toggleSensor(): 'TOGGLED' | 'NO_POD' | 'COOLDOWN' | 'IGNORED' {
+    if (this.phase !== 'RUN') return 'IGNORED';
+    if (!this.lidar) {
+      this.opts.onHint?.(STRINGS.flight.hints.noLidar);
+      return 'NO_POD';
+    }
+    if (this.toggleCooldown > 0) return 'COOLDOWN';
+    this.toggleCooldown = TOGGLE_COOLDOWN_S;
+    this.activeSensor = this.activeSensor === 'RGB' ? 'LIDAR' : 'RGB';
+    this.timer.reset();
+    this.opts.onSensorChange?.(this.activeSensor, this.lidar.scanHz);
+    return 'TOGGLED';
   }
 
   /**
@@ -653,6 +713,12 @@ export class FlightEngine implements Simulation {
       blizzard: false,
     });
     return rthRequired(this.energy, this.distanceHomeM(), this.aircraft.vCruiseMs, drainCruise);
+  }
+
+  /** Libera os efeitos contínuos (o zumbido do LiDAR) ao sair da tela. */
+  dispose(): void {
+    if (this.lidar && this.activeSensor === 'LIDAR')
+      this.opts.onSensorChange?.('RGB', this.lidar.scanHz);
   }
 
   /** Abandono imediato (sem dados válidos desta surtida). */
@@ -710,7 +776,10 @@ export class FlightEngine implements Simulation {
     const snap: FlightHudSnapshot = {
       phase: this.phase,
       aircraftName: this.aircraft.name,
-      sensorName: planEquipment(plan, this.opts.catalog).camera.name,
+      sensorName:
+        this.activeSensor === 'LIDAR' && this.lidar
+          ? 'LiDAR'
+          : planEquipment(plan, this.opts.catalog).camera.name,
       lineIndex: lineNumber,
       nLines: plan.lines.length,
       lineProgress: clamp(this.ac.s / Math.max(1, this.frame.lengthM), 0, 1),
@@ -732,7 +801,8 @@ export class FlightEngine implements Simulation {
       hull: Math.max(0, this.hull),
       hullMax: this.aircraft.hull,
       rtk: this.rtk(),
-      activeSensor: 'RGB',
+      activeSensor: this.activeSensor,
+      ...this.lidarHud(),
       gsdCm,
       gsdOk: !maxGsd || maxGsd.check.type !== 'MAX_GSD_CM' || gsdCm <= maxGsd.check.value,
       pRealPct: this.pRealPct(),
@@ -749,6 +819,14 @@ export class FlightEngine implements Simulation {
       },
     };
     return snap;
+  }
+
+  private lidarHud(): { lidarDensity?: number; groundDensity?: number } {
+    if (!this.lidar || this.activeSensor !== 'LIDAR') return {};
+    const p = this.pos();
+    const agl = this.ac.alt - this.opts.terrain.elevation(p.u, p.v);
+    const h = this.lidar.hud(this.ac.v, agl, this.opts.terrain.canopy(p.u, p.v));
+    return { lidarDensity: h.density, groundDensity: h.ground };
   }
 
   private publish(force = false): void {
@@ -841,6 +919,7 @@ export class FlightEngine implements Simulation {
       marks,
     });
     this.drawFootprints(ctx, cam);
+    this.drawLidar(ctx, cam);
     this.weather?.draw(ctx, this.sortieT);
     this.drawAircraftSprite(ctx, cam);
     if (this.sortieT < this.flashUntil) {
@@ -856,6 +935,35 @@ export class FlightEngine implements Simulation {
       ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();
+  }
+
+  /** Leque de 24 feixes e a nuvem viva (impactos que persistem 1,5 s). */
+  private drawLidar(ctx: CanvasRenderingContext2D, cam: FlightCamera): void {
+    if (this.activeSensor !== 'LIDAR' || !this.lidar) return;
+    const origin = projectAbs(this.ac.x, this.ac.alt, 0, cam);
+    const project = (h: LidarHit) => {
+      const r = toRun(this.frame, h);
+      return projectAbs(r.x, h.z, r.s - this.ac.s, cam);
+    };
+    for (const h of this.lidar.hits) {
+      const p = project(h);
+      if (!p) continue;
+      const fade = 1 - h.age / 1.5;
+      ctx.fillStyle =
+        h.ret === 'FIRST' ? `rgba(34, 211, 238, ${fade})` : `rgba(52, 211, 153, ${fade})`;
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+    }
+    if (!origin) return;
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const h of this.fan) {
+      const p = project(h);
+      if (!p) continue;
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
   }
 
   private drawFootprints(ctx: CanvasRenderingContext2D, cam: FlightCamera): void {
