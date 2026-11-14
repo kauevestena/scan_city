@@ -82,6 +82,8 @@ export interface PlayerActions {
   /** Debita se houver saldo; senão, não altera nada, avisa e retorna `false`. */
   spend: (amount: CentsBRL, reason: string) => boolean;
   changeReputation: (delta: number) => void;
+  /** Soma os deltas às estatísticas da carreira. */
+  addStats: (delta: Partial<SaveGame['stats']>) => void;
 }
 
 export interface InventoryActions {

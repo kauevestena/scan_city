@@ -72,3 +72,10 @@
 - **Contexto:** o score (domain-math §10.1) usa `cov` a partir da cobertura de fotos (≥ 5 fotos por célula). Missões LiDAR (C03, R04, R10) podem não ter fotos, e a cobertura ficaria toda vermelha, mesmo com a nuvem densa.
 - **Padrão provisório:** em missões cujo contrato exige `SENSOR_KIND = LIDAR` e que tenham grade LiDAR, cada célula conta como `min(5, ⌊5 · densidade / ref⌋)` "fotos", com `ref` = o valor de `MIN_LIDAR_DENSITY` do contrato (ou 10 pts/m²). Ou seja, a célula é verde com a densidade exigida. As demais missões usam a cobertura de fotos.
 - **Resolução:** —
+
+### OQ-009 — Veículo mínimo de R05
+- **Aberta em:** 2026-11-14 por T021
+- **Contexto:** a ficha de R05 em [contracts-rifts](content/contracts-rifts.md) não tem a linha "Veículo mínimo", o que daria `FOOT_BIKE`. Mas o layout macro de [world-map §5.1](features/world-map.md) põe a fenda `e` (R05) "atrás do cinturão `A` → 4x4".
+- **Opções:** A) `PICKUP_4X4`, como no layout do mapa; B) `FOOT_BIKE`, abrindo uma passagem no cinturão.
+- **Padrão provisório:** A. O mapa e o teste de BFS (`MARKER_ACCESS`) tratam `e` como só 4x4. Ao criar a ficha de R05 (T059), usar `minVehicle = PICKUP_4X4`.
+- **Resolução:** —

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createDebugMission } from '@/app/debugFixtures';
 import { INTRO_LINES } from '@/data/office';
+import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { OfficeScreen } from './OfficeScreen';
@@ -53,9 +54,14 @@ describe('OfficeScreen', () => {
     act(() => get().goTo('OFFICE'));
     fireEvent.click(screen.getByRole('button', { name: 'Laboratório' }));
     expect(get().session.screen).toBe('INFOGRAPHIC_LAB');
-    act(() => get().goTo('OFFICE'));
+    act(() => {
+      get().goTo('OFFICE');
+      get().setAvatar({ x: 10.5, y: 20.5, facing: 'N' });
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Porta — sair para o mapa' }));
     expect(get().session.screen).toBe('WORLD_MAP');
+    // Sair pela porta põe o avatar no spawn, ao lado dela.
+    expect(get().world.avatar).toEqual({ ...DEFAULT_SPAWN, facing: 'S' });
   });
 
   it('só com o teclado, setas e Enter alcançam e ativam os 4 hotspots', () => {

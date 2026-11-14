@@ -10,7 +10,7 @@ test('novo jogo: intro de 4 cartões → foco na Porta → Enter vai ao mapa', a
   const door = page.getByRole('button', { name: 'Porta — sair para o mapa' });
   await expect(door).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('screen-name')).toHaveText('WORLD_MAP');
+  await expect(page.getByTestId('world-map-screen')).toBeVisible();
 });
 
 test('só com o teclado, os 4 hotspots do escritório são alcançáveis a partir da Porta', async ({

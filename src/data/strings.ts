@@ -138,6 +138,23 @@ export const STRINGS = {
       process: 'Processar',
     },
   },
+  world: {
+    title: 'Mapa-múndi',
+    tabs: { REAL: 'Contratos do Mundo Real', RIFT: 'Fendas Dimensionais' },
+    vehicle: (name: string) => `Veículo: ${name}`,
+    enterHq: 'Entrar na sede',
+    viewContract: (title: string) => `Ver contrato "${title}"`,
+    minimap: 'Minimapa',
+    queuedToast: 'Dados salvos. Leve-os à Workstation no escritório',
+    blocked: {
+      HILL_STEEP: 'Encosta íngreme — requer Picape 4x4',
+      SWAMP: 'Brejo — requer Picape 4x4',
+      OFFROAD: 'Fora de estrada — carros não passam; troque para A Pé [V]',
+      WATER: 'Água — procure uma ponte',
+      MOUNTAIN: 'Montanha — intransponível',
+      BUILDING: 'Prédio — contorne pela rua',
+    },
+  },
   pause: {
     title: 'Jogo pausado',
     resume: 'Continuar',

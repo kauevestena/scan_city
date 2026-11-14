@@ -142,6 +142,12 @@ export const COSMETICS: readonly Cosmetic[] = [
 ];
 
 /** Equipados num jogo novo (progression §3). */
+/** Cores da skin equipada (a do colete se o id for desconhecido). */
+export function characterColors(id: string): Cosmetic['colors'] {
+  const skin = COSMETICS.find((c) => c.id === id && c.slot === 'CHARACTER');
+  return (skin ?? (COSMETICS[0] as Cosmetic)).colors;
+}
+
 export const STARTING_COSMETICS = ['CHAR_VEST', 'PAINT_GREY', 'ATLAS_NONE'] as const;
 
 /** Paleta do editor de emblema (catalog §10): tokens de ui-style §1 + 4 cores extras. */

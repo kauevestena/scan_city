@@ -79,6 +79,15 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
     return true;
   },
 
+  addStats: (delta) =>
+    set((s) => {
+      const stats = { ...s.stats };
+      for (const [key, value] of Object.entries(delta) as Array<[keyof typeof stats, number]>) {
+        stats[key] += value;
+      }
+      return { stats };
+    }),
+
   changeReputation: (delta) =>
     set((s) => ({
       player: { ...s.player, reputation: clamp(s.player.reputation + delta, 0, 100) },

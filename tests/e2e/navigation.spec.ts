@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** Clica numa transição do painel de depuração (F9 no escritório, embutido no shell). */
+/** Clica numa transição do painel de depuração (F9 nas telas reais, embutido no shell). */
 async function go(page: Page, transition: string, expected: string) {
   await page.locator(`[data-transition="${transition}"]`).click();
   if (expected === 'OFFICE') await expect(page.getByTestId('office-screen')).toBeVisible();
+  else if (expected === 'WORLD_MAP')
+    await expect(page.getByTestId('world-map-screen')).toBeVisible();
   else await expect(page.getByTestId('screen-name')).toHaveText(expected);
 }
 

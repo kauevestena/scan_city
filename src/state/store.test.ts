@@ -10,6 +10,7 @@ import {
 } from './selectors';
 import { MAX_TRANSACTIONS } from './slices/playerSlice';
 import { useGameStore } from './store';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 
 const get = () => useGameStore.getState();
 
@@ -100,6 +101,12 @@ describe('player', () => {
     expect(get().player.reputation).toBe(100);
     get().changeReputation(-500);
     expect(get().player.reputation).toBe(0);
+  });
+
+  it('addStats soma os deltas às estatísticas', () => {
+    get().addStats({ distanceTiles: 1.5, photosTaken: 2 });
+    get().addStats({ distanceTiles: 0.25 });
+    expect(get().stats).toMatchObject({ distanceTiles: 1.75, photosTaken: 2, crashes: 0 });
   });
 });
 
@@ -212,6 +219,14 @@ describe('museum', () => {
 });
 
 describe('world', () => {
+  it('novo jogo: o avatar começa no centro do tile de spawn `@`', () => {
+    expect(get().world.avatar).toEqual({
+      x: WORLD_MAP.spawn.x + 0.5,
+      y: WORLD_MAP.spawn.y + 0.5,
+      facing: 'S',
+    });
+  });
+
   it('setAvatar faz merge parcial', () => {
     get().setAvatar({ x: 10, y: 20 });
     expect(get().world.avatar).toEqual({ x: 10, y: 20, facing: 'S' });

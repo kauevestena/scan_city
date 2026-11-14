@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { SaveGame, VehicleId } from '@/types';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 import type { GameStore, WorldActions } from '../types';
 
 /** Ordem do ciclo de locomoção (catalog §5). */
@@ -10,8 +11,8 @@ export const VEHICLE_ORDER: readonly VehicleId[] = [
   'LAB_VAN',
 ];
 
-/** Centro do mapa 160 × 100; T021 troca pelo tile de spawn `@`. */
-export const DEFAULT_SPAWN = { x: 80, y: 50 } as const;
+/** Centro do tile de spawn `@` (o avatar guarda a posição contínua, em tiles). */
+export const DEFAULT_SPAWN = { x: WORLD_MAP.spawn.x + 0.5, y: WORLD_MAP.spawn.y + 0.5 } as const;
 
 export function initialWorld(): SaveGame['world'] {
   return {

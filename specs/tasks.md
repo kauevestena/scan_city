@@ -465,12 +465,22 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. Minimapa.
   5. Interação com a porta da sede.
 - **Aceite:**
-  - [ ] Os testes de mapa (dimensões, legenda) e de BFS para **todos** os marcadores × veículos passam, inclusive os 4x4-only.
-  - [ ] O avatar anda com WASD/setas/analógico e para nos tiles bloqueados com a dica.
-  - [ ] Entrar na sede volta ao `OFFICE`.
-  - [ ] ≥ 58 FPS (overlay).
+  - [x] Os testes de mapa (dimensões, legenda) e de BFS para **todos** os marcadores × veículos passam, inclusive os 4x4-only.
+  - [x] O avatar anda com WASD/setas/analógico e para nos tiles bloqueados com a dica.
+  - [x] Entrar na sede volta ao `OFFICE`.
+  - [x] ≥ 58 FPS (overlay).
 - **Verificação:** `npx vitest run src/world src/engines/overworld` · manual: andar pelo mapa todo com `?debug=1`.
-- **Status:** ☐
+- **Notas de implementação:**
+  - A posição do avatar é contínua, em tiles: o centro do tile (x, y) é (x + 0,5, y + 0,5). O avatar de um novo jogo nasce no centro do spawn `@`, e sair pela Porta do escritório o recoloca ali. Os retornos do campo (T7, T10, T13) mantêm a posição salva.
+  - O zoom é 1,5 × (largura / 1280), entre 1 e 3: sempre cerca de 27 tiles na horizontal.
+  - Os chunks pré-renderizados ficam num cache LRU de 20 (cada um ocupa alguns MB com DPR 2). Os visíveis cabem com folga.
+  - O `INTERACT` chega como ação discreta (`InputManager.onAction`), e não por `pressed()` dentro dos sub-passos, que poderiam vê-lo mais de uma vez no mesmo frame.
+  - A distância percorrida vai para `stats.distanceTiles` pela nova ação `addStats`, junto com a gravação da posição a cada 1 s e na saída.
+  - Os marcadores 0–6 aparecem em ciano. As cores por status e o briefing entram em T022. As fendas ficam ocultas até a aba Fendas (T059).
+  - O sprite a pé é o único por enquanto. Os veículos e o `CYCLE_VEHICLE` são de T039.
+  - O veículo mínimo de R05 (`e`) não está na ficha do contrato. O layout do mapa o põe atrás do cinturão `A`: ver OQ-009.
+  - Medição: 58–60 FPS no Chromium headless a 1280 × 720, andando por vários chunks.
+- **Status:** ✅
 
 ### T022 — Contratos: schema, C00 e briefing
 - **Fase:** F2 · **Depende de:** T021 · **REQs:** REQ-CNT-001 (*parc.*: C00), REQ-CNT-007 (*parc.*), REQ-WLD-005, REQ-WLD-008
@@ -1147,13 +1157,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ☐ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
-| REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ☐ |
+| REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ☐ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ☐ |
 | REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ☐ |
 | REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ☐ |
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ☐ |
-| REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ☐ |
+| REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ☐ |
 | REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ☐ |
 | REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ☐ |

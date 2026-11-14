@@ -8,6 +8,7 @@ import { OfficeRenderer, type OfficeSceneState } from '@/engines/office/OfficeRe
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
 import { useFocusNavigation } from '@/input/useFocusNavigation';
+import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import type { GameStore } from '@/state/types';
 import { cx, FOCUS_RING } from '@/ui';
@@ -118,9 +119,12 @@ export function OfficeScreen() {
   }, [surface]);
 
   const activate = (id: OfficeHotspot['id']) => {
-    const { goTo } = useGameStore.getState();
-    if (id === 'DOOR') goTo('WORLD_MAP');
-    else if (id === 'HOLO_TABLE') goTo('HOLO_TABLE_VIEW');
+    const { goTo, setAvatar } = useGameStore.getState();
+    if (id === 'DOOR') {
+      // Sai pela porta: o avatar aparece no spawn `@`, ao lado dela.
+      setAvatar({ ...DEFAULT_SPAWN, facing: 'S' });
+      goTo('WORLD_MAP');
+    } else if (id === 'HOLO_TABLE') goTo('HOLO_TABLE_VIEW');
     else if (id === 'LAB') goTo('INFOGRAPHIC_LAB');
     else if (id === 'WORKSTATION') setPanel('WORKSTATION');
   };

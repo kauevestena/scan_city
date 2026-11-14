@@ -36,10 +36,12 @@ describe('App + ScreenRouter', () => {
     expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
   });
 
-  it('telas sem implementação usam o shell; a barra superior segue a tela', () => {
+  it('o mapa é uma tela real; as telas sem implementação usam o shell', () => {
     open('/?debug=1&screen=WORLD_MAP');
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('WORLD_MAP');
+    expect(screen.getByTestId('world-map-screen')).toBeInTheDocument();
     expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+    // Sobre telas reais, o painel de depuração abre com F9 e continua aberto entre elas.
+    fireEvent.keyDown(window, { key: 'F9' });
     fireEvent.click(screen.getByRole('button', { name: 'T6 → FIELD_SETUP' }));
     expect(screen.getByTestId('screen-payload')).toHaveTextContent(
       '{"contractId":"C00","rivalAdjustment":1}',
@@ -49,13 +51,16 @@ describe('App + ScreenRouter', () => {
     expect(get().session.screen).toBe('SURVEY_FLIGHT');
     expect(screen.getAllByRole('button', { name: /^T\d+ →/ })).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'T10 → WORLD_MAP' }));
+    expect(screen.getByTestId('world-map-screen')).toBeInTheDocument();
     skipIntro();
-    fireEvent.click(screen.getByRole('button', { name: 'T5 → OFFICE' }));
+    fireEvent.click(
+      within(screen.getByTestId('debug-overlay')).getByRole('button', { name: 'T5 → OFFICE' }),
+    );
     expect(screen.getByTestId('office-screen')).toBeInTheDocument();
   });
 
   it('as ações rápidas dão dinheiro e geram missão pendente', () => {
-    open('/?debug=1&screen=WORLD_MAP');
+    open('/?debug=1&screen=HOLO_TABLE_VIEW');
     fireEvent.click(screen.getByRole('button', { name: /^\+ R\$/ }));
     expect(get().player.money).toBe(1_500_000);
     expect(screen.getByTestId('debug-money').textContent?.replace(/\s/g, ' ')).toBe(

@@ -13,6 +13,8 @@ test('o saldo definido por depuração persiste depois de recarregar', async ({ 
     .toContain('"money":1234500');
 
   await page.goto('/?debug=1&screen=WORLD_MAP');
+  await expect(page.getByTestId('world-map-screen')).toBeVisible();
+  await page.keyboard.press('F9');
   await expect(page.getByTestId('debug-money')).toHaveText(/12\.345,00/);
   await expect(page.getByTestId('top-bar')).toContainText('12.345,00');
 });

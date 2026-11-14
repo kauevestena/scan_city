@@ -1,0 +1,208 @@
+import type { AxisAction } from '@/input/actions';
+import { parseMap, WORLD_MAP } from '@/world/overworld/tiles';
+import { AVATAR_BOX, boxBlocker, stepAvatar, type AvatarState } from './avatar';
+import { CAMERA_LERP, clampCamera, followCamera } from './camera';
+import { drawMinimap, renderMinimapBase } from './minimap';
+import { HINT_THROTTLE_S, INTERACT_RADIUS, OverworldEngine, zoomFor } from './OverworldEngine';
+import { ChunkCache, CHUNK_TILES, drawMarker, TILE_COLORS } from './tileRenderer';
+
+// Porta em (2,1), spawn em (3,1), encosta íngreme em (5,1), água em (0,3).
+const MINI = parseMap(['..........', '..O@.A....', '..........', '~.........']);
+const SKIN = { primary: '#f97316', secondary: '#1e293b' };
+const at = (x: number, y: number, facing: AvatarState['facing'] = 'S'): AvatarState => ({
+  x,
+  y,
+  facing,
+  walked: 0,
+});
+
+type AvatarStart = Omit<AvatarState, 'walked'>;
+
+function fakeInput() {
+  const axes: Partial<Record<AxisAction, number>> = {};
+  return { axes, axis: (a: AxisAction) => axes[a] ?? 0 };
+}
+
+function surface(width = 1280, height = 672) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  return { ctx, width, height, dpr: 1 };
+}
+
+function engineOn(map = MINI, start: AvatarStart = { x: 3.5, y: 1.5, facing: 'S' }) {
+  const input = fakeInput();
+  const hints: string[] = [];
+  const near: boolean[] = [];
+  const engine = new OverworldEngine({
+    map,
+    input,
+    start,
+    vehicle: () => 'FOOT_BIKE',
+    speedMod: () => 1,
+    skin: () => SKIN,
+    markers: () => map.markers,
+    onHint: (t) => hints.push(t),
+    onNearDoorChange: (n) => near.push(n),
+  });
+  return { engine, input, hints, near };
+}
+
+/** Roda `seconds` de simulação em sub-passos de 1/60 s. */
+function run(engine: OverworldEngine, seconds: number) {
+  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) engine.update(1 / 60);
+}
+
+describe('stepAvatar — velocidade e colisão por eixo', () => {
+  it('anda na velocidade do tile; MOVE_Y > 0 é para o norte', () => {
+    const r = stepAvatar(MINI, at(5.5, 2.5), 1, 0, 'FOOT_BIKE', 1, 0.5);
+    expect(r.state.x).toBeCloseTo(7, 6); // grama: 3 tiles/s
+    expect(r.state.facing).toBe('E');
+    expect(r.moved).toBeCloseTo(1.5, 6);
+    const n = stepAvatar(MINI, at(7.5, 2.5), 0, 1, 'FOOT_BIKE', 1, 0.1);
+    expect(n.state.y).toBeCloseTo(2.2, 6);
+    expect(n.state.facing).toBe('N');
+  });
+
+  it('normaliza a diagonal, respeita o analógico parcial e o modificador de velocidade', () => {
+    const d = stepAvatar(MINI, at(7.5, 2.5), 1, -1, 'FOOT_BIKE', 1, 0.1);
+    expect(d.moved).toBeCloseTo(0.3, 6);
+    const half = stepAvatar(MINI, at(7.5, 2.5), 0.5, 0, 'FOOT_BIKE', 1, 0.1);
+    expect(half.moved).toBeCloseTo(0.15, 6);
+    const fast = stepAvatar(MINI, at(7.5, 2.5), 1, 0, 'FOOT_BIKE', 1.2, 0.1);
+    expect(fast.moved).toBeCloseTo(0.36, 6);
+    expect(stepAvatar(MINI, at(7.5, 2.5), 0, 0, 'FOOT_BIKE', 1, 0.1).moved).toBe(0);
+  });
+
+  it('para no tile intransponível e informa o tipo; desliza no outro eixo', () => {
+    // Encostado na encosta (5,1): a caixa de 0,6 tile não pode invadir x ≥ 5.
+    const start = at(5 - AVATAR_BOX / 2 - 0.01, 1.5);
+    const blocked = stepAvatar(MINI, start, 1, 0, 'FOOT_BIKE', 1, 0.1);
+    expect(blocked.blockedBy).toBe('HILL_STEEP');
+    expect(blocked.state.x).toBe(start.x);
+    const slide = stepAvatar(MINI, start, 1, -1, 'FOOT_BIKE', 1, 0.1);
+    expect(slide.state.x).toBe(start.x);
+    expect(slide.state.y).toBeGreaterThan(start.y);
+    expect(boxBlocker(MINI, 0.5, 3.5, 'FOOT_BIKE')).toBe('WATER');
+    // Fora do mapa conta como montanha.
+    expect(stepAvatar(MINI, at(0.35, 0.5), -1, 0, 'FOOT_BIKE', 1, 0.1).blockedBy).toBe('MOUNTAIN');
+  });
+});
+
+describe('câmera', () => {
+  it('lerp de 0,15 por frame a 60 FPS, independente da taxa', () => {
+    const c = followCamera({ x: 0, y: 0 }, { x: 10, y: 0 }, 1 / 60);
+    expect(c.x).toBeCloseTo(10 * CAMERA_LERP, 9);
+    const twoHalf = followCamera(
+      followCamera({ x: 0, y: 0 }, { x: 10, y: 0 }, 1 / 120),
+      { x: 10, y: 0 },
+      1 / 120,
+    );
+    expect(twoHalf.x).toBeCloseTo(c.x, 9);
+  });
+
+  it('presa aos limites do mapa; centrada se a vista for maior', () => {
+    expect(clampCamera({ x: 1, y: 99 }, 26.7, 14, 160, 100)).toEqual({ x: 13.35, y: 93 });
+    expect(clampCamera({ x: 3, y: 1 }, 20, 10, 10, 4)).toEqual({ x: 5, y: 2 });
+  });
+
+  it('zoom 1,5× em 1280 px (≈ 27 tiles), com limites', () => {
+    expect(zoomFor(1280)).toBe(1.5);
+    expect(1280 / (32 * zoomFor(1280))).toBeCloseTo(26.7, 1);
+    expect(zoomFor(320)).toBe(1);
+    expect(zoomFor(5000)).toBe(3);
+  });
+});
+
+describe('OverworldEngine', () => {
+  it('anda até a porta, avisa a proximidade e o INTERACT aponta a sede', () => {
+    const { engine, input, near } = engineOn();
+    expect(engine.interact()).toBeNull();
+    input.axes.MOVE_X = -1;
+    run(engine, 0.25);
+    expect(engine.isNearDoor()).toBe(true);
+    expect(near).toEqual([true]);
+    expect(engine.interact()).toBe('DOOR');
+    expect(Math.hypot(engine.avatar.x - 2.5, engine.avatar.y - 1.5)).toBeLessThanOrEqual(
+      INTERACT_RADIUS,
+    );
+    input.axes.MOVE_X = 1;
+    run(engine, 0.5);
+    expect(near).toEqual([true, false]);
+  });
+
+  it('dica de bloqueio com throttle de 3 s', () => {
+    const { engine, input, hints } = engineOn(MINI, { x: 4.6, y: 1.5, facing: 'E' });
+    input.axes.MOVE_X = 1;
+    run(engine, HINT_THROTTLE_S * 2 - 0.5);
+    expect(hints).toEqual([
+      'Encosta íngreme — requer Picape 4x4',
+      'Encosta íngreme — requer Picape 4x4',
+    ]);
+    expect(engine.isMoving).toBe(false);
+  });
+
+  it('acumula a distância para as estatísticas e zera na leitura', () => {
+    const { engine, input } = engineOn(MINI, { x: 7.5, y: 2.5, facing: 'S' });
+    input.axes.MOVE_X = 1;
+    run(engine, 0.5);
+    expect(engine.takeDistance()).toBeCloseTo(1.5, 6);
+    expect(engine.takeDistance()).toBe(0);
+    expect(engine.position).toMatchObject({ facing: 'E' });
+  });
+
+  it('save em tile inválido: vai para o tile caminhável mais próximo', () => {
+    const { engine } = engineOn(MINI, { x: 0.5, y: 3.5, facing: 'N' });
+    expect(engine.position).toEqual({ x: 1.5, y: 3.5, facing: 'N' });
+  });
+
+  it('renderiza chunks visíveis, água e marcadores; a câmera segue o avatar', () => {
+    const { engine, input } = engineOn(WORLD_MAP, {
+      x: WORLD_MAP.spawn.x + 0.5,
+      y: WORLD_MAP.spawn.y + 0.5,
+      facing: 'S',
+    });
+    const s = surface();
+    engine.attach(s);
+    expect(engine.viewTiles().w).toBeCloseTo(26.7, 1);
+    engine.render();
+    expect(s.ctx.drawImage).toHaveBeenCalled();
+    const before = engine.camera.x;
+    input.axes.MOVE_X = 1;
+    run(engine, 0.1);
+    engine.render();
+    expect(engine.camera.x).toBeGreaterThan(before);
+    expect(engine.camera.x).toBeLessThan(engine.avatar.x);
+  });
+});
+
+describe('render de tiles e minimapa', () => {
+  it('cada tipo de tile tem cor', () => {
+    for (const t of new Set(WORLD_MAP.tiles)) expect(TILE_COLORS[t]).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('ChunkCache: reaproveita, descarta o mais antigo e refaz na troca de escala', () => {
+    const cache = new ChunkCache(WORLD_MAP, 2);
+    const a = cache.get(0, 0, 1);
+    expect(cache.get(0, 0, 1)).toBe(a);
+    expect(a.canvas.width).toBe(CHUNK_TILES * 32);
+    cache.get(1, 0, 1);
+    cache.get(0, 0, 1);
+    cache.get(2, 0, 1); // descarta (1,0), o usado há mais tempo
+    expect(cache.size).toBe(2);
+    expect(cache.get(0, 0, 1)).toBe(a);
+    const scaled = cache.get(0, 0, 2);
+    expect(scaled).not.toBe(a);
+    expect(scaled.canvas.width).toBe(CHUNK_TILES * 32 * 2);
+    expect(cache.size).toBe(1);
+  });
+
+  it('marcador e minimapa desenham sem erro', () => {
+    const { ctx } = surface();
+    drawMarker(ctx, { char: '0', kind: 'CONTRACT', x: 3, y: 4 }, 1.2);
+    expect(ctx.fill).toHaveBeenCalled();
+    const base = renderMinimapBase(MINI);
+    expect([base.width, base.height]).toEqual([10, 4]);
+    drawMinimap(ctx, base, MINI.markers, { x: 3.5, y: 1.5 }, MINI.door, 0);
+    expect(ctx.drawImage).toHaveBeenCalledWith(base, 0, 0);
+  });
+});
