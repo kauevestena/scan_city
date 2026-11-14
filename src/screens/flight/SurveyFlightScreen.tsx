@@ -6,6 +6,7 @@ import { CATALOG } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { COSMETICS } from '@/data/cosmetics';
 import { STRINGS } from '@/data/strings';
+import { cropEnergy } from '@/engines/flight/atlas';
 import { FlightEngine, type SortieResult } from '@/engines/flight/FlightEngine';
 import type { FlightHudSnapshot } from '@/engines/flight/hudPublisher';
 import { useCanvas } from '@/engines/useCanvas';
@@ -53,6 +54,7 @@ function createEngine(
     colors: atlas ? { primary: '#94a3b8', secondary: '#475569' } : paint,
     accessory:
       atlas && equipped.atlasAccessory !== 'ATLAS_NONE' ? colorsOf(equipped.atlasAccessory) : null,
+    initialEnergy: atlas ? cropEnergy(state.inventory.corn.crop) : 1,
     sortie: mission.sorties.length,
     shotOffset: mission.shots.length,
     onShots: (batch) => useGameStore.getState().appendShots(batch),

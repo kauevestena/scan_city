@@ -28,6 +28,7 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     timeScale: 1,
     energy: 0.74,
     energyUnit: 'CORN',
+    cornLeft: 8,
     timeLeftS: 1112,
     rthAlert: false,
     emGlitch: false,
@@ -69,7 +70,7 @@ describe('FlightHud', () => {
   it('mostra linha, energia, casco, leituras, alertas por prioridade e o minimapa', () => {
     render(<FlightHud snap={snap()} />);
     expect(screen.getByTestId('hud-line')).toHaveTextContent('LINHA 3/6');
-    expect(screen.getByTestId('hud-energy')).toHaveTextContent('🌽 74 % 18:32');
+    expect(screen.getByTestId('hud-energy')).toHaveTextContent('🌽 × 8 · 74 % 18:32');
     expect(screen.getByLabelText('Casco 2 de 3')).toBeInTheDocument();
     expect(screen.getByTestId('hud-photos')).toHaveTextContent('FOTOS43 / 96');
     const alerts = within(screen.getByTestId('hud-alerts'));
@@ -118,6 +119,7 @@ describe('PostFlightDialog', () => {
     completedLines: [0, 1, 2, 3, 4, 5],
     photos: 96,
     collisions: 0,
+    cornUsed: 0,
     atlas: false,
   };
 

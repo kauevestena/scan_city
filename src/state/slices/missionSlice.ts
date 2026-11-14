@@ -99,6 +99,8 @@ export const createMissionSlice: StateCreator<
     const sigma = gcpSigma(equipment.sigmaBaseM, equipment.id, active.minigames.levelScore);
     const atlas = getAircraft(active.plan.params.aircraftId).energyUnit === 'CORN';
     const calibrated = atlas && inventory.atlasCalibrationFlights > 0;
+    // O pombo é alimentado antes de decolar: o papo enche com o estoque.
+    const corn = atlas ? feedCrop(inventory.corn) : inventory.corn;
     const launched: MissionData = {
       ...active,
       groundPoints: active.groundPoints.map((p) => ({ ...p, sigmaM: sigma.xy })),
@@ -107,9 +109,13 @@ export const createMissionSlice: StateCreator<
     };
     set((s) => ({
       mission: { ...s.mission, active: launched },
-      inventory: calibrated
-        ? { ...s.inventory, atlasCalibrationFlights: s.inventory.atlasCalibrationFlights - 1 }
-        : s.inventory,
+      inventory: {
+        ...s.inventory,
+        corn,
+        atlasCalibrationFlights: calibrated
+          ? s.inventory.atlasCalibrationFlights - 1
+          : s.inventory.atlasCalibrationFlights,
+      },
     }));
     return launched;
   },
@@ -152,6 +158,18 @@ export const createMissionSlice: StateCreator<
         },
       },
     }));
+    if (result.cornUsed) {
+      // O voo gasta milho do papo; o estoque só entra quando o Atlas é alimentado.
+      set((s) => ({
+        inventory: {
+          ...s.inventory,
+          corn: {
+            ...s.inventory.corn,
+            crop: Math.max(0, s.inventory.corn.crop - (result.cornUsed ?? 0)),
+          },
+        },
+      }));
+    }
     get().addStats({
       photosTaken: kept,
       flightTimeS: result.durationS,

@@ -722,12 +722,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F3 · **Depende de:** T031 · **REQs:** REQ-FLT-015, REQ-PRG-013 (*parc.*: consumo de milho em voo)
 - **Spec:** [survey-flight §5.15](features/survey-flight.md), [catalog §8](content/catalog.md)
 - **Aceite:**
-  - [ ] Distração seedada, com aviso, força lateral e cancelamento por contrabalanço.
-  - [ ] HUD com milho.
-  - [ ] Nova surtida enche o papo a partir do estoque.
-  - [ ] Calibração reduz a penalidade (teste no `accuracy` via `atlasCalibrated`).
+  - [x] Distração seedada, com aviso, força lateral e cancelamento por contrabalanço.
+  - [x] HUD com milho.
+  - [x] Nova surtida enche o papo a partir do estoque.
+  - [x] Calibração reduz a penalidade (teste no `accuracy` via `atlasCalibrated`).
 - **Verificação:** `npx vitest run src/engines/flight`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Distração (`atlas.ts`): ao começar cada linha, sorteia-se com p = 0,15 um instante e um lado, seedados por `hash(missão:surtida)` e pela linha (determinístico). Aviso de 1 s ("Atlas avistou sementes!"), depois força lateral de 4 m/s por 2–3 s; segurar o lado oposto com intensidade > 0,7 por 0,5 s encerra antes.
+  - A spec tem duas formulações: força de 4 m/s por 2–3 s (survey-flight §5.15, ≈ 8–12 m de desvio) e "desvio-alvo de ±20 m" (catalog §8). Segui a de survey-flight, a normativa do voo; o desvio de 20 m não é alcançado.
+  - Milho: o papo parte de `crop / 10` como energia; a decolagem alimenta o pombo (enche o papo com o estoque); ao fim da surtida o milho consumido (`⌈energia usada × 10⌉`) sai do papo. A "Nova surtida" realimenta pelo estoque.
+  - HUD: "🌽 × n · % tempo restante". O cálculo de 10 unidades = 600 s está testado; a calibração da câmera (1,30 → 1,15 com `atlasCalibrated`) já tinha teste em `accuracy` (T016).
+- **Status:** ✅
 
 ### T033 — Sensor LiDAR e alternância
 - **Fase:** F3 · **Depende de:** T032 · **REQs:** REQ-FLT-009, REQ-FLT-010
@@ -1273,7 +1278,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
 | REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
-| REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ☐ |
+| REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ☐ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ☐ |
 | REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ☐ |

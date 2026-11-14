@@ -17,6 +17,7 @@ import {
 import { gsd } from '@/domain/photogrammetry';
 import { planEquipment } from '@/domain/requirements';
 import { clamp, lerp } from '@/lib/math';
+import { hashString, mulberry32, type Rng } from '@/lib/rng';
 import type {
   Aircraft,
   AoiPoint,
@@ -33,6 +34,16 @@ import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
 import { drawAircraft, drawGroundShadow, type SpriteColors } from './aircraftSprite';
 import { driftMultiplier, emActive, emDisturbance, windAboveTolerance } from './environment';
+import {
+  cornLeft,
+  cornUsed,
+  initialDistraction,
+  isDistracted,
+  planDistraction,
+  stepDistraction,
+  type DistractionPlan,
+  type DistractionState,
+} from './atlas';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
@@ -96,6 +107,8 @@ export interface SortieResult {
   completedLines: number[];
   photos: number;
   collisions: number;
+  /** Milho consumido na surtida (só Atlas). */
+  cornUsed: number;
   /** A aeronave é o Atlas: a queda vira "voltou para casa", sem custo de reparo. */
   atlas: boolean;
 }
@@ -127,6 +140,8 @@ export interface FlightEngineOptions {
   onHud?: (snapshot: FlightHudSnapshot) => void;
   onPhase?: (phase: FlightPhase) => void;
   onCollision?: () => void;
+  /** Energia inicial (0–1); o Atlas parte do papo. Padrão: 1. */
+  initialEnergy?: number;
   /** Bip de RTH recomendado (a cada 1,5 s). */
   onRthBeep?: () => void;
   /** O status RTK mudou (toast "RTK FLOAT — multipercurso GNSS"). */
@@ -203,6 +218,11 @@ export class FlightEngine implements Simulation {
   private emHeading = 0;
   private lastRtk: RtkStatus = 'NONE';
   private rthConfirmUntil = -1;
+  private distractionPlan: DistractionPlan | null = null;
+  private distraction: DistractionState = initialDistraction();
+  private lineT = 0;
+  readonly startEnergy: number;
+  private readonly atlasRng: Rng | null;
   private rthBeepAt = 0;
   private ended = false;
 
@@ -211,6 +231,11 @@ export class FlightEngine implements Simulation {
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
     this.em = emActive(opts.contract.specialRules, aircraft);
+    // O Atlas começa com o que há no papo (0–10 unidades).
+    if (opts.initialEnergy !== undefined) this.energy = opts.initialEnergy;
+    this.atlasRng =
+      aircraft.kind === 'BIRD' ? mulberry32(hashString(`${opts.mission.id}:${opts.sortie}`)) : null;
+    this.startEnergy = this.energy;
     this.camera = cameraModel(opts.mission.plan, opts.catalog);
     // Primárias em zigue-zague e depois as cruzadas: a ordem do plano. Só as que faltam.
     const done = new Set(opts.mission.completedLines);
@@ -248,7 +273,20 @@ export class FlightEngine implements Simulation {
     );
   }
 
+  /** Ao começar cada linha, o Atlas sorteia (seedado) uma distração. */
+  private beginLineAtlas(): void {
+    this.lineT = 0;
+    this.distraction = initialDistraction();
+    this.distractionPlan = null;
+    const line = this.line;
+    if (!this.atlasRng || !line) return;
+    const duration = this.frame.lengthM / Math.max(1, this.opts.mission.plan.params.speedMs);
+    this.distractionPlan = planDistraction(this.atlasRng.fork(`line-${line.index}`), duration);
+  }
+
   setPhase(phase: FlightPhase): void {
+    if (phase === 'RUN' && this.phase !== 'RUN' && this.phase !== 'RETURNING')
+      this.beginLineAtlas();
     this.phase = phase;
     this.phaseT = 0;
     this.opts.onPhase?.(phase);
@@ -494,6 +532,18 @@ export class FlightEngine implements Simulation {
       this.emHeading = d.headingRad;
       this.ac = { ...this.ac, x: this.ac.x + d.lateralMs * dtS };
     }
+    if (this.distractionPlan) {
+      this.lineT += dtS;
+      const d = stepDistraction(
+        this.distraction,
+        this.distractionPlan,
+        this.lineT,
+        dtS,
+        this.input.moveX,
+      );
+      this.distraction = d.state;
+      if (d.lateralMs !== 0) this.ac = { ...this.ac, x: this.ac.x + d.lateralMs * dtS };
+    }
     const rtk = this.rtk();
     if (rtk !== this.lastRtk) {
       this.lastRtk = rtk;
@@ -555,6 +605,7 @@ export class FlightEngine implements Simulation {
       completedLines: [...this.completedLines].sort((a, b) => a - b),
       photos: this.shots.length,
       collisions: this.collisions,
+      cornUsed: this.aircraft.energyUnit === 'CORN' ? cornUsed(this.startEnergy, this.energy) : 0,
       atlas: this.aircraft.kind === 'BIRD',
     });
     this.publish(true);
@@ -623,6 +674,7 @@ export class FlightEngine implements Simulation {
     );
     const p = this.pRealPct();
     if (this.rthRecommended()) list.push(makeAlert('RTH'));
+    if (isDistracted(this.distraction)) list.push(makeAlert('ATLAS_DISTRACTED'));
     if (windAboveTolerance(this.opts.contract.wind, this.aircraft))
       list.push(makeAlert('WIND_LIMIT'));
     if (p !== null && p < minP) list.push(makeAlert('OVERLAP', Math.round(p)));
@@ -672,6 +724,7 @@ export class FlightEngine implements Simulation {
       timeScale: 1,
       energy: this.energy,
       energyUnit: this.aircraft.energyUnit,
+      ...(this.aircraft.energyUnit === 'CORN' ? { cornLeft: cornLeft(this.energy) } : {}),
       timeLeftS: this.energy / drainCruise,
       rthAlert: this.phase === 'RUN' && this.rthRecommended(),
       rthConfirm: this.rthConfirming,

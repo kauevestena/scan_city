@@ -240,6 +240,20 @@ describe('mission', () => {
     expect(m?.events).toMatchObject({ crashes: 1, collisions: 3 });
   });
 
+  it('milho: a decolagem enche o papo; a surtida gasta o que voou; a nova surtida realimenta', () => {
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, corn: { stock: 20, crop: 3 } } }));
+    get().startMission('C00', 1);
+    get().launchMission();
+    expect(get().inventory.corn).toEqual({ stock: 13, crop: 10 });
+    get().endSortie({ outcome: 'RTH', durationS: 300, completedLines: [0], cornUsed: 4 });
+    expect(get().inventory.corn).toEqual({ stock: 13, crop: 6 });
+    // Nunca fica negativo.
+    get().endSortie({ outcome: 'RTH', durationS: 10, completedLines: [], cornUsed: 99 });
+    expect(get().inventory.corn.crop).toBe(0);
+    expect(get().startNewSortie()).toBe(true);
+    expect(get().inventory.corn).toEqual({ stock: 3, crop: 10 });
+  });
+
   it('resumePlanning volta a missão ao planejamento; sem missão, nada muda', () => {
     get().startMission('C00', 1);
     get().launchMission();

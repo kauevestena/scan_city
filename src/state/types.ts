@@ -112,6 +112,8 @@ export interface SortieReport {
   completedLines: number[];
   /** Colisões da surtida (somam em `events.collisions`, mesmo com os dados descartados). */
   collisions?: number;
+  /** Milho consumido do papo (Atlas). */
+  cornUsed?: number;
 }
 
 export interface MissionActions {

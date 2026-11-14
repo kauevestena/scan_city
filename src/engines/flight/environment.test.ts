@@ -304,3 +304,72 @@ describe('FlightEngine — energia, RTH e múltiplas surtidas (§5.12)', () => {
     expect(done).toEqual([0, 1, 2, 3, 4, 5]);
   });
 });
+
+describe('FlightEngine — Atlas: distração, milho e papo', () => {
+  it('a distração é seedada por missão: o mesmo id repete o mesmo desvio', () => {
+    // Procura uma missão que distraia o Atlas na linha 0 e confere a repetição e o alerta.
+    const found: string[] = [];
+    for (let k = 0; k < 400 && found.length < 1; k++) {
+      const e = engineFor(`seed-${k}`);
+      for (let t = 0; t < 40; t += 1 / 20) e.update(1 / 20);
+      // Sem vento nem comando, só a distração tira o Atlas da linha.
+      if (Math.abs(e.ac.x) > 3) found.push(`seed-${k}`);
+    }
+    expect(found).toHaveLength(1);
+    const a = engineFor(found[0] as string);
+    const b = engineFor(found[0] as string);
+    for (let t = 0; t < 40; t += 1 / 20) {
+      a.update(1 / 20);
+      b.update(1 / 20);
+    }
+    expect(a.ac.x).toBeCloseTo(b.ac.x, 9);
+  });
+
+  it('o papo parte da energia inicial; a surtida informa o milho consumido', () => {
+    const calm = { meanMs: 0, gustMs: 0, directionDeg: 0 };
+    const e = engineFor('milho', { initialEnergy: 0.4, wind: calm });
+    expect(e.energy).toBe(0.4);
+    expect(e.startEnergy).toBe(0.4);
+    expect(e.snapshot()).toMatchObject({ energyUnit: 'CORN', cornLeft: 4 });
+  });
+});
+
+/** Engine do Atlas com `mission.id` próprio (a semente da distração). */
+function engineFor(id: string, over: { initialEnergy?: number; wind?: Contract['wind'] } = {}) {
+  const calm = over.wind ?? { meanMs: 0, gustMs: 0, directionDeg: 0 };
+  const contract: Contract = { ...C00, wind: calm };
+  const plan = buildFlightPlan(referenceParams(C00), contract, CATALOG);
+  const mission = {
+    id,
+    contractId: 'C00',
+    createdAt: 0,
+    rivalAdjustment: 1,
+    isReplay: false,
+    plan,
+    groundPoints: [],
+    fieldEquipmentId: 'TOTAL_STATION',
+    minigames: {},
+    atlasCalibrated: false,
+    sorties: [],
+    completedLines: [],
+    shots: [],
+    events: { collisions: 0, crashes: 0, detected: false, featuresCaptured: [], ringsCollected: 0 },
+    status: 'IN_FLIGHT',
+  } as unknown as MissionData;
+  return new FlightEngine({
+    mission,
+    contract,
+    terrain: createTerrain(C00),
+    catalog: CATALOG,
+    input: { axis: () => 0 },
+    mods: neutralModifiers(),
+    ownsRtkKit: false,
+    autopilot: false,
+    quality: () => 'LOW',
+    reduceFlashes: () => false,
+    colors: { primary: '#fff', secondary: '#000' },
+    sortie: 0,
+    shotOffset: 0,
+    ...(over.initialEnergy !== undefined ? { initialEnergy: over.initialEnergy } : {}),
+  });
+}

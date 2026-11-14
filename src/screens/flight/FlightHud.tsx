@@ -73,7 +73,10 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
   const glitch = snap.emGlitch && !reduceFlashes;
   const phaseLabel = T.phases[snap.phase];
   // O Atlas voa a milho (papo); os demais, a bateria.
-  const energyText = `${snap.energyUnit === 'CORN' ? '🌽 ' : ''}${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`;
+  const energyText =
+    snap.energyUnit === 'CORN'
+      ? `🌽 × ${snap.cornLeft ?? 0} · ${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`
+      : `${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`;
   const deviation = Math.max(-1, Math.min(1, snap.crossTrackM / 20));
   return (
     <div
