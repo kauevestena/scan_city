@@ -1,16 +1,17 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { TOAST_DURATION_MS, ToastHost } from './ToastHost';
-import { toastStore } from './toastStore';
+import { useGameStore } from '@/state/store';
+import { initialSession } from '@/state/slices/sessionSlice';
 
 const push = (title: string) =>
   act(() => {
-    toastStore.getState().pushToast({ type: 'info', title });
+    useGameStore.getState().pushToast({ type: 'info', title });
   });
 
 describe('ToastHost', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    toastStore.setState({ toasts: [] });
+    useGameStore.setState({ session: initialSession() });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -44,13 +45,13 @@ describe('ToastHost', () => {
       vi.advanceTimersByTime(TOAST_DURATION_MS);
     });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(toastStore.getState().toasts).toHaveLength(0);
+    expect(useGameStore.getState().session.toasts).toHaveLength(0);
   });
 
   it('pode ser dispensado manualmente e usa a cor do tipo', () => {
     render(<ToastHost />);
     act(() => {
-      toastStore.getState().pushToast({ type: 'error', title: 'Falhou', body: 'Detalhe' });
+      useGameStore.getState().pushToast({ type: 'error', title: 'Falhou', body: 'Detalhe' });
     });
     const toast = screen.getByRole('alert');
     expect(toast).toHaveAttribute('data-toast-type', 'error');

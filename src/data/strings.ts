@@ -9,6 +9,16 @@ export const STRINGS = {
     company: 'GeoSurvey Soluções Cartográficas',
     version: (v: string) => `Versão ${v}`,
   },
+  player: {
+    defaultName: 'Geodesta',
+  },
+  economy: {
+    insufficientFunds: (missing: string) => `Saldo insuficiente (faltam ${missing})`,
+  },
+  pause: {
+    title: 'Jogo pausado',
+    resume: 'Continuar',
+  },
   ui: {
     close: 'Fechar',
     cancel: 'Cancelar',

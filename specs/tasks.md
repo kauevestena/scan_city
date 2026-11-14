@@ -144,12 +144,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
   4. `PauseOverlay` (por enquanto: Continuar), aberto pela tecla Esc via listener simples. Em T008, passa ao `InputManager`.
   5. `debugFlags.ts`: parse de `debug`, `seed`, `screen`, `contract`, `autopilot`, `unlockAll`, `money` e `skipIntro`. `screen=UIKIT|SOUNDBOARD` roteia para as galerias.
 - **Aceite:**
-  - [ ] Teste de tabela: todas as 16 transições aceitas, e todas as outras combinações (42 − 16 = 26) rejeitadas.
-  - [ ] Em `DEV` lança erro, e em `PROD` (mock de `import.meta.env`) faz `console.warn` sem mudar a tela.
-  - [ ] É possível navegar por todas as telas pelo shell.
-  - [ ] O overlay de pausa aparece com Esc e congela `session.paused`.
+  - [x] Teste de tabela: todas as 16 transições aceitas, e todas as outras combinações (42 − 16 = 26) rejeitadas.
+  - [x] Em `DEV` lança erro, e em `PROD` (mock de `import.meta.env`) faz `console.warn` sem mudar a tela.
+  - [x] É possível navegar por todas as telas pelo shell.
+  - [x] O overlay de pausa aparece com Esc e congela `session.paused`.
 - **Verificação:** `npx vitest run src/state src/app` · E2E: `tests/e2e/navigation.spec.ts` (percorre T1→T15 pelo shell com `?debug=1`).
-- **Status:** ☐
+- **Notas de implementação:**
+  - As guardas que dependem de sistemas futuros ficam na forma mínima e são completadas na tarefa do sistema: T8 exige a missão ativa do payload (o `validatePlan` entra em T023), e T11 exige o setor do contrato em `museum.sectors` (um relatório aprovado sempre esculpe o setor; ver T025).
+  - As flags `debug`, `screen`, `contract`, `money` e `skipIntro` já têm efeito. `unlockAll` é aplicada em T010 (itens) e T022 (contratos), `autopilot` em T024 e `seed` em T019/T040 (eventos e rival).
+  - O painel de depuração (`DebugPanel`) vive dentro do `DebugScreenShell`. O atalho `F9`, para abri-lo por cima das telas reais, entra em T020, quando a primeira tela real existir.
+  - A posição inicial do avatar é o centro do mapa até T021 definir o tile de spawn `@`.
+- **Status:** ✅
 
 ### T006 — Persistência, migrações e novo jogo
 - **Fase:** F0 · **Depende de:** T005 · **REQs:** REQ-CORE-004, REQ-CORE-005, REQ-CORE-009 (*parc.*: lógica)
@@ -1070,13 +1075,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 
 | REQ | Título | Spec de detalhe | Tarefas | Status |
 | :--- | :--- | :--- | :--- | :-: |
-| REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ☐ |
-| REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ☐ |
+| REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ✅ |
+| REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
 | REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ☐ |
 | REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ☐ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ☐ |
-| REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ☐ |
+| REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ☐ |
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
 | REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ☐ |

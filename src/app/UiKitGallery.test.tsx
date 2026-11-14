@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { toastStore } from '@/ui/toastStore';
+import { initialSession } from '@/state/slices/sessionSlice';
+import { useGameStore } from '@/state/store';
 import { UiKitGallery } from './UiKitGallery';
 
 const KIT = [
@@ -34,7 +35,7 @@ describe('UiKitGallery', () => {
   });
 
   it('os controles interativos da galeria funcionam', () => {
-    toastStore.setState({ toasts: [] });
+    useGameStore.setState({ session: initialSession() });
     render(<UiKitGallery />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir modal' }));
@@ -47,7 +48,7 @@ describe('UiKitGallery', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Disparar money' }));
-    expect(toastStore.getState().toasts).toHaveLength(1);
+    expect(useGameStore.getState().session.toasts).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Plano de voo' }));
     expect(screen.getByText('Aba ativa: plan')).toBeInTheDocument();

@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import { useStore } from 'zustand';
 import { STRINGS } from '@/data/strings';
 import { Toast, type ToastData } from './Toast';
-import { toastStore } from './toastStore';
+import { useGameStore } from '@/state/store';
 
 export const TOAST_MAX_VISIBLE = 4;
 export const TOAST_DURATION_MS = 4000;
@@ -19,8 +18,8 @@ function TimedToast({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: st
 
 /** Pilha de toasts no canto superior direito: até 4 visíveis, 4 s cada (REQ-UI-004). */
 export function ToastHost() {
-  const toasts = useStore(toastStore, (s) => s.toasts);
-  const dismissToast = useStore(toastStore, (s) => s.dismissToast);
+  const toasts = useGameStore((s) => s.session.toasts);
+  const dismissToast = useGameStore((s) => s.dismissToast);
   return (
     <div
       aria-label={STRINGS.ui.notifications}

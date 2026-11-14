@@ -21,7 +21,7 @@ import {
   type ButtonVariant,
   type ToastType,
 } from '@/ui';
-import { toastStore } from '@/ui/toastStore';
+import { useGameStore } from '@/state/store';
 
 const BUTTON_VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'danger', 'rift'];
 const TOAST_TYPES: ToastType[] = ['info', 'success', 'warn', 'error', 'money', 'rift'];
@@ -234,7 +234,7 @@ export function UiKitGallery() {
               key={type}
               size="sm"
               onClick={() =>
-                toastStore
+                useGameStore
                   .getState()
                   .pushToast({ type, title: `Aviso ${type}`, body: 'Some em 4 segundos.' })
               }

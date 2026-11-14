@@ -1,27 +1,30 @@
-import { Radar } from 'lucide-react';
+import { useState } from 'react';
+import { applyDebugFlags } from '@/app/debugFixtures';
+import { getDebugFlags } from '@/app/debugFlags';
+import { PauseOverlay } from '@/app/PauseOverlay';
+import { ScreenRouter } from '@/app/ScreenRouter';
 import { UiKitGallery } from '@/app/UiKitGallery';
-import { STRINGS } from '@/data/strings';
 import { ToastHost } from '@/ui';
 
-function BootScreen() {
-  return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 overflow-hidden bg-slate-950 text-slate-100 select-none">
-      <Radar size={48} strokeWidth={1.75} className="text-cyan-400" aria-hidden />
-      <h1 className="text-2xl font-semibold tracking-wide uppercase">{STRINGS.app.title}</h1>
-      <p className="text-sm text-slate-400">{STRINGS.app.tagline}</p>
-      <p className="font-mono text-xs text-slate-400 tabular-nums" data-testid="app-version">
-        {STRINGS.app.version(__APP_VERSION__)}
-      </p>
-    </div>
-  );
-}
-
 export function App() {
-  const screen = new URLSearchParams(window.location.search).get('screen');
+  // As flags de depuração são aplicadas uma única vez, antes da primeira renderização.
+  const [flags] = useState(() => {
+    const parsed = getDebugFlags();
+    applyDebugFlags(parsed);
+    return parsed;
+  });
+
   return (
-    <>
-      {screen === 'UIKIT' ? <UiKitGallery /> : <BootScreen />}
+    <div className="h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
+      {flags.screen === 'UIKIT' ? (
+        <UiKitGallery />
+      ) : (
+        <>
+          <ScreenRouter />
+          <PauseOverlay />
+        </>
+      )}
       <ToastHost />
-    </>
+    </div>
   );
 }
