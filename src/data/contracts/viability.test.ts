@@ -36,18 +36,6 @@ describe.each(CONTRACTS.map((c) => [c.id, c] as const))('viabilidade de %s', (_i
     ).toBeLessThan(0.02);
   });
 
-  it.runIf(ref.expected.lidar !== undefined)(
-    'LiDAR: faixa, densidade total e de solo batem com a spec (faixa e densidade ±1 %, solo ±10 %)',
-    () => {
-      const lidar = ref.expected.lidar as NonNullable<typeof ref.expected.lidar>;
-      const within = (got: number | undefined, want: number, tol: number) =>
-        Math.abs((got ?? NaN) - want) / want < tol;
-      expect(within(plan.stats.lidarSwathM, lidar.swathM, 0.01)).toBe(true);
-      expect(within(plan.stats.lidarDensity, lidar.density, 0.01)).toBe(true);
-      expect(within(plan.stats.groundDensity, lidar.groundDensity, 0.1)).toBe(true);
-    },
-  );
-
   it('GCPs/CPs encaixam a ≤ 30 m e nenhum requisito previsível falha', () => {
     const terrain = createTerrain(c);
     const vehicles = [getVehicle(c.minVehicle), getVehicle(c.recommended.vehicle)];
@@ -78,5 +66,25 @@ describe.each(CONTRACTS.map((c) => [c.id, c] as const))('viabilidade de %s', (_i
       fieldEquipmentId: 'TOTAL_STATION',
     });
     expect(results.filter((r) => !r.pass).map((r) => `${r.id}: ${r.valueText}`)).toEqual([]);
+  });
+});
+
+// Os contratos de LiDAR esperam também a faixa varrida e as densidades de pontos.
+describe.each(
+  CONTRACTS.filter((c) => c.referencePlan.expected.lidar !== undefined).map(
+    (c) => [c.id, c] as const,
+  ),
+)('viabilidade de LiDAR de %s', (_id, c: Contract) => {
+  const lidar = c.referencePlan.expected.lidar as NonNullable<
+    Contract['referencePlan']['expected']['lidar']
+  >;
+  const plan = buildFlightPlan(referenceParams(c), c, CATALOG, { meanCanopy: typicalCanopy(c) });
+  const within = (got: number | undefined, want: number, tol: number) =>
+    Math.abs((got ?? NaN) - want) / want < tol;
+
+  it('faixa e densidade total batem com a spec (±1 %) e a de solo, sob o dossel típico, (±10 %)', () => {
+    expect(within(plan.stats.lidarSwathM, lidar.swathM, 0.01)).toBe(true);
+    expect(within(plan.stats.lidarDensity, lidar.density, 0.01)).toBe(true);
+    expect(within(plan.stats.groundDensity, lidar.groundDensity, 0.1)).toBe(true);
   });
 });
