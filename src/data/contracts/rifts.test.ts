@@ -19,15 +19,16 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R08, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R06, R08, R11, RIFT_CONTRACTS } from './rifts';
 
 describe('catálogo das fendas', () => {
-  it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem das tarefas', () => {
+  it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem dos ids', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R08', 'R11']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R06', 'R08', 'R11']);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
+    expect(getContract('R06')).toBe(R06);
     expect(getContract('R08')).toBe(R08);
     expect(getContract('R11')).toBe(R11);
   });
@@ -704,5 +705,192 @@ describe('R11 — Tumbas dos Desfiladeiros', () => {
     expect(bad.requirements.find((r) => r.id === 'R11-facade')?.pass).toBe(false);
     expect(bad.critical).toBe(true);
     expect(bad.approved).toBe(false);
+  });
+});
+
+describe('R06 — Pântano Cinzento', () => {
+  const terrain = createTerrain(R06);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+  /** O mesmo plano de referência com a câmera RGB de 45 MP no lugar da termal. */
+  const rgbContract = {
+    ...R06,
+    referencePlan: { ...R06.referencePlan, sensorId: 'CAM_45MP_FF', lensId: 'LENS_24' as const },
+  };
+
+  it('conforme a ficha: AOI, teto, luzes, regras, 6 requisitos, recompensa e museu', () => {
+    expect(R06.title).toBe('Pântano Cinzento');
+    expect(R06.client.name).toBe('Geraldo de Rívia');
+    expect(R06.client.portrait).toEqual({
+      shape: 'SHIELD',
+      icon: 'Sword',
+      primary: '#94a3b8',
+      secondary: '#0f172a',
+      initials: 'GR',
+    });
+    expect([R06.dimension, R06.biome, R06.seed]).toEqual(['RIFT', 'RIFT_GREY_SWAMP', 9606]);
+    expect(R06.aoi).toEqual({ widthM: 200, lengthM: 300 });
+    expect([R06.ceilingM, R06.terrainReliefM]).toEqual([120, 8]);
+    expect(R06.lightingOptions).toEqual(['OVERCAST', 'GOLDEN_HOUR']);
+    expect(R06.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 0 });
+    expect(R06.specialRules).toEqual(['EM_INTERFERENCE', 'FEATURE_TARGETS']);
+    expect(R06.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'THERMAL' }],
+      ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'DEN_A' }],
+      ['MAJOR', { type: 'FEATURE_CAPTURED', featureId: 'DEN_B' }],
+      ['MAJOR', { type: 'FEATURE_CAPTURED', featureId: 'DEN_C' }],
+      ['MAJOR', { type: 'MIN_COVERAGE_GREEN', value: 0.7 }],
+      ['MINOR', { type: 'MAX_GSD_CM', value: 14 }],
+    ]);
+    expect(R06.recommended).toMatchObject({
+      aircraft: ['DRONE_T2'],
+      sensors: ['CAM_THERMAL'],
+      vehicle: 'PICKUP_4X4',
+    });
+    expect([R06.basePaymentBRL, R06.xp, R06.reputationReward]).toEqual([6_000_000, 1100, 5]);
+    expect(R06.souvenirId).toBe('SV_THEODOLITE_SWORD');
+    expect(R06.museum).toEqual({ wing: 'RIFT', slot: 5, incomePerMinBRL: 13_000 });
+    expect(R06.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C06' });
+    expect(R06.overworldMarker).toBe('f');
+    expect(
+      [R06.dialogs.briefing, R06.dialogs.success, R06.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('4x4 para chegar: o portal `f` só se alcança de picape, como o do C03 e o do C04', () => {
+    expect(R06.minVehicle).toBe('PICKUP_4X4');
+    expect(MARKER_ACCESS[R06.overworldMarker]).toBe('PICKUP_4X4');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R06.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    const reach = (v: VehicleId) => isReachable(WORLD_MAP, WORLD_MAP.door, marker, v);
+    expect(reach('PICKUP_4X4')).toBe(true);
+    for (const v of ['FOOT_BIKE', 'COMPACT_CAR', 'LAB_VAN'] as const) {
+      expect(reach(v), v).toBe(false);
+    }
+    // Slot do museu distinto dos das outras fendas.
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 com a câmera termal: GSD 13,08 cm, 8 linhas, 426,6 s, sem pontos de apoio', () => {
+    const ref = R06.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_THERMAL',
+      heightM: 100,
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+      speedMs: 8,
+      lighting: 'OVERCAST',
+      gcps: [],
+      cps: [],
+    });
+    expect(getSensor(ref.sensorId).kind).toBe('THERMAL');
+    expect(ref.expected).toEqual({ gsdCm: 13.08, nLines: 8, flightTimeS: 426.6 });
+    const plan = buildFlightPlan(referenceParams(R06), R06, CATALOG);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(13.08, 2);
+    expect(plan.stats.nLines).toBe(8);
+    expect(plan.stats.flightTimeS).toBeCloseTo(426.6, 0);
+    expect(plan.stats.totalPhotos).toBe(160);
+  });
+
+  it('o sensor térmico é obrigatório e crítico: o plano térmico passa, o mesmo plano com RGB reprova', () => {
+    const ctx = { catalog: CATALOG, ownsRtkKit: true, fieldEquipmentId: 'TOTAL_STATION' as const };
+    const thermal = buildFlightPlan(referenceParams(R06), R06, CATALOG);
+    const [ok] = predictRequirements(thermal, R06, [], ctx);
+    expect(ok?.id).toBe('R06-sensor');
+    expect(ok?.pass).toBe(true);
+    const rgb = buildFlightPlan(referenceParams(rgbContract), rgbContract, CATALOG);
+    const [bad] = predictRequirements(rgb, R06, [], ctx);
+    expect(bad?.pass).toBe(false);
+    expect(bad?.severity).toBe('CRITICAL');
+  });
+
+  it('as tocas só são capturadas pelas fotos do sensor termal: as mesmas fotos RGB passam em branco', () => {
+    const mission = syntheticMission(R06, terrain, CATALOG);
+    const plan = mission.plan;
+    const aircraftKind = getAircraft(plan.params.aircraftId).kind;
+    const capture = (sensorId: string, focalM: number) => {
+      const sensor = getSensor(sensorId);
+      return capturedFeatures({ shots: mission.shots }, terrain, {
+        aoi: R06.aoi,
+        aircraftKind,
+        sensor,
+        focalM,
+        rules: { sensorKind: sensor.kind, specularWater: false },
+      });
+    };
+    expect(capture('CAM_THERMAL', plan.stats.focalM)).toEqual(['DEN_A', 'DEN_B', 'DEN_C']);
+    expect(capture('CAM_45MP_FF', plan.stats.focalM)).toEqual([]);
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova e as três tocas são capturadas', () => {
+    const mission = syntheticMission(R06, terrain, CATALOG);
+    expect(mission.groundPoints).toHaveLength(0);
+    const report = evaluateMission(mission, R06, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R06-sensor',
+      'R06-den-a',
+      'R06-den-b',
+      'R06-den-c',
+      'R06-cov',
+      'R06-gsd',
+    ]);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+  });
+
+  it('voar com a câmera RGB reprova pelos dois críticos: sem sensor térmico e sem a toca A', () => {
+    const mission = syntheticMission(rgbContract, terrain, CATALOG);
+    const report = evaluateMission(mission, R06, context());
+    const byId = (id: string) => report.requirements.find((r) => r.id === id);
+    expect(byId('R06-sensor')?.pass).toBe(false);
+    expect(byId('R06-den-a')?.pass).toBe(false);
+    expect(byId('R06-den-b')?.pass).toBe(false);
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('concluir o C06 libera a R06 e a descobre', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C00: done, C01: done },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R06?.status).toBe('LOCKED');
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C06: done },
+        stats: { ...s.stats, contractsCompleted: 3 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R06?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R06']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual(['Anomalia dimensional detectada: Pântano Cinzento']);
   });
 });

@@ -1,6 +1,7 @@
 /**
  * Alvos especiais (`FEATURE_TARGETS`, contracts-real §1): `PHOTO` exige ≥ 3 fotos válidas
- * cobrindo o centro; `LIDAR`, ≥ 50 pulsos/m² na célula do centro.
+ * cobrindo o centro; `LIDAR`, ≥ 50 pulsos/m² na célula do centro. Um alvo com `sensorKind` (as
+ * tocas `DEN_*`, que só a câmera termal enxerga) só é capturado por fotos desse sensor.
  */
 import type { AircraftKind, CameraSensor, FeatureTarget, MissionData } from '@/types';
 import { footprintPolygon, isShotValid, type ShotRules } from './coverage';
@@ -27,6 +28,8 @@ export function capturedFeatures(
   for (const feature of terrain.features) {
     const center = { u: feature.u, v: feature.v };
     if (feature.needs === 'PHOTO') {
+      // As fotos de outro sensor passam em branco pelo alvo: ele não aparece para essa câmera.
+      if (feature.sensorKind !== undefined && feature.sensorKind !== ctx.sensor.kind) continue;
       let photos = 0;
       for (const shot of mission.shots) {
         if (!isShotValid(shot, ctx.rules)) continue;

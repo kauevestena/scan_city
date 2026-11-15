@@ -17,6 +17,7 @@ import {
   type FlightCamera,
   type Quality,
 } from './projection';
+import { COVER_HEAT, thermalColor } from './thermal';
 
 /** Sol do voo: azimute 135° (§5.3); a elevação vem da iluminação. */
 export const SUN_AZIMUTH_DEG = 135;
@@ -69,6 +70,11 @@ export interface TerrainScene {
   reliefM: number;
   /** Regra `SPECULAR_WATER`: brilho na água sob `SUN_HIGH`. */
   specularWater?: boolean;
+  /**
+   * Câmera termal: o terreno vira uma rampa de calor (cobertura mais o calor extra de `heatAt`,
+   * em coordenadas do *run*), no lugar das cores do bioma.
+   */
+  thermal?: { heatAt: (X: number, Z: number) => number };
   timeS: number;
   objects: readonly SceneObject[];
   marks: readonly GroundMark[];
@@ -259,6 +265,14 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       if (cover === 'WATER') {
         base = scene.palette.water;
         shade = 1 + 0.06 * Math.sin(scene.timeS * 2 + Zi * 0.1 + (g.x[k00] as number) * 0.05);
+      }
+      if (scene.thermal) {
+        // Termal: o calor da cobertura, a mancha quente do ponto e um toque do relevo.
+        const xMid = ((g.x[k00] as number) + (g.x[k01] as number)) / 2;
+        const heat =
+          COVER_HEAT[cover] + scene.thermal.heatAt(xMid, (Zi + Zn) / 2) + 0.18 * (shade - 1);
+        base = thermalColor(heat);
+        shade = 1;
       }
       const lit: Rgb = [base[0] * shade, base[1] * shade, base[2] * shade];
       const [r, gg, b] = mix(lit, scene.palette.fog, fog);

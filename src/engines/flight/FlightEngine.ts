@@ -110,6 +110,7 @@ import {
 import { aoiPoint, runFrame, toRun, type RunFrame } from './runFrame';
 import { drawRiftParticles, drawRiftSky, drawSky } from './sky';
 import { renderTerrain, sunInRunFrame, type GroundMark, type SceneObject } from './terrainRenderer';
+import { hotSpotHeat, objectHeat, thermalColor, thermalFeatures } from './thermal';
 
 export const TAKEOFF_S = 2.5;
 export const LANDING_S = 2;
@@ -1019,6 +1020,9 @@ export class FlightEngine implements Simulation {
     const frame = this.frame;
     const s0 = this.ac.s;
     const plan = this.opts.mission.plan;
+    // Câmera termal: o terreno vira uma rampa de calor e as tocas (`sensorKind: THERMAL`) brilham.
+    const thermal = planEquipment(plan, this.opts.catalog).camera.kind === 'THERMAL';
+    const hotSpots = thermal ? thermalFeatures(terrain.features) : [];
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const shake = shakeOffset(this.shakeS, this.sortieT, this.opts.reduceFlashes());
@@ -1055,7 +1059,7 @@ export class FlightEngine implements Simulation {
         depthM: o.depthM,
         heightM: o.heightM,
         baseM: (o.baseM ?? 0) + m.dh,
-        color: o.color,
+        color: thermal ? thermalColor(objectHeat(o.kind)) : o.color,
         ...(this.collectedRings.has(o.id) ? { collected: true } : {}),
       };
       if (o.kind === 'WIRE') {
@@ -1096,6 +1100,16 @@ export class FlightEngine implements Simulation {
       timeS: this.sortieT,
       objects,
       marks,
+      ...(thermal
+        ? {
+            thermal: {
+              heatAt: (X: number, Z: number) => {
+                const p = at(X, Z);
+                return hotSpotHeat(hotSpots, p.u, p.v);
+              },
+            },
+          }
+        : {}),
     });
     this.drawFootprints(ctx, cam);
     this.drawSearchlights(ctx, cam);

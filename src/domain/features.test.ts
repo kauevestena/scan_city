@@ -67,4 +67,31 @@ describe('capturedFeatures', () => {
       capturedFeatures({ shots: [], lidar: { grid: grid(80), samples: [] } }, outside, ctx),
     ).toEqual([]);
   });
+
+  it('alvo térmico (sensorKind): só as fotos da câmera termal o capturam, mesmo cobrindo o centro', () => {
+    const den: FeatureTarget = {
+      id: 'DEN_A',
+      name: 'Toca A',
+      u: 50,
+      v: 50,
+      radiusM: 8,
+      needs: 'PHOTO',
+      sensorKind: 'THERMAL',
+    };
+    const t = { features: [den] };
+    const four = { shots: [shot(), shot(), shot(), shot()] };
+    // O mesmo voo, com a câmera RGB e com a termal.
+    expect(capturedFeatures(four, t, ctx)).toEqual([]);
+    const thermal: FeatureContext = {
+      ...ctx,
+      sensor: getSensor('CAM_THERMAL'),
+      focalM: 0.013,
+      rules: { sensorKind: 'THERMAL', specularWater: false },
+    };
+    expect(capturedFeatures(four, t, thermal)).toEqual(['DEN_A']);
+    // E a captura térmica continua exigindo as 3 fotos válidas.
+    expect(capturedFeatures({ shots: [shot(), shot()] }, t, thermal)).toEqual([]);
+    // Um alvo sem `sensorKind` (a fachada do templo) segue valendo para qualquer câmera.
+    expect(capturedFeatures(four, { features }, thermal)).toEqual(['TEMPLE_FACADE']);
+  });
 });

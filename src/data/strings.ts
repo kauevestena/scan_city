@@ -615,6 +615,7 @@ export const STRINGS = {
       yours: (rmse: string, cls: string) =>
         `Seu mapa: RMSE planimétrico ${rmse} cm · classe ${cls}`,
       yoursNoClass: (rmse: string) => `Seu mapa: RMSE planimétrico ${rmse} cm`,
+      yoursNoPoints: 'Seu mapa: sem pontos de apoio para medir o RMSE',
     },
     stagesLidar: [
       'Trajetória GNSS/IMU (SBET)',
@@ -704,6 +705,7 @@ export const STRINGS = {
       duration: 'Duração do voo',
     },
     residuals: 'Resíduos',
+    noPoints: 'Esta missão não usa pontos de apoio: não há resíduos nem RMSE a mostrar.',
     residualCols: ['Ponto', 'Tipo', 'dX (cm)', 'dY (cm)', 'dZ (cm)', '|dXY| (cm)'],
     rmseGcp: 'RMSE GCP',
     rmseCp: 'RMSE CP',

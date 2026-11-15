@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Bike, Crosshair, Wrench, Zap } from 'lucide-react';
+import { Bike, Crosshair, Sword, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Bike, Crosshair, Wrench, Zap });
+registerIcons({ Bike, Crosshair, Sword, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -441,5 +441,110 @@ export const R11: Contract = {
   },
 };
 
-/** Fendas do catálogo, na ordem das tarefas (T060–T070). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R08, R11];
+/** R06 — Pântano Cinzento (T064): câmera térmica obrigatória, tocas que só o calor revela. */
+export const R06: Contract = {
+  id: 'R06',
+  dimension: 'RIFT',
+  title: 'Pântano Cinzento',
+  client: {
+    name: 'Geraldo de Rívia',
+    role: 'Caçador de pragas',
+    description:
+      'Caçador de pragas grisalho com duas espadas, uma de aço e uma de teodolito. Fala pouco, com voz rouca.',
+    portrait: {
+      shape: 'SHIELD',
+      icon: 'Sword',
+      primary: '#94a3b8',
+      secondary: '#0f172a',
+      initials: 'GR',
+    },
+  },
+  objective:
+    'Mapeamento termográfico para achar as tocas das criaturas no brejo sem sujar as botas.',
+  biome: 'RIFT_GREY_SWAMP',
+  seed: 9606,
+  aoi: { widthM: 200, lengthM: 300 },
+  ceilingM: 120,
+  terrainReliefM: 8,
+  lightingOptions: ['OVERCAST', 'GOLDEN_HOUR'],
+  wind: { meanMs: 3, gustMs: 2, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'FEATURE_TARGETS'],
+  requirements: [
+    {
+      id: 'R06-sensor',
+      label: 'Sensor térmico',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'THERMAL' },
+    },
+    {
+      id: 'R06-den-a',
+      label: 'Toca A capturada',
+      severity: 'CRITICAL',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'DEN_A' },
+    },
+    {
+      id: 'R06-den-b',
+      label: 'Toca B capturada',
+      severity: 'MAJOR',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'DEN_B' },
+    },
+    {
+      id: 'R06-den-c',
+      label: 'Toca C capturada',
+      severity: 'MAJOR',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'DEN_C' },
+    },
+    {
+      id: 'R06-cov',
+      label: 'Cobertura verde ≥ 70 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.7 },
+    },
+    {
+      id: 'R06-gsd',
+      label: 'GSD ≤ 14 cm',
+      severity: 'MINOR',
+      check: { type: 'MAX_GSD_CM', value: 14 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_THERMAL'],
+    vehicle: 'PICKUP_4X4',
+    notes: 'Câmera térmica: as tocas só aparecem no calor. O brejo só se cruza de picape 4x4.',
+  },
+  // O brejo só se atravessa de picape 4x4.
+  minVehicle: 'PICKUP_4X4',
+  basePaymentBRL: brl(60_000),
+  xp: 1100,
+  reputationReward: 5,
+  souvenirId: 'SV_THEODOLITE_SWORD',
+  museum: { wing: 'RIFT', slot: 5, incomePerMinBRL: brl(130) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C06' },
+  overworldMarker: 'f',
+  dialogs: {
+    briefing: [
+      'Hm.',
+      'Criaturas no brejo. Tocas quentes. Não quero sujar as botas.',
+      'Câmera térmica. Você tem uma?',
+    ],
+    success: ['Hm. Bom trabalho. (Ele te entrega uma miniatura da espada-teodolito.)'],
+    failure: ['Ventos uivam… e seu mapa também.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_THERMAL',
+    heightM: 100,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 8,
+    modes: [],
+    lighting: 'OVERCAST',
+    gcps: [],
+    cps: [],
+    expected: { gsdCm: 13.08, nLines: 8, flightTimeS: 426.6 },
+  },
+};
+
+/** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R08, R11];
