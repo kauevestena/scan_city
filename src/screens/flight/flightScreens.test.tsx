@@ -185,6 +185,46 @@ describe('PostFlightDialog', () => {
     expect(get().mission.pending.map((p) => p.id)).toEqual([m.id]);
   });
 
+  it('voo de LiDAR sem nenhuma foto: a nuvem conta como dado, e "Levar dados" aparece', () => {
+    const m = withMission(false);
+    useGameStore.setState((s) => ({
+      mission: {
+        ...s.mission,
+        active: {
+          ...(s.mission.active as NonNullable<typeof s.mission.active>),
+          lidar: {
+            grid: {
+              cols: 1,
+              rows: 1,
+              pulses: [5],
+              firstAbove: [3],
+              ground: [1],
+              cellAreaM2: 1,
+            },
+            samples: [],
+          },
+        },
+      },
+    }));
+    render(<PostFlightDialog result={result} totalLines={6} energyLeft={0.6} />);
+    const dialog = screen.getByRole('dialog', { name: 'Voo concluído' });
+    expect(within(dialog).getByTestId('post-photos')).toHaveTextContent('0');
+    expect(
+      within(dialog).queryByRole('button', { name: /Tentar de novo/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Levar dados/ }));
+    expect(get().session.screen).toBe('WORLD_MAP');
+    expect(get().mission.pending.map((p) => p.id)).toEqual([m.id]);
+  });
+
+  it('sem foto e sem nuvem não há o que levar: só "Tentar de novo"', () => {
+    withMission(false);
+    render(<PostFlightDialog result={result} totalLines={6} energyLeft={0.6} />);
+    const dialog = screen.getByRole('dialog', { name: 'Voo concluído' });
+    expect(within(dialog).queryByRole('button', { name: /Levar dados/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Tentar de novo/ })).toBeInTheDocument();
+  });
+
   it('com a Van: "Processar agora" vai ao processamento em campo (T9)', () => {
     withMission(true);
     useGameStore.setState((s) => ({

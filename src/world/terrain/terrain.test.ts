@@ -1,3 +1,4 @@
+import type { BiomeId } from '@/types';
 import { mulberry32 } from '@/lib/rng';
 import { createDistanceField } from './distanceField';
 import { domainWarp, fbm, ridged, valueNoise2D } from './noise';
@@ -168,7 +169,10 @@ describe('createTerrain — RURAL_TUTORIAL (C00)', () => {
   it('é memoizado por contrato', () => {
     const t = createTerrain(C00);
     expect(createTerrain(C00)).toBe(t);
-    expect(() => createTerrain({ ...C00, id: 'X', biome: 'AMAZON' })).toThrow(RangeError);
+    // Bioma sem receita (aqui, um id que nunca existirá): erro claro, sem terreno parcial.
+    expect(() => createTerrain({ ...C00, id: 'X', biome: 'NAO_EXISTE' as BiomeId })).toThrow(
+      RangeError,
+    );
   });
 
   it('relevo de até 15 m, margem de 20 % e dimensões', () => {

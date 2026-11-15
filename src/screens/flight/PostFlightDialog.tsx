@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { STRINGS } from '@/data/strings';
 import type { SortieResult } from '@/engines/flight/FlightEngine';
 import { getAircraft } from '@/data/catalog';
-import { canStartNewSortie } from '@/domain/sorties';
+import { canStartNewSortie, missionHasData } from '@/domain/sorties';
 import { formatDuration, formatPct } from '@/lib/format';
 import { useGameStore } from '@/state/store';
 import { Button, ConfirmDialog, Modal, Stat } from '@/ui';
@@ -30,7 +30,7 @@ export function PostFlightDialog({
   const inventory = useGameStore((s) => s.inventory);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   if (!mission) return null;
-  const hasData = mission.shots.length > 0;
+  const hasData = missionHasData(mission);
   const newSortieOk = canStartNewSortie(
     mission,
     getAircraft(mission.plan.params.aircraftId),

@@ -99,6 +99,7 @@ import {
   type FlightPhase,
 } from './hudPublisher';
 import {
+  halfWidthAt,
   HORIZON_CRUISE,
   HORIZON_TAKEOFF,
   makeCamera,
@@ -1031,11 +1032,21 @@ export class FlightEngine implements Simulation {
       const Z = r.s - s0;
       if (Z < -20 || Z > cam.zFar) continue;
       const m = motionOffset(o, this.sortieT);
+      const X = r.x + m.du * frame.right.u + m.dv * frame.right.v;
+      const Zo = Z + m.du * frame.dir.u + m.dv * frame.dir.v;
+      // Fora da faixa lateral visível nem entra na cena (a mata do C03 tem 4 mil copas); o fio
+      // fica de fora do corte porque a outra ponta pode estar à vista.
+      if (
+        o.kind !== 'WIRE' &&
+        Math.abs(X - cam.camX) - o.widthM / 2 > halfWidthAt(Math.max(Zo, 1), cam)
+      ) {
+        continue;
+      }
       const scene: SceneObject = {
         id: o.id,
         kind: o.kind,
-        X: r.x + m.du * frame.right.u + m.dv * frame.right.v,
-        Z: Z + m.du * frame.dir.u + m.dv * frame.dir.v,
+        X,
+        Z: Zo,
         widthM: o.widthM,
         depthM: o.depthM,
         heightM: o.heightM,

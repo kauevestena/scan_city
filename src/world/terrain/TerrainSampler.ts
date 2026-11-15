@@ -129,6 +129,7 @@ export function distanceToPolyline(p: AoiPoint, line: Polyline): number {
 function segmentTest(
   roads: readonly Polyline[],
   kinds: ReadonlySet<Polyline['kind']>,
+  minHalfM = 0,
 ): (u: number, v: number) => boolean {
   const segments: Array<{
     a: AoiPoint;
@@ -141,7 +142,7 @@ function segmentTest(
   }> = [];
   for (const road of roads) {
     if (!kinds.has(road.kind)) continue;
-    const half = road.widthM / 2;
+    const half = Math.max(road.widthM / 2, minHalfM);
     for (let i = 1; i < road.points.length; i++) {
       const a = road.points[i - 1] as AoiPoint;
       const b = road.points[i] as AoiPoint;
@@ -192,12 +193,21 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
   const features = recipe.features?.(aoi) ?? [];
   const zones = recipe.zones?.(objects, aoi, rng.fork('zones')) ?? [];
 
-  const roadTest = (kinds: ReadonlySet<Polyline['kind']>) => segmentTest(roads, kinds);
-  const roadField = createDistanceField(bounds, DISTANCE_CELL_M, roadTest(new Set(['ROAD'])));
+  const roadTest = (kinds: ReadonlySet<Polyline['kind']>, minHalfM = 0) =>
+    segmentTest(roads, kinds, minHalfM);
+  // O campo de distâncias é de 4 m: uma via mais fina que a diagonal da célula podia não pegar
+  // o centro de nenhuma (a trilha de 3 m sumia do campo), então as sementes valem ao menos meia
+  // diagonal. A cobertura (`roadAt`) segue com a largura exata.
+  const seedHalfM = DISTANCE_CELL_M * Math.SQRT1_2;
+  const roadField = createDistanceField(
+    bounds,
+    DISTANCE_CELL_M,
+    roadTest(new Set(['ROAD']), seedHalfM),
+  );
   const trackField = createDistanceField(
     bounds,
     DISTANCE_CELL_M,
-    roadTest(new Set(['ROAD', 'TRAIL'])),
+    roadTest(new Set(['ROAD', 'TRAIL']), seedHalfM),
   );
 
   const isRoof = (u: number, v: number) =>

@@ -110,7 +110,13 @@ export interface ReferencePlan {
   lighting: LightingId;
   gcps: readonly AoiPoint[];
   cps: readonly AoiPoint[];
-  expected: { gsdCm: number; nLines: number; flightTimeS: number };
+  expected: {
+    gsdCm: number;
+    nLines: number;
+    flightTimeS: number;
+    /** Plano com LiDAR primário: faixa varrida, densidade total e densidade de solo esperadas. */
+    lidar?: { swathM: number; density: number; groundDensity: number };
+  };
 }
 
 export interface Contract {

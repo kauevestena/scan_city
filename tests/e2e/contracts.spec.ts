@@ -5,7 +5,8 @@ import { expect, test } from '@playwright/test';
  * até o fim sem queda nem colisão, leva os dados à Workstation e confere o relatório aprovado e
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
- * `photos` é o total do plano de referência; `pec` diz se o relatório mostra a classe PEC-PCD. O autopilot cuida de várias surtidas: o C05 gasta 2
+ * `photos` é o total do plano de referência (`null` nos voos de LiDAR); `pec` diz se o relatório
+ * mostra a classe PEC-PCD. O autopilot cuida de várias surtidas: o C05 gasta 2
  * baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só aparece ao fim).
  */
 const CONTRACTS = [
@@ -49,6 +50,14 @@ const CONTRACTS = [
     pec: false,
     souvenir: 'Pepita de Minério',
   },
+  {
+    id: 'C03',
+    title: 'Floresta Amazônica',
+    lines: 7,
+    photos: null,
+    pec: false,
+    souvenir: 'Semente de Castanheira',
+  },
 ] as const;
 
 for (const c of CONTRACTS) {
@@ -63,8 +72,11 @@ for (const c of CONTRACTS) {
     // "Voo concluído" (e não "Queda"): o autopilot passou por cima de tudo.
     const post = page.getByRole('dialog', { name: 'Voo concluído' });
     await expect(post).toBeVisible({ timeout: 150_000 });
-    const photos = Number(await post.getByTestId('post-photos').textContent());
-    expect(Math.abs(photos - c.photos) / c.photos).toBeLessThan(0.1);
+    // Os voos de LiDAR não contam fotos do plano (a nuvem é o dado): `photos: null`.
+    if (c.photos !== null) {
+      const photos = Number(await post.getByTestId('post-photos').textContent());
+      expect(Math.abs(photos - c.photos) / c.photos).toBeLessThan(0.1);
+    }
     await expect(post.getByTestId('post-collisions')).toHaveText('0');
     await expect(page.getByTestId('world-map-screen')).toBeVisible({ timeout: 5000 });
 

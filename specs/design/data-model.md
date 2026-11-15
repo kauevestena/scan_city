@@ -244,7 +244,11 @@ export interface ReferencePlan {      // plano que comprovadamente atende o cont
   heightM: number; forwardOverlapPct: number; sideOverlapPct: number; speedMs: number;
   modes: readonly FlightModeId[]; obliqueDeg?: 45 | 60; lighting: LightingId;
   gcps: readonly AoiPoint[]; cps: readonly AoiPoint[];
-  expected: { gsdCm: number; nLines: number; flightTimeS: number };
+  expected: {
+    gsdCm: number; nLines: number; flightTimeS: number;
+    /** Plano com LiDAR primário (C03): faixa, densidade total e de solo esperadas. */
+    lidar?: { swathM: number; density: number; groundDensity: number };
+  };
 }
 
 export interface Contract {

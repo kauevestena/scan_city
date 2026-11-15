@@ -12,9 +12,19 @@ import type { Contract, GroundPoint } from '@/types';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS } from '.';
 
+/** Dossel mais comum da AOI (a mata, nos biomas de floresta): a base da densidade de solo prevista. */
+function typicalCanopy(c: Contract): number {
+  const terrain = createTerrain(c);
+  const samples: number[] = [];
+  for (let u = 0; u <= c.aoi.lengthM; u += 10) {
+    for (let v = 0; v <= c.aoi.widthM; v += 10) samples.push(terrain.canopy(u, v));
+  }
+  return samples.sort((a, b) => a - b)[Math.floor(samples.length / 2)] as number;
+}
+
 describe.each(CONTRACTS.map((c) => [c.id, c] as const))('viabilidade de %s', (_id, c: Contract) => {
   const ref = c.referencePlan;
-  const plan = buildFlightPlan(referenceParams(c), c, CATALOG);
+  const plan = buildFlightPlan(referenceParams(c), c, CATALOG, { meanCanopy: typicalCanopy(c) });
 
   it('o planejador reproduz o esperado (GSD ±1 %, nº de linhas, tempo ±2 %)', () => {
     expect(Math.abs(plan.stats.gsdM * 100 - ref.expected.gsdCm) / ref.expected.gsdCm).toBeLessThan(
@@ -25,6 +35,18 @@ describe.each(CONTRACTS.map((c) => [c.id, c] as const))('viabilidade de %s', (_i
       Math.abs(plan.stats.flightTimeS - ref.expected.flightTimeS) / ref.expected.flightTimeS,
     ).toBeLessThan(0.02);
   });
+
+  it.runIf(ref.expected.lidar !== undefined)(
+    'LiDAR: faixa, densidade total e de solo batem com a spec (faixa e densidade ±1 %, solo ±10 %)',
+    () => {
+      const lidar = ref.expected.lidar as NonNullable<typeof ref.expected.lidar>;
+      const within = (got: number | undefined, want: number, tol: number) =>
+        Math.abs((got ?? NaN) - want) / want < tol;
+      expect(within(plan.stats.lidarSwathM, lidar.swathM, 0.01)).toBe(true);
+      expect(within(plan.stats.lidarDensity, lidar.density, 0.01)).toBe(true);
+      expect(within(plan.stats.groundDensity, lidar.groundDensity, 0.1)).toBe(true);
+    },
+  );
 
   it('GCPs/CPs encaixam a ≤ 30 m e nenhum requisito previsível falha', () => {
     const terrain = createTerrain(c);

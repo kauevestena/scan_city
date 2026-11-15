@@ -1,10 +1,25 @@
 import { getAircraft } from '@/data/catalog';
-import { batteriesLeft, canStartNewSortie, CROP_CAPACITY, feedCrop } from './sorties';
+import {
+  batteriesLeft,
+  canStartNewSortie,
+  CROP_CAPACITY,
+  feedCrop,
+  missionHasData,
+} from './sorties';
 
 const plan = { lines: [{ index: 0 }, { index: 1 }, { index: 2 }] } as never;
 const mission = (over: object = {}) =>
   ({ sorties: [{}], completedLines: [0], plan, ...over }) as never;
 const inv = (stock: number) => ({ corn: { stock, crop: 10 } });
+
+describe('missionHasData', () => {
+  const grid = { cols: 1, rows: 1, pulses: [1], firstAbove: [0], ground: [1], cellAreaM2: 1 };
+  it('fotos ou nuvem LiDAR contam; missão vazia, não', () => {
+    expect(missionHasData({ shots: [], lidar: undefined })).toBe(false);
+    expect(missionHasData({ shots: [{} as never], lidar: undefined })).toBe(true);
+    expect(missionHasData({ shots: [], lidar: { grid, samples: [] } })).toBe(true);
+  });
+});
 
 describe('Nova surtida (§5.12)', () => {
   it('baterias: 1 + reservas − surtidas já voadas (DRONE_T1 e DRONE_T2)', () => {

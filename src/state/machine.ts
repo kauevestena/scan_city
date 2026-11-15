@@ -1,3 +1,4 @@
+import { missionHasData } from '@/domain/sorties';
 import type { ScreenId } from '@/types';
 import type { GameData, ScreenPayload } from './types';
 
@@ -28,7 +29,7 @@ function field(payload: unknown, key: string): unknown {
 }
 
 function hasData(mission: GameData['mission']['active']): boolean {
-  return mission !== null && (mission.shots.length > 0 || mission.lidar !== undefined);
+  return mission !== null && missionHasData(mission);
 }
 
 function isActiveMission(state: GameData, payload: unknown): boolean {
