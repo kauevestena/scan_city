@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Bike, Crosshair, Package, Sword, Wrench, Zap } from 'lucide-react';
+import { Backpack, Bike, Crosshair, Package, Sword, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Bike, Crosshair, Package, Sword, Wrench, Zap });
+registerIcons({ Backpack, Bike, Crosshair, Package, Sword, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -640,5 +640,98 @@ export const R07: Contract = {
   },
 };
 
+/** R09 — Savana das Gramas Altas (T066): multiespectral, NDVI e as criaturas elétricas. */
+export const R09: Contract = {
+  id: 'R09',
+  dimension: 'RIFT',
+  title: 'Savana das Gramas Altas',
+  client: {
+    name: 'Ailton da Rocha',
+    role: 'Treinador',
+    description:
+      'Treinador de boné virado para trás e mochila gigante, que sonha em catalogar todas as espécies.',
+    portrait: {
+      shape: 'CIRCLE',
+      icon: 'Backpack',
+      primary: '#ef4444',
+      secondary: '#f8fafc',
+      initials: 'AR',
+    },
+  },
+  objective:
+    'Mapa multiespectral (NDVI) para identificar corredores de espécies raras sem pisar em cobras elétricas.',
+  biome: 'RIFT_TALL_GRASS',
+  seed: 9909,
+  aoi: { widthM: 400, lengthM: 800 },
+  ceilingM: 150,
+  terrainReliefM: 20,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST'],
+  wind: { meanMs: 4, gustMs: 3, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'ELECTRIC_CREATURES', 'HOMOGENEOUS_TEXTURE'],
+  requirements: [
+    {
+      id: 'R09-sensor',
+      label: 'Sensor multiespectral',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' },
+    },
+    {
+      id: 'R09-cov',
+      label: 'Cobertura verde ≥ 75 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.75 },
+    },
+    {
+      id: 'R09-gsd',
+      label: 'GSD ≤ 12 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 12 },
+    },
+    {
+      id: 'R09-fwd',
+      label: 'Sobreposição longitudinal ≥ 80 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_FORWARD_OVERLAP', value: 80 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2', 'VTOL_T3'],
+    sensors: ['CAM_MS5'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'Capim uniforme confunde o SIFT: use p ≥ 80 % e dê folga ao p (o T2 não passa de 120 m, e os morros tiram décimos). As criaturas elétricas empurram o drone de lado.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(40_000),
+  xp: 800,
+  reputationReward: 5,
+  souvenirId: 'SV_CAP',
+  museum: { wing: 'RIFT', slot: 8, incomePerMinBRL: brl(100) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C02' },
+  overworldMarker: 'i',
+  dialogs: {
+    briefing: [
+      'Eu vou mapear todas! Quer dizer… você vai.',
+      'Os corredores de espécies raras ficam no capim alto.',
+      'Se pisar lá, leva choque. Melhor voar.',
+    ],
+    success: ['Incrível! Esse NDVI é super efetivo! Fica com meu boné reserva.'],
+    failure: ['Não foi muito efetivo…'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_MS5',
+    heightM: 120,
+    forwardOverlapPct: 80,
+    sideOverlapPct: 65,
+    speedMs: 12,
+    modes: [],
+    lighting: 'SUN_HIGH',
+    gcps: [],
+    cps: [],
+    expected: { gsdCm: 7.53, nLines: 9, flightTimeS: 725.2 },
+  },
+};
+
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R07, R08, R11];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R07, R08, R09, R11];

@@ -110,6 +110,7 @@ import {
 import { aoiPoint, runFrame, toRun, type RunFrame } from './runFrame';
 import { drawRiftParticles, drawRiftSky, drawSky } from './sky';
 import { renderTerrain, sunInRunFrame, type GroundMark, type SceneObject } from './terrainRenderer';
+import { drawElectricSparks } from './electricSparks';
 import { hotSpotHeat, objectHeat, thermalColor, thermalFeatures } from './thermal';
 
 export const TAKEOFF_S = 2.5;
@@ -1114,6 +1115,17 @@ export class FlightEngine implements Simulation {
     this.drawFootprints(ctx, cam);
     this.drawSearchlights(ctx, cam);
     this.drawLidar(ctx, cam);
+    // Criaturas elétricas: faíscas amarelas sobem do capim durante o pico (nada com `reduceFlashes`).
+    if (this.electric && !calm) {
+      drawElectricSparks(
+        ctx,
+        width,
+        height,
+        cam.horizonY,
+        this.electric.at(this.sortieT),
+        this.sortieT,
+      );
+    }
     this.weather?.draw(ctx, this.sortieT);
     if (rift && !calm) drawRiftParticles(ctx, width, height, this.sortieT);
     this.drawAircraftSprite(ctx, cam);
