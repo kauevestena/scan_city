@@ -139,10 +139,15 @@ export function drawSceneObject(
       return;
     }
     case 'ENERGY_BEAM': {
+      // Coluna translúcida na cor do feixe (ciano e amarelo na R03); ligada, ganha um núcleo claro.
       const on = o.on !== false;
       const alpha = on ? 0.45 + 0.15 * Math.sin(c.timeS * 12) : 0.12 + 0.3 * (o.pulse ?? 0);
-      ctx.fillStyle = `rgba(244, 114, 182, ${alpha})`;
+      ctx.fillStyle = `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])}, ${alpha.toFixed(3)})`;
       ctx.fillRect(base.x - w / 2, top.y, w, h);
+      if (on) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${(alpha * 0.6).toFixed(3)})`;
+        ctx.fillRect(base.x - w * 0.2, top.y, w * 0.4, h);
+      }
       return;
     }
     case 'MOVING_HAZARD': {

@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Backpack, Bike, Crosshair, Package, Sword, Wrench, Zap } from 'lucide-react';
+import { Backpack, Bike, Crosshair, Flame, Package, Sword, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Backpack, Bike, Crosshair, Package, Sword, Wrench, Zap });
+registerIcons({ Backpack, Bike, Crosshair, Flame, Package, Sword, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -441,6 +441,106 @@ export const R11: Contract = {
   },
 };
 
+/** R03 — Planalto dos Guerreiros (T067): volumetria das crateras, colunas de energia e relevo de 60 m. */
+export const R03: Contract = {
+  id: 'R03',
+  dimension: 'RIFT',
+  title: 'Planalto dos Guerreiros',
+  client: {
+    name: 'Guko',
+    role: 'Lutador',
+    description:
+      'Lutador faminto de quimono laranja e cabelo espetado, que sempre pergunta se tem comida.',
+    portrait: {
+      shape: 'HEXAGON',
+      icon: 'Flame',
+      primary: '#f97316',
+      secondary: '#1d4ed8',
+      initials: 'GK',
+    },
+  },
+  objective:
+    'Cálculo volumétrico da terra vaporizada nas crateras pós-torneio, para prestar contas à prefeitura.',
+  biome: 'RIFT_CRATERS',
+  seed: 9303,
+  aoi: { widthM: 300, lengthM: 400 },
+  ceilingM: 120,
+  terrainReliefM: 60,
+  lightingOptions: ['SUN_HIGH', 'GOLDEN_HOUR'],
+  wind: { meanMs: 4, gustMs: 6, directionDeg: 90 },
+  specialRules: ['EM_INTERFERENCE', 'ENERGY_BEAMS', 'STEEP_RELIEF'],
+  requirements: [
+    {
+      id: 'R03-vol',
+      label: 'Erro de volume ≤ 3 %',
+      severity: 'CRITICAL',
+      check: { type: 'MAX_VOLUME_ERROR_PCT', value: 3 },
+    },
+    {
+      id: 'R03-cov',
+      label: 'Cobertura verde ≥ 85 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.85 },
+    },
+    {
+      id: 'R03-asprs',
+      label: 'ASPRS: 8 cm (H) e 10 cm (V)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 8, verticalCm: 10 },
+    },
+    {
+      id: 'R03-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'Com 60 m de relevo, voe com Terrain Following. As colunas de energia ligam por 2 s e apagam por 3 s: passe por cima delas ou cronometre.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(45_000),
+  xp: 900,
+  reputationReward: 5,
+  souvenirId: 'SV_STAR_SPHERE',
+  museum: { wing: 'RIFT', slot: 2, incomePerMinBRL: brl(110) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C04' },
+  overworldMarker: 'c',
+  dialogs: {
+    briefing: [
+      'Oi! Eu sou o Guko! A prefeitura quer saber quanto chão sumiu no torneio…',
+      'Foi sem querer, juro.',
+      'Você mede rapidinho? Depois tem almoço?',
+    ],
+    success: ['Uau, você é forte em matemática! Toma, achei essa esfera com 4 estrelas.'],
+    failure: ['Hmm, esse número tá esquisito. Vamos treinar mais?'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 90,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 10,
+    modes: ['TERRAIN_FOLLOWING'],
+    lighting: 'SUN_HIGH',
+    gcps: [
+      { u: 30, v: 30 },
+      { u: 370, v: 30 },
+      { u: 30, v: 270 },
+      { u: 370, v: 270 },
+      { u: 200, v: 150 },
+    ],
+    cps: [],
+    expected: { gsdCm: 1.64, nLines: 8, flightTimeS: 442.0 },
+  },
+};
+
 /** R06 — Pântano Cinzento (T064): câmera térmica obrigatória, tocas que só o calor revela. */
 export const R06: Contract = {
   id: 'R06',
@@ -734,4 +834,4 @@ export const R09: Contract = {
 };
 
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R07, R08, R09, R11];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R03, R06, R07, R08, R09, R11];

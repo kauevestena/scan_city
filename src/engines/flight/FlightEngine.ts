@@ -429,7 +429,8 @@ export class FlightEngine implements Simulation {
     this.pending = [];
   }
 
-  private pos() {
+  /** Posição da aeronave na AOI (u, v). */
+  pos() {
     return aoiPoint(this.frame, this.ac.s, this.ac.x);
   }
 
