@@ -1,4 +1,4 @@
-/** Briefing do C01 com os dados reais do contrato (T053): regra, altura máxima e liberação. */
+/** Briefing dos contratos reais com os dados do catálogo (T053+): regras, avisos e liberação. */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
@@ -6,10 +6,10 @@ import { BriefingModal } from './BriefingModal';
 
 const get = () => useGameStore.getState();
 
-function open() {
-  const view = render(<BriefingModal contractId="C01" onClose={vi.fn()} />);
+function open(contractId = 'C01', title = 'Metrópole Vertical') {
+  const view = render(<BriefingModal contractId={contractId} onClose={vi.fn()} />);
   return {
-    d: within(screen.getByRole('dialog', { name: 'Metrópole Vertical' })),
+    d: within(screen.getByRole('dialog', { name: title })),
     unmount: view.unmount,
   };
 }
@@ -69,5 +69,32 @@ describe('BriefingModal — C01 Metrópole Vertical', () => {
     fireEvent.click(open2.d.getByRole('button', { name: 'Aceitar' }));
     expect(get().session.screen).toBe('FIELD_SETUP');
     expect(get().mission.active).toMatchObject({ contractId: 'C01', status: 'PLANNING' });
+  });
+});
+
+describe('BriefingModal — C05 Centro Histórico Colonial', () => {
+  it('a regra de fios baixos, a nota do AGL e os requisitos de voo oblíquo e malha cruzada', () => {
+    const { d } = open('C05', 'Centro Histórico Colonial');
+    expect(d.getAllByText('Arq.ª Helena Vasconcelos').length).toBeGreaterThan(0);
+    const rules = within(d.getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual(['LOW_WIRES']);
+    expect(rules[0]).toHaveTextContent('Fios baixos');
+    expect(d.getByText('Fiação a 8–14 m: mantenha o AGL acima de 20 m.')).toBeInTheDocument();
+    const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
+    expect(reqs).toHaveLength(7);
+    expect(reqs[0]).toHaveTextContent('Voo oblíquo');
+    expect(reqs[1]).toHaveTextContent('Cobertura verde ≥ 85 %');
+    expect(reqs[2]).toHaveTextContent('PEC-PCD classe A (1:500, eq. 0,5 m)');
+    expect(reqs[3]).toHaveTextContent('Voo em malha cruzada');
+    expect(d.getByText('150 × 150 m')).toBeInTheDocument();
+    expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 18.000,00');
+    expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Azulejo Português/);
+  });
+
+  it('bloqueado até concluir o C01', () => {
+    const { d } = open('C05', 'Centro Histórico Colonial');
+    expect(d.getByTestId('briefing')).toHaveAttribute('data-status', 'LOCKED');
+    expect(d.getByRole('button', { name: 'Aceitar' })).toBeDisabled();
+    expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(1);
   });
 });

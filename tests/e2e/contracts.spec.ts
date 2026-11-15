@@ -5,7 +5,8 @@ import { expect, test } from '@playwright/test';
  * até o fim sem queda nem colisão, leva os dados à Workstation e confere o relatório aprovado e
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
- * `photos` é o total do plano de referência (a fábrica do voo dispara ± uma base fora da AOI).
+ * `photos` é o total do plano de referência. O autopilot cuida de várias surtidas: o C05 gasta 2
+ * baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só aparece ao fim).
  */
 const CONTRACTS = [
   {
@@ -14,6 +15,13 @@ const CONTRACTS = [
     lines: 10,
     photos: 190,
     souvenir: 'Chave da Cidade',
+  },
+  {
+    id: 'C05',
+    title: 'Centro Histórico Colonial',
+    lines: 14,
+    photos: 210,
+    souvenir: 'Azulejo Português',
   },
 ] as const;
 
