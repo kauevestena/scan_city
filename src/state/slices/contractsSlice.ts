@@ -31,15 +31,23 @@ export const createContractsSlice: StateCreator<
     }
     set({ contracts });
 
+    let riftsOpened = false;
     for (const id of unlocked) {
       const contract = CONTRACTS.find((c) => c.id === id);
       if (!contract) continue;
-      if (contract.dimension === 'RIFT') get().discoverRift(id);
+      const rift = contract.dimension === 'RIFT';
+      if (rift) get().discoverRift(id);
       if (options.silent) continue;
-      if (contract.dimension === 'RIFT') AudioEngine.get().play('RIFT_OPEN');
+      // Uma abertura por vez: duas fendas liberadas juntas tocam `RIFT_OPEN` uma só vez.
+      if (rift && !riftsOpened) {
+        AudioEngine.get().play('RIFT_OPEN');
+        riftsOpened = true;
+      }
       get().pushToast({
-        type: contract.dimension === 'RIFT' ? 'rift' : 'info',
-        title: STRINGS.contracts.newContract(contract.title),
+        type: rift ? 'rift' : 'info',
+        title: rift
+          ? STRINGS.contracts.riftDetected(contract.title)
+          : STRINGS.contracts.newContract(contract.title),
       });
     }
     return unlocked;

@@ -108,7 +108,7 @@ import {
   type Quality,
 } from './projection';
 import { aoiPoint, runFrame, toRun, type RunFrame } from './runFrame';
-import { drawSky } from './sky';
+import { drawRiftParticles, drawRiftSky, drawSky } from './sky';
 import { renderTerrain, sunInRunFrame, type GroundMark, type SceneObject } from './terrainRenderer';
 
 export const TAKEOFF_S = 2.5;
@@ -1024,6 +1024,10 @@ export class FlightEngine implements Simulation {
     const shake = shakeOffset(this.shakeS, this.sortieT, this.opts.reduceFlashes());
     ctx.translate(shake.x, shake.y);
     drawSky(ctx, width, height, cam.horizonY, terrain.palette, plan.params.lighting);
+    // Fendas: céu em gradiente violeta-ciano e partículas flutuantes (contracts-rifts §1).
+    const rift = this.opts.contract.dimension === 'RIFT';
+    const calm = this.opts.reduceFlashes();
+    if (rift) drawRiftSky(ctx, width, cam.horizonY, this.sortieT, calm);
 
     const at = (X: number, Z: number) => aoiPoint(frame, s0 + Z, X);
     const objects: SceneObject[] = [];
@@ -1097,6 +1101,7 @@ export class FlightEngine implements Simulation {
     this.drawSearchlights(ctx, cam);
     this.drawLidar(ctx, cam);
     this.weather?.draw(ctx, this.sortieT);
+    if (rift && !calm) drawRiftParticles(ctx, width, height, this.sortieT);
     this.drawAircraftSprite(ctx, cam);
     if (this.sortieT < this.flashUntil) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';

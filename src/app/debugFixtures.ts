@@ -356,6 +356,11 @@ export function applyDebugFlags(flags: DebugFlags, store: Store = useGameStore):
             },
       ]),
     );
+    // As fendas também ficam descobertas: a aba Fendas do mapa aparece na depuração.
+    patch.world = {
+      ...state.world,
+      discoveredRifts: CONTRACTS.filter((c) => c.dimension === 'RIFT').map((c) => c.id),
+    };
     patch.inventory = {
       ...state.inventory,
       aircraft: AIRCRAFT.map((a) => a.id),

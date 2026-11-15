@@ -4,7 +4,7 @@
  */
 import type { AxisAction } from '@/input/actions';
 import { hash2 } from '@/lib/rng';
-import type { Facing, TileType, VehicleId } from '@/types';
+import type { Dimension, Facing, TileType, VehicleId } from '@/types';
 import type { MarkerView } from '@/world/overworld/markers';
 import { blockedHint, tileAt, WORLD_MAP, type OverworldMap } from '@/world/overworld/tiles';
 import { nearestWalkable } from '@/world/overworld/pathfinding';
@@ -13,7 +13,14 @@ import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
 import { boxBlocker, stepAvatar, type AvatarState } from './avatar';
 import { clampCamera, followCamera, type CameraState } from './camera';
-import { CHUNK_TILES, ChunkCache, drawMarker, drawWater, TILE_PX } from './tileRenderer';
+import {
+  CHUNK_TILES,
+  ChunkCache,
+  drawMarker,
+  drawRiftAtmosphere,
+  drawWater,
+  TILE_PX,
+} from './tileRenderer';
 import { drawAvatar, type SkinColors } from './vehicleSprites';
 
 /** Zoom de câmera em 1280 px de largura (≈ 27 × 14 tiles visíveis). */
@@ -43,6 +50,10 @@ export interface OverworldEngineOptions {
   blocked?: () => boolean;
   /** Chuva ativa (evento `SUDDEN_RAIN`): desenha as partículas. */
   rain?: () => boolean;
+  /** Aba atual: na das Fendas o mapa ganha o véu violeta e as partículas (contracts-rifts §1). */
+  dimension?: () => Dimension;
+  /** Reduz o movimento do véu e dos portais (acessibilidade). */
+  reduceFlashes?: () => boolean;
   /** O alvo de `INTERACT` mudou (porta, marcador ou nada). */
   onTargetChange?: (target: InteractTarget | null) => void;
 }
@@ -256,9 +267,10 @@ export class OverworldEngine implements Simulation {
     const x1 = Math.min(this.map.width - 1, Math.ceil(left + view.w));
     const y1 = Math.min(this.map.height - 1, Math.ceil(top + view.h));
     drawWater(ctx, this.map, x0, y0, x1, y1, this.timeS);
+    const calm = this.opts.reduceFlashes?.() ?? false;
     for (const m of this.opts.markers()) {
       if (m.x >= x0 - 1 && m.x <= x1 + 1 && m.y >= y0 - 1 && m.y <= y1 + 1)
-        drawMarker(ctx, m, this.timeS);
+        drawMarker(ctx, m, this.timeS, !calm);
     }
     drawAvatar(ctx, {
       avatar: this.avatar,
@@ -268,6 +280,9 @@ export class OverworldEngine implements Simulation {
       moving: this.moving,
     });
     ctx.restore();
+    if (this.opts.dimension?.() === 'RIFT') {
+      drawRiftAtmosphere(ctx, width, height, dpr, this.timeS, calm);
+    }
     if (this.opts.rain?.()) drawRain(ctx, width, height, dpr, this.timeS);
   }
 }

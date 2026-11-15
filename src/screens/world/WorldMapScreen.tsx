@@ -17,8 +17,9 @@ import { selectModifiers } from '@/state/selectors';
 import { nextVehicle } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import type { GameStore } from '@/state/types';
+import type { Dimension } from '@/types';
 import { Tabs, type TabDef } from '@/ui';
-import { markerViews, type MarkerView } from '@/world/overworld/markers';
+import { activeDimension, markerViews, type MarkerView } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { BriefingModal } from './BriefingModal';
 import { rollFieldEvent } from '@/domain/fieldEvents';
@@ -36,7 +37,7 @@ export const HINT_VISIBLE_MS = 2500;
 /** Intervalo de gravação da posição do avatar (world-map §5.3). */
 export const AVATAR_SAVE_MS = 1000;
 
-const TABS: ReadonlyArray<TabDef<'REAL'>> = [{ id: 'REAL', label: W.tabs.REAL }];
+type Tab = Dimension;
 
 let minimapBase: HTMLCanvasElement | null = null;
 function getMinimapBase(): HTMLCanvasElement {
@@ -47,16 +48,22 @@ function getMinimapBase(): HTMLCanvasElement {
 let markerCache: {
   contracts: GameStore['contracts'];
   rifts: readonly string[];
+  tab: Tab;
   views: readonly MarkerView[];
 } | null = null;
 
-/** Marcadores da aba atual, recalculados só quando os contratos ou as fendas mudam. */
+/** Marcadores da aba atual, recalculados só quando os contratos, as fendas ou a aba mudam. */
 function currentMarkers(): readonly MarkerView[] {
   const { contracts, world } = useGameStore.getState();
-  if (markerCache?.contracts !== contracts || markerCache.rifts !== world.discoveredRifts) {
-    // A aba Fendas entra em T059; até lá, só os contratos do Mundo Real.
-    const views = markerViews(contracts, 'REAL', world.discoveredRifts);
-    markerCache = { contracts, rifts: world.discoveredRifts, views };
+  const tab = activeDimension(world);
+  if (
+    markerCache?.contracts !== contracts ||
+    markerCache.rifts !== world.discoveredRifts ||
+    markerCache.tab !== tab
+  ) {
+    // Na aba Real só os contratos 0–6; na das Fendas, só as fendas descobertas (a–k).
+    const views = markerViews(contracts, tab, world.discoveredRifts);
+    markerCache = { contracts, rifts: world.discoveredRifts, tab, views };
   }
   return markerCache.views;
 }
@@ -81,6 +88,12 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const surface = useCanvas(canvasRef);
   const vehicle = useGameStore((s) => s.world.vehicleMode);
+  const world = useGameStore((s) => s.world);
+  const tab = activeDimension(world);
+  const tabs: ReadonlyArray<TabDef<Tab>> = [
+    { id: 'REAL', label: W.tabs.REAL },
+    ...(world.discoveredRifts.length > 0 ? [{ id: 'RIFT' as const, label: W.tabs.RIFT }] : []),
+  ];
   const [target, setTarget] = useState<InteractTarget | null>(null);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [hint, setHint] = useState<{ text: string; id: number } | null>(null);
@@ -95,6 +108,8 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
       speedMod: () => selectModifiers(useGameStore.getState()).overworldSpeed * runtime.speedFactor,
       skin: skinColors,
       markers: currentMarkers,
+      dimension: () => activeDimension(useGameStore.getState().world),
+      reduceFlashes: () => useGameStore.getState().settings.reduceFlashes,
       onHint: (text) => setHint({ text, id: performance.now() }),
       onTargetChange: setTarget,
       blocked: () => runtime.blocking,
@@ -127,6 +142,13 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
     () =>
       InputManager.get().onAction((e) => {
         if (useGameStore.getState().session.paused) return;
+        if (e.action === 'TOGGLE_DIMENSION') {
+          if (runtime.blocking) return;
+          const { world: w, setDimensionTab } = useGameStore.getState();
+          if (w.discoveredRifts.length === 0) setHint({ text: W.noRifts, id: performance.now() });
+          else setDimensionTab(activeDimension(w) === 'RIFT' ? 'REAL' : 'RIFT');
+          return;
+        }
         if (e.action === 'CYCLE_VEHICLE') {
           const { inventory, world, cycleVehicle } = useGameStore.getState();
           const next = nextVehicle(inventory.vehicles, world.vehicleMode);
@@ -225,7 +247,12 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-3">
         <div className="pointer-events-auto rounded-lg bg-slate-950/80 px-2 pt-1">
-          <Tabs tabs={TABS} value="REAL" onChange={() => undefined} ariaLabel={W.title} />
+          <Tabs
+            tabs={tabs}
+            value={tab}
+            onChange={(id) => useGameStore.getState().setDimensionTab(id)}
+            ariaLabel={W.title}
+          />
         </div>
         <span
           className="rounded-lg bg-slate-950/80 px-3 py-1.5 text-sm text-slate-200"

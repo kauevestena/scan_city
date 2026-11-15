@@ -26,7 +26,13 @@ vi.mock('@/data/contracts', async (importOriginal) => {
     overworldMarker: 'a',
     unlock: { type: 'CONTRACT_DONE', contractId: 'C00' },
   };
-  const CONTRACTS = [actual.C00, C01, R01];
+  const R02: Contract = {
+    ...R01,
+    id: 'R02',
+    title: 'Reino dos Encanamentos',
+    overworldMarker: 'b',
+  };
+  const CONTRACTS = [actual.C00, C01, R01, R02];
   return { ...actual, CONTRACTS };
 });
 
@@ -42,6 +48,7 @@ describe('refreshUnlocks', () => {
     expect(get().contracts.C00?.status).toBe('AVAILABLE');
     expect(get().contracts.C01?.status).toBe('LOCKED');
     expect(get().contracts.R01?.status).toBe('LOCKED');
+    expect(get().contracts.R02?.status).toBe('LOCKED');
     expect(get().session.toasts.map((t) => t.title)).toEqual(['Novo contrato: Sítio do Avô']);
   });
 
@@ -53,16 +60,18 @@ describe('refreshUnlocks', () => {
         C00: { status: 'COMPLETED', completions: 1, bestScore: 0.8 },
         C01: { status: 'LOCKED', completions: 0, bestScore: 0 },
         R01: { status: 'LOCKED', completions: 0, bestScore: 0 },
+        R02: { status: 'LOCKED', completions: 0, bestScore: 0 },
       },
     }));
-    // Reputação 30 < 32: só a fenda sai.
-    expect(get().refreshUnlocks()).toEqual(['R01']);
-    expect(get().world.discoveredRifts).toEqual(['R01']);
-    expect(play).toHaveBeenCalledWith('RIFT_OPEN');
-    expect(get().session.toasts.at(-1)).toMatchObject({
-      type: 'rift',
-      title: 'Novo contrato: Colinas Verdes dos Espinhos',
-    });
+    // Reputação 30 < 32: só as duas fendas saem.
+    expect(get().refreshUnlocks()).toEqual(['R01', 'R02']);
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    // Duas fendas liberadas juntas tocam `RIFT_OPEN` uma vez só, e cada uma ganha o seu toast.
+    expect(play.mock.calls.filter(([id]) => id === 'RIFT_OPEN')).toHaveLength(1);
+    expect(get().session.toasts.slice(-2)).toMatchObject([
+      { type: 'rift', title: 'Anomalia dimensional detectada: Colinas Verdes dos Espinhos' },
+      { type: 'rift', title: 'Anomalia dimensional detectada: Reino dos Encanamentos' },
+    ]);
     // Subir a reputação dispara a reavaliação.
     get().changeReputation(2);
     expect(get().contracts.C01?.status).toBe('AVAILABLE');
@@ -77,8 +86,8 @@ describe('refreshUnlocks', () => {
     useGameStore.setState({
       contracts: { C00: { status: 'COMPLETED', completions: 1, bestScore: 1 } },
     });
-    expect(get().refreshUnlocks({ silent: true })).toEqual(['R01']);
-    expect(get().world.discoveredRifts).toEqual(['R01']);
+    expect(get().refreshUnlocks({ silent: true })).toEqual(['R01', 'R02']);
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
     expect(get().session.toasts).toEqual([]);
     expect(play).not.toHaveBeenCalled();
   });

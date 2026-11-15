@@ -250,8 +250,82 @@ export const MARKER_COLORS: Readonly<Record<ContractStatus, string>> = {
   STOLEN: COLORS.danger,
 };
 
-/** Marcador ◆ pulsante na cor do status; bloqueado com cadeado, roubado com "MM". */
-export function drawMarker(ctx: Ctx, marker: MarkerView, timeS: number): void {
+/**
+ * Portal de uma fenda (contracts-rifts §1): anéis violeta pulsantes com faíscas em órbita; a
+ * fenda já concluída fica calma e esverdeada. Sem `sparks`, só os anéis.
+ */
+export function drawPortal(ctx: Ctx, marker: MarkerView, timeS: number, sparks = true): void {
+  const cx = marker.x * TILE_PX + TILE_PX / 2;
+  const cy = marker.y * TILE_PX + TILE_PX / 2;
+  const done = marker.status === 'COMPLETED';
+  const color = done ? COLORS.ok : COLORS.rift;
+  const pulse = 1 + 0.12 * Math.sin(timeS * (done ? 1.5 : 4));
+  ctx.fillStyle = withAlpha(color, 0.2);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = withAlpha(color, 0.9);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 11 * pulse, 15 * pulse, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = withAlpha(COLORS.radar, 0.8);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 7 * pulse, 10 * pulse, timeS * 0.8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = withAlpha(COLORS.bgBase, 0.85);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 5, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (!sparks) return;
+  // Oito faíscas orbitando o portal, em fases distintas.
+  ctx.fillStyle = withAlpha(COLORS.text, 0.9);
+  for (let k = 0; k < 8; k++) {
+    const a = timeS * 1.6 + (k * Math.PI) / 4;
+    const r = 16 + 5 * Math.sin(timeS * 3 + k);
+    ctx.fillRect(cx + Math.cos(a) * r - 1, cy + Math.sin(a) * r * 1.2 - 1, 2, 2);
+  }
+}
+
+/**
+ * Atmosfera da aba Fendas (em coordenadas de tela): um véu violeta sobre o mapa e partículas
+ * subindo. Com `reduceFlashes`, só o véu, sem movimento.
+ */
+export function drawRiftAtmosphere(
+  ctx: Ctx,
+  width: number,
+  height: number,
+  dpr: number,
+  timeS: number,
+  reduceFlashes = false,
+): void {
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const veil = reduceFlashes ? 0.16 : 0.14 + 0.04 * Math.sin(timeS * 1.2);
+  ctx.fillStyle = withAlpha(COLORS.rift, veil);
+  ctx.fillRect(0, 0, width, height);
+  if (!reduceFlashes) {
+    ctx.fillStyle = withAlpha(COLORS.radar, 0.55);
+    for (let i = 0; i < RIFT_PARTICLES; i++) {
+      const speed = 12 + hash2(i, 2, RIFT_SEED) * 22;
+      const x = hash2(i, 0, RIFT_SEED) * width + 8 * Math.sin(timeS + i);
+      const y = height - ((hash2(i, 1, RIFT_SEED) * height + timeS * speed) % height);
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+  ctx.restore();
+}
+
+const RIFT_PARTICLES = 60;
+const RIFT_SEED = 0x51f7;
+
+/** Marcador ◆ pulsante na cor do status; bloqueado com cadeado, roubado com "MM". As fendas são portais. */
+export function drawMarker(ctx: Ctx, marker: MarkerView, timeS: number, sparks = true): void {
+  if (marker.kind === 'RIFT') {
+    drawPortal(ctx, marker, timeS, sparks);
+    return;
+  }
   const color = MARKER_COLORS[marker.status];
   const cx = marker.x * TILE_PX + TILE_PX / 2;
   const cy = marker.y * TILE_PX + TILE_PX / 2;

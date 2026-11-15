@@ -67,7 +67,7 @@ function Minimap({ snap }: { snap: FlightHudSnapshot }) {
 }
 
 /** HUD do voo (survey-flight §4), lido do snapshot publicado a 10 Hz. */
-export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
+export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rift?: boolean }) {
   // Glitch de scanlines da interferência EM; desligado com `reduceFlashes`.
   const reduceFlashes = useGameStore((s) => s.settings.reduceFlashes);
   const glitch = snap.emGlitch && !reduceFlashes;
@@ -83,7 +83,16 @@ export function FlightHud({ snap }: { snap: FlightHudSnapshot }) {
       className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3"
       data-testid="flight-hud"
       data-glitch={glitch}
+      data-rift={rift}
     >
+      {rift && (
+        // Moldura de fenda: um filete violeta em volta de todo o HUD (contracts-rifts §1).
+        <div
+          aria-hidden
+          className="absolute inset-1 rounded-lg border-2 border-violet-500/70 shadow-[inset_0_0_32px_rgba(139,92,246,0.35)]"
+          data-testid="rift-hud-frame"
+        />
+      )}
       {glitch && (
         <div
           aria-hidden

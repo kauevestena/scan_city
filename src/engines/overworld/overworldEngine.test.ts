@@ -12,7 +12,16 @@ import {
   zoomFor,
   type InteractTarget,
 } from './OverworldEngine';
-import { ChunkCache, CHUNK_TILES, drawMarker, MARKER_COLORS, TILE_COLORS } from './tileRenderer';
+import {
+  ChunkCache,
+  CHUNK_TILES,
+  drawMarker,
+  drawPortal,
+  drawRiftAtmosphere,
+  MARKER_COLORS,
+  TILE_COLORS,
+} from './tileRenderer';
+import { COLORS } from '@/ui/tokens';
 
 // Porta em (2,1), spawn em (3,1), encosta íngreme em (5,1), água em (0,3), C00 em (8,3).
 const MINI = parseMap(['..........', '..O@.A....', '..........', '~.......0.']);
@@ -241,6 +250,120 @@ describe('render de tiles e minimapa', () => {
     expect([mini.width, mini.height]).toEqual([10, 4]);
     drawMinimap(ctx, mini, MINI_MARKERS, { x: 3.5, y: 1.5 }, MINI.door, 0);
     expect(ctx.drawImage).toHaveBeenCalledWith(mini, 0, 0);
+  });
+});
+
+describe('Fendas: portais, atmosfera violeta e a aba (contracts-rifts §1)', () => {
+  const riftMarker = (status: MarkerView['status'] = 'AVAILABLE'): MarkerView => ({
+    char: 'a',
+    kind: 'RIFT',
+    x: 3,
+    y: 4,
+    contractId: 'R01',
+    status,
+  });
+  /** Valores atribuídos a uma propriedade do contexto, na ordem (vitest-canvas-mock). */
+  const assigned = (ctx: CanvasRenderingContext2D, prop: 'fillStyle' | 'strokeStyle') =>
+    (
+      ctx as unknown as {
+        __getEvents(): Array<{ type: string; props: { value?: unknown } }>;
+      }
+    )
+      .__getEvents()
+      .filter((e) => e.type === prop)
+      .map((e) => String(e.props.value));
+
+  it('o marcador de fenda é um portal: anéis violeta e 8 faíscas; sem faíscas só os anéis', () => {
+    const { ctx } = surface();
+    drawMarker(ctx, riftMarker(), 1.2);
+    expect(ctx.ellipse).toHaveBeenCalledTimes(3);
+    expect(ctx.fillRect).toHaveBeenCalledTimes(8);
+    expect(assigned(ctx, 'strokeStyle')[0]).toBe('rgba(139, 92, 246, 0.9)');
+    const calm = surface();
+    drawMarker(calm.ctx, riftMarker(), 1.2, false);
+    expect(calm.ctx.fillRect).not.toHaveBeenCalled();
+    expect(calm.ctx.ellipse).toHaveBeenCalledTimes(3);
+    // Contrato comum continua sendo o losango, sem elipses de portal.
+    const plain = surface();
+    drawMarker(plain.ctx, { ...riftMarker(), kind: 'CONTRACT', char: '0', contractId: 'C00' }, 1.2);
+    expect(plain.ctx.ellipse).not.toHaveBeenCalled();
+  });
+
+  it('o portal pulsa no tempo, e o da fenda concluída é verde e mais calmo', () => {
+    const a = surface();
+    const b = surface();
+    drawPortal(a.ctx, riftMarker(), 0);
+    drawPortal(b.ctx, riftMarker(), Math.PI / 8);
+    const radius = (c: { ctx: CanvasRenderingContext2D }) =>
+      (c.ctx.arc as unknown as { mock: { calls: number[][] } }).mock.calls[0]?.[2] as number;
+    expect(radius(a)).not.toBeCloseTo(radius(b), 3);
+    const done = surface();
+    drawPortal(done.ctx, riftMarker('COMPLETED'), 0);
+    expect(assigned(done.ctx, 'strokeStyle')[0]).toBe('rgba(52, 211, 153, 0.9)');
+  });
+
+  it('a atmosfera da aba Fendas: véu violeta e 60 partículas; reduceFlashes, só o véu, sem pulso', () => {
+    const live = surface();
+    drawRiftAtmosphere(live.ctx, 800, 600, 1, 2.5, false);
+    expect(live.ctx.fillRect).toHaveBeenCalledTimes(1 + 60);
+    expect(assigned(live.ctx, 'fillStyle')[0]).toMatch(/^rgba\(139, 92, 246, 0\.1\d*\)$/);
+    const calm = surface();
+    drawRiftAtmosphere(calm.ctx, 800, 600, 1, 2.5, true);
+    expect(calm.ctx.fillRect).toHaveBeenCalledTimes(1);
+    expect(assigned(calm.ctx, 'fillStyle')[0]).toBe('rgba(139, 92, 246, 0.16)');
+    // O véu calmo é o mesmo em qualquer instante.
+    const later = surface();
+    drawRiftAtmosphere(later.ctx, 800, 600, 1, 99, true);
+    expect(assigned(later.ctx, 'fillStyle')[0]).toBe('rgba(139, 92, 246, 0.16)');
+  });
+
+  it('o engine só aplica o véu na aba Fendas, e os portais entram na lista de marcadores', () => {
+    const fills = (dimension: 'REAL' | 'RIFT', reduceFlashes = false) => {
+      const input = fakeInput();
+      const engine = new OverworldEngine({
+        map: MINI,
+        input,
+        start: { x: 3.5, y: 1.5, facing: 'E' },
+        vehicle: () => 'FOOT_BIKE',
+        speedMod: () => 1,
+        skin: () => SKIN,
+        markers: () => [{ ...riftMarker(), x: 6, y: 1 }],
+        dimension: () => dimension,
+        reduceFlashes: () => reduceFlashes,
+      });
+      const s = surface();
+      engine.attach(s);
+      engine.update(1 / 60);
+      engine.render();
+      return {
+        rects: (s.ctx.fillRect as unknown as { mock: { calls: unknown[][] } }).mock.calls.length,
+        veil: assigned(s.ctx, 'fillStyle').filter((v) => v.startsWith('rgba(139, 92, 246, 0.1')),
+      };
+    };
+    const real = fills('REAL');
+    const rift = fills('RIFT');
+    const calm = fills('RIFT', true);
+    expect(real.veil).toEqual([]);
+    expect(rift.veil.length).toBeGreaterThan(0);
+    // Mais retângulos na aba Fendas (véu + partículas) que na Real; calmo, quase nenhum a mais.
+    expect(rift.rects).toBeGreaterThan(real.rects + 50);
+    expect(calm.rects).toBeLessThan(rift.rects - 50);
+  });
+
+  it('no minimapa a fenda é violeta, e verde depois de concluída', () => {
+    const { ctx } = surface();
+    const mini = renderMinimapBase(MINI);
+    drawMinimap(
+      ctx,
+      mini,
+      [riftMarker(), { ...riftMarker('COMPLETED'), x: 6 }],
+      { x: 1, y: 1 },
+      MINI.door,
+      0,
+    );
+    const fills = assigned(ctx, 'fillStyle');
+    expect(fills).toContain(COLORS.rift);
+    expect(fills).toContain(COLORS.ok);
   });
 });
 
