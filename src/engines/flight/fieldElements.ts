@@ -2,15 +2,16 @@
  * Elementos de fenda e aceleração de tempo (survey-flight §5.13, §5.14): holofotes,
  * anéis, picos elétricos e as regras de volta a ×1. Puro e determinístico.
  */
+import { RULE_PARAMS } from '@/domain/specialRules';
 import type { Rng } from '@/lib/rng';
 import type { SpecialZone, WorldObject } from '@/types';
 import type { FlightPhase } from './hudPublisher';
 
 // --- Holofotes ----------------------------------------------------------------------
 
-export const SEARCHLIGHT_DETECT_S = 1.5;
+export const SEARCHLIGHT_DETECT_S = RULE_PARAMS.searchlights.detectS;
 /** O Atlas é mais furtivo: 3 s. */
-export const SEARCHLIGHT_DETECT_ATLAS_S = 3;
+export const SEARCHLIGHT_DETECT_ATLAS_S = RULE_PARAMS.searchlights.detectAtlasS;
 
 type Searchlight = Extract<SpecialZone, { kind: 'SEARCHLIGHT' }>;
 
@@ -76,9 +77,9 @@ export const detectionProgress = (s: DetectionState, atlas: boolean): number =>
 
 // --- Anéis --------------------------------------------------------------------------
 
-export const RING_COLLECT_M = 3;
+export const RING_COLLECT_M = RULE_PARAMS.rings.collectM;
 /** Bônus por anel (R$ 50, em centavos). */
-export const RING_BONUS_CENTS = 5000;
+export const RING_BONUS_CENTS = RULE_PARAMS.rings.bonusCents;
 
 /** Coletável quando a aeronave passa a menos de 3 m do centro do anel. */
 export function ringCollected(
@@ -92,8 +93,8 @@ export function ringCollected(
 
 // --- Criaturas elétricas ------------------------------------------------------------
 
-export const SPIKE_DURATION_S = 2;
-export const SPIKE_FORCE_MS = 3;
+export const SPIKE_DURATION_S = RULE_PARAMS.electric.spikeS;
+export const SPIKE_FORCE_MS = RULE_PARAMS.electric.forceMs;
 
 export interface Spike {
   startS: number;
@@ -107,7 +108,7 @@ export class ElectricSchedule {
   private cursor: number;
 
   constructor(private readonly rng: Rng) {
-    this.cursor = rng.range(8, 12);
+    this.cursor = rng.range(...RULE_PARAMS.electric.intervalS);
   }
 
   private ensure(tS: number): void {
@@ -117,7 +118,7 @@ export class ElectricSchedule {
         endS: this.cursor + SPIKE_DURATION_S,
         side: this.rng.next() < 0.5 ? -1 : 1,
       });
-      this.cursor += SPIKE_DURATION_S + this.rng.range(8, 12);
+      this.cursor += SPIKE_DURATION_S + this.rng.range(...RULE_PARAMS.electric.intervalS);
     }
   }
 

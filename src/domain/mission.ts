@@ -66,6 +66,7 @@ import {
   referenceVolumeM3,
   volumeErrorPct,
 } from './volumetrics';
+import { resolveRuleEffects } from './specialRules';
 
 // --- Pagamento e recompensas (contratos com economy.ts) --------------------------------
 
@@ -259,12 +260,13 @@ export function evaluateMission(
   const { aircraft, camera, focalM, podId } = planEquipment(plan, ctx.catalog);
   const pod = ctx.catalog.payloads.find((p) => p.id === podId);
   const rules = contract.specialRules;
+  const effects = resolveRuleEffects(rules);
   const lidarMission = requiresLidar(contract);
 
   // Cobertura (água sempre excluída, OQ-007).
   const shotRules: ShotRules = {
     sensorKind: camera.kind,
-    specularWater: rules.includes('SPECULAR_WATER'),
+    specularWater: effects.coverage.specularWater,
   };
   const excluded = excludedCellsWhere(
     createCoverageGrid(contract.aoi),
@@ -308,7 +310,7 @@ export function evaluateMission(
           aircraft.rtk && ctx.ownsRtkKit ? 1 : 0,
           imuScore,
           ctx.modifiers,
-          rules.includes('EM_INTERFERENCE') && !aircraft.emImmune,
+          effects.flight.emInterference !== null && !aircraft.emImmune,
         )
       : photoModel({
           gsdEffM: gsdEff ?? 0,
@@ -464,8 +466,8 @@ export function evaluateMission(
     penaltiesBRL,
   });
   // Bônus de anéis (R$ 50 cada), só em contratos com `COLLECTIBLE_RINGS`.
-  const ringBonusBRL = rules.includes('COLLECTIBLE_RINGS')
-    ? mission.events.ringsCollected * 5000
+  const ringBonusBRL = effects.flight.rings
+    ? mission.events.ringsCollected * effects.flight.rings.bonusCents
     : 0;
   const payment =
     ringBonusBRL > 0

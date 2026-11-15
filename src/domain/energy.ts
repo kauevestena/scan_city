@@ -1,4 +1,5 @@
 /** Energia — domain-math §7. A energia é uma fração de 0 a 1 da bateria (ou do papo do Atlas). */
+import { RULE_PARAMS } from './specialRules';
 
 export interface DrainContext {
   enduranceS: number;
@@ -18,7 +19,7 @@ export function drainPerSecond(ctx: DrainContext): number {
   const fSpeed = 1 + 0.5 * ((ctx.speedMs - ctx.vCruiseMs) / ctx.vCruiseMs) ** 2;
   const fWind = 1 + 0.03 * Math.abs(ctx.windMs);
   const fClimb = ctx.climbing ? 1.3 : 1;
-  const fWeather = ctx.blizzard ? 2 : 1;
+  const fWeather = ctx.blizzard ? RULE_PARAMS.blizzard.energyDrainFactor : 1;
   return (1 / (ctx.enduranceS * ctx.enduranceMod)) * fSpeed * fWind * fClimb * fWeather;
 }
 

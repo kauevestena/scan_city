@@ -1,9 +1,10 @@
 /** Ambiente do voo (survey-flight §5.13): vento forte, interferência EM e deriva de rumo. */
+import { RULE_PARAMS, resolveRuleEffects } from '@/domain/specialRules';
 import type { Aircraft, Contract } from '@/types';
 
 /** Amplitude do tremor lateral da interferência EM (m/s) e da deriva de rumo (graus). */
-export const EM_LATERAL_MS = 0.8;
-export const EM_HEADING_DEG = 3;
+export const EM_LATERAL_MS = RULE_PARAMS.em.lateralMs;
+export const EM_HEADING_DEG = RULE_PARAMS.em.headingDeg;
 
 /** Vento de pico acima da tolerância da aeronave: `mean + gust > windToleranceMs`. */
 export function windAboveTolerance(
@@ -26,7 +27,7 @@ export function emActive(
   rules: Contract['specialRules'],
   aircraft: Pick<Aircraft, 'emImmune'>,
 ): boolean {
-  return rules.includes('EM_INTERFERENCE') && !aircraft.emImmune;
+  return resolveRuleEffects(rules).flight.emInterference !== null && !aircraft.emImmune;
 }
 
 /** Ruído 1D em [−1, 1] → tremor lateral (m/s) e desvio de rumo (rad, lento). */

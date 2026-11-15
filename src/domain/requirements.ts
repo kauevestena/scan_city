@@ -39,6 +39,7 @@ import {
   pecAltimetricLimits,
   pecPlanimetricLimits,
 } from './standards';
+import { resolveRuleEffects } from './specialRules';
 
 const S = STRINGS.requirements;
 const pct = (v: number) => `${formatNumber(v, 0)} %`;
@@ -180,7 +181,8 @@ export function estimateFromPlan(
   const { aircraft, camera, podId } = planEquipment(plan, ctx.catalog);
   const mods = ctx.mods ?? neutralModifiers();
   const phi = aircraft.rtk && ctx.ownsRtkKit ? 1 : 0;
-  const emActive = contract.specialRules.includes('EM_INTERFERENCE') && !aircraft.emImmune;
+  const emActive =
+    resolveRuleEffects(contract.specialRules).flight.emInterference !== null && !aircraft.emImmune;
   const gcps = groundPoints.filter((p) => p.kind === 'GCP');
   const { params, stats } = plan;
   const pod = ctx.catalog.payloads.find((p) => p.id === podId);
