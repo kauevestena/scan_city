@@ -9,26 +9,28 @@ import { buildFlightPlan } from '@/domain/flightPlanner';
 import { predictRequirements } from '@/domain/requirements';
 import { estimatedSideOverlapPct, evaluateMission, type MissionContext } from '@/domain/mission';
 import { neutralModifiers } from '@/domain/modifiers';
+import { FlightEngine, type SortieResult } from '@/engines/flight/FlightEngine';
 import { referenceParams, referencePoints, syntheticMission } from '@/domain/referencePlan';
 import { resolveRuleEffects, RULE_PARAMS } from '@/domain/specialRules';
 import { mulberry32 } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
-import type { VehicleId } from '@/types';
+import type { Contract, MissionData, VehicleId } from '@/types';
 import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R06, R08, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R06, R07, R08, R11, RIFT_CONTRACTS } from './rifts';
 
 describe('catálogo das fendas', () => {
   it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem dos ids', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R06', 'R08', 'R11']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R06', 'R07', 'R08', 'R11']);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
     expect(getContract('R06')).toBe(R06);
+    expect(getContract('R07')).toBe(R07);
     expect(getContract('R08')).toBe(R08);
     expect(getContract('R11')).toBe(R11);
   });
@@ -866,7 +868,7 @@ describe('R06 — Pântano Cinzento', () => {
     expect(report.approved).toBe(false);
   });
 
-  it('concluir o C06 libera a R06 e a descobre', () => {
+  it('concluir o C06 libera a R06 e a R07 de uma vez: as fendas são descobertas e saem dois avisos', () => {
     resetGameStore();
     const get = () => useGameStore.getState();
     const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
@@ -878,6 +880,7 @@ describe('R06 — Pântano Cinzento', () => {
       get().refreshUnlocks({ silent: true });
     });
     expect(get().contracts.R06?.status).toBe('LOCKED');
+    expect(get().contracts.R07?.status).toBe('LOCKED');
     act(() => {
       useGameStore.setState((s) => ({
         contracts: { ...s.contracts, C06: done },
@@ -886,11 +889,203 @@ describe('R06 — Pântano Cinzento', () => {
       get().refreshUnlocks();
     });
     expect(get().contracts.R06?.status).toBe('AVAILABLE');
-    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R06']);
+    expect(get().contracts.R07?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R06', 'R07']);
     expect(
       get()
         .session.toasts.filter((t) => t.type === 'rift')
         .map((t) => t.title),
-    ).toEqual(['Anomalia dimensional detectada: Pântano Cinzento']);
+    ).toEqual([
+      'Anomalia dimensional detectada: Pântano Cinzento',
+      'Anomalia dimensional detectada: Base Polar das Sombras',
+    ]);
+  });
+});
+
+describe('R07 — Base Polar das Sombras', () => {
+  const terrain = createTerrain(R07);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  /** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
+  function fly(contract: Contract): { result: SortieResult; used: number } {
+    const mission: MissionData = {
+      id: `${contract.id}-sim`,
+      contractId: contract.id,
+      createdAt: 0,
+      rivalAdjustment: 1,
+      isReplay: false,
+      plan: buildFlightPlan(referenceParams(contract), contract, CATALOG),
+      groundPoints: [],
+      fieldEquipmentId: 'TOTAL_STATION',
+      minigames: {},
+      atlasCalibrated: false,
+      sorties: [],
+      completedLines: [],
+      shots: [],
+      events: {
+        collisions: 0,
+        crashes: 0,
+        detected: false,
+        featuresCaptured: [],
+        ringsCollected: 0,
+      },
+      status: 'IN_FLIGHT',
+    };
+    let result: SortieResult | undefined;
+    let now = 0;
+    const e = new FlightEngine({
+      mission,
+      contract,
+      terrain: createTerrain(contract),
+      catalog: CATALOG,
+      input: { axis: () => 0 },
+      mods: neutralModifiers(),
+      ownsRtkKit: true,
+      autopilot: true,
+      quality: () => 'LOW',
+      reduceFlashes: () => false,
+      colors: { primary: '#64748b', secondary: '#0f172a' },
+      sortie: 0,
+      shotOffset: 0,
+      onSortieEnd: (r) => (result = r),
+      now: () => (now += 200),
+    });
+    for (let t = 0; t < 900 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) e.update(1 / 60);
+    if (!result) throw new Error('o voo não terminou');
+    return { result, used: 1 - e.energy };
+  }
+
+  it('conforme a ficha: AOI, nevasca, regras, 4 requisitos, recompensa e museu', () => {
+    expect(R07.title).toBe('Base Polar das Sombras');
+    expect(R07.client.name).toBe('Cobrinha Sólida');
+    expect(R07.client.portrait).toEqual({
+      shape: 'SHIELD',
+      icon: 'Package',
+      primary: '#57534e',
+      secondary: '#a16207',
+      initials: 'CS',
+    });
+    expect([R07.dimension, R07.biome, R07.seed]).toEqual(['RIFT', 'RIFT_POLAR_BASE', 9707]);
+    expect(R07.aoi).toEqual({ widthM: 240, lengthM: 300 });
+    expect([R07.ceilingM, R07.terrainReliefM]).toEqual([120, 15]);
+    expect(R07.lightingOptions).toEqual(['BLIZZARD']);
+    expect(R07.wind).toEqual({ meanMs: 7, gustMs: 4, directionDeg: 90 });
+    expect(R07.specialRules).toEqual([
+      'EM_INTERFERENCE',
+      'BLIZZARD_DRAIN',
+      'SEARCHLIGHTS',
+      'FEATURE_TARGETS',
+    ]);
+    expect(R07.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'NOT_DETECTED' }],
+      ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'WALKER' }],
+      ['MAJOR', { type: 'MIN_COVERAGE_GREEN', value: 0.7 }],
+      ['MINOR', { type: 'MAX_GSD_CM', value: 3 }],
+    ]);
+    expect(R07.recommended).toMatchObject({
+      aircraft: ['ATLAS', 'DRONE_T2'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R07.minVehicle).toBe('FOOT_BIKE');
+    expect([R07.basePaymentBRL, R07.xp, R07.reputationReward]).toEqual([7_000_000, 1200, 5]);
+    expect(R07.souvenirId).toBe('SV_CARDBOARD_BOX');
+    expect(R07.museum).toEqual({ wing: 'RIFT', slot: 6, incomePerMinBRL: 14_000 });
+    expect(R07.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C06' });
+    expect(R07.overworldMarker).toBe('g');
+    expect(
+      [R07.dialogs.briefing, R07.dialogs.success, R07.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `g` é de quem vai a pé ou de bicicleta, e o slot 6 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R07.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R07.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 na nevasca: GSD 2,01 cm, 6 linhas, 307 s, sem pontos de apoio', () => {
+    const ref = R07.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 110,
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+      speedMs: 9,
+      lighting: 'BLIZZARD',
+      gcps: [],
+      cps: [],
+    });
+    expect(ref.expected).toEqual({ gsdCm: 2.01, nLines: 6, flightTimeS: 307 });
+    const plan = buildFlightPlan(referenceParams(R07), R07, CATALOG);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(2.01, 2);
+    expect(plan.stats.nLines).toBe(6);
+    expect(plan.stats.flightTimeS).toBeCloseTo(307, 0);
+    // A nevasca drena a bateria 2×: 307 s de voo gastam 614 s de autonomia, e o T2 tem 2.100 s.
+    expect(plan.stats.flightTimeS * RULE_PARAMS.blizzard.energyDrainFactor).toBeCloseTo(614, 0);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+  });
+
+  it('a nevasca dobra o dreno: o mesmo voo gasta 2× a energia com a regra BLIZZARD_DRAIN', () => {
+    const fx = resolveRuleEffects(R07.specialRules);
+    expect(fx.flight.energyDrainFactor).toBe(2);
+    expect(fx.flight.searchlights).toEqual({ detectS: 1.5, detectAtlasS: 3 });
+    const calm = { ...R07, specialRules: R07.specialRules.filter((r) => r !== 'BLIZZARD_DRAIN') };
+    const drained = fly(R07);
+    const normal = fly(calm);
+    expect(drained.result.outcome).toBe('COMPLETED');
+    expect(normal.result.outcome).toBe('COMPLETED');
+    expect(drained.used / normal.used).toBeGreaterThan(1.9);
+    expect(drained.used / normal.used).toBeLessThan(2.1);
+    // Com o dreno de 2× ainda sobra bateria no fim do plano de referência.
+    expect(drained.used).toBeLessThan(0.5);
+  });
+
+  it('o autopilot voa o plano de referência sem ser detectado, sem colidir, e captura o andador', () => {
+    const { result } = fly(R07);
+    expect(result.outcome).toBe('COMPLETED');
+    expect(result.detected).toBe(false);
+    expect(result.collisions).toBe(0);
+    expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(result.featuresCaptured).toEqual(['WALKER']);
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova; detectado, reprova pelo crítico', () => {
+    const mission = syntheticMission(R07, terrain, CATALOG);
+    const report = evaluateMission(mission, R07, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R07-stealth',
+      'R07-walker',
+      'R07-cov',
+      'R07-gsd',
+    ]);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    // O mesmo voo, mas detectado por um holofote: o requisito crítico NOT_DETECTED reprova.
+    const seen = { ...mission, events: { ...mission.events, detected: true } };
+    const bad = evaluateMission(seen, R07, context());
+    expect(bad.requirements.find((r) => r.id === 'R07-stealth')?.pass).toBe(false);
+    expect(bad.critical).toBe(true);
+    expect(bad.approved).toBe(false);
   });
 });

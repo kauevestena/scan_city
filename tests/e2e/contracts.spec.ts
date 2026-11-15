@@ -115,6 +115,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Espada-Teodolito em Miniatura',
     rift: true,
   },
+  {
+    id: 'R07',
+    title: 'Base Polar das Sombras',
+    lines: 6,
+    photos: 78,
+    pec: false,
+    souvenir: 'Caixa de Papelão',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {
