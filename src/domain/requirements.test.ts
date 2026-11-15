@@ -6,6 +6,7 @@ import { clearTerrainCache, createTerrain } from '@/world/terrain/createTerrain'
 import { buildFlightPlan } from './flightPlanner';
 import {
   estimateFromPlan,
+  pctVs,
   planEquipment,
   predictRequirements,
   requiresLidar,
@@ -151,5 +152,23 @@ describe('estimateFromPlan', () => {
     );
     expect(withCp.verifiable).toBe(true);
     expect(noCp.rmse.z).toBeCloseTo(withCp.rmse.z * 0.55 * 1.8, 12);
+  });
+});
+
+describe('pctVs — percentual contra o mínimo exigido', () => {
+  const plain = (s: string) => s.replace(/\s/g, ' ');
+
+  it('atingido ou longe do mínimo: inteiro, como sempre', () => {
+    expect(plain(pctVs(70, 70))).toBe('70 %');
+    expect(plain(pctVs(82.4, 80))).toBe('82 %');
+    expect(plain(pctVs(64.6, 80))).toBe('65 %');
+  });
+
+  it('o arredondamento que esconderia a reprovação ganha duas casas', () => {
+    // 69,969 arredonda para 70, mas não atende "≥ 70": mostrar "70 %" seria enganoso.
+    expect(plain(pctVs(69.969, 70))).toBe('69,97 %');
+    expect(plain(pctVs(79.6, 80))).toBe('79,60 %');
+    // Perto demais para o arredondamento de duas casas também não chegar ao mínimo.
+    expect(plain(pctVs(69.9996, 70))).toBe('69,99 %');
   });
 });

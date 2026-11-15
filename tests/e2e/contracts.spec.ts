@@ -88,6 +88,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Cano Verde em Miniatura',
     rift: true,
   },
+  {
+    id: 'R08',
+    title: 'Bairro dos Santos',
+    lines: 11,
+    photos: 330,
+    pec: true,
+    souvenir: 'BMX em Miniatura',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {

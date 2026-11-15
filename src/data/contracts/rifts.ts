@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Wrench, Zap } from 'lucide-react';
+import { Bike, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Wrench, Zap });
+registerIcons({ Bike, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -214,5 +214,126 @@ export const R02: Contract = {
   },
 };
 
+/** R08 — Bairro dos Santos (T062): vielas de 4–6 m, casas coladas e fiação baixa. */
+export const R08: Contract = {
+  id: 'R08',
+  dimension: 'RIFT',
+  title: 'Bairro dos Santos',
+  client: {
+    name: 'Carlinhos Joilson (CJ)',
+    role: 'Morador do bairro',
+    description:
+      'Rapaz de regata branca e bicicleta BMX que reclama de ter de mapear tudo de novo.',
+    portrait: {
+      shape: 'CIRCLE',
+      icon: 'Bike',
+      primary: '#16a34a',
+      secondary: '#f8fafc',
+      initials: 'CJ',
+    },
+  },
+  objective: 'Regularização Fundiária Urbana (REURB) de vielas e becos.',
+  biome: 'RIFT_SANTOS_HOOD',
+  seed: 9808,
+  aoi: { widthM: 240, lengthM: 300 },
+  ceilingM: 120,
+  terrainReliefM: 20,
+  lightingOptions: ['SUN_HIGH', 'GOLDEN_HOUR', 'OVERCAST'],
+  wind: { meanMs: 3, gustMs: 2, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'LOW_WIRES'],
+  requirements: [
+    {
+      id: 'R08-pec',
+      label: 'PEC-PCD classe A (1:1.000)',
+      severity: 'CRITICAL',
+      check: { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000 },
+    },
+    {
+      id: 'R08-cov',
+      label: 'Cobertura verde ≥ 85 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.85 },
+    },
+    {
+      id: 'R08-gsd',
+      label: 'GSD ≤ 2 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 2 },
+    },
+    {
+      id: 'R08-fwd',
+      label: 'Sobreposição longitudinal ≥ 80 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_FORWARD_OVERLAP', value: 80 },
+    },
+    {
+      id: 'R08-side',
+      label: 'Sobreposição lateral ≥ 70 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_SIDE_OVERLAP', value: 70 },
+    },
+    {
+      id: 'R08-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+    {
+      id: 'R08-cp',
+      label: 'Ao menos 3 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 3 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'Lente de 35 mm. O relevo estreita a faixa nos morros: dê folga ao q. Fios a 8–14 m: mantenha o AGL acima de 20 m.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(28_000),
+  xp: 700,
+  reputationReward: 5,
+  souvenirId: 'SV_BMX',
+  museum: { wing: 'RIFT', slot: 7, incomePerMinBRL: brl(85) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C05' },
+  overworldMarker: 'h',
+  dialogs: {
+    briefing: [
+      'Ah droga, lá vou eu mapear de novo.',
+      'A prefeitura quer regularizar o bairro todo, cada viela, cada laje.',
+      'E cuidado com os fios, mano.',
+    ],
+    success: ['Respeito. Agora a família tem escritura. Fica com essa BMX de miniatura.'],
+    failure: ['Tudo que a gente tinha que fazer era seguir o maldito plano de voo!'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_35',
+    heightM: 80,
+    forwardOverlapPct: 80,
+    sideOverlapPct: 70,
+    speedMs: 8,
+    modes: [],
+    lighting: 'SUN_HIGH',
+    gcps: [
+      { u: 20, v: 20 },
+      { u: 280, v: 20 },
+      { u: 20, v: 220 },
+      { u: 280, v: 220 },
+      { u: 150, v: 120 },
+    ],
+    cps: [
+      { u: 80, v: 60 },
+      { u: 220, v: 180 },
+      { u: 150, v: 30 },
+    ],
+    expected: { gsdCm: 1.0, nLines: 11, flightTimeS: 575.8 },
+  },
+};
+
 /** Fendas do catálogo, na ordem das tarefas (T060–T070). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R08];
