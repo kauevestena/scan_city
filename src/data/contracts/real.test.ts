@@ -2,10 +2,11 @@
 import { CATALOG, getAircraft, getSensor } from '@/data/catalog';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { referenceParams } from '@/domain/referencePlan';
+import { estimateFromPlan } from '@/domain/requirements';
 import { RULE_PARAMS } from '@/domain/specialRules';
 import { meanAoiElevation } from '@/engines/flight/FlightEngine';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { C01, C05, C06, museumSlotCoords } from '.';
+import { C01, C02, C05, C06, museumSlotCoords } from '.';
 
 describe('C01 — Metrópole Vertical', () => {
   it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
@@ -224,5 +225,99 @@ describe('C06 — Zona Costeira e Estuário', () => {
   it('o briefing avisa que a água não tem tie points e manda pôr os GCPs na areia', () => {
     expect(C06.recommended.notes).toContain('Água não tem tie points');
     expect(C06.recommended.notes).toContain('GCPs só na faixa de areia');
+  });
+});
+
+describe('C02 — Planalto Agrícola', () => {
+  it('conforme a ficha: AOI, teto especial de 200 m, vento, regra, requisitos, recompensa e museu', () => {
+    expect(C02.title).toBe('Planalto Agrícola');
+    expect(C02.client.name).toBe('Seu Valdemar Prado');
+    expect(C02.client.portrait).toMatchObject({ shape: 'HEXAGON', icon: 'Wheat', initials: 'VP' });
+    expect([C02.biome, C02.seed]).toEqual(['AGRI_PLATEAU', 2020]);
+    expect(C02.aoi).toEqual({ widthM: 600, lengthM: 1500 });
+    expect([C02.ceilingM, C02.terrainReliefM]).toEqual([200, 30]);
+    expect(C02.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
+    expect(C02.wind).toEqual({ meanMs: 5, gustMs: 3, directionDeg: 0 });
+    expect(C02.specialRules).toEqual(['HOMOGENEOUS_TEXTURE']);
+    expect(C02.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' }],
+      ['CRITICAL', { type: 'AIRCRAFT_KIND', value: 'FIXED_WING_VTOL' }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 15 }],
+      ['MAJOR', { type: 'MIN_FORWARD_OVERLAP', value: 80 }],
+      ['MAJOR', { type: 'ACCURACY_PEC', cls: 'B', scaleDenominator: 5000 }],
+      ['MINOR', { type: 'MIN_GCP', value: 5 }],
+    ]);
+    expect(C02.recommended).toMatchObject({
+      aircraft: ['VTOL_T3'],
+      sensors: ['CAM_MS5'],
+      vehicle: 'PICKUP_4X4',
+    });
+    expect(C02.minVehicle).toBe('FOOT_BIKE');
+    expect([C02.basePaymentBRL, C02.xp, C02.reputationReward]).toEqual([3_500_000, 900, 12]);
+    expect(C02.souvenirId).toBe('SV_CORN_GOLD');
+    expect(museumSlotCoords(C02.museum.slot)).toEqual({ col: 0, lin: 1 });
+    expect(C02.museum.incomePerMinBRL).toBe(9_000);
+    expect(C02.unlock).toEqual({
+      type: 'ALL',
+      of: [
+        { type: 'CONTRACT_DONE', contractId: 'C06' },
+        { type: 'REPUTATION', min: 50 },
+      ],
+    });
+    expect(C02.overworldMarker).toBe('2');
+    expect(
+      [C02.dialogs.briefing, C02.dialogs.success, C02.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o plano de referência voa a 200 m (acima do teto comum de 120 m) com a asa fixa e a multiespectral', () => {
+    const ref = C02.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'VTOL_T3',
+      sensorId: 'CAM_MS5',
+      heightM: 200,
+      forwardOverlapPct: 80,
+      speedMs: 22,
+      lighting: 'SUN_HIGH',
+    });
+    expect(ref.heightM).toBeGreaterThan(120);
+    expect(ref.heightM).toBeLessThanOrEqual(C02.ceilingM);
+    expect(ref.heightM).toBeLessThanOrEqual(getAircraft(ref.aircraftId).hMaxM);
+    expect(getAircraft(ref.aircraftId).kind).toBe('FIXED_WING_VTOL');
+    expect(getSensor(ref.sensorId).kind).toBe('MULTISPECTRAL');
+    expect(ref.expected).toEqual({ gsdCm: 12.54, nLines: 8, flightTimeS: 725.7 });
+  });
+
+  it('textura homogênea: p < 80 penaliza mais a acurácia que p ≥ 80', () => {
+    const points = [...C02.referencePlan.gcps, ...C02.referencePlan.cps].map((p, i) => ({
+      id: `P${i}`,
+      kind: i < 5 ? ('GCP' as const) : ('CP' as const),
+      u: p.u,
+      v: p.v,
+      elevM: 0,
+      sigmaM: 0.01,
+    }));
+    const ctx = { catalog: CATALOG, ownsRtkKit: true, fieldEquipmentId: 'TOTAL_STATION' as const };
+    const at = (forwardOverlapPct: number) => {
+      const plan = buildFlightPlan({ ...referenceParams(C02), forwardOverlapPct }, C02, CATALOG);
+      return estimateFromPlan(plan, C02, points, ctx);
+    };
+    const factor = (e: ReturnType<typeof at>) => e.multipliers.find((m) => m.key === 'texture')?.xy;
+    const ok = at(80);
+    const low = at(70);
+    expect(factor(ok)).toBeCloseTo(1.24, 9);
+    expect(factor(low)).toBeCloseTo(1.6, 9);
+    expect(low.rmse.r).toBeGreaterThan(ok.rmse.r);
+    // Sem a regra, o multiplicador some.
+    const plan = buildFlightPlan(referenceParams(C02), C02, CATALOG);
+    const plain = estimateFromPlan(plan, { ...C02, specialRules: [] }, points, ctx);
+    expect(plain.multipliers.some((m) => m.key === 'texture')).toBe(false);
+  });
+
+  it('o briefing avisa do p ≥ 80 % e o requisito de sobreposição pede os mesmos 80 %', () => {
+    expect(C02.recommended.notes).toContain('p ≥ 80 %');
+    const req = C02.requirements.find((r) => r.check.type === 'MIN_FORWARD_OVERLAP');
+    expect(req?.check).toEqual({ type: 'MIN_FORWARD_OVERLAP', value: 80 });
   });
 });

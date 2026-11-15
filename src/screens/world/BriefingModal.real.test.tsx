@@ -127,3 +127,30 @@ describe('BriefingModal — C06 Zona Costeira e Estuário', () => {
     expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
   });
 });
+
+describe('BriefingModal — C02 Planalto Agrícola', () => {
+  it('a regra de textura homogênea, o teto especial e a asa fixa multiespectral', () => {
+    const { d } = open('C02', 'Planalto Agrícola');
+    expect(d.getAllByText('Seu Valdemar Prado').length).toBeGreaterThan(0);
+    const rules = within(d.getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual(['HOMOGENEOUS_TEXTURE']);
+    expect(rules[0]).toHaveTextContent('Textura homogênea');
+    expect(
+      d.getByText('Textura homogênea: use p ≥ 80 % para o SIFT não se perder.'),
+    ).toBeInTheDocument();
+    expect(d.getByText('600 × 1500 m')).toBeInTheDocument();
+    const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
+    expect(reqs).toHaveLength(7);
+    expect(reqs[0]).toHaveTextContent('Sensor multiespectral');
+    expect(reqs[1]).toHaveTextContent('Aeronave de asa fixa (VTOL)');
+    expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 35.000,00');
+    expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Espiga Dourada/);
+  });
+
+  it('bloqueado até concluir o C06 e atingir reputação 50', () => {
+    const { d } = open('C02', 'Planalto Agrícola');
+    expect(d.getByTestId('briefing')).toHaveAttribute('data-status', 'LOCKED');
+    expect(d.getByRole('button', { name: 'Aceitar' })).toBeDisabled();
+    expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
+  });
+});
