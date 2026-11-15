@@ -151,6 +151,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Bloco de Minério Cúbico',
     rift: true,
   },
+  {
+    id: 'R04',
+    title: 'Bosque das Fadas Perdidas',
+    lines: 9,
+    photos: null,
+    pec: false,
+    souvenir: 'Fragmento do Triângulo Geodésico',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {

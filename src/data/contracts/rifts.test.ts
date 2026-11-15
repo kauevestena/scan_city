@@ -34,7 +34,7 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R03, R05, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R03, R04, R05, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
 
 /** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
 function fly(
@@ -100,6 +100,7 @@ describe('catálogo das fendas', () => {
       'R01',
       'R02',
       'R03',
+      'R04',
       'R05',
       'R06',
       'R07',
@@ -111,6 +112,7 @@ describe('catálogo das fendas', () => {
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
     expect(getContract('R03')).toBe(R03);
+    expect(getContract('R04')).toBe(R04);
     expect(getContract('R05')).toBe(R05);
     expect(getContract('R06')).toBe(R06);
     expect(getContract('R07')).toBe(R07);
@@ -1862,5 +1864,235 @@ describe('R05 — Mina dos Blocos Cúbicos', () => {
     const flat = evaluateMission(syntheticMission(noTf, terrain, CATALOG), R05, context());
     expect(flat.requirements.find((r) => r.id === 'R05-tf')?.pass).toBe(false);
     expect(flat.critical).toBe(false);
+  });
+});
+
+describe('R04 — Bosque das Fadas Perdidas', () => {
+  const terrain = createTerrain(R04);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+  /** O mesmo bosque e a mesma névoa, mas com a câmera RGB de 45 MP no lugar do LiDAR. */
+  const rgbContract: Contract = {
+    ...R04,
+    referencePlan: {
+      ...R04.referencePlan,
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 100,
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+    },
+  };
+
+  it('conforme a ficha: AOI, teto, só névoa, vento, regras, 4 requisitos, recompensa e museu', () => {
+    expect(R04.title).toBe('Bosque das Fadas Perdidas');
+    expect(R04.client.name).toBe('Lino');
+    expect(R04.client.portrait).toEqual({
+      shape: 'DIAMOND',
+      icon: 'Triangle',
+      primary: '#16a34a',
+      secondary: '#facc15',
+      initials: 'LN',
+    });
+    expect([R04.dimension, R04.biome, R04.seed]).toEqual(['RIFT', 'RIFT_FAIRY_FOREST', 9404]);
+    expect(R04.aoi).toEqual({ widthM: 400, lengthM: 600 });
+    expect([R04.ceilingM, R04.terrainReliefM]).toEqual([150, 30]);
+    expect(R04.lightingOptions).toEqual(['MAGIC_FOG']);
+    expect(R04.wind).toEqual({ meanMs: 1, gustMs: 1, directionDeg: 0 });
+    expect(R04.specialRules).toEqual([
+      'EM_INTERFERENCE',
+      'MAGIC_FOG',
+      'DENSE_CANOPY',
+      'FEATURE_TARGETS',
+    ]);
+    expect(R04.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
+      ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE' }],
+      ['MAJOR', { type: 'MIN_GROUND_DENSITY', value: 10 }],
+      ['MINOR', { type: 'MIN_LIDAR_DENSITY', value: 120 }],
+    ]);
+    expect(R04.recommended).toMatchObject({
+      aircraft: ['DRONE_T2'],
+      sensors: ['POD_LIDAR'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R04.minVehicle).toBe('FOOT_BIKE');
+    expect([R04.basePaymentBRL, R04.xp, R04.reputationReward]).toEqual([8_000_000, 1400, 5]);
+    expect(R04.souvenirId).toBe('SV_TRIANGLE');
+    expect(R04.museum).toEqual({ wing: 'RIFT', slot: 3, incomePerMinBRL: 16_000 });
+    expect(R04.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C03' });
+    expect(R04.overworldMarker).toBe('d');
+    expect(
+      [R04.dialogs.briefing, R04.dialogs.success, R04.dialogs.failure].map((d) => d.length),
+    ).toEqual([2, 1, 1]);
+  });
+
+  it('o portal `d` é de quem vai a pé ou de bicicleta, e o slot 3 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R04.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R04.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 com o pod LiDAR: faixa de 112,03 m, 9 linhas, 682,8 s e 428 pts/m²', () => {
+    const ref = R04.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'POD_LIDAR',
+      heightM: 80,
+      sideOverlapPct: 50,
+      speedMs: 10,
+      modes: [],
+      lighting: 'MAGIC_FOG',
+      gcps: [],
+      cps: [],
+    });
+    expect(referenceParams(R04).primarySensor).toBe('LIDAR');
+    expect(ref.expected).toEqual({
+      gsdCm: 2.13,
+      nLines: 9,
+      flightTimeS: 682.8,
+      lidar: { swathM: 112.03, density: 428, groundDensity: 54 },
+    });
+    const plan = buildFlightPlan(referenceParams(R04), R04, CATALOG, { meanCanopy: 0.95 });
+    expect(plan.stats.lidarSwathM).toBeCloseTo(112.03, 2);
+    expect(plan.stats.nLines).toBe(9);
+    expect(plan.stats.flightTimeS).toBeCloseTo(682.8, 0);
+    expect(plan.stats.lidarDensity).toBeCloseTo(428, 0);
+    expect(plan.stats.groundDensity).toBeGreaterThan(48);
+    expect(plan.stats.groundDensity).toBeLessThan(60);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+    // A previsão (sem pontos de apoio) passa em tudo o que depende do plano.
+    const predicted = predictRequirements(plan, R04, [], {
+      catalog: CATALOG,
+      ownsRtkKit: true,
+      fieldEquipmentId: 'TOTAL_STATION',
+    });
+    expect(predicted.filter((r) => !r.pass).map((r) => r.id)).toEqual([]);
+  });
+
+  it('MAGIC_FOG: névoa de 250 m, e toda foto RGB sai na névoa e não conta para a cobertura', () => {
+    const fx = resolveRuleEffects(R04.specialRules);
+    expect(fx.flight.visibilityM).toBe(RULE_PARAMS.magicFog.visibilityM);
+    expect(fx.flight.visibilityM).toBe(250);
+    expect(fx.coverage.fog).toBe(true);
+    expect(fx.terrain.denseCanopy).toEqual(RULE_PARAMS.denseCanopy);
+    expect(getAircraft('DRONE_T2').emImmune).toBe(false);
+    expect(CATALOG.payloads.some((p) => p.id === 'POD_LIDAR')).toBe(true);
+    expect(terrain.zones).toEqual([{ kind: 'FOG', density: 0.9 }]);
+  });
+
+  it('o autopilot voa o plano de referência com o LiDAR: 9 linhas, sem colisão, por cima das copas, e captura o templo', () => {
+    let minOverCrown = Infinity;
+    const { result, used } = fly(R04, (e) => {
+      if (e.phase !== 'RUN') return;
+      const p = e.pos();
+      // Só as árvores em volta (os objetos vêm ordenados por `u`): 1.700 por quadro seria lento.
+      for (const t of terrain.objectsInRange(p.u - 12, p.u + 12)) {
+        if (t.kind === 'TREE' && Math.hypot(p.u - t.u, p.v - t.v) < t.widthM / 2) {
+          minOverCrown = Math.min(
+            minOverCrown,
+            e.ac.alt - (terrain.elevation(t.u, t.v) + t.heightM),
+          );
+        }
+      }
+    });
+    expect(result.outcome).toBe('COMPLETED');
+    expect(result.collisions).toBe(0);
+    expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(result.featuresCaptured).toEqual(['TEMPLE']);
+    expect(result.lidar).not.toBeNull();
+    // O pod LiDAR é o sensor primário: o voo não dispara a câmera RGB.
+    expect(result.photos).toBe(0);
+    // 683 s de voo dos 2.100 s do T2.
+    expect(used).toBeLessThan(0.6);
+    // Sem TF, a altitude é a cota média + 80 m: a copa mais alta fica ≥ 10 m abaixo.
+    expect(minOverCrown).toBeGreaterThan(10);
+  }, 30_000);
+
+  it('com o plano de referência (missão sintética), o relatório aprova: LiDAR, templo, solo ≥ 10 e densidade ≥ 120 pts/m²', () => {
+    const mission = syntheticMission(R04, terrain, CATALOG);
+    expect(mission.groundPoints).toHaveLength(0);
+    expect(mission.lidar).toBeDefined();
+    const report = evaluateMission(mission, R04, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R04-sensor',
+      'R04-temple',
+      'R04-ground',
+      'R04-density',
+    ]);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    expect(report.requirements.find((r) => r.id === 'R04-temple')?.valueText).toBe('Capturado');
+  });
+
+  it('com a câmera RGB a névoa invalida todas as fotos: cobertura 0 e os dois críticos reprovam', () => {
+    const mission = syntheticMission(rgbContract, terrain, CATALOG);
+    expect(mission.shots.length).toBeGreaterThan(100);
+    const report = evaluateMission(mission, R04, context());
+    const byId = (id: string) => report.requirements.find((r) => r.id === id);
+    expect(report.coverage.green).toBe(0);
+    expect(byId('R04-sensor')?.pass).toBe(false);
+    expect(byId('R04-temple')?.pass).toBe(false);
+    expect(byId('R04-ground')?.pass).toBe(false);
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('sem os dados do LiDAR o templo não é capturado, mesmo com as fotos: reprova pelos críticos', () => {
+    const full = syntheticMission(R04, terrain, CATALOG);
+    const { lidar: _lidar, ...rest } = full;
+    const report = evaluateMission(rest as MissionData, R04, context());
+    const byId = (id: string) => report.requirements.find((r) => r.id === id);
+    expect(byId('R04-temple')?.pass).toBe(false);
+    expect(byId('R04-ground')?.pass).toBe(false);
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('concluir o C03 libera a R04: a fenda é descoberta e sai um aviso', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C00: done, C01: done },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R04?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C03: done },
+        stats: { ...s.stats, contractsCompleted: 3 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R04?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R04']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual(['Anomalia dimensional detectada: Bosque das Fadas Perdidas']);
   });
 });
