@@ -2,6 +2,7 @@ import { findTransition, type TransitionDef } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import type { GameStore, ScreenPayload } from '@/state/types';
 import type {
+  Contract,
   ContractProgress,
   FlightLine,
   FlightPlan,
@@ -10,9 +11,20 @@ import type {
   ScreenId,
   Shot,
 } from '@/types';
-import { AIRCRAFT, FIELD_EQUIPMENT, LENSES, PAYLOADS, SENSORS, VEHICLES } from '@/data/catalog';
+import {
+  AIRCRAFT,
+  CATALOG,
+  FIELD_EQUIPMENT,
+  getVehicle,
+  LENSES,
+  PAYLOADS,
+  SENSORS,
+  VEHICLES,
+} from '@/data/catalog';
 import { COSMETICS } from '@/data/cosmetics';
-import { CONTRACTS } from '@/data/contracts';
+import { CONTRACTS, findContract } from '@/data/contracts';
+import { referencePoints, syntheticMission } from '@/domain/referencePlan';
+import { createTerrain } from '@/world/terrain/createTerrain';
 import type { DebugFlags } from './debugFlags';
 
 /**
@@ -118,8 +130,31 @@ function debugShots(plan: FlightPlan): Shot[] {
 
 let missionCounter = 0;
 
+/**
+ * Missão de teste de um contrato do catálogo (exceto o C00, que tem o plano fixo abaixo): o plano
+ * de referência do contrato, os pontos de apoio encaixados no acessível mais próximo e, com
+ * `withData`, as fotos "perfeitas" do plano.
+ */
+function contractDebugMission(contract: Contract, withData: boolean): MissionData {
+  const terrain = createTerrain(contract);
+  const snap = {
+    vehicles: [getVehicle(contract.minVehicle), getVehicle(contract.recommended.vehicle)],
+    rules: { paintMarkers: contract.specialRules.includes('PAINT_MARKERS') },
+  };
+  missionCounter += 1;
+  const mission = syntheticMission(contract, terrain, CATALOG, {
+    id: `${contract.id}-debug-${missionCounter}`,
+    createdAt: Date.now(),
+    groundPoints: referencePoints(contract, terrain, snap),
+  });
+  if (withData) return mission;
+  return { ...mission, shots: [], sorties: [], completedLines: [], status: 'PLANNING' };
+}
+
 /** Missão de teste; com `withData`, inclui as 96 fotos do plano de referência. */
 export function createDebugMission(contractId: string, withData: boolean): MissionData {
+  const contract = contractId === DEBUG_CONTRACT_ID ? undefined : findContract(contractId);
+  if (contract) return contractDebugMission(contract, withData);
   const plan = debugPlan();
   const shots = withData ? debugShots(plan) : [];
   missionCounter += 1;
@@ -170,6 +205,20 @@ function ensureActiveMission(store: Store, contractId: string, withData: boolean
   if (current && current.contractId === contractId && hasData === withData) return current;
   const mission = { ...createDebugMission(contractId, withData), status: 'IN_FLIGHT' as const };
   store.getState().beginMission(mission);
+  // Contrato do catálogo ainda bloqueado: a depuração o libera, para o fluxo seguir até o museu.
+  const progress = store.getState().contracts[contractId];
+  if (
+    findContract(contractId) &&
+    progress?.status !== 'AVAILABLE' &&
+    progress?.status !== 'COMPLETED'
+  ) {
+    store.setState((s) => ({
+      contracts: {
+        ...s.contracts,
+        [contractId]: { status: 'AVAILABLE', completions: 0, bestScore: 0 },
+      },
+    }));
+  }
   return mission;
 }
 

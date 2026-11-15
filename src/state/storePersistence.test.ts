@@ -18,6 +18,7 @@ function reload() {
 }
 
 beforeEach(() => resetGameStore());
+afterEach(() => vi.restoreAllMocks());
 
 describe('save e load pela store', () => {
   it('as mudanças só chegam ao localStorage no flush', () => {
@@ -35,6 +36,10 @@ describe('save e load pela store', () => {
   });
 
   it('round-trip: dinheiro, inventário, contratos, museu, fila e posição no mapa', () => {
+    // Relógio parado: a renda offline do museu (R$ 10/min ≈ 1 centavo a cada 60 ms) não pode
+    // depender do tempo que a montagem das missões de teste leva.
+    const t0 = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(t0);
     const mission = createDebugMission('C00', true);
     get().earn(123_400, 'teste');
     get().setAvatar({ x: 12, y: 34, facing: 'E' });
@@ -56,9 +61,11 @@ describe('save e load pela store', () => {
       mission: { active: createDebugMission('C01', false), pending: [mission] },
       session: { ...s.session, screen: 'WORLD_MAP', paused: true },
     }));
+    get().syncIncomeClock(t0);
     flushSave();
 
     expect(reload()).toMatchObject({ status: 'OK', migratedFrom: null });
+    vi.restoreAllMocks();
     const s = get();
     expect(s.player.money).toBe(623_400);
     expect(s.inventory.vehicles).toEqual(['FOOT_BIKE', 'COMPACT_CAR']);
