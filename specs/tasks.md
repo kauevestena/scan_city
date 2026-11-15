@@ -1189,11 +1189,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F7 · **Depende de:** T056 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-PRC-013
 - **Spec:** [contracts-real C04](content/contracts-real.md)
 - **Aceite específico:**
-  - [ ] Bancadas visíveis no voo.
-  - [ ] TF obrigatório.
-  - [ ] Volumetria com erro ≤ 2 % no plano de referência.
-  - [ ] Marcador acessível só de 4x4.
-- **Status:** ☐
+  - [x] Bancadas visíveis no voo.
+  - [x] TF obrigatório.
+  - [x] Volumetria com erro ≤ 2 % no plano de referência.
+  - [x] Marcador acessível só de 4x4.
+- **Notas de implementação:**
+  - `world/terrain/biomes/openPitMine.ts` (AOI de 480 × 320 m, cava centrada em (240, 160)): a profundidade segue o perfil de degraus `pitDepthM` — 10 bancadas de 15 m, cada uma com berma plana de 8 m e talude suavizado de 14 m (≈ 47°, com picos de 65° nas curvas), de 0 na borda (cota 150 m) a 150 m no fundo (raio de 220 m). A borda é irregular (ridged de ±9 m, só nas três bancadas de cima, para que as bermas de baixo sejam círculos exatos). A cobertura vem da mesma conta: `BENCH` nas bermas e no fundo, `ROCK` nos taludes e fora da cava, `SAND` nas quatro pilhas cônicas (r 32–40 m, h 20–30 m, nos cantos, fora do raio da borda).
+  - Rampa de acesso em espiral (`ROAD` de 8 m, 2,5 voltas da borda ao raio de 25 m, 200 pontos) com a estrada que a liga à margem; duas torres de britagem (`BUILDING` de 15 × 15 × 30 m) com galpões. O relevo da AOI dá 180 m (os 150 m da cava mais 30 m das pilhas); os pontos de apoio de referência já caem em terra acessível da picape (o fundo e quase todos os outros a 0–6 m do encaixe, 4 `guaranteedAccessible` em bermas), e a picape não sobe nos taludes (> 60 %).
+  - Contrato `C04` conforme a ficha (TF, volume ≤ 2 % e cobertura de 85 % críticos, ASPRS 5/8 cm, 6 GCPs, R$ 55.000, 1.200 XP, +12, museu (0, 0) a R$ 120/min, desbloqueio `ALL[C05, reputação 55]`, marcador `4`, **veículo mínimo `PICKUP_4X4`**). O plano de referência (T2 + 45 MP + lente 24, H 80 m AGL com TF, 9 linhas, 563,5 s, GSD 1,46 cm; 243 fotos) bate com a spec e a viabilidade passa de primeira.
+  - **Aceites.** *Bancadas visíveis no voo*: o teste do perfil radial acha os 11 platôs de 15 em 15 m, e a revisão visual mostra as bermas e os taludes escalonados vistos da aeronave. *TF obrigatório*: voando a H sobre a cota média, o AGL varia mais de 150 m (do chão ao dobro do teto) e o plano sem o modo reprova o requisito `C04-tf`. *Volumetria*: corte de 6,2 milhões de m³ e aterro de 0,2 milhão (profundidade média de 42 m); com o RMSE de 8 cm do plano o erro fica em ≤ 0,3 % em 100 seeds (0,03 % no relatório), e com 5 % de buracos de cobertura passa de 2 %. *Marcador 4*: a picape o alcança do escritório e a pé, de carro e de van não (BFS do mapa).
+  - Duas correções de infra que o C04 pediu. **`TerrainSampler`**: o teste "o ponto está numa via?" varria todos os segmentos de todas as vias, e a rampa de 200 pontos derrubava o voo para ~40 FPS; agora cada segmento guarda a caixa envolvente e só calcula a distância quando o ponto cabe nela (60 FPS de volta, e as grades de ruas dos outros biomas ganham também). **`syntheticMission`**: com Terrain Following as fotos "perfeitas" ficam a H de AGL sobre o terreno de cada foto (antes eram a altitude constante, e o relatório de depuração do C04 dava volume de 14,7 %, cobertura de 66 % e ASPRS reprovado); agora dá 0,03 %, 100 % e H = V = 4,2 cm. `referencePlan.test.ts` cobre os parâmetros, o encaixe dos pontos e a missão sintética.
+  - E2E: o C04 em `tests/e2e/contracts.spec.ts` (~1,5 min): autopilot ×8 com TF sem colisões, 243 fotos, relatório **APROVADO** (os contratos de ASPRS não têm classe PEC), souvenir e museu. Revisão visual no satélite (círculos das bancadas, a espiral escura da rampa, pilhas e britadores), no voo e nos produtos.
+- **Status:** ✅
 
 ### T058 — C03 Floresta Amazônica
 - **Fase:** F7 · **Depende de:** T057 · **REQs:** REQ-CNT-001, REQ-CNT-004 (*parc.*)

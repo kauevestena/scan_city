@@ -121,6 +121,50 @@ export function distanceToPolyline(p: AoiPoint, line: Polyline): number {
   return best;
 }
 
+/**
+ * Teste "o ponto está sobre uma via?" para os tipos pedidos. Cada segmento guarda a caixa
+ * envolvente (aumentada da meia-largura), então as vias longas e de muitos pontos (a rampa em
+ * espiral da mina tem 200) só calculam a distância dos poucos segmentos que o ponto pode tocar.
+ */
+function segmentTest(
+  roads: readonly Polyline[],
+  kinds: ReadonlySet<Polyline['kind']>,
+): (u: number, v: number) => boolean {
+  const segments: Array<{
+    a: AoiPoint;
+    b: AoiPoint;
+    half: number;
+    uMin: number;
+    uMax: number;
+    vMin: number;
+    vMax: number;
+  }> = [];
+  for (const road of roads) {
+    if (!kinds.has(road.kind)) continue;
+    const half = road.widthM / 2;
+    for (let i = 1; i < road.points.length; i++) {
+      const a = road.points[i - 1] as AoiPoint;
+      const b = road.points[i] as AoiPoint;
+      segments.push({
+        a,
+        b,
+        half,
+        uMin: Math.min(a.u, b.u) - half,
+        uMax: Math.max(a.u, b.u) + half,
+        vMin: Math.min(a.v, b.v) - half,
+        vMax: Math.max(a.v, b.v) + half,
+      });
+    }
+  }
+  return (u, v) => {
+    for (const s of segments) {
+      if (u < s.uMin || u > s.uMax || v < s.vMin || v > s.vMax) continue;
+      if (distanceToSegment({ u, v }, s.a, s.b) <= s.half) return true;
+    }
+    return false;
+  };
+}
+
 export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): TerrainSampler {
   const seed = terrainSeed(contract);
   const rng = mulberry32(seed);
@@ -148,19 +192,17 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
   const features = recipe.features?.(aoi) ?? [];
   const zones = recipe.zones?.(objects, aoi, rng.fork('zones')) ?? [];
 
-  const onRoad = (kinds: ReadonlySet<Polyline['kind']>) => (u: number, v: number) =>
-    roads.some((r) => kinds.has(r.kind) && distanceToPolyline({ u, v }, r) <= r.widthM / 2);
-  const roadField = createDistanceField(bounds, DISTANCE_CELL_M, onRoad(new Set(['ROAD'])));
+  const roadTest = (kinds: ReadonlySet<Polyline['kind']>) => segmentTest(roads, kinds);
+  const roadField = createDistanceField(bounds, DISTANCE_CELL_M, roadTest(new Set(['ROAD'])));
   const trackField = createDistanceField(
     bounds,
     DISTANCE_CELL_M,
-    onRoad(new Set(['ROAD', 'TRAIL'])),
+    roadTest(new Set(['ROAD', 'TRAIL'])),
   );
 
   const isRoof = (u: number, v: number) =>
     hash.near(u, v).some((o) => o.kind === 'BUILDING' && insideFootprint(o, u, v));
-  const roadAt = (u: number, v: number) =>
-    roads.some((r) => r.kind === 'ROAD' && distanceToPolyline({ u, v }, r) <= r.widthM / 2);
+  const roadAt = roadTest(new Set(['ROAD']));
 
   const landCover = (u: number, v: number): LandCover => {
     if (isRoof(u, v)) return 'ROOF';
