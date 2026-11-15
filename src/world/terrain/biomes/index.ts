@@ -3,6 +3,7 @@ import type { BiomeRecipe } from '../TerrainSampler';
 import { AGRI_PLATEAU } from './agriPlateau';
 import { COASTAL_ESTUARY } from './coastalEstuary';
 import { COLONIAL_CENTER } from './colonialCenter';
+import { OPEN_PIT_MINE } from './openPitMine';
 import { RURAL_TUTORIAL } from './ruralTutorial';
 import { URBAN_VERTICAL } from './urbanVertical';
 
@@ -13,4 +14,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   COLONIAL_CENTER,
   COASTAL_ESTUARY,
   AGRI_PLATEAU,
+  OPEN_PIT_MINE,
 };

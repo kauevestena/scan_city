@@ -70,7 +70,8 @@ export function referencePoints(
 
 /**
  * Missão "perfeita" do plano de referência: fotos disparadas a cada base, na janela da
- * câmera (AOI ± 1 base), a altitude constante sobre a cota média da AOI, sem ruído.
+ * câmera (AOI ± 1 base), a altitude constante sobre a cota média da AOI (ou, com Terrain
+ * Following, a H de AGL sobre o terreno de cada foto), sem ruído.
  */
 export function syntheticMission(
   contract: Contract,
@@ -91,6 +92,7 @@ export function syntheticMission(
     }
   }
   const altM = elevSum / n + plan.params.heightM;
+  const tf = plan.params.terrainFollowing;
   const v = plan.params.speedMs;
   const shots: Shot[] = [];
   let t = 0;
@@ -108,7 +110,10 @@ export function syntheticMission(
     ) {
       const u = line.start.u + dirU * s;
       const vv = line.start.v + dirV * s;
-      const agl = altM - terrain.elevation(u, vv);
+      // Com Terrain Following o AGL é o do plano em cada foto; sem ele, a altitude é constante.
+      const ground = terrain.elevation(u, vv);
+      const shotAltM = tf ? ground + plan.params.heightM : altM;
+      const agl = shotAltM - ground;
       const g = gsd(agl, pitch, focalM);
       const fp = footprint(agl, camera.sensorWidthMm / 1000, camera.sensorHeightMm / 1000, focalM);
       const blurPx = motionBlurPx(v, exposure, g);
@@ -120,7 +125,7 @@ export function syntheticMission(
         u,
         v: vv,
         aglM: agl,
-        altM,
+        altM: shotAltM,
         speedMs: v,
         headingRad: Math.atan2(dirV, dirU),
         crabRad: 0,

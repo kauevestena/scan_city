@@ -1,11 +1,11 @@
 /** Campanha principal: contratos do Mundo Real (contracts-real). */
-import { Anchor, Church, Landmark, Tractor, Wheat } from 'lucide-react';
+import { Anchor, Church, Landmark, Pickaxe, Tractor, Wheat } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 import { museumSlot } from './museum';
 
-registerIcons({ Anchor, Church, Landmark, Tractor, Wheat });
+registerIcons({ Anchor, Church, Landmark, Pickaxe, Tractor, Wheat });
 
 /** C00 — Sítio do Avô (tutorial). */
 export const C00: Contract = {
@@ -603,5 +603,127 @@ export const C02: Contract = {
   },
 };
 
+/** C04 — Mina a Céu Aberto (T057): volumetria de uma cava de 150 m (`OPEN_PIT_MINE`). */
+export const C04: Contract = {
+  id: 'C04',
+  dimension: 'REAL',
+  title: 'Mina a Céu Aberto',
+  client: {
+    name: 'Eng.ª Rosa Lima',
+    role: 'Mineração Serra Alta',
+    description:
+      'Engenheira de minas da Mineração Serra Alta, que precisa fechar o volume com a balança.',
+    portrait: {
+      shape: 'SHIELD',
+      icon: 'Pickaxe',
+      primary: '#f97316',
+      secondary: '#1c1917',
+      initials: 'RL',
+    },
+  },
+  objective: 'Cálculo volumétrico de corte e aterro da cava e das pilhas de minério.',
+  biome: 'OPEN_PIT_MINE',
+  seed: 4004,
+  aoi: { widthM: 320, lengthM: 480 },
+  ceilingM: 120,
+  terrainReliefM: 150,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR'],
+  wind: { meanMs: 6, gustMs: 4, directionDeg: 270 },
+  specialRules: ['STEEP_RELIEF'],
+  requirements: [
+    {
+      id: 'C04-tf',
+      label: 'Voo com Terrain Following',
+      severity: 'CRITICAL',
+      check: { type: 'FLIGHT_MODE', value: 'TERRAIN_FOLLOWING' },
+    },
+    {
+      id: 'C04-vol',
+      label: 'Erro de volume ≤ 2 %',
+      severity: 'CRITICAL',
+      check: { type: 'MAX_VOLUME_ERROR_PCT', value: 2 },
+    },
+    {
+      id: 'C04-cov',
+      label: 'Cobertura verde ≥ 85 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.85 },
+    },
+    {
+      id: 'C04-asprs',
+      label: 'ASPRS: 5 cm (H) e 8 cm (V)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 5, verticalCm: 8 },
+    },
+    {
+      id: 'C04-gcp',
+      label: 'Ao menos 6 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 6 },
+    },
+    {
+      id: 'C04-cp',
+      label: 'Ao menos 3 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 3 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'PICKUP_4X4',
+    notes: '',
+  },
+  // A mina fica atrás de encostas íngremes: só a picape chega.
+  minVehicle: 'PICKUP_4X4',
+  basePaymentBRL: brl(55_000),
+  xp: 1200,
+  reputationReward: 12,
+  souvenirId: 'SV_ORE_NUGGET',
+  museum: { wing: 'REAL', slot: museumSlot(0, 0), incomePerMinBRL: brl(120) },
+  unlock: {
+    type: 'ALL',
+    of: [
+      { type: 'CONTRACT_DONE', contractId: 'C05' },
+      { type: 'REPUTATION', min: 55 },
+    ],
+  },
+  overworldMarker: '4',
+  dialogs: {
+    briefing: [
+      'Cento e cinquenta metros de desnível entre a borda e o fundo da cava.',
+      'Se voar em altitude constante, você bate na bancada ou perde resolução lá embaixo.',
+      'Terrain Following, e volume com erro máximo de 2 %.',
+    ],
+    success: ['Volume fechou com a balança da usina. Engenharia de verdade!'],
+    failure: ['Esse volume aí não fecha nem com reza.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 80,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 10,
+    modes: ['TERRAIN_FOLLOWING'],
+    lighting: 'OVERCAST',
+    gcps: [
+      { u: 40, v: 40 },
+      { u: 440, v: 40 },
+      { u: 40, v: 280 },
+      { u: 440, v: 280 },
+      { u: 240, v: 160 },
+      { u: 240, v: 40 },
+    ],
+    cps: [
+      { u: 140, v: 100 },
+      { u: 340, v: 220 },
+      { u: 240, v: 280 },
+    ],
+    expected: { gsdCm: 1.46, nLines: 9, flightTimeS: 563.5 },
+  },
+};
+
 /** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
-export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06, C02];
+export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06, C02, C04];

@@ -41,6 +41,14 @@ const CONTRACTS = [
     pec: true,
     souvenir: 'Espiga Dourada',
   },
+  {
+    id: 'C04',
+    title: 'Mina a Céu Aberto',
+    lines: 9,
+    photos: 243,
+    pec: false,
+    souvenir: 'Pepita de Minério',
+  },
 ] as const;
 
 for (const c of CONTRACTS) {

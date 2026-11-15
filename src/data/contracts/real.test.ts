@@ -6,7 +6,11 @@ import { estimateFromPlan } from '@/domain/requirements';
 import { RULE_PARAMS } from '@/domain/specialRules';
 import { meanAoiElevation } from '@/engines/flight/FlightEngine';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { C01, C02, C05, C06, museumSlotCoords } from '.';
+import { MARKER_ACCESS } from '@/data/overworld/map';
+import { isReachable } from '@/world/overworld/pathfinding';
+import { WORLD_MAP } from '@/world/overworld/tiles';
+import type { VehicleId } from '@/types';
+import { C01, C02, C04, C05, C06, museumSlotCoords } from '.';
 
 describe('C01 — Metrópole Vertical', () => {
   it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
@@ -319,5 +323,76 @@ describe('C02 — Planalto Agrícola', () => {
     expect(C02.recommended.notes).toContain('p ≥ 80 %');
     const req = C02.requirements.find((r) => r.check.type === 'MIN_FORWARD_OVERLAP');
     expect(req?.check).toEqual({ type: 'MIN_FORWARD_OVERLAP', value: 80 });
+  });
+});
+
+describe('C04 — Mina a Céu Aberto', () => {
+  it('conforme a ficha: AOI, relevo de 150 m, vento, regra, requisitos, recompensa e museu', () => {
+    expect(C04.title).toBe('Mina a Céu Aberto');
+    expect(C04.client.name).toBe('Eng.ª Rosa Lima');
+    expect(C04.client.portrait).toMatchObject({ shape: 'SHIELD', icon: 'Pickaxe', initials: 'RL' });
+    expect([C04.biome, C04.seed]).toEqual(['OPEN_PIT_MINE', 4004]);
+    expect(C04.aoi).toEqual({ widthM: 320, lengthM: 480 });
+    expect([C04.ceilingM, C04.terrainReliefM]).toEqual([120, 150]);
+    expect(C04.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
+    expect(C04.wind).toEqual({ meanMs: 6, gustMs: 4, directionDeg: 270 });
+    expect(C04.specialRules).toEqual(['STEEP_RELIEF']);
+    expect(C04.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'FLIGHT_MODE', value: 'TERRAIN_FOLLOWING' }],
+      ['CRITICAL', { type: 'MAX_VOLUME_ERROR_PCT', value: 2 }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
+      ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 5, verticalCm: 8 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 6 }],
+      ['MINOR', { type: 'MIN_CP', value: 3 }],
+    ]);
+    expect(C04.recommended).toMatchObject({
+      aircraft: ['DRONE_T2'],
+      sensors: ['CAM_45MP_FF'],
+      vehicle: 'PICKUP_4X4',
+    });
+    expect([C04.basePaymentBRL, C04.xp, C04.reputationReward]).toEqual([5_500_000, 1200, 12]);
+    expect(C04.souvenirId).toBe('SV_ORE_NUGGET');
+    expect(museumSlotCoords(C04.museum.slot)).toEqual({ col: 0, lin: 0 });
+    expect(C04.museum.incomePerMinBRL).toBe(12_000);
+    expect(C04.unlock).toEqual({
+      type: 'ALL',
+      of: [
+        { type: 'CONTRACT_DONE', contractId: 'C05' },
+        { type: 'REPUTATION', min: 55 },
+      ],
+    });
+    expect(C04.overworldMarker).toBe('4');
+    expect(
+      [C04.dialogs.briefing, C04.dialogs.success, C04.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o plano de referência voa com TF, a 80 m AGL, sob luz nublada e com 6 GCPs', () => {
+    const ref = C04.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 80,
+      modes: ['TERRAIN_FOLLOWING'],
+      lighting: 'OVERCAST',
+    });
+    expect(getAircraft(ref.aircraftId).terrainFollowing).toBe(true);
+    expect(ref.gcps).toHaveLength(6);
+    expect(ref.cps).toHaveLength(3);
+    expect(ref.expected).toEqual({ gsdCm: 1.46, nLines: 9, flightTimeS: 563.5 });
+  });
+
+  it('marcador 4 só de 4x4: a picape chega do escritório; a pé, de carro e de van não', () => {
+    expect(C04.minVehicle).toBe('PICKUP_4X4');
+    expect(MARKER_ACCESS[C04.overworldMarker]).toBe('PICKUP_4X4');
+    const marker = WORLD_MAP.markers.find((m) => m.char === C04.overworldMarker) as {
+      x: number;
+      y: number;
+    };
+    const reach = (v: VehicleId) => isReachable(WORLD_MAP, WORLD_MAP.door, marker, v);
+    expect(reach('PICKUP_4X4')).toBe(true);
+    for (const v of ['FOOT_BIKE', 'COMPACT_CAR', 'LAB_VAN'] as const)
+      expect(reach(v), v).toBe(false);
   });
 });

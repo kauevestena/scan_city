@@ -154,3 +154,30 @@ describe('BriefingModal — C02 Planalto Agrícola', () => {
     expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
   });
 });
+
+describe('BriefingModal — C04 Mina a Céu Aberto', () => {
+  it('relevo íngreme, Terrain Following e erro de volume; recomenda a picape 4x4', () => {
+    const { d } = open('C04', 'Mina a Céu Aberto');
+    expect(d.getAllByText('Eng.ª Rosa Lima').length).toBeGreaterThan(0);
+    const rules = within(d.getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual(['STEEP_RELIEF']);
+    expect(rules[0]).toHaveTextContent('Relevo acidentado');
+    expect(d.getByText('320 × 480 m')).toBeInTheDocument();
+    const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
+    expect(reqs).toHaveLength(6);
+    expect(reqs[0]).toHaveTextContent('Voo com Terrain Following');
+    expect(reqs[1]).toHaveTextContent('Erro de volume ≤ 2 %');
+    expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 55.000,00');
+    expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Pepita/);
+    expect(
+      within(d.getByTestId('briefing-recommended')).getAllByLabelText('Não possuído').length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('bloqueado até concluir o C05 e atingir reputação 55', () => {
+    const { d } = open('C04', 'Mina a Céu Aberto');
+    expect(d.getByTestId('briefing')).toHaveAttribute('data-status', 'LOCKED');
+    expect(d.getByRole('button', { name: 'Aceitar' })).toBeDisabled();
+    expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
+  });
+});
