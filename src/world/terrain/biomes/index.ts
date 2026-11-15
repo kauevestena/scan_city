@@ -5,6 +5,7 @@ import { AMAZON } from './amazon';
 import { COASTAL_ESTUARY } from './coastalEstuary';
 import { COLONIAL_CENTER } from './colonialCenter';
 import { OPEN_PIT_MINE } from './openPitMine';
+import { RIFT_GREEN_HILLS } from './riftGreenHills';
 import { RURAL_TUTORIAL } from './ruralTutorial';
 import { URBAN_VERTICAL } from './urbanVertical';
 
@@ -17,4 +18,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   AGRI_PLATEAU,
   OPEN_PIT_MINE,
   AMAZON,
+  RIFT_GREEN_HILLS,
 };

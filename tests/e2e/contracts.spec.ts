@@ -6,10 +6,22 @@ import { expect, test } from '@playwright/test';
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
  * `photos` é o total do plano de referência (`null` nos voos de LiDAR); `pec` diz se o relatório
- * mostra a classe PEC-PCD. O autopilot cuida de várias surtidas: o C05 gasta 2
- * baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só aparece ao fim).
+ * mostra a classe PEC-PCD; `rift` marca as fendas, cujo setor ainda não aparece na mesa
+ * holográfica (a ala do Multiverso chega com a Mesa completa, T072). O autopilot cuida de várias
+ * surtidas: o C05 gasta 2 baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só
+ * aparece ao fim).
  */
-const CONTRACTS = [
+interface Entry {
+  id: string;
+  title: string;
+  lines: number;
+  photos: number | null;
+  pec: boolean;
+  souvenir: string;
+  rift?: boolean;
+}
+
+const CONTRACTS: readonly Entry[] = [
   {
     id: 'C01',
     title: 'Metrópole Vertical',
@@ -58,7 +70,16 @@ const CONTRACTS = [
     pec: false,
     souvenir: 'Semente de Castanheira',
   },
-] as const;
+  {
+    id: 'R01',
+    title: 'Colinas Verdes dos Espinhos',
+    lines: 8,
+    photos: 208,
+    pec: true,
+    souvenir: 'Anel Dourado',
+    rift: true,
+  },
+];
 
 for (const c of CONTRACTS) {
   test(`${c.id} ${c.title}: autopilot sem queda → relatório aprovado → museu`, async ({ page }) => {
@@ -105,7 +126,7 @@ for (const c of CONTRACTS) {
 
     await page.getByTestId('send-museum').click();
     await expect(page.getByTestId('holo-screen')).toBeVisible();
-    await expect(page.getByTestId('sector-card')).toContainText(c.title);
+    if (!c.rift) await expect(page.getByTestId('sector-card')).toContainText(c.title);
     await expect(page.getByTestId('top-bar')).not.toHaveText(money ?? '');
   });
 }

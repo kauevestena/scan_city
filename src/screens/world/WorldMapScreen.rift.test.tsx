@@ -17,6 +17,7 @@ vi.mock('@/domain/rival', async (importOriginal) => ({
   counterOfferFor: () => false,
 }));
 
+const { getContract } = await import('@/data/contracts');
 const { useGameStore } = await import('@/state/store');
 const { resetGameStore } = await import('@/test/resetStore');
 const { WorldMapScreen } = await import('./WorldMapScreen');
@@ -80,8 +81,8 @@ describe('aba Fendas Dimensionais', () => {
         .session.toasts.filter((t) => t.type === 'rift')
         .map((t) => t.title),
     ).toEqual([
-      'Anomalia dimensional detectada: Colinas Verdes de Teste',
-      'Anomalia dimensional detectada: Reino dos Canos de Teste',
+      `Anomalia dimensional detectada: ${getContract('R01').title}`,
+      `Anomalia dimensional detectada: ${getContract('R02').title}`,
     ]);
 
     render(<WorldMapScreen />);
@@ -102,8 +103,8 @@ describe('aba Fendas Dimensionais', () => {
       ['b', 'R02', 'AVAILABLE', 'RIFT'],
     ]);
     for (const [char, id, title] of [
-      ['a', 'R01', 'Colinas Verdes de Teste'],
-      ['b', 'R02', 'Reino dos Canos de Teste'],
+      ['a', 'R01', getContract('R01').title],
+      ['b', 'R02', getContract('R02').title],
     ] as const) {
       await standAt(char);
       const prompt = screen.getByTestId('world-prompt');
@@ -163,7 +164,7 @@ describe('briefing e entrada numa fenda', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Fendas Dimensionais' }));
     await standAt('a');
     press('Space', ' ');
-    return screen.findByRole('dialog', { name: 'Colinas Verdes de Teste' });
+    return screen.findByRole('dialog', { name: getContract('R01').title });
   }
 
   it('INTERACT no portal abre o briefing com a moldura de fenda', async () => {
@@ -173,7 +174,7 @@ describe('briefing e entrada numa fenda', () => {
     );
     expect(within(dialog).getByTestId('briefing')).toHaveAttribute('data-dimension', 'RIFT');
     // Retrato de emblema abstrato do cliente, nunca o desenho do personagem.
-    expect(within(dialog).getAllByText('Cliente R01').length).toBeGreaterThan(0);
+    expect(within(dialog).getAllByText(getContract('R01').client.name).length).toBeGreaterThan(0);
   });
 
   it('Aceitar passa pela distorção de 700 ms e só então abre o campo', async () => {

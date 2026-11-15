@@ -13,7 +13,7 @@ import { useInputContext } from '@/input/useInputContext';
 import { useGameStore } from '@/state/store';
 import { Button } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { getContract } from '@/data/contracts';
+import { findContract } from '@/data/contracts';
 import { SectorCard } from './SectorCard';
 
 const H = STRINGS.holo;
@@ -36,7 +36,9 @@ export function HoloTableScreen() {
     const payload = useGameStore.getState().session.payload as
       { focusSectorId?: unknown } | undefined;
     const focusId = typeof payload?.focusSectorId === 'string' ? payload.focusSectorId : null;
-    const focusSlot = focusId ? getContract(focusId).museum.slot : null;
+    // A mesa v1 só mostra a ala Real: o `slot` de uma fenda é do anel do Multiverso (T072).
+    const focusContract = focusId ? findContract(focusId) : undefined;
+    const focusSlot = focusContract?.museum.wing === 'REAL' ? focusContract.museum.slot : null;
     return new HoloEngine({
       scene,
       input: InputManager.get(),
