@@ -3,12 +3,23 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Wrench, Zap } from 'lucide-react';
+import {
+  Backpack,
+  Bike,
+  Box,
+  Crosshair,
+  Flame,
+  Package,
+  Sword,
+  Triangle,
+  Wrench,
+  Zap,
+} from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Wrench, Zap });
+registerIcons({ Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Triangle, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -541,6 +552,105 @@ export const R03: Contract = {
   },
 };
 
+/** R04 — Bosque das Fadas Perdidas (T069): LiDAR sob a névoa mágica e o templo que só o MDT revela. */
+export const R04: Contract = {
+  id: 'R04',
+  dimension: 'RIFT',
+  title: 'Bosque das Fadas Perdidas',
+  client: {
+    name: 'Lino',
+    role: 'Arqueólogo',
+    description: 'Arqueólogo mudo de túnica verde que só se comunica gritando "HYAAAH!".',
+    portrait: {
+      shape: 'DIAMOND',
+      icon: 'Triangle',
+      primary: '#16a34a',
+      secondary: '#facc15',
+      initials: 'LN',
+    },
+  },
+  objective:
+    'Varredura LiDAR sob névoa mágica e copas densas para revelar o Templo do Triângulo Geodésico Dourado soterrado.',
+  biome: 'RIFT_FAIRY_FOREST',
+  seed: 9404,
+  aoi: { widthM: 400, lengthM: 600 },
+  ceilingM: 150,
+  terrainReliefM: 30,
+  lightingOptions: ['MAGIC_FOG'],
+  wind: { meanMs: 1, gustMs: 1, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'MAGIC_FOG', 'DENSE_CANOPY', 'FEATURE_TARGETS'],
+  requirements: [
+    {
+      id: 'R04-sensor',
+      label: 'Sensor LiDAR',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'LIDAR' },
+    },
+    {
+      id: 'R04-temple',
+      label: 'Templo capturado',
+      severity: 'CRITICAL',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE' },
+    },
+    {
+      id: 'R04-ground',
+      label: 'Densidade de solo ≥ 10 pts/m²',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GROUND_DENSITY', value: 10 },
+    },
+    {
+      id: 'R04-density',
+      label: 'Densidade LiDAR ≥ 120 pts/m²',
+      severity: 'MINOR',
+      check: { type: 'MIN_LIDAR_DENSITY', value: 120 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['POD_LIDAR'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'A névoa mágica invalida toda foto RGB: só o LiDAR atravessa. Voe devagar e baixo para a densidade de solo sob o dossel de 0,95.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(80_000),
+  xp: 1400,
+  reputationReward: 5,
+  souvenirId: 'SV_TRIANGLE',
+  museum: { wing: 'RIFT', slot: 3, incomePerMinBRL: brl(160) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C03' },
+  overworldMarker: 'd',
+  dialogs: {
+    briefing: [
+      'HYAAAH! (Lino aponta para a névoa, depois para o seu scanner, e faz um triângulo com as mãos.)',
+      '(Ele desenha no chão: copas → laser → chão → templo.)',
+    ],
+    success: ['HYAAAAAAH!!! (Lino faz uma dança de vitória e entrega um fragmento dourado.)'],
+    failure: ['…hyah. (Lino parece decepcionado.)'],
+  },
+  // O plano da spec não traz o p (a câmera do pod só importa para o GSD): o mesmo 70 % do C03.
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'POD_LIDAR',
+    heightM: 80,
+    forwardOverlapPct: 70,
+    sideOverlapPct: 50,
+    speedMs: 10,
+    modes: [],
+    lighting: 'MAGIC_FOG',
+    gcps: [],
+    cps: [],
+    // `gsdCm` é o da câmera RGB do pod; o que vale é a faixa e as densidades do LiDAR (o solo, de
+    // 54 pts/m², é o do dossel de 0,95 da mata).
+    expected: {
+      gsdCm: 2.13,
+      nLines: 9,
+      flightTimeS: 682.8,
+      lidar: { swathM: 112.03, density: 428, groundDensity: 54 },
+    },
+  },
+};
+
 /** R05 — Mina dos Blocos Cúbicos (T068): terreno quantizado em degraus de 4 m, lava com térmicas e TF. */
 export const R05: Contract = {
   id: 'R05',
@@ -940,4 +1050,15 @@ export const R09: Contract = {
 };
 
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R03, R05, R06, R07, R08, R09, R11];
+export const RIFT_CONTRACTS: readonly Contract[] = [
+  R01,
+  R02,
+  R03,
+  R04,
+  R05,
+  R06,
+  R07,
+  R08,
+  R09,
+  R11,
+];
