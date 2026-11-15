@@ -9,6 +9,7 @@ import { RIFT_CLIFF_TOMBS } from './riftCliffTombs';
 import { RIFT_CRATERS } from './riftCraters';
 import { RIFT_CUBES } from './riftCubes';
 import { RIFT_FAIRY_FOREST } from './riftFairyForest';
+import { RIFT_IRON_TRENCH } from './riftIronTrench';
 import { RIFT_GREEN_HILLS } from './riftGreenHills';
 import { RIFT_GREY_SWAMP } from './riftGreySwamp';
 import { RIFT_PIPES } from './riftPipes';
@@ -37,4 +38,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   RIFT_CRATERS,
   RIFT_CUBES,
   RIFT_FAIRY_FOREST,
+  RIFT_IRON_TRENCH,
 };

@@ -9,6 +9,7 @@ import {
   Box,
   Crosshair,
   Flame,
+  Orbit,
   Package,
   Sword,
   Triangle,
@@ -19,7 +20,19 @@ import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Triangle, Wrench, Zap });
+registerIcons({
+  Backpack,
+  Bike,
+  Box,
+  Crosshair,
+  Flame,
+  Orbit,
+  Package,
+  Sword,
+  Triangle,
+  Wrench,
+  Zap,
+});
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -1049,6 +1062,107 @@ export const R09: Contract = {
   },
 };
 
+/** R10 — Trincheira da Estrela de Ferro (T070): LiDAR de alta densidade na trincheira e a escotilha de 2 m. */
+export const R10: Contract = {
+  id: 'R10',
+  dimension: 'RIFT',
+  title: 'Trincheira da Estrela de Ferro',
+  client: {
+    name: 'Lorde Válter',
+    role: 'Executivo',
+    description: 'Executivo de armadura preta com respiração ruidosa ("kshhh… kuuuh…").',
+    portrait: {
+      shape: 'SHIELD',
+      icon: 'Orbit',
+      primary: '#0f172a',
+      secondary: '#ef4444',
+      initials: 'LV',
+    },
+  },
+  objective:
+    'Inspeção LiDAR de alta densidade (> 100 pts/m²) dentro de uma trincheira metálica para checar uma escotilha de exaustão de 2 m.',
+  biome: 'RIFT_IRON_TRENCH',
+  seed: 9010,
+  aoi: { widthM: 120, lengthM: 900 },
+  ceilingM: 120,
+  terrainReliefM: 40,
+  lightingOptions: ['SUN_HIGH'],
+  wind: { meanMs: 0, gustMs: 0, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'NARROW_TRENCH', 'FEATURE_TARGETS'],
+  requirements: [
+    {
+      id: 'R10-sensor',
+      label: 'Sensor LiDAR',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'LIDAR' },
+    },
+    {
+      id: 'R10-density',
+      label: 'Densidade LiDAR ≥ 100 pts/m²',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_LIDAR_DENSITY', value: 100 },
+    },
+    {
+      id: 'R10-port',
+      label: 'Escotilha de exaustão capturada',
+      severity: 'CRITICAL',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'EXHAUST_PORT' },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['POD_LIDAR'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'Voe baixo e devagar: a trincheira tem 50 m de largura e 40 m de profundidade, e a escotilha de 2 m no fundo exige mais de 100 pts/m².',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(150_000),
+  xp: 2000,
+  reputationReward: 5,
+  souvenirId: 'SV_EXHAUST_PORT',
+  museum: { wing: 'RIFT', slot: 9, incomePerMinBRL: brl(200) },
+  // A última fenda: o C03 feito e outras cinco fendas concluídas.
+  unlock: {
+    type: 'ALL',
+    of: [
+      { type: 'CONTRACT_DONE', contractId: 'C03' },
+      { type: 'RIFTS_DONE', count: 5 },
+    ],
+  },
+  overworldMarker: 'j',
+  dialogs: {
+    briefing: [
+      'kshhh… kuuuh… Sua falta de pontos de controle é perturbadora.',
+      'Inspecione a escotilha de exaustão. Dois metros. Densidade acima de cem.',
+    ],
+    success: [
+      'kshhh… Impressionante. Muito impressionante. (Ele entrega uma miniatura da escotilha.)',
+    ],
+    failure: ['Eu acho sua falta de densidade… perturbadora.'],
+  },
+  // A spec não traz o p (a câmera do pod só importa para o GSD): o mesmo 70 % do C03.
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'POD_LIDAR',
+    heightM: 60,
+    forwardOverlapPct: 70,
+    sideOverlapPct: 50,
+    speedMs: 8,
+    modes: [],
+    lighting: 'SUN_HIGH',
+    gcps: [],
+    cps: [],
+    // `gsdCm` é o da câmera RGB do pod; o que vale é a faixa e as densidades do LiDAR.
+    expected: {
+      gsdCm: 1.6,
+      nLines: 4,
+      flightTimeS: 524.8,
+      lidar: { swathM: 84.02, density: 714, groundDensity: 714 },
+    },
+  },
+};
+
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
 export const RIFT_CONTRACTS: readonly Contract[] = [
   R01,
@@ -1060,5 +1174,6 @@ export const RIFT_CONTRACTS: readonly Contract[] = [
   R07,
   R08,
   R09,
+  R10,
   R11,
 ];

@@ -160,6 +160,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Fragmento do Triângulo Geodésico',
     rift: true,
   },
+  {
+    id: 'R10',
+    title: 'Trincheira da Estrela de Ferro',
+    lines: 4,
+    photos: null,
+    pec: false,
+    souvenir: 'Escotilha de Exaustão (miniatura)',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {
