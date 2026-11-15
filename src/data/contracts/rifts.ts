@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Bike, Crosshair, Sword, Wrench, Zap } from 'lucide-react';
+import { Bike, Crosshair, Package, Sword, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Bike, Crosshair, Sword, Wrench, Zap });
+registerIcons({ Bike, Crosshair, Package, Sword, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -546,5 +546,99 @@ export const R06: Contract = {
   },
 };
 
+/** R07 — Base Polar das Sombras (T065): holofotes, nevasca e o andador gigante. */
+export const R07: Contract = {
+  id: 'R07',
+  dimension: 'RIFT',
+  title: 'Base Polar das Sombras',
+  client: {
+    name: 'Cobrinha Sólida',
+    role: 'Agente furtivo',
+    description: 'Agente de bandana que conversa com você de dentro de uma caixa de papelão.',
+    portrait: {
+      shape: 'SHIELD',
+      icon: 'Package',
+      primary: '#57534e',
+      secondary: '#a16207',
+      initials: 'CS',
+    },
+  },
+  objective:
+    'Reconhecimento aéreo furtivo sob nevasca para modelar uma arma bípede gigante estacionada no pátio.',
+  biome: 'RIFT_POLAR_BASE',
+  seed: 9707,
+  aoi: { widthM: 240, lengthM: 300 },
+  ceilingM: 120,
+  terrainReliefM: 15,
+  lightingOptions: ['BLIZZARD'],
+  wind: { meanMs: 7, gustMs: 4, directionDeg: 90 },
+  specialRules: ['EM_INTERFERENCE', 'BLIZZARD_DRAIN', 'SEARCHLIGHTS', 'FEATURE_TARGETS'],
+  requirements: [
+    {
+      id: 'R07-stealth',
+      label: 'Sem ser detectado pelos holofotes',
+      severity: 'CRITICAL',
+      check: { type: 'NOT_DETECTED' },
+    },
+    {
+      id: 'R07-walker',
+      label: 'Andador gigante capturado',
+      severity: 'CRITICAL',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'WALKER' },
+    },
+    {
+      id: 'R07-cov',
+      label: 'Cobertura verde ≥ 70 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.7 },
+    },
+    {
+      id: 'R07-gsd',
+      label: 'GSD ≤ 3 cm',
+      severity: 'MINOR',
+      check: { type: 'MAX_GSD_CM', value: 3 },
+    },
+  ],
+  // O Atlas é imune e discreto (a detecção leva 3 s); o T2 voa mais rápido, mas drena 2× na nevasca.
+  recommended: {
+    aircraft: ['ATLAS', 'DRONE_T2'],
+    sensors: ['CAM_PIGEON', 'CAM_45MP_FF'],
+    vehicle: 'FOOT_BIKE',
+    notes:
+      'A nevasca drena a bateria 2× mais rápido. Fique fora dos holofotes: 1,5 s dentro de um deles (3 s para o Atlas) é detecção.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(70_000),
+  xp: 1200,
+  reputationReward: 5,
+  souvenirId: 'SV_CARDBOARD_BOX',
+  museum: { wing: 'RIFT', slot: 6, incomePerMinBRL: brl(140) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C06' },
+  overworldMarker: 'g',
+  dialogs: {
+    briefing: [
+      'Agrimensor… está me ouvindo? Estou na caixa.',
+      'Tem uma arma bípede gigante no pátio. Preciso do modelo 3D.',
+      'Fique fora dos holofotes. E a nevasca drena bateria duas vezes mais rápido.',
+    ],
+    success: ['Missão cumprida. Pode ficar com a caixa — tenho outras.'],
+    failure: ['! (Som de alarme.) Fomos detectados… recue.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 110,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 9,
+    modes: [],
+    lighting: 'BLIZZARD',
+    gcps: [],
+    cps: [],
+    expected: { gsdCm: 2.01, nLines: 6, flightTimeS: 307.0 },
+  },
+};
+
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R08, R11];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R06, R07, R08, R11];
