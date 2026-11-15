@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Bike, Wrench, Zap } from 'lucide-react';
+import { Bike, Crosshair, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Bike, Wrench, Zap });
+registerIcons({ Bike, Crosshair, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -335,5 +335,111 @@ export const R08: Contract = {
   },
 };
 
+/** R11 — Tumbas dos Desfiladeiros (T063): paredões de 60–100 m, templos na rocha e GCPs a tinta. */
+export const R11: Contract = {
+  id: 'R11',
+  dimension: 'RIFT',
+  title: 'Tumbas dos Desfiladeiros',
+  client: {
+    name: 'Dona Laura da Silva',
+    role: 'Aristocrata aventureira',
+    description:
+      'Aristocrata aventureira de trança, com pistolas de tinta para marcar pontos de apoio em qualquer parede.',
+    portrait: {
+      shape: 'DIAMOND',
+      icon: 'Crosshair',
+      primary: '#0d9488',
+      secondary: '#78350f',
+      initials: 'LS',
+    },
+  },
+  objective: 'Fotogrametria oblíqua (45°/60°) de templos esculpidos em falésias verticais.',
+  biome: 'RIFT_CLIFF_TOMBS',
+  seed: 9111,
+  aoi: { widthM: 240, lengthM: 400 },
+  ceilingM: 120,
+  terrainReliefM: 100,
+  lightingOptions: ['SUN_HIGH', 'GOLDEN_HOUR', 'OVERCAST'],
+  wind: { meanMs: 5, gustMs: 4, directionDeg: 90 },
+  specialRules: ['EM_INTERFERENCE', 'VERTICAL_CLIFFS', 'FEATURE_TARGETS', 'PAINT_MARKERS'],
+  requirements: [
+    {
+      id: 'R11-mode',
+      label: 'Voo oblíquo',
+      severity: 'CRITICAL',
+      check: { type: 'FLIGHT_MODE', value: 'OBLIQUE' },
+    },
+    {
+      id: 'R11-facade',
+      label: 'Fachada do templo capturada',
+      severity: 'CRITICAL',
+      check: { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE_FACADE' },
+    },
+    {
+      id: 'R11-cov',
+      label: 'Cobertura verde ≥ 75 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.75 },
+    },
+    {
+      id: 'R11-asprs',
+      label: 'ASPRS: 6 cm (H) e 8 cm (V)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 6, verticalCm: 8 },
+    },
+    {
+      id: 'R11-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'FOOT_BIKE',
+    notes: 'Lente de 24 mm e oblíqua de 45°. A tinta marca os pontos de apoio em qualquer parede.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(65_000),
+  xp: 1100,
+  reputationReward: 5,
+  souvenirId: 'SV_PAINT_PISTOL',
+  museum: { wing: 'RIFT', slot: 10, incomePerMinBRL: brl(130) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C05' },
+  overworldMarker: 'k',
+  dialogs: {
+    briefing: [
+      'Querido, esses templos estão esculpidos na rocha há milênios.',
+      'Câmera inclinada, por favor — fachadas não se fotografam de cima.',
+      'Os pontos de apoio? Deixe comigo. (Ela gira as pistolas de tinta.)',
+    ],
+    success: ['Esplêndido! Cada relevo, cada inscrição. Fique com uma das minhas pistolas.'],
+    failure: ['Lamentável. Os templos merecem mais que isso, querido.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 70,
+    forwardOverlapPct: 80,
+    sideOverlapPct: 70,
+    speedMs: 6,
+    modes: ['OBLIQUE'],
+    obliqueDeg: 45,
+    lighting: 'OVERCAST',
+    // Os GCPs dos cantos ficam nos paredões (a tinta marca qualquer parede) e o do meio, na areia.
+    gcps: [
+      { u: 30, v: 30 },
+      { u: 370, v: 30 },
+      { u: 30, v: 210 },
+      { u: 370, v: 210 },
+      { u: 200, v: 120 },
+    ],
+    cps: [],
+    expected: { gsdCm: 1.28, nLines: 9, flightTimeS: 775.9 },
+  },
+};
+
 /** Fendas do catálogo, na ordem das tarefas (T060–T070). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R08];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R08, R11];
