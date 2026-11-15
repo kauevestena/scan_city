@@ -97,6 +97,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'BMX em Miniatura',
     rift: true,
   },
+  {
+    id: 'R11',
+    title: 'Tumbas dos Desfiladeiros',
+    lines: 9,
+    photos: 279,
+    pec: false,
+    souvenir: 'Pistola de Tinta Marcadora',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {

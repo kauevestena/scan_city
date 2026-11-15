@@ -5,6 +5,7 @@ import { AMAZON } from './amazon';
 import { COASTAL_ESTUARY } from './coastalEstuary';
 import { COLONIAL_CENTER } from './colonialCenter';
 import { OPEN_PIT_MINE } from './openPitMine';
+import { RIFT_CLIFF_TOMBS } from './riftCliffTombs';
 import { RIFT_GREEN_HILLS } from './riftGreenHills';
 import { RIFT_PIPES } from './riftPipes';
 import { RIFT_SANTOS_HOOD } from './riftSantosHood';
@@ -23,4 +24,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   RIFT_GREEN_HILLS,
   RIFT_PIPES,
   RIFT_SANTOS_HOOD,
+  RIFT_CLIFF_TOMBS,
 };

@@ -1,13 +1,15 @@
 /** Fichas das Fendas Dimensionais (contracts-rifts): uma por tarefa T060–T070. */
 import { act } from '@testing-library/react';
-import { CATALOG, getAircraft, HARDWARE } from '@/data/catalog';
+import { CATALOG, getAircraft, getSensor, HARDWARE } from '@/data/catalog';
 import { MARKER_ACCESS } from '@/data/overworld/map';
 import { computePayment, computeRewards } from '@/domain/economy';
+import { capturedFeatures } from '@/domain/features';
 import { classifyPec } from '@/domain/standards';
 import { buildFlightPlan } from '@/domain/flightPlanner';
+import { predictRequirements } from '@/domain/requirements';
 import { estimatedSideOverlapPct, evaluateMission, type MissionContext } from '@/domain/mission';
 import { neutralModifiers } from '@/domain/modifiers';
-import { referenceParams, syntheticMission } from '@/domain/referencePlan';
+import { referenceParams, referencePoints, syntheticMission } from '@/domain/referencePlan';
 import { resolveRuleEffects, RULE_PARAMS } from '@/domain/specialRules';
 import { mulberry32 } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
@@ -17,16 +19,17 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R08, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R08, R11, RIFT_CONTRACTS } from './rifts';
 
 describe('catálogo das fendas', () => {
   it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem das tarefas', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R08']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R08', 'R11']);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
     expect(getContract('R08')).toBe(R08);
+    expect(getContract('R11')).toBe(R11);
   });
 
   it('concluir o C01 libera a R01 e a R02 de uma vez: a aba Fendas aparece, com um aviso de anomalia para cada', () => {
@@ -504,7 +507,7 @@ describe('R08 — Bairro dos Santos', () => {
     expect(estimatedSideOverlapPct(mission) as number).toBeGreaterThan(71.9);
   });
 
-  it('concluir o C05 libera a R08 (só ela): a fenda é descoberta e o aviso de anomalia sai', () => {
+  it('concluir o C05 libera a R08 e a R11 de uma vez, e só elas: as fendas são descobertas e saem dois avisos', () => {
     resetGameStore();
     const get = () => useGameStore.getState();
     const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
@@ -515,8 +518,9 @@ describe('R08 — Bairro dos Santos', () => {
       }));
       get().refreshUnlocks({ silent: true });
     });
-    // Com o C01 só as duas primeiras fendas abrem; a R08 espera o C05.
+    // Com o C01 só as duas primeiras fendas abrem; a R08 e a R11 esperam o C05.
     expect(get().contracts.R08?.status).toBe('LOCKED');
+    expect(get().contracts.R11?.status).toBe('LOCKED');
     expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
     act(() => {
       useGameStore.setState((s) => ({
@@ -526,11 +530,179 @@ describe('R08 — Bairro dos Santos', () => {
       get().refreshUnlocks();
     });
     expect(get().contracts.R08?.status).toBe('AVAILABLE');
-    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R08']);
+    expect(get().contracts.R11?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R08', 'R11']);
     expect(
       get()
         .session.toasts.filter((t) => t.type === 'rift')
         .map((t) => t.title),
-    ).toEqual(['Anomalia dimensional detectada: Bairro dos Santos']);
+    ).toEqual([
+      'Anomalia dimensional detectada: Bairro dos Santos',
+      'Anomalia dimensional detectada: Tumbas dos Desfiladeiros',
+    ]);
+  });
+});
+
+describe('R11 — Tumbas dos Desfiladeiros', () => {
+  const terrain = createTerrain(R11);
+  // O T2 vem em combo com o kit GNSS.
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  it('conforme a ficha: AOI, teto, luzes, vento do cânion, 4 regras, 5 requisitos, recompensa e museu', () => {
+    expect(R11.title).toBe('Tumbas dos Desfiladeiros');
+    expect(R11.client.name).toBe('Dona Laura da Silva');
+    expect(R11.client.portrait).toEqual({
+      shape: 'DIAMOND',
+      icon: 'Crosshair',
+      primary: '#0d9488',
+      secondary: '#78350f',
+      initials: 'LS',
+    });
+    expect([R11.dimension, R11.biome, R11.seed]).toEqual(['RIFT', 'RIFT_CLIFF_TOMBS', 9111]);
+    expect(R11.aoi).toEqual({ widthM: 240, lengthM: 400 });
+    expect([R11.ceilingM, R11.terrainReliefM]).toEqual([120, 100]);
+    expect(R11.lightingOptions).toEqual(['SUN_HIGH', 'GOLDEN_HOUR', 'OVERCAST']);
+    expect(R11.wind).toEqual({ meanMs: 5, gustMs: 4, directionDeg: 90 });
+    expect(R11.specialRules).toEqual([
+      'EM_INTERFERENCE',
+      'VERTICAL_CLIFFS',
+      'FEATURE_TARGETS',
+      'PAINT_MARKERS',
+    ]);
+    expect(R11.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'FLIGHT_MODE', value: 'OBLIQUE' }],
+      ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE_FACADE' }],
+      ['MAJOR', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
+      ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 6, verticalCm: 8 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+    ]);
+    expect(R11.recommended).toMatchObject({ aircraft: ['DRONE_T2'], sensors: ['CAM_45MP_FF'] });
+    expect(R11.minVehicle).toBe('FOOT_BIKE');
+    expect([R11.basePaymentBRL, R11.xp, R11.reputationReward]).toEqual([6_500_000, 1100, 5]);
+    expect(R11.souvenirId).toBe('SV_PAINT_PISTOL');
+    expect(R11.museum).toEqual({ wing: 'RIFT', slot: 10, incomePerMinBRL: 13_000 });
+    expect(R11.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C05' });
+    expect(R11.overworldMarker).toBe('k');
+    expect(
+      [R11.dialogs.briefing, R11.dialogs.success, R11.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `k` é de quem vai a pé ou de bicicleta, e o slot 10 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R11.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R11.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa oblíquo a 45°: T2, câmera de 45 MP, lente de 24 mm, GSD 1,28 cm, 9 linhas, 775,9 s', () => {
+    const ref = R11.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 70,
+      forwardOverlapPct: 80,
+      sideOverlapPct: 70,
+      speedMs: 6,
+      modes: ['OBLIQUE'],
+      obliqueDeg: 45,
+      lighting: 'OVERCAST',
+    });
+    expect(ref.heightM).toBeLessThanOrEqual(R11.ceilingM);
+    expect(ref.gcps).toHaveLength(5);
+    expect(ref.cps).toHaveLength(0);
+    expect(ref.expected).toEqual({ gsdCm: 1.28, nLines: 9, flightTimeS: 775.9 });
+    const plan = buildFlightPlan(referenceParams(R11), R11, CATALOG);
+    expect(plan.params.obliqueDeg).toBe(45);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(1.28, 2);
+    expect(plan.stats.nLines).toBe(9);
+    expect(plan.stats.flightTimeS).toBeCloseTo(775.9, 0);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+  });
+
+  it('o voo oblíquo é crítico: o plano previsto passa, e o mesmo plano sem inclinação reprova', () => {
+    const points = referencePoints(R11, terrain);
+    const ctx = { catalog: CATALOG, ownsRtkKit: true, fieldEquipmentId: 'TOTAL_STATION' as const };
+    const oblique = buildFlightPlan(referenceParams(R11), R11, CATALOG);
+    const [fixedMode] = predictRequirements(oblique, R11, points, ctx);
+    expect(fixedMode?.id).toBe('R11-mode');
+    expect(fixedMode?.pass).toBe(true);
+    const { obliqueDeg: _tilt, ...nadirParams } = referenceParams(R11);
+    const nadir = buildFlightPlan(nadirParams, R11, CATALOG);
+    const [mode] = predictRequirements(nadir, R11, points, ctx);
+    expect(mode?.pass).toBe(false);
+    expect(mode?.severity).toBe('CRITICAL');
+  });
+
+  it('os efeitos das regras: paredões de 60–100 m (> 80°), alvos especiais e tinta nos GCPs', () => {
+    const fx = resolveRuleEffects(R11.specialRules);
+    expect(fx.terrain.verticalCliffs).toEqual({ minSlopeDeg: 80, heightM: [60, 100] });
+    expect(fx.terrain.featureTargets).toBe(true);
+    expect(fx.flight.featureCapture).toBe(true);
+    expect(fx.field.paintMarkers).toBe(true);
+    expect(fx.flight.emInterference).not.toBeNull();
+  });
+
+  it('a fachada do templo é capturada pelo plano de referência (≥ 3 fotos válidas cobrem o centro)', () => {
+    const mission = syntheticMission(R11, terrain, CATALOG);
+    const plan = mission.plan;
+    const camera = getSensor(plan.params.sensorId);
+    const capture = (shots: typeof mission.shots) =>
+      capturedFeatures({ shots }, terrain, {
+        aoi: R11.aoi,
+        aircraftKind: getAircraft(plan.params.aircraftId).kind,
+        sensor: camera,
+        focalM: plan.stats.focalM,
+        rules: { sensorKind: camera.kind, specularWater: false },
+      });
+    expect(plan.params.lensId).toBe('LENS_24');
+    expect(capture(mission.shots)).toEqual(['TEMPLE_FACADE']);
+    // Sem as linhas que passam pelo terraço do templo (as cinco primeiras), ninguém o fotografa.
+    const away = mission.shots.filter((s) => s.lineIndex >= 6);
+    expect(capture(away)).toEqual([]);
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova e a fachada está capturada', () => {
+    const mission = syntheticMission(R11, terrain, CATALOG);
+    const report = evaluateMission(mission, R11, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R11-mode',
+      'R11-facade',
+      'R11-cov',
+      'R11-asprs',
+      'R11-gcp',
+    ]);
+    for (const id of ['R11-mode', 'R11-facade', 'R11-gcp']) {
+      expect(report.requirements.find((r) => r.id === id)?.pass, id).toBe(true);
+    }
+    // Sem CPs na ficha, o ASPRS fica "não verificável" (GCP × 1,8) e quase no limite de 6 cm.
+    expect(report.asprs?.horizontalCm).toBe(6);
+    expect(report.asprs?.verticalCm).toBe(8);
+    // O mesmo voo sem passar pelo terraço do templo reprova pelo crítico `R11-facade`.
+    const away = { ...mission, shots: mission.shots.filter((s) => s.lineIndex >= 6) };
+    const bad = evaluateMission(away, R11, context());
+    expect(bad.requirements.find((r) => r.id === 'R11-facade')?.pass).toBe(false);
+    expect(bad.critical).toBe(true);
+    expect(bad.approved).toBe(false);
   });
 });
