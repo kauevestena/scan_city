@@ -10,6 +10,8 @@ import {
   buildTerrain,
   distanceToSegment,
   terrainSeed,
+  type BiomeRecipe,
+  type PlacementCtx,
   type TerrainContract,
 } from './TerrainSampler';
 
@@ -142,6 +144,47 @@ describe('objetos e hash espacial', () => {
     expect(distanceToSegment({ u: 5, v: 3 }, { u: 0, v: 0 }, { u: 10, v: 0 })).toBe(3);
     expect(distanceToSegment({ u: -3, v: 4 }, { u: 0, v: 0 }, { u: 10, v: 0 })).toBe(5);
     expect(distanceToSegment({ u: 3, v: 4 }, { u: 0, v: 0 }, { u: 0, v: 0 })).toBe(5);
+  });
+});
+
+describe('zonas de uma receita', () => {
+  it('recebem o mesmo contexto de `placeObjects`: a cota, os limites e as vias (a lava da R05 sai daí)', () => {
+    const seen: PlacementCtx[] = [];
+    const recipe: BiomeRecipe = {
+      ...RURAL_TUTORIAL,
+      placeObjects(ctx, rng) {
+        seen.push(ctx);
+        return RURAL_TUTORIAL.placeObjects(ctx, rng);
+      },
+      zones(_objects, aoi, _rng, ctx) {
+        seen.push(ctx);
+        return [
+          { kind: 'THERMAL', u: aoi.lengthM / 2, v: ctx.elevation(10, 10), radiusM: 5, liftMs: 1 },
+        ];
+      },
+    };
+    const t = buildTerrain(C00, recipe);
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toBe(seen[0]);
+    expect(seen[1]?.aoi).toEqual(C00.aoi);
+    expect(seen[1]?.bounds).toEqual(t.bounds);
+    expect(seen[1]?.roads).toEqual(t.roads);
+    expect(t.zones).toEqual([
+      { kind: 'THERMAL', u: 120, v: t.elevation(10, 10), radiusM: 5, liftMs: 1 },
+    ]);
+  });
+
+  it('uma receita de `zones` com três parâmetros (as de antes) segue valendo', () => {
+    const recipe: BiomeRecipe = {
+      ...RURAL_TUTORIAL,
+      zones: (_objects, _aoi, rng) => [
+        { kind: 'THERMAL', u: rng.range(0, 10), v: 0, radiusM: 1, liftMs: 1 },
+      ],
+    };
+    const a = buildTerrain(C00, recipe);
+    const b = buildTerrain(C00, recipe);
+    expect(a.zones).toHaveLength(1);
+    expect(a.zones).toEqual(b.zones);
   });
 });
 

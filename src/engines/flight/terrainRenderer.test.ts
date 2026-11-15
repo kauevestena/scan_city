@@ -173,6 +173,37 @@ describe('draw list (§5.3, oclusão)', () => {
   });
 });
 
+describe('brilho laranja da lava (LAVA_THERMALS)', () => {
+  const lava = scene({ cover: () => 'LAVA', elevation: () => 0, sun: null });
+  const colors = (over: Partial<TerrainScene>, timeS: number) =>
+    buildDrawList({ ...lava, ...over, timeS })
+      .filter((c) => c.type === 'QUAD')
+      .map((c) => (c.type === 'QUAD' ? c.color : ''));
+  const channels = (rgb: string) => (rgb.match(/\d+/g) ?? []).map(Number);
+  const mean = (list: string[], ch: number) =>
+    list.reduce((sum, c) => sum + (channels(c)[ch] as number), 0) / list.length;
+
+  it('sem a regra a lava é só a cor do bioma: não pulsa com o tempo', () => {
+    expect(colors({}, 0)).toEqual(colors({}, 1.3));
+  });
+
+  it('com a regra a lava pulsa de ponto em ponto e fica mais clara que a cor do bioma', () => {
+    const plain = colors({}, 0);
+    const a = colors({ lavaGlow: true }, 0);
+    const b = colors({ lavaGlow: true }, 1);
+    expect(a).not.toEqual(b);
+    // Mais brilho em vermelho e verde: o laranja clareia e fica mais saturado em amarelo.
+    expect(mean(a, 1)).toBeGreaterThan(mean(plain, 1));
+    expect(mean(b, 1)).toBeGreaterThan(mean(plain, 1));
+    expect(mean(a, 0)).toBeGreaterThanOrEqual(mean(plain, 0));
+    // O brilho só mexe na lava: capim com a regra ligada fica igual.
+    const grass = scene({ cover: () => 'GRASS', elevation: () => 0, sun: null });
+    const g = (over: Partial<TerrainScene>) =>
+      buildDrawList({ ...grass, ...over }).filter((c) => c.type === 'QUAD');
+    expect(g({ lavaGlow: true })).toEqual(g({}));
+  });
+});
+
 describe('curvas de nível em lote', () => {
   it('saem num traço só por faixa e estilo, sem perder nenhum segmento', () => {
     const s = scene({ quality: 'MEDIUM' });

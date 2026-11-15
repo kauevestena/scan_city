@@ -1099,6 +1099,7 @@ export class FlightEngine implements Simulation {
       sun: sunInRunFrame(plan.params.lighting, frame.dir, frame.right),
       reliefM: this.opts.contract.terrainReliefM,
       specularWater: this.rules.flight.specularWater,
+      lavaGlow: this.rules.flight.thermalGlow,
       timeS: this.sortieT,
       objects,
       marks,

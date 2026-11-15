@@ -142,6 +142,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Esfera Laranja de 4 Estrelas',
     rift: true,
   },
+  {
+    id: 'R05',
+    title: 'Mina dos Blocos Cúbicos',
+    lines: 8,
+    photos: 184,
+    pec: false,
+    souvenir: 'Bloco de Minério Cúbico',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {
