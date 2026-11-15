@@ -7,6 +7,7 @@ import { COLONIAL_CENTER } from './colonialCenter';
 import { OPEN_PIT_MINE } from './openPitMine';
 import { RIFT_GREEN_HILLS } from './riftGreenHills';
 import { RIFT_PIPES } from './riftPipes';
+import { RIFT_SANTOS_HOOD } from './riftSantosHood';
 import { RURAL_TUTORIAL } from './ruralTutorial';
 import { URBAN_VERTICAL } from './urbanVertical';
 
@@ -21,4 +22,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   AMAZON,
   RIFT_GREEN_HILLS,
   RIFT_PIPES,
+  RIFT_SANTOS_HOOD,
 };

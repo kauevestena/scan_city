@@ -44,6 +44,16 @@ import { resolveRuleEffects } from './specialRules';
 const S = STRINGS.requirements;
 const pct = (v: number) => `${formatNumber(v, 0)} %`;
 
+/**
+ * Percentual medido contra um mínimo exigido: inteiro, como sempre, mas com duas casas quando o
+ * arredondamento esconderia a reprovação ("70 %" que não atende "≥ 70 %" confundiria o jogador).
+ */
+export function pctVs(v: number, required: number): string {
+  if (v >= required || Math.round(v) < required) return pct(v);
+  const two = Math.round(v * 100) / 100;
+  return `${formatNumber(two < required ? two : Math.floor(v * 100) / 100, 2)} %`;
+}
+
 /** Equipamento do plano: aeronave, câmera das fotos e o pod (se houver). */
 export function planEquipment(
   plan: FlightPlan,
@@ -315,14 +325,22 @@ export function evaluateRequirements(
       }
       case 'MIN_FORWARD_OVERLAP': {
         const p = measures.medianForwardOverlapPct;
-        return p === null ? result(req, false, S.unknown) : result(req, p >= c.value, pct(p));
+        return p === null
+          ? result(req, false, S.unknown)
+          : result(req, p >= c.value, pctVs(p, c.value));
       }
       case 'MIN_SIDE_OVERLAP': {
         const q = measures.sideOverlapPct;
-        return q === null ? result(req, false, S.unknown) : result(req, q >= c.value, pct(q));
+        return q === null
+          ? result(req, false, S.unknown)
+          : result(req, q >= c.value, pctVs(q, c.value));
       }
       case 'MIN_COVERAGE_GREEN':
-        return result(req, measures.coverageGreen >= c.value, pct(measures.coverageGreen * 100));
+        return result(
+          req,
+          measures.coverageGreen >= c.value,
+          pctVs(measures.coverageGreen * 100, c.value * 100),
+        );
       case 'SENSOR_KIND':
         return result(
           req,

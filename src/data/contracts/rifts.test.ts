@@ -5,7 +5,7 @@ import { MARKER_ACCESS } from '@/data/overworld/map';
 import { computePayment, computeRewards } from '@/domain/economy';
 import { classifyPec } from '@/domain/standards';
 import { buildFlightPlan } from '@/domain/flightPlanner';
-import { evaluateMission, type MissionContext } from '@/domain/mission';
+import { estimatedSideOverlapPct, evaluateMission, type MissionContext } from '@/domain/mission';
 import { neutralModifiers } from '@/domain/modifiers';
 import { referenceParams, syntheticMission } from '@/domain/referencePlan';
 import { resolveRuleEffects, RULE_PARAMS } from '@/domain/specialRules';
@@ -17,15 +17,16 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R08, RIFT_CONTRACTS } from './rifts';
 
 describe('catálogo das fendas', () => {
   it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem das tarefas', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R08']);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
+    expect(getContract('R08')).toBe(R08);
   });
 
   it('concluir o C01 libera a R01 e a R02 de uma vez: a aba Fendas aparece, com um aviso de anomalia para cada', () => {
@@ -358,5 +359,178 @@ describe('R02 — Reino dos Encanamentos', () => {
     expect(bad.planimetric.pass).toBe(true);
     expect(bad.altimetric?.pass).toBe(false);
     expect(bad.altimetric?.achieved).toBe('B');
+  });
+});
+
+describe('R08 — Bairro dos Santos', () => {
+  const terrain = createTerrain(R08);
+  // O T2 vem em combo com o kit GNSS: o plano de referência conta com ele.
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  it('conforme a ficha: AOI, teto, luzes, vento, regras, 7 requisitos, recompensa e museu', () => {
+    expect(R08.title).toBe('Bairro dos Santos');
+    expect(R08.client.name).toBe('Carlinhos Joilson (CJ)');
+    expect(R08.client.portrait).toEqual({
+      shape: 'CIRCLE',
+      icon: 'Bike',
+      primary: '#16a34a',
+      secondary: '#f8fafc',
+      initials: 'CJ',
+    });
+    expect([R08.dimension, R08.biome, R08.seed]).toEqual(['RIFT', 'RIFT_SANTOS_HOOD', 9808]);
+    expect(R08.aoi).toEqual({ widthM: 240, lengthM: 300 });
+    expect([R08.ceilingM, R08.terrainReliefM]).toEqual([120, 20]);
+    expect(R08.lightingOptions).toEqual(['SUN_HIGH', 'GOLDEN_HOUR', 'OVERCAST']);
+    expect(R08.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 0 });
+    expect(R08.specialRules).toEqual(['EM_INTERFERENCE', 'LOW_WIRES']);
+    expect(R08.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000 }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 2 }],
+      ['MAJOR', { type: 'MIN_FORWARD_OVERLAP', value: 80 }],
+      ['MAJOR', { type: 'MIN_SIDE_OVERLAP', value: 70 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+      ['MINOR', { type: 'MIN_CP', value: 3 }],
+    ]);
+    expect(R08.recommended).toMatchObject({ aircraft: ['DRONE_T2'], sensors: ['CAM_45MP_FF'] });
+    expect(R08.minVehicle).toBe('FOOT_BIKE');
+    expect([R08.basePaymentBRL, R08.xp, R08.reputationReward]).toEqual([2_800_000, 700, 5]);
+    expect(R08.souvenirId).toBe('SV_BMX');
+    expect(R08.museum).toEqual({ wing: 'RIFT', slot: 7, incomePerMinBRL: 8500 });
+    expect(R08.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C05' });
+    expect(R08.overworldMarker).toBe('h');
+    expect(
+      [R08.dialogs.briefing, R08.dialogs.success, R08.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `h` é de quem vai a pé ou de bicicleta, e o slot 7 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R08.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R08.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 com a câmera de 45 MP e a lente de 35 mm: GSD 1,00 cm, 11 linhas, 575,8 s', () => {
+    const ref = R08.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_35',
+      heightM: 80,
+      forwardOverlapPct: 80,
+      sideOverlapPct: 70,
+      speedMs: 8,
+      lighting: 'SUN_HIGH',
+    });
+    expect(ref.heightM).toBeLessThanOrEqual(R08.ceilingM);
+    expect(ref.gcps).toHaveLength(5);
+    expect(ref.cps).toHaveLength(3);
+    expect(ref.expected).toEqual({ gsdCm: 1, nLines: 11, flightTimeS: 575.8 });
+    const plan = buildFlightPlan(referenceParams(R08), R08, CATALOG);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(1.0, 1);
+    expect(plan.stats.nLines).toBe(11);
+    expect(plan.stats.flightTimeS).toBeCloseTo(575.8, 0);
+    expect(plan.stats.totalPhotos).toBe(330);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+  });
+
+  it('fiação baixa e interferência: os fios ficam a 8–14 m (±1 m de tolerância na colisão) e o T2 sofre a interferência', () => {
+    const fx = resolveRuleEffects(R08.specialRules);
+    expect(fx.terrain.lowWires).toEqual({
+      poleSpacingM: [30, 40],
+      wireHeightM: [8, 14],
+    });
+    expect(fx.flight.wireCollisions).toEqual({ hitToleranceM: 1 });
+    expect(fx.flight.emInterference).not.toBeNull();
+    expect(getAircraft('DRONE_T2').emImmune).toBe(false);
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova; a sobreposição lateral, sem folga, fica na casa de 70 %', () => {
+    const mission = syntheticMission(R08, terrain, CATALOG);
+    expect(mission.groundPoints.filter((p) => p.kind === 'CP')).toHaveLength(3);
+    const report = evaluateMission(mission, R08, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R08-pec',
+      'R08-cov',
+      'R08-gsd',
+      'R08-fwd',
+      'R08-side',
+      'R08-gcp',
+      'R08-cp',
+    ]);
+    // A ficha pede q ≥ 70 % e o plano de referência tem q = 70 %, sem folga: com 20 m de relevo a
+    // faixa estreita nos morros, e a estimativa (Jensen: 1 − s/W é côncava em W) cai uns 0,03 ponto.
+    // É por isso que o briefing manda dar folga ao q. Nada mais falha.
+    const failed = report.requirements.filter((r) => !r.pass).map((r) => r.id);
+    expect(failed.every((id) => id === 'R08-side')).toBe(true);
+    const q = estimatedSideOverlapPct(mission) as number;
+    expect(q).toBeGreaterThan(69.9);
+    expect(q).toBeLessThan(70.1);
+    expect(R08.recommended.notes).toContain('dê folga ao q');
+    // O relatório não esconde a falta atrás do "70 %" arredondado: mostra as casas decimais.
+    const side = report.requirements.find((r) => r.id === 'R08-side');
+    if (side && !side.pass) expect(side.valueText.replace(/\s/g, ' ')).toMatch(/^69,\d{2} %$/);
+    // Sem equidistância, só a planimetria entra no PEC.
+    expect(report.pec?.altimetric).toBeUndefined();
+    expect(report.pec?.planimetric.pass).toBe(true);
+    expect(report.coverage.green).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('com 2 pontos percentuais de folga no q, a sobreposição lateral passa', () => {
+    const plan = { ...R08, referencePlan: { ...R08.referencePlan, sideOverlapPct: 72 } };
+    const mission = syntheticMission(plan, terrain, CATALOG);
+    const report = evaluateMission(mission, plan, context());
+    expect(report.requirements.find((r) => r.id === 'R08-side')?.pass).toBe(true);
+    expect(estimatedSideOverlapPct(mission) as number).toBeGreaterThan(71.9);
+  });
+
+  it('concluir o C05 libera a R08 (só ela): a fenda é descoberta e o aviso de anomalia sai', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C00: done, C01: done },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    // Com o C01 só as duas primeiras fendas abrem; a R08 espera o C05.
+    expect(get().contracts.R08?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C05: done },
+        stats: { ...s.stats, contractsCompleted: 3 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R08?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R08']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual(['Anomalia dimensional detectada: Bairro dos Santos']);
   });
 });
