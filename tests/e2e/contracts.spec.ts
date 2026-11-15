@@ -79,6 +79,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Anel Dourado',
     rift: true,
   },
+  {
+    id: 'R02',
+    title: 'Reino dos Encanamentos',
+    lines: 7,
+    photos: 105,
+    pec: true,
+    souvenir: 'Cano Verde em Miniatura',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {

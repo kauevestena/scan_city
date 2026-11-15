@@ -1,17 +1,12 @@
 /**
  * Painel de depuração (T059): os botões de teleporte seguem a aba do mapa — contratos do Mundo
- * Real na aba Real, fendas descobertas na aba Fendas (com duas fendas de teste no catálogo).
+ * Real na aba Real, fendas descobertas na aba Fendas (R01 e R02 do catálogo).
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { WORLD_MAP } from '@/world/overworld/tiles';
-
-vi.mock('@/data/contracts', async (importOriginal) =>
-  (await import('@/test/riftFixtures')).withTestRifts(await importOriginal()),
-);
-
-const { useGameStore } = await import('@/state/store');
-const { resetGameStore } = await import('@/test/resetStore');
-const { DebugPanel } = await import('./DebugPanel');
+import { useGameStore } from '@/state/store';
+import { resetGameStore } from '@/test/resetStore';
+import { DebugPanel } from './DebugPanel';
 
 const get = () => useGameStore.getState();
 const teleports = () =>

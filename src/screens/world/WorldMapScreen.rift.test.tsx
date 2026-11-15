@@ -1,26 +1,22 @@
 /**
- * Aba Fendas do mapa-múndi (T059, world-map §8 critério 3), com duas fendas de teste (`a` e `b`)
- * injetadas no catálogo: aparecem quando o C01 é concluído, `RIFT_OPEN` toca uma vez e os portais
+ * Aba Fendas do mapa-múndi (T059, world-map §8 critério 3), com as fendas R01 e R02 (marcadores `a` e `b`):
+ * aparecem quando o C01 é concluído, `RIFT_OPEN` toca uma vez e os portais
  * viram marcadores interativos só na aba Fendas.
  */
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { markerViews } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
+import { getContract } from '@/data/contracts';
+import { useGameStore } from '@/state/store';
+import { resetGameStore } from '@/test/resetStore';
+import { WorldMapScreen } from './WorldMapScreen';
 
-vi.mock('@/data/contracts', async (importOriginal) =>
-  (await import('@/test/riftFixtures')).withTestRifts(await importOriginal()),
-);
 // A contraproposta da MegaMap é sorteada: aqui o aceite segue direto.
 vi.mock('@/domain/rival', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/domain/rival')>()),
   counterOfferFor: () => false,
 }));
-
-const { getContract } = await import('@/data/contracts');
-const { useGameStore } = await import('@/state/store');
-const { resetGameStore } = await import('@/test/resetStore');
-const { WorldMapScreen } = await import('./WorldMapScreen');
 
 const get = () => useGameStore.getState();
 const frames = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)));

@@ -3,6 +3,7 @@ import { act } from '@testing-library/react';
 import { CATALOG, getAircraft, HARDWARE } from '@/data/catalog';
 import { MARKER_ACCESS } from '@/data/overworld/map';
 import { computePayment, computeRewards } from '@/domain/economy';
+import { classifyPec } from '@/domain/standards';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { evaluateMission, type MissionContext } from '@/domain/mission';
 import { neutralModifiers } from '@/domain/modifiers';
@@ -16,14 +17,45 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, RIFT_CONTRACTS } from './rifts';
 
 describe('catálogo das fendas', () => {
   it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem das tarefas', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02']);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
+    expect(getContract('R02')).toBe(R02);
+  });
+
+  it('concluir o C01 libera a R01 e a R02 de uma vez: a aba Fendas aparece, com um aviso de anomalia para cada', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    expect(get().contracts.R01?.status).toBe('LOCKED');
+    expect(get().contracts.R02?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).toEqual([]);
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: {
+          ...s.contracts,
+          C00: { status: 'COMPLETED', completions: 1, bestScore: 0.9 },
+          C01: { status: 'COMPLETED', completions: 1, bestScore: 0.9 },
+        },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R01?.status).toBe('AVAILABLE');
+    expect(get().contracts.R02?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual([
+      'Anomalia dimensional detectada: Colinas Verdes dos Espinhos',
+      'Anomalia dimensional detectada: Reino dos Encanamentos',
+    ]);
   });
 });
 
@@ -175,29 +207,156 @@ describe('R01 — Colinas Verdes dos Espinhos', () => {
     expect(seven.baseBRL).toBe(none.baseBRL);
     expect(seven.qualityFactor).toBe(none.qualityFactor);
   });
+});
 
-  it('concluir o C01 libera a R01 e a descobre: a aba Fendas aparece e o aviso de anomalia sai', () => {
-    resetGameStore();
-    const get = () => useGameStore.getState();
-    expect(get().contracts.R01?.status).toBe('LOCKED');
-    expect(get().world.discoveredRifts).toEqual([]);
-    act(() => {
-      useGameStore.setState((s) => ({
-        contracts: {
-          ...s.contracts,
-          C00: { status: 'COMPLETED', completions: 1, bestScore: 0.9 },
-          C01: { status: 'COMPLETED', completions: 1, bestScore: 0.9 },
-        },
-        stats: { ...s.stats, contractsCompleted: 2 },
-      }));
-      get().refreshUnlocks();
+describe('R02 — Reino dos Encanamentos', () => {
+  const terrain = createTerrain(R02);
+  // O T1 não tem RTK; o jogador começa sem o kit GNSS.
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: false,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  it('conforme a ficha: AOI, teto, luzes, vento, regras, requisitos, recompensa e museu', () => {
+    expect(R02.title).toBe('Reino dos Encanamentos');
+    expect(R02.client.name).toBe('Seu Márcio Bross');
+    expect(R02.client.portrait).toEqual({
+      shape: 'CIRCLE',
+      icon: 'Wrench',
+      primary: '#dc2626',
+      secondary: '#1d4ed8',
+      initials: 'MB',
     });
-    expect(get().contracts.R01?.status).toBe('AVAILABLE');
-    expect(get().world.discoveredRifts).toEqual(['R01']);
+    expect([R02.dimension, R02.biome, R02.seed]).toEqual(['RIFT', 'RIFT_PIPES', 9202]);
+    expect(R02.aoi).toEqual({ widthM: 240, lengthM: 300 });
+    expect([R02.ceilingM, R02.terrainReliefM]).toEqual([120, 20]);
+    expect(R02.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST']);
+    expect(R02.wind).toEqual({ meanMs: 2, gustMs: 1, directionDeg: 0 });
+    expect(R02.specialRules).toEqual(['EM_INTERFERENCE', 'MOVING_HAZARDS']);
+    expect(R02.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000, contourIntervalM: 1 }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.8 }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 3 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+      ['MINOR', { type: 'MIN_CP', value: 2 }],
+    ]);
+    expect(R02.recommended).toMatchObject({
+      aircraft: ['DRONE_T1', 'ATLAS'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R02.minVehicle).toBe('FOOT_BIKE');
+    expect([R02.basePaymentBRL, R02.xp, R02.reputationReward]).toEqual([3_000_000, 600, 5]);
+    expect(R02.souvenirId).toBe('SV_GREEN_PIPE');
+    expect(R02.museum).toEqual({ wing: 'RIFT', slot: 1, incomePerMinBRL: 9000 });
+    expect(R02.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C01' });
+    expect(R02.overworldMarker).toBe('b');
     expect(
-      get()
-        .session.toasts.filter((t) => t.type === 'rift')
-        .map((t) => t.title),
-    ).toEqual(['Anomalia dimensional detectada: Colinas Verdes dos Espinhos']);
+      [R02.dialogs.briefing, R02.dialogs.success, R02.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `b` é de quem vai a pé ou de bicicleta, e as fendas têm setores distintos no museu', () => {
+    expect(MARKER_ACCESS[R02.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R02.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+    for (const c of RIFT_CONTRACTS) expect(c.museum.wing).toBe('RIFT');
+  });
+
+  it('o plano de referência voa o Drone T1 com a câmera de 20 MP sob luz nublada: GSD 2,74 cm, 7 linhas, 386,8 s', () => {
+    const ref = R02.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T1',
+      sensorId: 'CAM_20MP_RS',
+      heightM: 100,
+      forwardOverlapPct: 75,
+      sideOverlapPct: 70,
+      speedMs: 8,
+      lighting: 'OVERCAST',
+    });
+    expect(ref.heightM).toBeLessThanOrEqual(R02.ceilingM);
+    expect(ref.gcps).toHaveLength(5);
+    expect(ref.cps).toEqual([
+      { u: 90, v: 80 },
+      { u: 210, v: 160 },
+    ]);
+    expect(ref.expected).toEqual({ gsdCm: 2.74, nLines: 7, flightTimeS: 386.8 });
+    const plan = buildFlightPlan(referenceParams(R02), R02, CATALOG);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(2.74, 2);
+    expect(plan.stats.nLines).toBe(7);
+    expect(plan.stats.flightTimeS).toBeCloseTo(386.8, 0);
+  });
+
+  it('perigos móveis: a regra manda oscilar de 10 a 25 m em ciclos de 3 a 6 s, e o T1 não é imune à interferência', () => {
+    const fx = resolveRuleEffects(R02.specialRules);
+    expect(fx.flight.movingHazards).toEqual({ amplitudeM: [10, 25], periodS: [3, 6] });
+    expect(fx.flight.emInterference).not.toBeNull();
+    expect(getAircraft('DRONE_T1').emImmune).toBe(false);
+  });
+
+  it('PEC A altimétrico (equidistância de 1 m) é avaliado, e o relatório do plano de referência aprova', () => {
+    const mission = syntheticMission(R02, terrain, CATALOG);
+    expect(mission.groundPoints.filter((p) => p.kind === 'CP')).toHaveLength(2);
+    const report = evaluateMission(mission, R02, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R02-pec',
+      'R02-cov',
+      'R02-gsd',
+      'R02-gcp',
+      'R02-cp',
+    ]);
+    // A altimetria entra na classificação: classe A exigida, no limite de 1 m de equidistância.
+    const pec = report.pec;
+    expect(pec?.scaleDenominator).toBe(1000);
+    expect(pec?.requiredClass).toBe('A');
+    expect(pec?.altimetric).toBeDefined();
+    expect(pec?.altimetric?.pass).toBe(true);
+    expect(pec?.altimetric?.achieved).toBe('A');
+    expect(pec?.planimetric.pass).toBe(true);
+    // Com CPs a acurácia é verificável.
+    expect(report.rmse.cp).not.toBeNull();
+  });
+
+  it('a altimetria pesa: 30 cm de erro de cota nos pontos de checagem reprovam a classe A (limite de 27 cm)', () => {
+    const check = R02.requirements[0]?.check;
+    if (check?.type !== 'ACCURACY_PEC') throw new Error('R02-pec deveria ser um requisito PEC');
+    const residuals = (dz: number) =>
+      ['CP1', 'CP2'].map((pointId) => ({
+        pointId,
+        kind: 'CP' as const,
+        dxM: 0.02,
+        dyM: 0.01,
+        dzM: dz,
+      }));
+    const at = (dz: number) =>
+      classifyPec(residuals(dz), check.scaleDenominator, check.contourIntervalM, check.cls);
+    // A classe A em 1:1.000 com Eq = 1 m: PEC de 27 cm e EP de 16,7 cm na altimetria.
+    const ok = at(0.1);
+    expect(ok.altimetric?.pecM).toBeCloseTo(0.27, 9);
+    expect(ok.altimetric?.epM).toBeCloseTo(1 / 6, 9);
+    expect(ok.altimetric?.pass).toBe(true);
+    expect(ok.planimetric.pass).toBe(true);
+    // Só a cota piora: a planimetria segue na classe A, mas a altimetria cai para a B.
+    const bad = at(0.3);
+    expect(bad.planimetric.pass).toBe(true);
+    expect(bad.altimetric?.pass).toBe(false);
+    expect(bad.altimetric?.achieved).toBe('B');
   });
 });

@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Zap } from 'lucide-react';
+import { Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Zap });
+registerIcons({ Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -108,5 +108,111 @@ export const R01: Contract = {
   },
 };
 
+/** R02 — Reino dos Encanamentos (T061): canos gigantes, plataformas flutuantes e cascos que oscilam. */
+export const R02: Contract = {
+  id: 'R02',
+  dimension: 'RIFT',
+  title: 'Reino dos Encanamentos',
+  client: {
+    name: 'Seu Márcio Bross',
+    role: 'Encanador aposentado',
+    description: 'Encanador aposentado e gordinho, de macacão azul e boné com a letra "M" bordada.',
+    portrait: {
+      shape: 'CIRCLE',
+      icon: 'Wrench',
+      primary: '#dc2626',
+      secondary: '#1d4ed8',
+      initials: 'MB',
+    },
+  },
+  objective:
+    'Cadastro planialtimétrico de bueiros contra infestações de tartarugas voadoras e plantas carnívoras.',
+  biome: 'RIFT_PIPES',
+  seed: 9202,
+  aoi: { widthM: 240, lengthM: 300 },
+  ceilingM: 120,
+  terrainReliefM: 20,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST'],
+  wind: { meanMs: 2, gustMs: 1, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'MOVING_HAZARDS'],
+  requirements: [
+    {
+      id: 'R02-pec',
+      label: 'PEC-PCD classe A (1:1.000, eq. 1 m)',
+      severity: 'CRITICAL',
+      check: { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000, contourIntervalM: 1 },
+    },
+    {
+      id: 'R02-cov',
+      label: 'Cobertura verde ≥ 80 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.8 },
+    },
+    {
+      id: 'R02-gsd',
+      label: 'GSD ≤ 3 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 3 },
+    },
+    {
+      id: 'R02-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+    {
+      id: 'R02-cp',
+      label: 'Ao menos 2 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 2 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T1', 'ATLAS'],
+    sensors: ['CAM_20MP_RS', 'CAM_PIGEON'],
+    vehicle: 'FOOT_BIKE',
+    notes: '',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(30_000),
+  xp: 600,
+  reputationReward: 5,
+  souvenirId: 'SV_GREEN_PIPE',
+  museum: { wing: 'RIFT', slot: 1, incomePerMinBRL: brl(90) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C01' },
+  overworldMarker: 'b',
+  dialogs: {
+    briefing: [
+      'Mamma… quer dizer, minha nossa! Os bueiros tão tudo entupido de casco!',
+      'Preciso da cota de cada tampa, classe A!',
+      'Cuidado com os canos — alguns são bem altos.',
+    ],
+    success: ['Uhuu! Agora sei onde cada cano vai dar. Leva um de lembrança!'],
+    failure: ['Ih, rapaz… esse mapa tá mais torto que cano velho.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T1',
+    sensorId: 'CAM_20MP_RS',
+    heightM: 100,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 70,
+    speedMs: 8,
+    modes: [],
+    lighting: 'OVERCAST',
+    gcps: [
+      { u: 30, v: 30 },
+      { u: 270, v: 30 },
+      { u: 30, v: 210 },
+      { u: 270, v: 210 },
+      { u: 150, v: 120 },
+    ],
+    cps: [
+      { u: 90, v: 80 },
+      { u: 210, v: 160 },
+    ],
+    expected: { gsdCm: 2.74, nLines: 7, flightTimeS: 386.8 },
+  },
+};
+
 /** Fendas do catálogo, na ordem das tarefas (T060–T070). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02];
