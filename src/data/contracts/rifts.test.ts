@@ -6,6 +6,13 @@ import { computePayment, computeRewards } from '@/domain/economy';
 import { createCoverageGrid } from '@/domain/coverage';
 import { capturedFeatures } from '@/domain/features';
 import { classifyPec } from '@/domain/standards';
+import {
+  borderMeanElevation,
+  meanDepthM,
+  measuredVolumeM3,
+  referenceVolumeM3,
+  volumeErrorPct,
+} from '@/domain/volumetrics';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { predictRequirements } from '@/domain/requirements';
 import {
@@ -27,10 +34,13 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R03, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
 
 /** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
-function fly(contract: Contract): { result: SortieResult; used: number; shots: Shot[] } {
+function fly(
+  contract: Contract,
+  onFrame?: (e: FlightEngine) => void,
+): { result: SortieResult; used: number; shots: Shot[] } {
   const mission: MissionData = {
     id: `${contract.id}-sim`,
     contractId: contract.id,
@@ -75,7 +85,10 @@ function fly(contract: Contract): { result: SortieResult; used: number; shots: S
     onShots: (batch) => shots.push(...batch),
     now: () => (now += 200),
   });
-  for (let t = 0; t < 900 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) e.update(1 / 60);
+  for (let t = 0; t < 900 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) {
+    e.update(1 / 60);
+    onFrame?.(e);
+  }
   if (!result) throw new Error('o voo não terminou');
   return { result, used: 1 - e.energy, shots };
 }
@@ -86,6 +99,7 @@ describe('catálogo das fendas', () => {
     expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual([
       'R01',
       'R02',
+      'R03',
       'R06',
       'R07',
       'R08',
@@ -95,6 +109,7 @@ describe('catálogo das fendas', () => {
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
+    expect(getContract('R03')).toBe(R03);
     expect(getContract('R06')).toBe(R06);
     expect(getContract('R07')).toBe(R07);
     expect(getContract('R08')).toBe(R08);
@@ -1371,5 +1386,261 @@ describe('R09 — Savana das Gramas Altas', () => {
         .session.toasts.filter((t) => t.type === 'rift')
         .map((t) => t.title),
     ).toEqual(['Anomalia dimensional detectada: Savana das Gramas Altas']);
+  });
+});
+
+describe('R03 — Planalto dos Guerreiros', () => {
+  const terrain = createTerrain(R03);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  it('conforme a ficha: AOI, teto, luzes, vento, regras, 4 requisitos, recompensa e museu', () => {
+    expect(R03.title).toBe('Planalto dos Guerreiros');
+    expect(R03.client.name).toBe('Guko');
+    expect(R03.client.portrait).toEqual({
+      shape: 'HEXAGON',
+      icon: 'Flame',
+      primary: '#f97316',
+      secondary: '#1d4ed8',
+      initials: 'GK',
+    });
+    expect([R03.dimension, R03.biome, R03.seed]).toEqual(['RIFT', 'RIFT_CRATERS', 9303]);
+    expect(R03.aoi).toEqual({ widthM: 300, lengthM: 400 });
+    expect([R03.ceilingM, R03.terrainReliefM]).toEqual([120, 60]);
+    expect(R03.lightingOptions).toEqual(['SUN_HIGH', 'GOLDEN_HOUR']);
+    expect(R03.wind).toEqual({ meanMs: 4, gustMs: 6, directionDeg: 90 });
+    expect(R03.specialRules).toEqual(['EM_INTERFERENCE', 'ENERGY_BEAMS', 'STEEP_RELIEF']);
+    expect(R03.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'MAX_VOLUME_ERROR_PCT', value: 3 }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
+      ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 8, verticalCm: 10 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+    ]);
+    expect(R03.recommended).toMatchObject({
+      aircraft: ['DRONE_T2'],
+      sensors: ['CAM_45MP_FF'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R03.recommended.notes).toContain('Terrain Following');
+    expect(R03.minVehicle).toBe('FOOT_BIKE');
+    expect([R03.basePaymentBRL, R03.xp, R03.reputationReward]).toEqual([4_500_000, 900, 5]);
+    expect(R03.souvenirId).toBe('SV_STAR_SPHERE');
+    expect(R03.museum).toEqual({ wing: 'RIFT', slot: 2, incomePerMinBRL: 11_000 });
+    expect(R03.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C04' });
+    expect(R03.overworldMarker).toBe('c');
+    expect(
+      [R03.dialogs.briefing, R03.dialogs.success, R03.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `c` é de quem vai a pé ou de bicicleta, e o slot 2 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R03.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R03.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 com Terrain Following: GSD 1,64 cm, 8 linhas, 442 s, 160 fotos', () => {
+    const ref = R03.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 90,
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+      speedMs: 10,
+      modes: ['TERRAIN_FOLLOWING'],
+      lighting: 'SUN_HIGH',
+      cps: [],
+    });
+    expect(ref.gcps).toEqual([
+      { u: 30, v: 30 },
+      { u: 370, v: 30 },
+      { u: 30, v: 270 },
+      { u: 370, v: 270 },
+      { u: 200, v: 150 },
+    ]);
+    expect(ref.heightM).toBeLessThanOrEqual(R03.ceilingM);
+    expect(ref.expected).toEqual({ gsdCm: 1.64, nLines: 8, flightTimeS: 442 });
+    expect(getAircraft(ref.aircraftId).terrainFollowing).toBe(true);
+    const plan = buildFlightPlan(referenceParams(R03), R03, CATALOG);
+    expect(plan.params.terrainFollowing).toBe(true);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(1.64, 2);
+    expect(plan.stats.nLines).toBe(8);
+    expect(plan.stats.flightTimeS).toBeCloseTo(442, 0);
+    expect(plan.stats.totalPhotos).toBe(160);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+    // A previsão antes do voo passa em tudo que depende só do plano e dos 5 GCPs do plano.
+    const predicted = predictRequirements(
+      plan,
+      R03,
+      ref.gcps.map((p, i) => ({
+        id: `GCP${i + 1}`,
+        kind: 'GCP' as const,
+        u: p.u,
+        v: p.v,
+        elevM: terrain.elevation(p.u, p.v),
+        sigmaM: 0.01,
+      })),
+      { catalog: CATALOG, ownsRtkKit: true, fieldEquipmentId: 'TOTAL_STATION' },
+    );
+    expect(predicted.filter((r) => !r.pass).map((r) => r.id)).toEqual([]);
+  });
+
+  it('colunas de energia e interferência: o T2 não é imune, e a regra dá 2 s ligada, 3 s apagada, 0,5 s de aviso', () => {
+    const fx = resolveRuleEffects(R03.specialRules);
+    expect(fx.flight.energyBeams).toEqual({ onS: 2, offS: 3, warnS: 0.5 });
+    expect(fx.flight.emInterference).not.toBeNull();
+    expect(fx.terrain.steepRelief).toMatchObject({ minReliefM: 60, slopeDeg: [35, 70] });
+    expect(getAircraft('DRONE_T2').emImmune).toBe(false);
+    expect(terrain.objects.filter((o) => o.kind === 'ENERGY_BEAM')).toHaveLength(6);
+  });
+
+  it('o autopilot voa o plano de referência inteiro com TF: 8 linhas, 160 fotos, sem colisão, por cima das colunas', () => {
+    const beams = terrain.objects.filter((o) => o.kind === 'ENERGY_BEAM');
+    let minAgl = Infinity;
+    let maxAgl = 0;
+    let minOverBeam = Infinity;
+    const { result, used } = fly(R03, (e) => {
+      if (e.phase !== 'RUN') return;
+      const p = e.pos();
+      const agl = e.ac.alt - terrain.elevation(p.u, p.v);
+      minAgl = Math.min(minAgl, agl);
+      maxAgl = Math.max(maxAgl, agl);
+      for (const b of beams) {
+        // Perto de uma coluna (≤ 6 m do eixo além do raio), a folga sobre o topo de 80 m.
+        if (Math.hypot(p.u - b.u, p.v - b.v) < b.widthM / 2 + 6) {
+          minOverBeam = Math.min(minOverBeam, e.ac.alt - (terrain.elevation(b.u, b.v) + b.heightM));
+        }
+      }
+    });
+    expect(result.outcome).toBe('COMPLETED');
+    expect(result.collisions).toBe(0);
+    expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(result.photos).toBe(160);
+    expect(result.detected).toBe(false);
+    // 442 s de voo dos 2.100 s do T2.
+    expect(used).toBeLessThan(0.4);
+    // O TF segura o AGL perto dos 90 m do plano nos 74 m de relevo (o declive de 60° só atrasa um pouco).
+    expect(minAgl).toBeGreaterThan(70);
+    expect(maxAgl).toBeLessThan(115);
+    // As colunas têm 80 m e o T2 passa 12 m acima do topo; quem voa mais baixo é que precisa cronometrar.
+    expect(minOverBeam).toBeGreaterThan(8);
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova: volume, cobertura, ASPRS e 5 GCPs', () => {
+    const mission = syntheticMission(R03, terrain, CATALOG);
+    expect(mission.groundPoints.filter((p) => p.kind === 'GCP')).toHaveLength(5);
+    expect(mission.groundPoints.filter((p) => p.kind === 'CP')).toHaveLength(0);
+    const report = evaluateMission(mission, R03, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R03-vol',
+      'R03-cov',
+      'R03-asprs',
+      'R03-gcp',
+    ]);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    // Sem CPs, o ASPRS sai "não verificável" (GCP × 1,8) e mesmo assim cabe nos 8 cm e 10 cm.
+    const asprs = report.requirements.find((r) => r.id === 'R03-asprs');
+    expect(asprs?.valueText).toContain('não verificável');
+    expect(report.coverage.green).toBeGreaterThanOrEqual(0.85);
+    expect(report.volume?.errorPct).toBeLessThan(0.5);
+    // O volume é o do alívio todo da AOI em relação ao plano das bordas: bem acima de 1 milhão de m³.
+    expect(report.volume?.referenceM3).toBeGreaterThan(1_000_000);
+  });
+
+  it('volumetria: o erro fica longe dos 3 % com o RMSE do plano; 5 % de buracos ainda passa, 7 % reprova', () => {
+    const reference = referenceVolumeM3(terrain, R03.aoi, borderMeanElevation(terrain, R03.aoi));
+    const depth = meanDepthM(reference);
+    expect(reference.cutM3 + reference.fillM3).toBeGreaterThan(1_000_000);
+    expect(depth).toBeGreaterThan(15);
+    // RMSE_z de ~10 cm (ASPRS V de 10 cm): erro de volume pequeno (σ = 0,5·RMSE/profundidade) em qualquer seed.
+    for (let seed = 1; seed <= 100; seed++) {
+      const measured = measuredVolumeM3(reference, 0.1, depth, 0, mulberry32(seed));
+      expect(volumeErrorPct(reference, measured)).toBeLessThan(1.5);
+    }
+    // Cada ponto de cobertura vermelha (< 3 fotos) tira meio ponto do volume (média de 100 seeds).
+    const meanError = (red: number) => {
+      let sum = 0;
+      for (let seed = 1; seed <= 100; seed++) {
+        const measured = measuredVolumeM3(reference, 0.1, depth, red, mulberry32(seed));
+        sum += volumeErrorPct(reference, measured);
+      }
+      return sum / 100;
+    };
+    expect(meanError(0)).toBeLessThan(0.5);
+    expect(meanError(0.05)).toBeGreaterThan(2.2);
+    expect(meanError(0.05)).toBeLessThan(3);
+    expect(meanError(0.07)).toBeGreaterThan(3);
+  });
+
+  it('com poucas fotos sobra buraco: a cobertura e o volume reprovam e a missão é reprovada pelos críticos', () => {
+    const full = syntheticMission(R03, terrain, CATALOG);
+    const partial = { ...full, shots: full.shots.filter((s) => s.lineIndex < 4) };
+    const report = evaluateMission(partial, R03, context());
+    const byId = (id: string) => report.requirements.find((r) => r.id === id);
+    expect(byId('R03-cov')?.pass).toBe(false);
+    expect(byId('R03-vol')?.pass).toBe(false);
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('com 3 GCPs só o MAJOR `R03-gcp` reprova: a missão segue aprovada', () => {
+    const full = syntheticMission(R03, terrain, CATALOG);
+    const few = { ...full, groundPoints: full.groundPoints.slice(0, 3) };
+    const report = evaluateMission(few, R03, context());
+    const failed = report.requirements.filter((r) => !r.pass).map((r) => r.id);
+    expect(failed).toContain('R03-gcp');
+    expect(failed.every((id) => id === 'R03-gcp' || id === 'R03-asprs')).toBe(true);
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+  });
+
+  it('concluir o C04 libera a R03: a fenda é descoberta e sai um aviso', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C00: done, C01: done },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R03?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C04: done },
+        stats: { ...s.stats, contractsCompleted: 3 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R03?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R03']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual(['Anomalia dimensional detectada: Planalto dos Guerreiros']);
   });
 });

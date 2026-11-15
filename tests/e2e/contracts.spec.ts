@@ -133,6 +133,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Boné Virado para Trás',
     rift: true,
   },
+  {
+    id: 'R03',
+    title: 'Planalto dos Guerreiros',
+    lines: 8,
+    photos: 160,
+    pec: false,
+    souvenir: 'Esfera Laranja de 4 Estrelas',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {
