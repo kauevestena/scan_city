@@ -106,6 +106,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Pistola de Tinta Marcadora',
     rift: true,
   },
+  {
+    id: 'R06',
+    title: 'Pântano Cinzento',
+    lines: 8,
+    photos: 160,
+    pec: false,
+    souvenir: 'Espada-Teodolito em Miniatura',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {

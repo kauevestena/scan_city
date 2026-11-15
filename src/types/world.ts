@@ -1,5 +1,6 @@
 // data-model §5 — Mundo, terreno e objetos
 import type { Rgb } from './basics';
+import type { SensorKind } from './catalog';
 
 export type LandCover =
   | 'GRASS'
@@ -68,6 +69,11 @@ export interface FeatureTarget {
   v: number;
   radiusM: number;
   needs: 'PHOTO' | 'LIDAR';
+  /**
+   * Alvo que só a câmera deste tipo enxerga (as tocas `DEN_*` do R06 só brilham no sensor
+   * térmico): as fotos de outros sensores não o capturam, e só o render desse sensor o mostra.
+   */
+  sensorKind?: SensorKind;
 }
 
 export type SpecialZone =

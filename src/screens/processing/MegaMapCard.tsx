@@ -61,7 +61,11 @@ export function MegaMapCard({ report, mission }: { report: QualityReport; missio
           {P.offset(formatNumber(params.offsetM, 1))}
         </li>
         <li className="text-emerald-300" data-testid="megamap-yours">
-          {cls ? P.yours(formatNumber(cmH, 1), cls) : P.yoursNoClass(formatNumber(cmH, 1))}
+          {report.residuals.length === 0
+            ? P.yoursNoPoints
+            : cls
+              ? P.yours(formatNumber(cmH, 1), cls)
+              : P.yoursNoClass(formatNumber(cmH, 1))}
         </li>
       </ul>
     </div>

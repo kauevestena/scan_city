@@ -8,6 +8,7 @@ import type { GroundPoint, MissionData } from '@/types';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { evaluateForState } from './evaluate';
 import { ProcessingResultsScreen } from './ProcessingResultsScreen';
+import { MegaMapCard } from './MegaMapCard';
 import { multiplierText } from './ReportAccuracy';
 import { paymentRows } from './ReportPayment';
 import { ReportAccuracy } from './ReportAccuracy';
@@ -243,6 +244,32 @@ describe('ProcessingResultsScreen', () => {
       expect(m).toBeLessThanOrEqual(6);
       expect(screen.getByTestId('megamap-yours')).toHaveTextContent(/Seu mapa: RMSE planimétrico/);
     }, 15000);
+
+    it('missão sem pontos de apoio (R06): a aba não mostra tabelas zeradas e o MegaMap não inventa RMSE', () => {
+      const bare = queue({ groundPoints: [] });
+      const empty = evaluateForState(get(), bare, false);
+      expect(empty.residuals).toHaveLength(0);
+      const { unmount } = render(<ReportAccuracy report={empty} mission={bare} />);
+      expect(screen.getByTestId('no-points')).toHaveTextContent(STRINGS.processing.noPoints);
+      expect(screen.queryByTestId('residuals')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('rmse')).not.toBeInTheDocument();
+      // O que não depende dos pontos continua à mostra.
+      expect(screen.getByTestId('multipliers')).toBeInTheDocument();
+      unmount();
+      // O comparativo da MegaMap também não mostra "RMSE 0,0 cm" sem pontos.
+      const card = render(<MegaMapCard report={empty} mission={bare} />);
+      expect(screen.getByTestId('megamap-yours')).toHaveTextContent(
+        STRINGS.processing.megamap.yoursNoPoints,
+      );
+      card.unmount();
+      // Com pontos, as tabelas voltam e a nota some.
+      const mission = queue();
+      const full = evaluateForState(get(), mission, false);
+      expect(full.residuals.length).toBeGreaterThan(0);
+      render(<ReportAccuracy report={full} mission={mission} />);
+      expect(screen.queryByTestId('no-points')).not.toBeInTheDocument();
+      expect(screen.getByTestId('residuals')).toBeInTheDocument();
+    });
 
     it('volumetria só aparece quando o relatório a traz; lente e multiplicadores seguem visíveis', () => {
       const mission = queue();

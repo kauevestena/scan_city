@@ -47,54 +47,64 @@ export function ReportAccuracy({
   return (
     <div className="grid gap-6 lg:grid-cols-2" data-testid="report-accuracy">
       <div className="flex flex-col gap-6">
-        <Block title={P.residuals}>
-          <table className="text-sm text-slate-100" data-testid="residuals">
-            <thead>
-              <tr>
-                {P.residualCols.map((c) => (
-                  <th key={c} className="pr-4 text-left text-xs font-normal text-slate-400">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {report.residuals.map((r) => (
-                <tr key={r.pointId} className={cx(r.kind === 'CP' && 'text-amber-200')}>
-                  <td className="pr-4 font-mono">{r.pointId}</td>
-                  <td className="pr-4">{r.kind}</td>
-                  <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dxM)}</td>
-                  <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dyM)}</td>
-                  <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dzM)}</td>
-                  <td className="pr-4 text-right font-mono tabular-nums">
-                    {cm(Math.hypot(r.dxM, r.dyM))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Block>
-        <Block title="RMSE (cm)">
-          <table className="text-sm text-slate-100" data-testid="rmse">
-            <thead>
-              <tr>
-                <th />
-                {P.rmseCols.map((c) => (
-                  <th key={c} className="pr-4 text-right text-xs font-normal text-slate-400">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <RmseRow label={P.rmseGcp} rmse={report.rmse.gcp} />
-              {report.rmse.cp && <RmseRow label={P.rmseCp} rmse={report.rmse.cp} />}
-            </tbody>
-          </table>
-          {!report.rmse.cp && (
-            <p className="text-sm text-amber-300">{STRINGS.accuracy.notVerifiable}</p>
-          )}
-        </Block>
+        {report.residuals.length === 0 ? (
+          <Block title={P.residuals}>
+            <p className="text-sm text-slate-300" data-testid="no-points">
+              {P.noPoints}
+            </p>
+          </Block>
+        ) : (
+          <>
+            <Block title={P.residuals}>
+              <table className="text-sm text-slate-100" data-testid="residuals">
+                <thead>
+                  <tr>
+                    {P.residualCols.map((c) => (
+                      <th key={c} className="pr-4 text-left text-xs font-normal text-slate-400">
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.residuals.map((r) => (
+                    <tr key={r.pointId} className={cx(r.kind === 'CP' && 'text-amber-200')}>
+                      <td className="pr-4 font-mono">{r.pointId}</td>
+                      <td className="pr-4">{r.kind}</td>
+                      <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dxM)}</td>
+                      <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dyM)}</td>
+                      <td className="pr-4 text-right font-mono tabular-nums">{cm(r.dzM)}</td>
+                      <td className="pr-4 text-right font-mono tabular-nums">
+                        {cm(Math.hypot(r.dxM, r.dyM))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Block>
+            <Block title="RMSE (cm)">
+              <table className="text-sm text-slate-100" data-testid="rmse">
+                <thead>
+                  <tr>
+                    <th />
+                    {P.rmseCols.map((c) => (
+                      <th key={c} className="pr-4 text-right text-xs font-normal text-slate-400">
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <RmseRow label={P.rmseGcp} rmse={report.rmse.gcp} />
+                  {report.rmse.cp && <RmseRow label={P.rmseCp} rmse={report.rmse.cp} />}
+                </tbody>
+              </table>
+              {!report.rmse.cp && (
+                <p className="text-sm text-amber-300">{STRINGS.accuracy.notVerifiable}</p>
+              )}
+            </Block>
+          </>
+        )}
         <Block title={P.multipliers}>
           <ul className="flex flex-col gap-1 text-sm text-slate-200" data-testid="multipliers">
             {report.multipliers.length === 0 && (
