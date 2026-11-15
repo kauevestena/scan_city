@@ -1,5 +1,10 @@
 import { Camera, Check, Map as MapIcon, Plane, Radar, Settings, Trash2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { STRINGS } from '@/data/strings';
+import type { InputDevice } from '@/input/actions';
+import type { GlyphAction } from '@/input/glyphs';
+import { InputGlyph } from '@/input/InputGlyph';
+import { useFocusNavigation } from '@/input/useFocusNavigation';
 import type { PortraitSpec } from '@/types';
 import {
   Button,
@@ -66,6 +71,31 @@ const EMBLEMS: PortraitSpec[] = [
   },
 ];
 
+const GLYPH_ACTIONS: Array<[GlyphAction, string]> = [
+  ['INTERACT', 'Interagir'],
+  ['FIRE', 'Disparar'],
+  ['TOGGLE_SENSOR', 'Sensor'],
+  ['RTH', 'Voltar à base'],
+  ['PAUSE', 'Pausar'],
+  ['ALT_UP', 'Subir'],
+  ['ALT_DOWN', 'Descer'],
+  ['TIME_WARP', 'Acelerar tempo'],
+  ['CYCLE_VEHICLE', 'Veículo'],
+  ['TOGGLE_DIMENSION', 'Dimensão'],
+  ['MOVE', 'Mover'],
+  ['LOOK', 'Orbitar'],
+  ['ZOOM', 'Zoom'],
+  ['UI_CONFIRM', 'Confirmar'],
+  ['UI_BACK', 'Voltar'],
+  ['UI_TAB_NEXT', 'Próxima aba'],
+];
+
+type DeviceChoice = 'AUTO' | Exclude<InputDevice, 'GENERIC'>;
+const DEVICE_TABS = (['AUTO', 'KEYBOARD', 'XBOX', 'PLAYSTATION'] as const).map((id) => ({
+  id,
+  label: STRINGS.input.devices[id],
+}));
+
 const TABS = [
   { id: 'points', label: 'Pontos de apoio', icon: MapIcon },
   { id: 'plan', label: 'Plano de voo', icon: Plane },
@@ -97,9 +127,15 @@ export function UiKitGallery() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dialogueRun, setDialogueRun] = useState(0);
   const [dialogueDone, setDialogueDone] = useState(false);
+  const [glyphDevice, setGlyphDevice] = useState<DeviceChoice>('AUTO');
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFocusNavigation(rootRef);
 
   return (
-    <div className="h-screen w-screen overflow-y-auto bg-slate-950 bg-[linear-gradient(to_right,rgba(30,41,59,0.5)_1px,transparent_1px),linear-gradient(to_bottom,rgba(30,41,59,0.5)_1px,transparent_1px)] bg-[size:32px_32px] p-6 text-slate-100">
+    <div
+      ref={rootRef}
+      className="h-screen w-screen overflow-y-auto bg-slate-950 bg-[linear-gradient(to_right,rgba(30,41,59,0.5)_1px,transparent_1px),linear-gradient(to_bottom,rgba(30,41,59,0.5)_1px,transparent_1px)] bg-[size:32px_32px] p-6 text-slate-100"
+    >
       <h1 className="mb-6 flex items-center gap-3 text-2xl font-semibold tracking-wide uppercase">
         <Radar size={24} strokeWidth={1.75} className="text-cyan-400" aria-hidden />
         Kit de UI
@@ -302,6 +338,30 @@ export function UiKitGallery() {
           <Tooltip content="Distância de amostragem no solo">
             <Button variant="ghost">Passe o mouse ou foque</Button>
           </Tooltip>
+        </Section>
+
+        <Section name="InputGlyph">
+          <div className="flex w-full flex-col gap-3">
+            <Tabs
+              tabs={DEVICE_TABS}
+              value={glyphDevice}
+              onChange={setGlyphDevice}
+              ariaLabel="Dispositivo dos glyphs"
+            />
+            <div
+              className="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-4"
+              data-testid="glyph-grid"
+            >
+              {GLYPH_ACTIONS.map(([action, label]) => (
+                <InputGlyph
+                  key={action}
+                  action={action}
+                  label={label}
+                  device={glyphDevice === 'AUTO' ? undefined : glyphDevice}
+                />
+              ))}
+            </div>
+          </div>
         </Section>
 
         <Section name="EmblemBadge">

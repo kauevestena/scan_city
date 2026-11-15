@@ -81,10 +81,10 @@ O código nunca diverge silenciosamente da spec.
 
 | Marco | Conteúdo | Tarefas | Status |
 | :--- | :--- | :--- | :-: |
-| **M0** Fundação | Projeto, UI kit, store, máquina de estados, save, loop, input, áudio | T001–T009 | ☐ |
-| (F1) Domínio | Toda a matemática, com golden values | T010–T019 | ☐ |
-| **M1** Vertical Slice | C00 jogável de ponta a ponta | T020–T027 | ☐ |
-| **M2** Voo completo | Obstáculos, clima, vento, energia, Atlas, LiDAR, modos, alertas, *time warp* | T028–T036 | ☐ |
+| **M0** Fundação | Projeto, UI kit, store, máquina de estados, save, loop, input, áudio | T001–T009 | ✅ |
+| (F1) Domínio | Toda a matemática, com golden values | T010–T019 | ✅ |
+| **M1** Vertical Slice | C00 jogável de ponta a ponta | T020–T027 | ✅ (E2E; revisão manual pendente) |
+| **M2** Voo completo | Obstáculos, clima, vento, energia, Atlas, LiDAR, modos, alertas, *time warp* | T028–T036 | ✅ |
 | (F4–F6) Sistemas | Mini-games, veículos, eventos, produtos, Van, loja, skills, equipe, cosméticos, museu, rival | T037–T051 | ☐ |
 | **M3** Conteúdo | 7 contratos reais + 11 fendas + campanha | T052–T071 | ☐ |
 | (F8) Museu & Lab | Mesa completa, 4 infográficos | T072–T074 | ☐ |

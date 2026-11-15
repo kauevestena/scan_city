@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { Slider, snapToStep, type SliderProps } from './Slider';
+import { Slider, sliderAcceleration, snapToStep, type SliderProps } from './Slider';
 
 function Harness(
   props: Partial<SliderProps> & { initial: number; onChangeSpy?: (v: number) => void },
@@ -63,6 +63,27 @@ describe('Slider', () => {
     expect(slider).toHaveAttribute('aria-valuenow', '60');
     fireEvent.keyDown(slider, { key: 'x' });
     expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('↑/↓ não alteram o valor (ficam para a navegação de foco)', () => {
+    const spy = vi.fn();
+    render(<Harness initial={60} onChangeSpy={spy} />);
+    fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowUp' });
+    fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowDown' });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('mantido, acelera de 1 até 10 passos por ajuste', () => {
+    expect([0, 1, 2, 3, 4, 17, 18, 50].map(sliderAcceleration)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
+    render(<Harness initial={20} step={1} min={0} max={500} />);
+    const slider = screen.getByRole('slider');
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    fireEvent.keyDown(slider, { key: 'ArrowRight', repeat: true });
+    fireEvent.keyDown(slider, { key: 'ArrowRight', repeat: true });
+    expect(slider).toHaveAttribute('aria-valuenow', '24');
+    // Soltar e apertar de novo volta a 1 passo.
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    expect(slider).toHaveAttribute('aria-valuenow', '25');
   });
 
   it('desabilitado não muda', () => {

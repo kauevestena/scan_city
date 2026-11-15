@@ -113,7 +113,8 @@ describe('guardas', () => {
 
   it('T6 exige contrato AVAILABLE ou COMPLETED e nenhuma missão pendente dele', () => {
     const payload = { contractId: 'C00', rivalAdjustment: 1 };
-    expect(can('WORLD_MAP', 'FIELD_SETUP', payload)).toBe(false);
+    // Contrato fora do catálogo/progresso: sem status, a guarda recusa.
+    expect(can('WORLD_MAP', 'FIELD_SETUP', { contractId: 'C99', rivalAdjustment: 1 })).toBe(false);
     const set = (status: 'LOCKED' | 'AVAILABLE' | 'STOLEN' | 'COMPLETED') =>
       store.setState({ contracts: { C00: { status, completions: 0, bestScore: 0 } } });
     set('LOCKED');

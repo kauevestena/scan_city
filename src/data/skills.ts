@@ -1,0 +1,141 @@
+import type { SkillBranch, SkillNode } from '@/types';
+
+/** catalog §9 — Árvore de habilidades: 3 ramos × 4 nós, custos 1/1/2/2, pré-requisitos lineares. */
+export const SKILL_BRANCH_NAMES: Record<SkillBranch, string> = {
+  PILOT: 'Pilotagem & Campo',
+  ENGINEERING: 'Engenharia & Sensores',
+  MANAGEMENT: 'Gestão & Curadoria',
+};
+
+export const SKILLS: readonly SkillNode[] = [
+  {
+    id: 'PIL_1',
+    branch: 'PILOT',
+    rank: 1,
+    name: 'Mãos Firmes',
+    description: 'O vento cruzado empurra 20 % menos a aeronave para fora da linha.',
+    cost: 1,
+    effects: [{ key: 'windDrift', op: 'mul', value: 0.8 }],
+  },
+  {
+    id: 'PIL_2',
+    branch: 'PILOT',
+    rank: 2,
+    name: 'Fôlego Extra',
+    description: 'Pilotagem econômica: cada bateria (ou papo de milho) rende 15 % a mais.',
+    cost: 1,
+    requires: 'PIL_1',
+    effects: [{ key: 'endurance', op: 'mul', value: 1.15 }],
+  },
+  {
+    id: 'PIL_3',
+    branch: 'PILOT',
+    rank: 3,
+    name: 'Pé na Estrada',
+    description: 'Você conhece os atalhos: desloca-se 20 % mais rápido no mapa-múndi.',
+    cost: 2,
+    requires: 'PIL_2',
+    effects: [{ key: 'overworldSpeed', op: 'mul', value: 1.2 }],
+  },
+  {
+    id: 'PIL_4',
+    branch: 'PILOT',
+    rank: 4,
+    name: 'Ás das Correntes',
+    description:
+      'Lê o ar como ninguém: a deriva cai mais 25 % e as térmicas incomodam pela metade.',
+    cost: 2,
+    requires: 'PIL_3',
+    effects: [
+      { key: 'windDrift', op: 'mul', value: 0.75 },
+      { key: 'thermalEffect', op: 'mul', value: 0.5 },
+    ],
+  },
+  {
+    id: 'ENG_1',
+    branch: 'ENGINEERING',
+    rank: 1,
+    name: 'Olho de SIFT',
+    description:
+      'Parâmetros de extração afinados: −10 % no RMSE e metade da penalidade de textura homogênea.',
+    cost: 1,
+    effects: [
+      { key: 'rmseGlobal', op: 'mul', value: 0.9 },
+      { key: 'texturePenalty', op: 'mul', value: 0.5 },
+    ],
+  },
+  {
+    id: 'ENG_2',
+    branch: 'ENGINEERING',
+    rank: 2,
+    name: 'Filtro de Ruído LiDAR',
+    description: 'Filtragem de outliers na nuvem: o ruído vertical do LiDAR cai 30 %.',
+    cost: 1,
+    requires: 'ENG_1',
+    effects: [{ key: 'lidarNoise', op: 'mul', value: 0.7 }],
+  },
+  {
+    id: 'ENG_3',
+    branch: 'ENGINEERING',
+    rank: 3,
+    name: 'Correção de Rolling Shutter',
+    description:
+      'O ajustamento modela a leitura linha a linha: o efeito gelatina deixa de penalizar.',
+    cost: 2,
+    requires: 'ENG_2',
+    effects: [{ key: 'rollingShutterPenalty', op: 'mul', value: 0 }],
+  },
+  {
+    id: 'ENG_4',
+    branch: 'ENGINEERING',
+    rank: 4,
+    name: 'Mestre do Bundle',
+    description: 'Domínio do ajustamento por feixes: o RMSE cai mais 15 %.',
+    cost: 2,
+    requires: 'ENG_3',
+    effects: [{ key: 'rmseGlobal', op: 'mul', value: 0.85 }],
+  },
+  {
+    id: 'GES_1',
+    branch: 'MANAGEMENT',
+    rank: 1,
+    name: 'Negociador',
+    description: 'Contratos fechados com 25 % a mais no pagamento.',
+    cost: 1,
+    effects: [{ key: 'contractPayment', op: 'mul', value: 1.25 }],
+  },
+  {
+    id: 'GES_2',
+    branch: 'MANAGEMENT',
+    rank: 2,
+    name: 'Curador',
+    description: 'Exposições bem montadas: o Museu recebe 50 % mais visitantes.',
+    cost: 1,
+    requires: 'GES_1',
+    effects: [{ key: 'museumVisitors', op: 'mul', value: 1.5 }],
+  },
+  {
+    id: 'GES_3',
+    branch: 'MANAGEMENT',
+    rank: 3,
+    name: 'Rede de Fornecedores',
+    description: 'Contatos na indústria: tudo na Garagem custa 15 % menos.',
+    cost: 2,
+    requires: 'GES_2',
+    effects: [{ key: 'shopPrice', op: 'mul', value: 0.85 }],
+  },
+  {
+    id: 'GES_4',
+    branch: 'MANAGEMENT',
+    rank: 4,
+    name: 'Marca Forte',
+    description:
+      'A GeoSurvey vira referência: +50 % de reputação ganha e metade das investidas da MegaMap.',
+    cost: 2,
+    requires: 'GES_3',
+    effects: [
+      { key: 'reputationGain', op: 'mul', value: 1.5 },
+      { key: 'rivalChance', op: 'mul', value: 0.5 },
+    ],
+  },
+];

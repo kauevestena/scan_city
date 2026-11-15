@@ -1,13 +1,28 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function go(page: Page, transition: string, expectedScreen: string) {
+/** Clica numa transição do painel de depuração (F9 nas telas reais, embutido no shell). */
+/** Telas reais e o `data-testid` de cada uma; as demais ainda usam o shell. */
+const REAL_SCREENS: Record<string, string> = {
+  OFFICE: 'office-screen',
+  WORLD_MAP: 'world-map-screen',
+  FIELD_SETUP: 'field-setup-screen',
+  SURVEY_FLIGHT: 'survey-flight-screen',
+  PROCESSING_RESULTS: 'processing-screen',
+  HOLO_TABLE_VIEW: 'holo-screen',
+};
+
+async function go(page: Page, transition: string, expected: string) {
   await page.locator(`[data-transition="${transition}"]`).click();
-  await expect(page.getByTestId('screen-name')).toHaveText(expectedScreen);
+  const testId = REAL_SCREENS[expected];
+  if (testId) await expect(page.getByTestId(testId)).toBeVisible();
+  else await expect(page.getByTestId('screen-name')).toHaveText(expected);
 }
 
-test('percorre as transições T1–T16 pelo shell de depuração', async ({ page }) => {
-  await page.goto('/?debug=1');
-  await expect(page.getByTestId('screen-name')).toHaveText('OFFICE');
+test('percorre as transições T1–T16 pelo painel de depuração', async ({ page }) => {
+  await page.goto('/?debug=1&skipIntro=1');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
+  await page.keyboard.press('F9');
+  await expect(page.getByTestId('debug-overlay')).toBeVisible();
 
   await go(page, 'T1', 'WORLD_MAP');
   await go(page, 'T5', 'OFFICE');
@@ -44,8 +59,8 @@ test('percorre as transições T1–T16 pelo shell de depuração', async ({ pag
 });
 
 test('Esc abre o overlay de pausa e Continuar retoma', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByTestId('screen-name')).toHaveText('OFFICE');
+  await page.goto('/?debug=1&skipIntro=1');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
   await page.keyboard.press('Escape');
   const dialog = page.getByRole('dialog', { name: 'Jogo pausado' });
   await expect(dialog).toBeVisible();

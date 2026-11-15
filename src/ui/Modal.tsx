@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { STRINGS } from '@/data/strings';
+import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { cx, FOCUS_RING } from './classes';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -45,6 +46,14 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  // Camada modal de input: contexto UI, setas/D-pad navegam, UI_BACK (Esc, B/○) fecha.
+  useFocusNavigation(dialogRef, {
+    modal: true,
+    wrap: true,
+    active: open,
+    onBack: dismissable ? onClose : undefined,
+  });
+
   // Focus trap: entra no modal ao abrir e devolve o foco a quem o abriu ao fechar.
   useEffect(() => {
     if (!open) return;
@@ -61,12 +70,8 @@ export function Modal({
 
   if (!open) return null;
 
+  // Tab e Shift+Tab ficam presos no modal; o Esc chega como UI_BACK pelo InputManager.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      if (dismissable) onClose?.();
-      return;
-    }
     if (e.key !== 'Tab') return;
     const dialog = dialogRef.current;
     if (!dialog) return;

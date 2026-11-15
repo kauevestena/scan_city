@@ -55,6 +55,18 @@ export function formatMm(meters: number, decimals = 1): string {
   return `${formatNumber(meters * 1000, decimals)} mm`;
 }
 
+const dateTime = new Intl.DateTimeFormat(LOCALE, {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Instante (ms) → "14/11, 09:30". */
+export function formatDateTime(ms: number): string {
+  return dateTime.format(ms);
+}
+
 /** Metros → "340 m" abaixo de 1 km, "1,2 km" a partir daí. */
 export function formatDistance(meters: number): string {
   const abs = Math.abs(meters);

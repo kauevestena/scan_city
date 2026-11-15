@@ -1,6 +1,8 @@
 import { LoaderCircle, type LucideIcon } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { AudioEngine } from '@/audio/AudioEngine';
 import type { ButtonAction } from '@/input/actions';
+import { InputGlyph } from '@/input/InputGlyph';
 import { cx, FOCUS_RING } from './classes';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'rift';
@@ -42,6 +44,7 @@ export function Button({
   className,
   children,
   type = 'button',
+  onClick,
   ...rest
 }: ButtonProps) {
   const s = SIZE[size];
@@ -61,6 +64,10 @@ export function Button({
         s.box,
         className,
       )}
+      onClick={(e) => {
+        AudioEngine.get().play('UI_CLICK');
+        onClick?.(e);
+      }}
       {...rest}
     >
       {loading ? (
@@ -69,6 +76,12 @@ export function Button({
         Icon && <Icon size={s.icon} strokeWidth={1.75} aria-hidden />
       )}
       {children}
+      {glyph && (
+        // Dica visual; o nome acessível do botão é só o rótulo.
+        <span aria-hidden className="ml-1 inline-flex">
+          <InputGlyph action={glyph} />
+        </span>
+      )}
     </button>
   );
 }

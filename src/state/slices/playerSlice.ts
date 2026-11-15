@@ -1,5 +1,9 @@
 import type { StateCreator } from 'zustand';
+import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
+import { STAFF } from '@/data/catalog';
+import { SKILLS } from '@/data/skills';
+import { addXp, canUnlockSkill } from '@/domain/progression';
 import { formatBRL } from '@/lib/format';
 import { clamp } from '@/lib/math';
 import type { SaveGame } from '@/types';
@@ -50,6 +54,8 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
   flags: initialFlags(),
   souvenirs: [],
 
+  setFlags: (flags) => set((s) => ({ flags: { ...s.flags, ...flags } })),
+
   earn: (amount, reason) => {
     const cents = Math.max(0, Math.round(amount));
     set((s) => ({
@@ -62,6 +68,7 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
     const cents = Math.max(0, Math.round(amount));
     const { money } = get().player;
     if (cents > money) {
+      AudioEngine.get().play('DENIED');
       get().pushToast({
         type: 'error',
         title: STRINGS.economy.insufficientFunds(formatBRL(cents - money)),
@@ -75,8 +82,68 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
     return true;
   },
 
-  changeReputation: (delta) =>
+  addStats: (delta) =>
+    set((s) => {
+      const stats = { ...s.stats };
+      for (const [key, value] of Object.entries(delta) as Array<[keyof typeof stats, number]>) {
+        stats[key] += value;
+      }
+      return { stats };
+    }),
+
+  grantXp: (amount) => {
+    // Um LEVEL_UP por nível, 300 ms entre eles (processing-results §7).
+    const { levelsGained, ...player } = addXp(get().player, amount);
+    set({ player });
+    for (let k = 0; k < levelsGained; k++) {
+      const level = player.level - levelsGained + k + 1;
+      get().pushToast({ type: 'success', title: STRINGS.progression.levelUp(level) });
+      setTimeout(() => AudioEngine.get().play('LEVEL_UP'), 300 * k);
+    }
+  },
+
+  unlockSkill: (id) => {
+    const { skills, player } = get();
+    const node = SKILLS.find((n) => n.id === id);
+    if (!node || !canUnlockSkill(node, player.skillPoints, skills)) {
+      AudioEngine.get().play('DENIED');
+      return false;
+    }
+    set((s) => ({
+      skills: [...s.skills, id],
+      player: { ...s.player, skillPoints: s.player.skillPoints - node.cost },
+    }));
+    AudioEngine.get().play('COLLECT');
+    get().pushToast({ type: 'success', title: STRINGS.progression.skillUnlocked(node.name) });
+    return true;
+  },
+
+  hireStaff: (role) => {
+    const def = STAFF.find((r) => r.id === role);
+    if (!def || get().staff[role] >= def.maxCount) {
+      AudioEngine.get().play('DENIED');
+      return false;
+    }
+    if (!get().spend(def.hireCostBRL, STRINGS.staff.hireReason(def.name))) return false;
+    set((s) => ({ staff: { ...s.staff, [role]: s.staff[role] + 1 } }));
+    AudioEngine.get().play('CASH_REGISTER');
+    get().pushToast({ type: 'info', title: STRINGS.staff.hired(def.name) });
+    return true;
+  },
+
+  fireStaff: (role) => {
+    if (get().staff[role] <= 0) return false;
+    set((s) => ({ staff: { ...s.staff, [role]: s.staff[role] - 1 } }));
+    const def = STAFF.find((r) => r.id === role);
+    get().pushToast({ type: 'info', title: STRINGS.staff.fired(def?.name ?? role) });
+    return true;
+  },
+
+  changeReputation: (delta) => {
     set((s) => ({
       player: { ...s.player, reputation: clamp(s.player.reputation + delta, 0, 100) },
-    })),
+    }));
+    // Alguns contratos dependem da reputação (progression §12).
+    get().refreshUnlocks();
+  },
 });

@@ -1,3 +1,4 @@
+import { initialContracts } from '@/data/contracts';
 import type { SaveGame } from '@/types';
 import { SAVE_VERSION } from './migrations';
 import { initialInventory } from './slices/inventorySlice';
@@ -17,7 +18,7 @@ export function createNewGame(now: number = Date.now()): SaveGame {
     skills: [],
     staff: initialStaff(),
     inventory: initialInventory(),
-    contracts: {},
+    contracts: initialContracts(),
     museum: initialMuseum(now),
     souvenirs: [],
     pendingMissions: [],

@@ -1,8 +1,10 @@
-import { ArrowRight, Banknote, Bug, Inbox } from 'lucide-react';
+import { ArrowRight, Banknote, Bug, Inbox, MapPin } from 'lucide-react';
 import { formatBRL } from '@/lib/format';
 import { transitionsFrom } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import { Button, Panel } from '@/ui';
+import { markerViews } from '@/world/overworld/markers';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createDebugMission, DEBUG_CONTRACT_ID, prepareDebugTransition } from './debugFixtures';
 import { getDebugFlags } from './debugFlags';
 
@@ -21,6 +23,8 @@ export function DebugPanel() {
   const pending = useGameStore((s) => s.mission.pending.length);
   const active = useGameStore((s) => s.mission.active?.id ?? null);
   const contractId = getDebugFlags().contract ?? DEBUG_CONTRACT_ID;
+  const contracts = useGameStore((s) => s.contracts);
+  const markers = screen === 'WORLD_MAP' ? markerViews(contracts, 'REAL', []) : [];
 
   const summary = { screen, payload: payload ?? null, level, reputation, pending, active };
 
@@ -82,6 +86,38 @@ export function DebugPanel() {
             </Button>
           </div>
         </div>
+        {markers.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs tracking-widest text-slate-400 uppercase">
+              Teleportar para marcador
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                icon={MapPin}
+                data-teleport="HQ"
+                onClick={() =>
+                  useGameStore
+                    .getState()
+                    .setAvatar({ x: WORLD_MAP.door.x + 0.5, y: WORLD_MAP.door.y + 0.5 })
+                }
+              >
+                Sede
+              </Button>
+              {markers.map((m) => (
+                <Button
+                  key={m.contractId}
+                  size="sm"
+                  icon={MapPin}
+                  data-teleport={m.contractId}
+                  onClick={() => useGameStore.getState().setAvatar({ x: m.x + 0.5, y: m.y + 0.5 })}
+                >
+                  {m.contractId}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Panel>
   );

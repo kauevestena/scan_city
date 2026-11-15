@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { SaveGame, VehicleId } from '@/types';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 import type { GameStore, WorldActions } from '../types';
 
 /** Ordem do ciclo de locomoção (catalog §5). */
@@ -10,8 +11,15 @@ export const VEHICLE_ORDER: readonly VehicleId[] = [
   'LAB_VAN',
 ];
 
-/** Centro do mapa 160 × 100; T021 troca pelo tile de spawn `@`. */
-export const DEFAULT_SPAWN = { x: 80, y: 50 } as const;
+/** Centro do tile de spawn `@` (o avatar guarda a posição contínua, em tiles). */
+export const DEFAULT_SPAWN = { x: WORLD_MAP.spawn.x + 0.5, y: WORLD_MAP.spawn.y + 0.5 } as const;
+
+/** Próximo modo do ciclo entre os veículos possuídos (volta ao primeiro depois do último). */
+export function nextVehicle(owned: readonly VehicleId[], current: VehicleId): VehicleId {
+  const ordered = VEHICLE_ORDER.filter((v) => owned.includes(v));
+  const index = ordered.indexOf(current);
+  return ordered[(index + 1) % ordered.length] ?? current;
+}
 
 export function initialWorld(): SaveGame['world'] {
   return {
@@ -36,14 +44,14 @@ export const createWorldSlice: StateCreator<
 
   cycleVehicle: () => {
     const { inventory, world } = get();
-    const owned = VEHICLE_ORDER.filter((v) => inventory.vehicles.includes(v));
-    const index = owned.indexOf(world.vehicleMode);
-    const next = owned[(index + 1) % owned.length] ?? world.vehicleMode;
+    const next = nextVehicle(inventory.vehicles, world.vehicleMode);
     if (next !== world.vehicleMode) set((s) => ({ world: { ...s.world, vehicleMode: next } }));
     return next;
   },
 
   setDimensionTab: (tab) => set((s) => ({ world: { ...s.world, dimensionTab: tab } })),
+
+  markFieldEvent: (nowS) => set((s) => ({ world: { ...s.world, lastEventAt: nowS } })),
 
   discoverRift: (contractId) =>
     set((s) =>

@@ -47,3 +47,43 @@
 - **Contexto:** o original cita "IPHAN" como cliente do C05.
 - **Padrão provisório:** usar "Instituto do Patrimônio Histórico" no jogo. A referência ao IPHAN fica só na spec.
 - **Resolução:** —
+
+### OQ-006 — Detalhes do `stepAircraft` não fixados em domain-math §5
+- **Aberta em:** 2026-11-14 por T013
+- **Contexto:** a spec define os limites, mas não três detalhes de dinâmica:
+  1. a velocidade lateral-alvo da asa fixa com `MOVE_X = ±1` (só a aceleração `aLat ≤ v²/R` é dada);
+  2. como a altitude "persegue" o alvo do Terrain Following;
+  3. o que fazer quando o relevo sobe acima do piso `elev + 2` sem comando do piloto, já que a spec diz ao mesmo tempo que a altitude é limitada a `[elev + 2, …]` e que "colidir com o terreno ainda é possível".
+- **Padrão provisório** (implementado em `src/domain/flightPhysics.ts`):
+  1. alvo lateral = `MOVE_X · v · sin(30°)`, ou seja, proa máxima de 30° em relação à linha;
+  2. `vz = clamp(2 · (alvo − alt), ±climbRateMs)`, mais as térmicas;
+  3. o piso só impede a **descida comandada** abaixo de `elev + 2`. A aeronave não é empurrada para cima, e o relevo pode alcançá-la (a colisão é tratada pelo engine em T028).
+- **Resolução:** —
+
+### OQ-007 — Água na cobertura: sempre excluída ou só com `SPECULAR_WATER`?
+- **Aberta em:** 2026-11-14 por T015
+- **Contexto:** [data-model §4](design/data-model.md) diz que `MIN_COVERAGE_GREEN` "exclui água se SPECULAR_WATER", e [domain-math §9](design/domain-math.md) diz que as células de água são excluídas "sempre".
+- **Opções:** A) sempre (domain-math §9); B) só com `SPECULAR_WATER`.
+- **Padrão provisório:** A, porque a domain-math é a especificação normativa das fórmulas e água não tem *tie points* em nenhum caso. `summarizeCoverage` recebe as células excluídas por parâmetro, e quem decide é `evaluateMission` (T018).
+- **Resolução:** A. A tabela de regras de [contracts-real §1](content/contracts-real.md) (`SPECULAR_WATER`) também diz "Células de água são sempre excluídas da cobertura". O comentário de data-model §4 é que está impreciso (2026-11-14, T018).
+
+### OQ-008 — Cobertura e score de missões LiDAR
+- **Aberta em:** 2026-11-14 por T018
+- **Contexto:** o score (domain-math §10.1) usa `cov` a partir da cobertura de fotos (≥ 5 fotos por célula). Missões LiDAR (C03, R04, R10) podem não ter fotos, e a cobertura ficaria toda vermelha, mesmo com a nuvem densa.
+- **Padrão provisório:** em missões cujo contrato exige `SENSOR_KIND = LIDAR` e que tenham grade LiDAR, cada célula conta como `min(5, ⌊5 · densidade / ref⌋)` "fotos", com `ref` = o valor de `MIN_LIDAR_DENSITY` do contrato (ou 10 pts/m²). Ou seja, a célula é verde com a densidade exigida. As demais missões usam a cobertura de fotos.
+- **Resolução:** —
+
+### OQ-009 — Veículo mínimo de R05
+- **Aberta em:** 2026-11-14 por T021
+- **Contexto:** a ficha de R05 em [contracts-rifts](content/contracts-rifts.md) não tem a linha "Veículo mínimo", o que daria `FOOT_BIKE`. Mas o layout macro de [world-map §5.1](features/world-map.md) põe a fenda `e` (R05) "atrás do cinturão `A` → 4x4".
+- **Opções:** A) `PICKUP_4X4`, como no layout do mapa; B) `FOOT_BIKE`, abrindo uma passagem no cinturão.
+- **Padrão provisório:** A. O mapa e o teste de BFS (`MARKER_ACCESS`) tratam `e` como só 4x4. Ao criar a ficha de R05 (T059), usar `minVehicle = PICKUP_4X4`.
+- **Resolução:** —
+
+### OQ-010 — Roubo sem outro contrato jogável
+- **Aberta em:** 2026-11-14 por T025
+- **Contexto:** pela [progression §8](features/progression.md), uma falha crítica (fora do replay) faz a MegaMap roubar o contrato, que só volta depois de o jogador concluir **outro**. Na primeira tentativa do C00, não existe outro contrato: o C01 exige `CONTRACT_DONE(C00)`. O jogo travaria. O mesmo vale para qualquer roubo quando não há nenhum outro contrato disponível ou concluído (os concluídos podem ser repetidos).
+- **Opções:** A) não roubar quando não houver outro contrato jogável; B) isentar só o C00; C) devolver o contrato roubado depois de um tempo.
+- **Padrão provisório:** A (`canBeStolen` em `missionSlice`). Cobre o C00 e qualquer situação equivalente, sem mudar a regra no resto da campanha.
+- **Resolução:** —
+

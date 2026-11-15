@@ -83,6 +83,8 @@ export interface PaymentBreakdown {
   staffCostBRL: CentsBRL;
   /** Reparo de aeronave etc. */
   penaltiesBRL: CentsBRL;
+  /** Bônus de anéis (`COLLECTIBLE_RINGS`): R$ 50 por anel, somado ao total. */
+  ringBonusBRL?: CentsBRL;
   totalBRL: CentsBRL;
 }
 

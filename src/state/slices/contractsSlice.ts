@@ -1,13 +1,49 @@
 import type { StateCreator } from 'zustand';
+import { AudioEngine } from '@/audio/AudioEngine';
+import { CONTRACTS, initialContracts } from '@/data/contracts';
+import { STRINGS } from '@/data/strings';
+import { evaluateUnlock, unlockStateFrom } from '@/domain/progression';
+import type { ContractProgress } from '@/types';
 import type { ContractsActions, GameStore } from '../types';
+
+const LOCKED: ContractProgress = { status: 'LOCKED', completions: 0, bestScore: 0 };
 
 export const createContractsSlice: StateCreator<
   GameStore,
   [],
   [],
   Pick<GameStore, 'contracts'> & ContractsActions
-> = (set) => ({
-  contracts: {},
+> = (set, get) => ({
+  contracts: initialContracts(),
+
+  refreshUnlocks: (options = {}) => {
+    const state = get();
+    const unlock = unlockStateFrom(state);
+    const contracts = { ...state.contracts };
+    const unlocked: string[] = [];
+    for (const contract of CONTRACTS) {
+      // Contratos novos no catálogo (save de uma versão anterior) entram bloqueados.
+      const progress = contracts[contract.id] ?? LOCKED;
+      contracts[contract.id] = progress;
+      if (progress.status !== 'LOCKED' || !evaluateUnlock(contract.unlock, unlock)) continue;
+      contracts[contract.id] = { ...progress, status: 'AVAILABLE' };
+      unlocked.push(contract.id);
+    }
+    set({ contracts });
+
+    for (const id of unlocked) {
+      const contract = CONTRACTS.find((c) => c.id === id);
+      if (!contract) continue;
+      if (contract.dimension === 'RIFT') get().discoverRift(id);
+      if (options.silent) continue;
+      if (contract.dimension === 'RIFT') AudioEngine.get().play('RIFT_OPEN');
+      get().pushToast({
+        type: contract.dimension === 'RIFT' ? 'rift' : 'info',
+        title: STRINGS.contracts.newContract(contract.title),
+      });
+    }
+    return unlocked;
+  },
 
   markStolen: (contractId) =>
     set((s) => {

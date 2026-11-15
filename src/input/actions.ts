@@ -22,3 +22,12 @@ export type ButtonAction =
   | 'MODE_1'
   | 'MODE_2'
   | 'MODE_3';
+
+/** Contexto ativo: cada um lê só as ações pertinentes (input §2). */
+export type InputContext = 'OVERWORLD' | 'FLIGHT' | 'FIELD' | 'UI' | 'HOLO' | 'MINIGAME';
+
+export type PadFamily = 'XBOX' | 'PLAYSTATION' | 'GENERIC';
+export type InputDevice = 'KEYBOARD' | PadFamily;
+
+/** Ações de navegação de UI que repetem enquanto mantidas. */
+export const UI_NAV_ACTIONS: readonly ButtonAction[] = ['UI_UP', 'UI_DOWN', 'UI_LEFT', 'UI_RIGHT'];

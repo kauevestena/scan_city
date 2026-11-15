@@ -1,5 +1,8 @@
 import { Construction } from 'lucide-react';
+import { useRef } from 'react';
+import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { useGameStore } from '@/state/store';
+import { DebugCanvasDemo } from './DebugCanvasDemo';
 import { DebugPanel } from './DebugPanel';
 
 /**
@@ -9,8 +12,11 @@ import { DebugPanel } from './DebugPanel';
 export function DebugScreenShell() {
   const screen = useGameStore((s) => s.session.screen);
   const payload = useGameStore((s) => s.session.payload);
+  const mainRef = useRef<HTMLElement>(null);
+  useFocusNavigation(mainRef);
   return (
     <main
+      ref={mainRef}
       data-testid="debug-screen-shell"
       data-screen={screen}
       className="flex h-full w-full flex-col items-center gap-6 overflow-y-auto bg-slate-950 p-8 text-slate-100"
@@ -24,6 +30,7 @@ export function DebugScreenShell() {
           {JSON.stringify(payload ?? null)}
         </pre>
       </header>
+      <DebugCanvasDemo />
       <DebugPanel />
     </main>
   );

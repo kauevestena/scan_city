@@ -10,6 +10,7 @@ import {
 } from './selectors';
 import { MAX_TRANSACTIONS } from './slices/playerSlice';
 import { useGameStore } from './store';
+import { WORLD_MAP } from '@/world/overworld/tiles';
 
 const get = () => useGameStore.getState();
 
@@ -101,6 +102,12 @@ describe('player', () => {
     get().changeReputation(-500);
     expect(get().player.reputation).toBe(0);
   });
+
+  it('addStats soma os deltas às estatísticas', () => {
+    get().addStats({ distanceTiles: 1.5, photosTaken: 2 });
+    get().addStats({ distanceTiles: 0.25 });
+    expect(get().stats).toMatchObject({ distanceTiles: 1.75, photosTaken: 2, crashes: 0 });
+  });
 });
 
 describe('inventory', () => {
@@ -121,6 +128,148 @@ describe('inventory', () => {
 });
 
 describe('mission', () => {
+  it('startMission cria a missão em planejamento com os padrões do plano', () => {
+    const mission = get().startMission('C00', 0.85);
+    expect(get().mission.active).toBe(mission);
+    expect(mission).toMatchObject({
+      contractId: 'C00',
+      rivalAdjustment: 0.85,
+      isReplay: false,
+      status: 'PLANNING',
+      fieldEquipmentId: 'TOTAL_STATION',
+      groundPoints: [],
+      shots: [],
+    });
+    expect(mission.id).toMatch(/^C00-\d+$/);
+    // field-setup §5.3: Atlas recomendado e possuído, H = clamp(80) no teto de 80 m, p 75, q 65.
+    expect(mission.plan.params).toMatchObject({
+      aircraftId: 'ATLAS',
+      sensorId: 'CAM_PIGEON',
+      forwardOverlapPct: 75,
+      sideOverlapPct: 65,
+      lighting: 'SUN_HIGH',
+    });
+    expect(mission.plan.lines.length).toBeGreaterThan(0);
+  });
+
+  it('startMission de um contrato concluído é repetição', () => {
+    useGameStore.setState((s) => ({
+      contracts: { ...s.contracts, C00: { status: 'COMPLETED', completions: 1, bestScore: 0.8 } },
+    }));
+    expect(get().startMission('C00', 1).isReplay).toBe(true);
+    expect(() => get().startMission('C99', 1)).toThrow(RangeError);
+  });
+
+  it('updatePlan recalcula o plano; setGroundPoints troca os pontos', () => {
+    const mission = get().startMission('C00', 1);
+    get().updatePlan({
+      ...mission.plan.params,
+      heightM: 60,
+      forwardOverlapPct: 70,
+      sideOverlapPct: 60,
+      speedMs: 10,
+    });
+    // G23: plano de referência do C00.
+    const plan = get().mission.active?.plan;
+    expect(plan?.stats.nLines).toBe(6);
+    expect(plan?.stats.totalPhotos).toBe(96);
+    const points = [{ id: 'GCP-01', kind: 'GCP' as const, u: 25, v: 20, elevM: 3, sigmaM: 0 }];
+    get().setGroundPoints(points);
+    expect(get().mission.active?.groundPoints).toEqual(points);
+  });
+
+  it('sem missão ativa, as ações de planejamento não fazem nada', () => {
+    get().updatePlan(createDebugMission('C00', false).plan.params);
+    get().setGroundPoints([]);
+    expect(get().launchMission()).toBeNull();
+    expect(get().mission.active).toBeNull();
+  });
+
+  it('launchMission: σ dos pontos, IN_FLIGHT e um voo da calibração do Atlas', () => {
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, atlasCalibrationFlights: 3 } }));
+    get().startMission('C00', 1);
+    get().setGroundPoints([{ id: 'GCP-01', kind: 'GCP', u: 25, v: 20, elevM: 3, sigmaM: 0 }]);
+    const launched = get().launchMission();
+    // Estação total σ 1 cm, nivelamento padrão 0,5: σ = 1 × (1 + 2 × 0,5) = 2 cm.
+    expect(launched?.groundPoints[0]?.sigmaM).toBeCloseTo(0.02, 9);
+    expect(launched).toMatchObject({ status: 'IN_FLIGHT', atlasCalibrated: true });
+    expect(get().inventory.atlasCalibrationFlights).toBe(2);
+    expect(get().mission.active).toBe(launched);
+    // Sem calibração restante, o Atlas voa descalibrado.
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, atlasCalibrationFlights: 0 } }));
+    get().startMission('C00', 1);
+    expect(get().launchMission()?.atlasCalibrated).toBe(false);
+    expect(get().inventory.atlasCalibrationFlights).toBe(0);
+  });
+
+  it('appendShots e endSortie: concluída guarda os dados e as linhas; queda descarta a surtida', () => {
+    const debug = createDebugMission('C00', true);
+    const shots = debug.shots.slice(0, 20);
+    get().startMission('C00', 1);
+    get().appendShots(shots.slice(0, 10));
+    get().appendShots(shots.slice(10));
+    get().appendShots([]);
+    get().endSortie({ outcome: 'COMPLETED', durationS: 100, completedLines: [0, 1] });
+    expect(get().mission.active).toMatchObject({
+      completedLines: [0, 1],
+      sorties: [{ index: 0, outcome: 'COMPLETED', durationS: 100 }],
+    });
+    expect(get().mission.active?.shots).toHaveLength(20);
+    expect(get().stats).toMatchObject({ photosTaken: 20, flightTimeS: 100, crashes: 0 });
+
+    // Segunda surtida cai: os disparos dela somem, os da primeira ficam.
+    get().appendShots([{ ...(shots[0] as (typeof shots)[0]), i: 20, sortie: 1 }]);
+    get().endSortie({ outcome: 'CRASH', durationS: 30, completedLines: [2] });
+    expect(get().mission.active?.shots).toHaveLength(20);
+    expect(get().mission.active?.completedLines).toEqual([0, 1]);
+    expect(get().mission.active?.events.crashes).toBe(1);
+    expect(get().stats).toMatchObject({ photosTaken: 20, flightTimeS: 130, crashes: 1 });
+  });
+
+  it('queda: descarta só os dados da surtida; as colisões ficam contadas', () => {
+    const shots = createDebugMission('C00', true).shots;
+    get().startMission('C00', 1);
+    get().appendShots(shots.slice(0, 10));
+    get().endSortie({ outcome: 'RTH', durationS: 50, completedLines: [0], collisions: 0 });
+    get().appendShots(shots.slice(10, 15).map((s) => ({ ...s, sortie: 1 })));
+    get().endSortie({ outcome: 'CRASH', durationS: 20, completedLines: [1], collisions: 3 });
+    const m = get().mission.active;
+    expect(m?.shots).toHaveLength(10);
+    expect(m?.shots.every((s) => s.sortie === 0)).toBe(true);
+    expect(m?.completedLines).toEqual([0]);
+    expect(m?.events).toMatchObject({ crashes: 1, collisions: 3 });
+  });
+
+  it('milho: a decolagem enche o papo; a surtida gasta o que voou; a nova surtida realimenta', () => {
+    useGameStore.setState((s) => ({ inventory: { ...s.inventory, corn: { stock: 20, crop: 3 } } }));
+    get().startMission('C00', 1);
+    get().launchMission();
+    expect(get().inventory.corn).toEqual({ stock: 13, crop: 10 });
+    get().endSortie({ outcome: 'RTH', durationS: 300, completedLines: [0], cornUsed: 4 });
+    expect(get().inventory.corn).toEqual({ stock: 13, crop: 6 });
+    // Nunca fica negativo.
+    get().endSortie({ outcome: 'RTH', durationS: 10, completedLines: [], cornUsed: 99 });
+    expect(get().inventory.corn.crop).toBe(0);
+    expect(get().startNewSortie()).toBe(true);
+    expect(get().inventory.corn).toEqual({ stock: 3, crop: 10 });
+  });
+
+  it('resumePlanning volta a missão ao planejamento; sem missão, nada muda', () => {
+    get().startMission('C00', 1);
+    get().launchMission();
+    get().resumePlanning();
+    expect(get().mission.active?.status).toBe('PLANNING');
+    get().discardActive();
+    get().resumePlanning();
+    get().endSortie({ outcome: 'COMPLETED', durationS: 1, completedLines: [] });
+    get().appendShots(createDebugMission('C00', true).shots.slice(0, 1));
+    expect(get().mission.active).toBeNull();
+  });
+
+  it('novo jogo: C00 disponível', () => {
+    expect(get().contracts.C00).toEqual({ status: 'AVAILABLE', completions: 0, bestScore: 0 });
+  });
+
   it('beginMission → queueActive → consumePending', () => {
     get().queueActive();
     expect(get().mission.pending).toHaveLength(0);
@@ -169,10 +318,11 @@ describe('contracts e rival', () => {
   });
 
   it('contratos desconhecidos são ignorados', () => {
+    const before = get().contracts;
     get().steal('C99');
     get().markStolen('C99');
     expect(get().rival.score).toBe(0);
-    expect(get().contracts).toEqual({});
+    expect(get().contracts).toBe(before);
   });
 
   it('selectContractIdsByStatus é memoizado pela identidade de contracts', () => {
@@ -212,6 +362,14 @@ describe('museum', () => {
 });
 
 describe('world', () => {
+  it('novo jogo: o avatar começa no centro do tile de spawn `@`', () => {
+    expect(get().world.avatar).toEqual({
+      x: WORLD_MAP.spawn.x + 0.5,
+      y: WORLD_MAP.spawn.y + 0.5,
+      facing: 'S',
+    });
+  });
+
   it('setAvatar faz merge parcial', () => {
     get().setAvatar({ x: 10, y: 20 });
     expect(get().world.avatar).toEqual({ x: 10, y: 20, facing: 'S' });
@@ -230,6 +388,24 @@ describe('world', () => {
     expect(get().cycleVehicle()).toBe('LAB_VAN');
     expect(get().cycleVehicle()).toBe('FOOT_BIKE');
     expect(get().world.vehicleMode).toBe('FOOT_BIKE');
+  });
+
+  it('grantXp sobe de nível com um toast por nível; addCorn e markFieldEvent', () => {
+    get().grantXp(100);
+    expect(get().player.level).toBe(2);
+    expect(get().session.toasts.map((t) => t.title)).toContain('Nível 2! +1 ponto de habilidade');
+    const xp = get().player.xp;
+    get().grantXp(0);
+    expect(get().player.xp).toBe(xp);
+
+    const stock = get().inventory.corn.stock;
+    get().addCorn(3);
+    expect(get().inventory.corn.stock).toBe(stock + 3);
+    get().addCorn(-1000);
+    expect(get().inventory.corn.stock).toBe(0);
+
+    get().markFieldEvent(1234);
+    expect(get().world.lastEventAt).toBe(1234);
   });
 
   it('dimensão e fendas descobertas', () => {

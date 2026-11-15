@@ -1,7 +1,18 @@
 import { findTransition, type TransitionDef } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import type { GameStore, ScreenPayload } from '@/state/types';
-import type { FlightLine, FlightPlan, MissionData, MuseumSector, ScreenId, Shot } from '@/types';
+import type {
+  ContractProgress,
+  FlightLine,
+  FlightPlan,
+  MissionData,
+  MuseumSector,
+  ScreenId,
+  Shot,
+} from '@/types';
+import { AIRCRAFT, FIELD_EQUIPMENT, LENSES, PAYLOADS, SENSORS, VEHICLES } from '@/data/catalog';
+import { COSMETICS } from '@/data/cosmetics';
+import { CONTRACTS } from '@/data/contracts';
 import type { DebugFlags } from './debugFlags';
 
 /**
@@ -192,9 +203,16 @@ export function prepareDebugTransition(
           pending: state.mission.pending.filter((m) => m.contractId !== contractId),
         },
       });
+      // Como o Aceitar do briefing: a missão nasce em planejamento.
+      store.getState().startMission(contractId, 1);
       return { contractId, rivalAdjustment: 1 };
     }
-    case 'T8':
+    case 'T8': {
+      // Decolar: a missão em planejamento passa a voar, como no botão do Field Setup.
+      const mission = ensureActiveMission(store, contractId, false);
+      if (mission.status !== 'IN_FLIGHT') store.getState().launchMission();
+      return { missionId: mission.id };
+    }
     case 'T16':
       return { missionId: ensureActiveMission(store, contractId, false).id };
     case 'T9': {
@@ -253,6 +271,33 @@ export function applyDebugFlags(flags: DebugFlags, store: Store = useGameStore):
     patch.player = { ...state.player, money: Math.max(0, Math.round(flags.money * 100)) };
   }
   if (flags.skipIntro) patch.flags = { ...state.flags, introSeen: true };
+  if (flags.unlockAll) {
+    // Todos os itens possuídos e todos os contratos disponíveis.
+    patch.contracts = Object.fromEntries(
+      CONTRACTS.map((c) => [
+        c.id,
+        state.contracts[c.id]?.status === 'COMPLETED'
+          ? (state.contracts[c.id] as ContractProgress)
+          : {
+              completions: 0,
+              bestScore: 0,
+              ...state.contracts[c.id],
+              status: 'AVAILABLE' as const,
+            },
+      ]),
+    );
+    patch.inventory = {
+      ...state.inventory,
+      aircraft: AIRCRAFT.map((a) => a.id),
+      sensors: [...new Set([...state.inventory.sensors, ...SENSORS.map((s) => s.id)])],
+      lenses: LENSES.map((l) => l.id),
+      payloads: PAYLOADS.map((p) => p.id),
+      vehicles: VEHICLES.map((v) => v.id),
+      fieldEquipment: FIELD_EQUIPMENT.map((f) => f.id),
+      hardware: 'CLOUD',
+      cosmetics: COSMETICS.map((c) => c.id),
+    };
+  }
   if (Object.keys(patch).length > 0) store.setState(patch);
 
   if (flags.screen !== null && flags.screen !== 'UIKIT' && flags.screen !== 'SOUNDBOARD') {

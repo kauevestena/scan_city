@@ -30,6 +30,11 @@ export function snapToStep(raw: number, min: number, max: number, step: number):
   return clamp(Number(snapped.toFixed(decimalsOf(step) + 2)), min, max);
 }
 
+/** Passos por ajuste quando a tecla é mantida: começa em 1 e acelera até 10. */
+export function sliderAcceleration(repeatCount: number): number {
+  return Math.min(10, 1 + Math.floor(repeatCount / 2));
+}
+
 export function Slider({
   label,
   value,
@@ -46,6 +51,7 @@ export function Slider({
   const labelId = useId();
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const repeats = useRef(0);
 
   const pct = (x: number) => `${clamp(invLerp(min, max, x), 0, 1) * 100}%`;
   const inWarn = warnRange !== undefined && value >= warnRange[0] && value <= warnRange[1];
@@ -56,14 +62,15 @@ export function Slider({
     if (next !== value) onChange(next);
   };
 
+  // ←/→ ajustam; ↑/↓ ficam para a navegação de foco (input §5).
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (disabled) return;
+    repeats.current = e.repeat ? repeats.current + 1 : 0;
+    const accel = sliderAcceleration(repeats.current);
     const big = step * 10;
     const deltas: Record<string, number> = {
-      ArrowLeft: -step,
-      ArrowDown: -step,
-      ArrowRight: step,
-      ArrowUp: step,
+      ArrowLeft: -step * accel,
+      ArrowRight: step * accel,
       PageDown: -big,
       PageUp: big,
     };
