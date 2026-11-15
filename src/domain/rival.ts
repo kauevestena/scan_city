@@ -1,5 +1,5 @@
 /** Rival MegaMap — domain-math §13 e progression §8. */
-import type { Rng } from '@/lib/rng';
+import { hashString, mulberry32, type Rng } from '@/lib/rng';
 import type { ContractProgress, QualityReport } from '@/types';
 
 export const COUNTER_OFFER_CHANCE = 0.2;
@@ -11,6 +11,27 @@ export const ASPRS_TOP_CLASS = 'ASPRS-H5';
 /** A MegaMap faz contraproposta? p = 0,20 · rivalChance. */
 export function rollCounterOffer(rng: Rng, rivalChanceMod: number): boolean {
   return rng.next() < COUNTER_OFFER_CHANCE * rivalChanceMod;
+}
+
+/**
+ * Seed do sorteio da contraproposta: a seed global do save, o contrato e quantas vezes ele já
+ * foi aceito/decidido (`salt`), para cada aceite ter o seu sorteio, sempre reproduzível.
+ */
+export function counterOfferSeed(globalSeed: number, contractId: string, salt: number): number {
+  return (globalSeed ^ hashString(contractId) ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+}
+
+/** A MegaMap faz contraproposta neste aceite? Replays nunca recebem (progression §8). */
+export function counterOfferFor(input: {
+  globalSeed: number;
+  contractId: string;
+  salt: number;
+  rivalChanceMod: number;
+  isReplay: boolean;
+}): boolean {
+  if (input.isReplay) return false;
+  const rng = mulberry32(counterOfferSeed(input.globalSeed, input.contractId, input.salt));
+  return rollCounterOffer(rng, input.rivalChanceMod);
 }
 
 /** Classe a guardar em `ContractProgress.bestClass` a partir do relatório. */

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('C00: sugestão automática de GCPs → plano padrão → checklist → decolar', async ({ page }) => {
-  await page.goto('/?debug=1&skipIntro=1');
+  await page.goto('/?debug=1&skipIntro=1&seed=4');
   await page.getByRole('button', { name: 'Porta — sair para o mapa' }).click();
   await expect(page.getByTestId('world-map-screen')).toBeVisible();
   await page.keyboard.press('F9');

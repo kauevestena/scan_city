@@ -164,6 +164,9 @@ describe('CareerPanel — perfil', () => {
     );
     const rival = screen.getByTestId('profile-rival');
     expect(rival).toHaveTextContent('Contratos perdidos para a MegaMap: 2');
+    expect(screen.getByTestId('rival-summary')).toHaveTextContent(
+      'MegaMap: 2 contratos roubados, 1 contraproposta',
+    );
     expect(rival).toHaveTextContent('Contrato C05 tomado pela MegaMap');
     expect(rival).toHaveTextContent('Contraproposta em C06');
   });

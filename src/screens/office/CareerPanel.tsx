@@ -161,6 +161,9 @@ function ProfileTab() {
         <h3 className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
           {P.rival}
         </h3>
+        <p className="font-mono text-xs text-slate-200" data-testid="rival-summary">
+          {P.rivalSummary(steals.length, rival.history.length - steals.length)}
+        </p>
         {steals.length === 0 ? (
           <p className="text-sm text-slate-400">{P.rivalNone}</p>
         ) : (

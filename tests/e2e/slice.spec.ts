@@ -6,7 +6,7 @@ test('vertical slice do C00: escritório → campo → voo → recarregar → pr
   page,
 }) => {
   test.setTimeout(180_000);
-  await page.goto('/?debug=1&autopilot=1&skipIntro=1');
+  await page.goto('/?debug=1&autopilot=1&skipIntro=1&seed=4');
   await expect(page.getByTestId('office-screen')).toBeVisible();
   await page.getByRole('button', { name: 'Porta — sair para o mapa' }).click();
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getDebugFlags } from '@/app/debugFlags';
 import { characterColors } from '@/data/cosmetics';
 import { getVehicle } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
@@ -103,7 +104,9 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
         if (runtime.blocking) return;
         const { stats, createdAt, world } = useGameStore.getState();
         const tiles = Math.floor(stats.distanceTiles + e.pendingDistance);
-        const rng = mulberry32((createdAt ^ Math.imul(tiles, 0x9e3779b1)) >>> 0);
+        // A seed global é a do save, ou a de `?seed=` na depuração.
+        const seed = getDebugFlags().seed ?? createdAt;
+        const rng = mulberry32((seed ^ Math.imul(tiles, 0x9e3779b1)) >>> 0);
         const nowS = Date.now() / 1000;
         const id = rollFieldEvent(rng, tile, world.vehicleMode, nowS, world.lastEventAt);
         if (id && runtime.trigger(id)) useGameStore.getState().markFieldEvent(nowS);

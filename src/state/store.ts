@@ -105,6 +105,8 @@ export function hydrateGame(): LoadResult {
   useGameStore.setState({ settings: loadSettings() });
   // Contratos acrescentados ao catálogo depois do save entram e, se for o caso, já liberados.
   useGameStore.getState().refreshUnlocks({ silent: true });
+  // Com um save carregado, o museu rende pelo tempo fora (até 2 h), com toast.
+  if (lastLoad.status === 'OK') useGameStore.getState().applyOfflineIncome(Date.now());
   pendingSave = null;
   if (lastLoad.status === 'INVALID') {
     useGameStore.getState().pushToast({

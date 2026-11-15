@@ -24,4 +24,12 @@ export const createRivalSlice: StateCreator<
       },
     }));
   },
+
+  recordCounterOffer: (contractId) =>
+    set((s) => ({
+      rival: {
+        ...s.rival,
+        history: [...s.rival.history, { at: Date.now(), contractId, kind: 'COUNTER_OFFER' }],
+      },
+    })),
 });

@@ -47,6 +47,8 @@ export interface SessionState {
   activeModal: string | null;
   /** Últimas 50 transações, só em memória (progression §4). */
   transactions: Transaction[];
+  /** Frações de centavo da renda do museu ainda não creditadas (progression §10). */
+  incomeCarryCents: number;
 }
 
 export interface MissionState {
@@ -208,6 +210,18 @@ export interface MissionActions {
 
 export interface MuseumActions {
   setFeatured: (wing: Dimension, contractId: string | null) => void;
+  /**
+   * Renda passiva do museu (progression §10): credita `renda/min × Δt` desde `lastIncomeAt`,
+   * guarda as frações de centavo e soma os visitantes. Devolve os centavos creditados.
+   */
+  tickIncome: (nowMs: number) => CentsBRL;
+  /** Avança o relógio da renda sem creditar (tempo pausado não rende). */
+  syncIncomeClock: (nowMs: number) => void;
+  /**
+   * Ao carregar o save: credita a renda do tempo fora (no máximo 2 h), com toast. Devolve os
+   * centavos creditados.
+   */
+  applyOfflineIncome: (nowMs: number) => CentsBRL;
 }
 
 export interface WorldActions {
@@ -223,6 +237,8 @@ export interface WorldActions {
 export interface RivalActions {
   /** A MegaMap toma o contrato (progression §8). */
   steal: (contractId: string) => void;
+  /** Registra uma contraproposta da MegaMap no histórico (não pontua a rival). */
+  recordCounterOffer: (contractId: string) => void;
 }
 
 export interface SettingsActions {
