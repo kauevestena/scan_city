@@ -3,7 +3,7 @@ import { formatBRL } from '@/lib/format';
 import { transitionsFrom } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import { Button, Panel } from '@/ui';
-import { markerViews } from '@/world/overworld/markers';
+import { activeDimension, markerViews } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createDebugMission, DEBUG_CONTRACT_ID, prepareDebugTransition } from './debugFixtures';
 import { getDebugFlags } from './debugFlags';
@@ -24,7 +24,13 @@ export function DebugPanel() {
   const active = useGameStore((s) => s.mission.active?.id ?? null);
   const contractId = getDebugFlags().contract ?? DEBUG_CONTRACT_ID;
   const contracts = useGameStore((s) => s.contracts);
-  const markers = screen === 'WORLD_MAP' ? markerViews(contracts, 'REAL', []) : [];
+  const dimensionTab = useGameStore((s) => s.world.dimensionTab);
+  const discoveredRifts = useGameStore((s) => s.world.discoveredRifts);
+  // Os marcadores da aba que está na tela: contratos do Mundo Real ou as fendas descobertas.
+  const markers =
+    screen === 'WORLD_MAP'
+      ? markerViews(contracts, activeDimension({ dimensionTab, discoveredRifts }), discoveredRifts)
+      : [];
 
   const summary = { screen, payload: payload ?? null, level, reputation, pending, active };
 

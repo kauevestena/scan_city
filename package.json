@@ -16,8 +16,9 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "check:placeholders": "node scripts/check-placeholders.mjs",
+    "check:terms": "node scripts/check-forbidden-terms.mjs",
     "check:assets": "node scripts/check-assets.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:placeholders"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:placeholders && npm run check:terms"
   },
   "dependencies": {
     "lucide-react": "^1.72.0",

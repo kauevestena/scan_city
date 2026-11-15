@@ -1222,11 +1222,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [contracts-rifts §1, §3](content/contracts-rifts.md), [world-map §5.4](features/world-map.md), [constitution §6](constitution.md)
 - **Arquivos:** \+ `src/data/contracts/rifts.ts` (vazio tipado, preenchido nas tarefas seguintes), `scripts/check-forbidden-terms.mjs`, teste `src/data/contracts/forbiddenTerms.test.ts` · ~ mapa (aba Fendas, portais, tonalidade), briefing (moldura rift), transição com distorção, HUD com moldura rift
 - **Aceite:**
-  - [ ] O critério 3 de [world-map §8](features/world-map.md), usando uma fenda de teste.
-  - [ ] `npm run check:terms` integrado ao `verify`.
-  - [ ] Retratos como emblemas.
+  - [x] O critério 3 de [world-map §8](features/world-map.md), usando uma fenda de teste.
+  - [x] `npm run check:terms` integrado ao `verify`.
+  - [x] Retratos como emblemas.
 - **Verificação:** `npm run check:terms && npx vitest run src/data/contracts src/screens/world`
-- **Status:** ☐
+- **Notas de implementação:**
+  - **Dados.** `data/contracts/rifts.ts` exporta `RIFT_CONTRACTS: readonly Contract[] = []` (vazio e tipado) e `index.ts` o junta a `CONTRACTS`; as tarefas T060–T070 só acrescentam fichas ali. Sem fendas reais ainda, tudo o que é de tela e de motor é testado com duas fendas fictícias (`R01`/marcador `a`, `R02`/`b`, liberadas pelo C01) injetadas por `vi.mock('@/data/contracts', …withTestRifts)` — `src/test/riftFixtures.ts`.
+  - **Guarda de paródias.** `scripts/check-forbidden-terms.mjs` varre `src/` (nomes, termos e títulos de obras existentes; minúsculas, sem acento, com limites de palavra para não pegar trechos de outras palavras) e sai com 1 listando cada ocorrência; entra no `npm run verify` (`… && npm run check:placeholders && npm run check:terms`) e é exercitado por `forbiddenTerms.test.ts` (o script limpo passa; um arquivo com termo proibido reprova). Os próprios termos ficam só no script, e os testes os montam por partes para não se denunciarem.
+  - **Mapa (critério 3 de world-map §8).** A aba "Fendas Dimensionais" só existe depois da primeira descoberta: `world.discoveredRifts` é preenchido por `refreshUnlocks` quando uma fenda sai de `LOCKED` (um único `RIFT_OPEN` por lote, mesmo que duas abram juntas, e o aviso "Anomalia dimensional detectada: …"). `Tab` (`TOGGLE_DIMENSION`) alterna as abas; antes da primeira descoberta, mostra a dica "Nenhuma anomalia detectada ainda". `activeDimension(world)` (`world/overworld/markers.ts`) decide a aba efetiva — a aba salva só vale com fendas descobertas — e é usada pelo mapa e pelo painel de depuração (os botões de teleporte seguem a aba). Cada aba tem seu próprio cache de marcadores; na aba Fendas só aparecem os portais descobertos (`a`–`k`), com o status de cada contrato.
+  - **Visual.** `tileRenderer`: `drawPortal` (anéis violeta pulsantes com oito faíscas em órbita, sem as faíscas se `reduceFlashes`; fenda concluída fica calma e verde) e `drawRiftAtmosphere` (tonalidade violeta e 60 partículas, semente fixa `0x51f7`) quando a aba é a das Fendas; o minimapa também ganha cores de fenda. `RiftWarp` (`screens/common`): distorção de 700 ms (faixas horizontais deslocadas com tonalidade) ao aceitar uma fenda no briefing, antes de ir ao FIELD_SETUP; `reduceFlashes` a pula e o aceite segue direto. `BriefingModal`: etiqueta "Fenda dimensional" (`briefing-rift-frame`, `data-dimension="RIFT"`) e moldura violeta. Voo: `FlightHud` ganha a moldura violeta (`rift-hud-frame`, `data-rift`) e o `FlightEngine` desenha `drawRiftSky` (degradê violeta) e 48 partículas flutuantes (`drawRiftParticles`, sem elas com `reduceFlashes`) quando `contract.dimension === 'RIFT'`.
+  - **Depuração.** `?debug=1&unlockAll=1` também descobre as fendas do catálogo (a aba Fendas aparece sem jogar), e o painel de depuração teleporta para os marcadores da aba que está na tela.
+  - **Aceites.** *Critério 3*: com o C01 concluído, `R01`/`R02` saem do bloqueio, `RIFT_OPEN` toca uma vez, os portais só são interativos na aba Fendas (Espaço neles abre o briefing de fenda) e o jogo novo não mostra a aba (`WorldMapScreen.rift.test.tsx`, 9 testes). *`check:terms` no `verify`*: ver acima. *Retratos como emblemas*: `forbiddenTerms.test.ts` exige, de todo contrato de `RIFT_CONTRACTS`, um `client.portrait` de emblema abstrato (forma entre CIRCLE/SHIELD/HEXAGON/DIAMOND/STAR, ícone, duas cores hex e 1–3 iniciais, sem rosto); vale para as fendas reais a partir de T060, e as fendas de teste seguem o mesmo molde.
+  - Revisão visual (com fenda de teste temporária, revertida): portal violeta com faíscas sobre o gramado, aba "Fendas Dimensionais" ativa, briefing com a etiqueta e a moldura violeta, quadro da distorção a meio caminho e o voo com HUD emoldurado e o céu de fenda. Sem erros no console.
+- **Status:** ✅
 
 ### T060–T070 — Fendas R01 a R11
 Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 = R11, T064 = R06, T065 = R07, T066 = R09, T067 = R03, T068 = R05, T069 = R04, T070 = R10. A ordem segue o desbloqueio.
@@ -1412,7 +1420,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ✅ |
-| REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ☐ |
+| REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ✅ |
 | REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ✅ |
 | REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |

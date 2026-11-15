@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX } from 'lucide-react';
+import { CircleCheck, CircleX, Sparkles } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { getDebugFlags } from '@/app/debugFlags';
 import { itemName } from '@/data/catalog';
@@ -13,6 +13,7 @@ import { selectModifiers } from '@/state/selectors';
 import { useGameStore } from '@/state/store';
 import type { Contract, UnlockCondition } from '@/types';
 import { Button, ChecklistItem, cx, DialogueBox, EmblemBadge, Modal } from '@/ui';
+import { RiftWarp } from '../common/RiftWarp';
 import { CounterOfferModal } from './CounterOfferModal';
 import { SpecialRulesList } from './SpecialRulesList';
 
@@ -106,10 +107,17 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
   ]);
 
   const [counterOffer, setCounterOffer] = useState(false);
-  const start = (rivalAdjustment: number) => {
+  // Fenda: a missão só começa depois da distorção (contracts-rifts §1), salvo `reduceFlashes`.
+  const [warp, setWarp] = useState<number | null>(null);
+  const rift = contract.dimension === 'RIFT';
+  const begin = (rivalAdjustment: number) => {
     const { startMission, goTo } = useGameStore.getState();
     startMission(contractId, rivalAdjustment);
     goTo('FIELD_SETUP', { contractId, rivalAdjustment });
+  };
+  const start = (rivalAdjustment: number) => {
+    if (rift && !useGameStore.getState().settings.reduceFlashes) setWarp(rivalAdjustment);
+    else begin(rivalAdjustment);
   };
   const accept = () => {
     const state = useGameStore.getState();
@@ -142,6 +150,9 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
     </>
   );
 
+  // A distorção cobre a tela; ao fim, a missão nasce e o campo abre.
+  if (warp !== null) return <RiftWarp onDone={() => begin(warp)} />;
+
   // A contraproposta toma o lugar do briefing até o jogador decidir.
   if (counterOffer) {
     return (
@@ -155,7 +166,23 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
 
   return (
     <Modal open title={contract.title} onClose={onClose} size="lg" footer={footer}>
-      <div className="grid gap-6 md:grid-cols-2" data-testid="briefing" data-status={status}>
+      {rift && (
+        <p
+          className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-500/60 bg-violet-500/10 px-3 py-1 text-xs font-semibold tracking-widest text-violet-300 uppercase"
+          data-testid="briefing-rift-frame"
+        >
+          <Sparkles size={14} aria-hidden /> {STRINGS.world.riftFrame}
+        </p>
+      )}
+      <div
+        className={cx(
+          'grid gap-6 md:grid-cols-2',
+          rift && 'rounded-lg border border-violet-500/50 bg-violet-950/20 p-3',
+        )}
+        data-testid="briefing"
+        data-status={status}
+        data-dimension={contract.dimension}
+      >
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <EmblemBadge emblem={contract.client.portrait} size={48} title={contract.client.name} />

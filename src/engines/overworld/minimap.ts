@@ -34,7 +34,13 @@ export function drawMinimap(
   ctx.fillStyle = COLORS.warn;
   ctx.fillRect(door.x - 1, door.y - 1, 3, 3);
   for (const m of markers) {
-    ctx.fillStyle = MARKER_COLORS[m.status];
+    // Fendas: violeta (verde depois de concluídas), como o portal.
+    ctx.fillStyle =
+      m.kind === 'RIFT'
+        ? m.status === 'COMPLETED'
+          ? COLORS.ok
+          : COLORS.rift
+        : MARKER_COLORS[m.status];
     ctx.fillRect(m.x - 1, m.y - 1, 3, 3);
   }
   ctx.fillStyle = Math.floor(timeS * 3) % 2 === 0 ? COLORS.text : COLORS.danger;

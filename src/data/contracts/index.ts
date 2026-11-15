@@ -1,11 +1,12 @@
-/** Catálogo de contratos (data-model §4): Mundo Real e, a partir de T059, Fendas. */
+/** Catálogo de contratos (data-model §4): Mundo Real e Fendas Dimensionais. */
 import type { Contract, ContractProgress } from '@/types';
 import { REAL_CONTRACTS } from './real';
+import { RIFT_CONTRACTS } from './rifts';
 
 export { C00, C01, C02, C03, C04, C05, C06 } from './real';
 export { MUSEUM_GRID, museumSlot, museumSlotCoords } from './museum';
 
-export const CONTRACTS: readonly Contract[] = [...REAL_CONTRACTS];
+export const CONTRACTS: readonly Contract[] = [...REAL_CONTRACTS, ...RIFT_CONTRACTS];
 
 const BY_ID = new Map(CONTRACTS.map((c) => [c.id, c]));
 const BY_MARKER = new Map(CONTRACTS.map((c) => [c.overworldMarker, c]));

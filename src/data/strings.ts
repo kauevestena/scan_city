@@ -356,6 +356,7 @@ export const STRINGS = {
   },
   contracts: {
     newContract: (title: string) => `Novo contrato: ${title}`,
+    riftDetected: (title: string) => `Anomalia dimensional detectada: ${title}`,
     payment: (title: string) => `Contrato: ${title}`,
     souvenir: (name: string) => `Souvenir: ${name}`,
     stolen: 'O cliente fechou com a MegaMap',
@@ -830,6 +831,9 @@ export const STRINGS = {
     viewContract: (title: string) => `Ver contrato "${title}"`,
     minimap: 'Minimapa',
     queuedToast: 'Dados salvos. Leve-os à Workstation no escritório',
+    noRifts: 'Nenhuma anomalia detectada ainda',
+    riftTabHint: 'Tab alterna entre o Mundo Real e as Fendas',
+    riftFrame: 'Fenda dimensional',
     honk: 'Buzinar',
     events: {
       FLAT_TIRE: {

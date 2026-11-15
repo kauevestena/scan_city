@@ -129,6 +129,19 @@ describe('FlightHud', () => {
     expect(screen.getByTestId('flight-hud')).toHaveTextContent('158 pts/m² · solo 17');
   });
 
+  it('moldura de fenda: um filete violeta em volta do HUD, só nas fendas', () => {
+    const { rerender } = render(<FlightHud snap={snap()} />);
+    expect(screen.getByTestId('flight-hud')).toHaveAttribute('data-rift', 'false');
+    expect(screen.queryByTestId('rift-hud-frame')).not.toBeInTheDocument();
+    rerender(<FlightHud snap={snap()} rift />);
+    expect(screen.getByTestId('flight-hud')).toHaveAttribute('data-rift', 'true');
+    const frame = screen.getByTestId('rift-hud-frame');
+    expect(frame).toHaveAttribute('aria-hidden', 'true');
+    expect(frame.className).toContain('border-violet-500');
+    // O HUD de sempre continua inteiro dentro da moldura.
+    expect(screen.getByTestId('hud-line')).toHaveTextContent('LINHA 3/6');
+  });
+
   it('bateria e fase fora do RUN', () => {
     render(
       <FlightHud

@@ -194,7 +194,7 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         className="absolute inset-0 block h-full w-full"
         data-testid="flight-canvas"
       />
-      {hud && <FlightHud snap={hud} />}
+      {hud && <FlightHud snap={hud} rift={getContract(mission.contractId).dimension === 'RIFT'} />}
       <TutorialHint step={3} className="absolute top-28 left-1/2 -translate-x-1/2" />
       {result && (
         <PostFlightDialog

@@ -3,6 +3,14 @@ import { contractByMarker } from '@/data/contracts';
 import type { ContractProgress, ContractStatus, Dimension } from '@/types';
 import { WORLD_MAP, type MapMarker, type OverworldMap } from './tiles';
 
+/** Dimensão de fato exibida: a aba das Fendas só existe depois da primeira descoberta. */
+export function activeDimension(world: {
+  dimensionTab: Dimension;
+  discoveredRifts: readonly string[];
+}): Dimension {
+  return world.dimensionTab === 'RIFT' && world.discoveredRifts.length > 0 ? 'RIFT' : 'REAL';
+}
+
 export interface MarkerView extends MapMarker {
   contractId: string;
   status: ContractStatus;

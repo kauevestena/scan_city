@@ -1,5 +1,5 @@
 import { CONTRACTS, initialContracts } from '@/data/contracts';
-import { markerViews } from './markers';
+import { activeDimension, markerViews } from './markers';
 import { WORLD_MAP } from './tiles';
 
 const REAL = CONTRACTS.filter((c) => c.dimension === 'REAL');
@@ -35,5 +35,14 @@ describe('markerViews', () => {
       markers: [{ char: '9', kind: 'CONTRACT' as const, x: 1, y: 1 }],
     };
     expect(markerViews({}, 'REAL', [], orphan)).toEqual([]);
+  });
+});
+
+describe('activeDimension', () => {
+  it('a aba das Fendas só vale depois da primeira descoberta', () => {
+    expect(activeDimension({ dimensionTab: 'REAL', discoveredRifts: [] })).toBe('REAL');
+    expect(activeDimension({ dimensionTab: 'RIFT', discoveredRifts: [] })).toBe('REAL');
+    expect(activeDimension({ dimensionTab: 'REAL', discoveredRifts: ['R01'] })).toBe('REAL');
+    expect(activeDimension({ dimensionTab: 'RIFT', discoveredRifts: ['R01'] })).toBe('RIFT');
   });
 });
