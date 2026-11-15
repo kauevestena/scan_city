@@ -6,6 +6,14 @@ export const CROP_CAPACITY = 10;
 
 export type SortieInventory = Pick<SaveGame['inventory'], 'corn'>;
 
+/**
+ * A missão tem dados para levar ao escritório? Fotos ou a nuvem do LiDAR: um voo de pod LiDAR
+ * (C03) pode terminar sem uma foto sequer.
+ */
+export function missionHasData(mission: Pick<MissionData, 'shots' | 'lidar'>): boolean {
+  return mission.shots.length > 0 || mission.lidar !== undefined;
+}
+
 /** Baterias restantes nesta missão: `1 + reservas − surtidas já voadas` (não vale para o Atlas). */
 export function batteriesLeft(
   mission: Pick<MissionData, 'sorties'>,

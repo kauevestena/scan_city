@@ -3,6 +3,7 @@ import { CATALOG, getAircraft, getSensor } from '@/data/catalog';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { referenceParams } from '@/domain/referencePlan';
 import { estimateFromPlan } from '@/domain/requirements';
+import { meanCanopy } from '@/engines/field/satellite';
 import { RULE_PARAMS } from '@/domain/specialRules';
 import { meanAoiElevation } from '@/engines/flight/FlightEngine';
 import { createTerrain } from '@/world/terrain/createTerrain';
@@ -10,7 +11,15 @@ import { MARKER_ACCESS } from '@/data/overworld/map';
 import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import type { VehicleId } from '@/types';
-import { C01, C02, C04, C05, C06, museumSlotCoords } from '.';
+import { HARDWARE } from '@/data/catalog';
+import { computePayment, computeRewards } from '@/domain/economy';
+import { createCoverageGrid } from '@/domain/coverage';
+import { evaluateMission, lidarStats, type MissionContext } from '@/domain/mission';
+import { neutralModifiers } from '@/domain/modifiers';
+import { syntheticMission } from '@/domain/referencePlan';
+import { generateProduct } from '@/engines/raster/products';
+import { mulberry32 } from '@/lib/rng';
+import { C01, C02, C03, C04, C05, C06, museumSlotCoords } from '.';
 
 describe('C01 — Metrópole Vertical', () => {
   it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
@@ -394,5 +403,173 @@ describe('C04 — Mina a Céu Aberto', () => {
     expect(reach('PICKUP_4X4')).toBe(true);
     for (const v of ['FOOT_BIKE', 'COMPACT_CAR', 'LAB_VAN'] as const)
       expect(reach(v), v).toBe(false);
+  });
+});
+
+describe('C03 — Floresta Amazônica', () => {
+  const terrain = createTerrain(C03);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    // O T3 vem com RTK, mas o kit GNSS é do combo do T2: aqui o jogador o tem.
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+
+  it('conforme a ficha: AOI, teto de 150 m, vento, regra, requisitos, recompensa e museu', () => {
+    expect(C03.title).toBe('Floresta Amazônica');
+    expect(C03.client.name).toBe('Dra. Jaci Tupinambá');
+    expect(C03.client.portrait).toMatchObject({
+      shape: 'CIRCLE',
+      icon: 'TreePine',
+      initials: 'JT',
+    });
+    expect([C03.biome, C03.seed]).toEqual(['AMAZON', 3003]);
+    expect(C03.aoi).toEqual({ widthM: 500, lengthM: 1000 });
+    expect([C03.ceilingM, C03.terrainReliefM]).toEqual([150, 40]);
+    expect(C03.lightingOptions).toEqual(['OVERCAST', 'SUN_HIGH']);
+    expect(C03.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 180 });
+    expect(C03.specialRules).toEqual(['DENSE_CANOPY']);
+    expect(C03.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
+      ['CRITICAL', { type: 'MIN_GROUND_DENSITY', value: 8 }],
+      ['MAJOR', { type: 'MIN_LIDAR_DENSITY', value: 100 }],
+      ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 10, verticalCm: 15 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 4 }],
+      ['MINOR', { type: 'MIN_CP', value: 2 }],
+    ]);
+    expect(C03.recommended).toMatchObject({
+      aircraft: ['VTOL_T3'],
+      sensors: ['POD_LIDAR'],
+      vehicle: 'PICKUP_4X4',
+    });
+    expect(C03.minVehicle).toBe('PICKUP_4X4');
+    expect([C03.basePaymentBRL, C03.xp, C03.reputationReward]).toEqual([9_000_000, 1500, 15]);
+    expect(C03.souvenirId).toBe('SV_BRAZIL_NUT');
+    expect(museumSlotCoords(C03.museum.slot)).toEqual({ col: 2, lin: 0 });
+    expect(C03.museum.incomePerMinBRL).toBe(15_000);
+    expect(C03.unlock).toEqual({
+      type: 'ALL',
+      of: [
+        { type: 'CONTRACT_DONE', contractId: 'C04' },
+        { type: 'CONTRACT_DONE', contractId: 'C02' },
+        { type: 'REPUTATION', min: 65 },
+      ],
+    });
+    expect(C03.overworldMarker).toBe('3');
+    expect(
+      [C03.dialogs.briefing, C03.dialogs.success, C03.dialogs.failure].map((d) => d.length),
+    ).toEqual([2, 1, 1]);
+  });
+
+  it('marcador 3 só de 4x4, como o 4: a picape o alcança do escritório e os outros veículos não', () => {
+    expect(MARKER_ACCESS[C03.overworldMarker]).toBe('PICKUP_4X4');
+    const marker = WORLD_MAP.markers.find((m) => m.char === C03.overworldMarker) as {
+      x: number;
+      y: number;
+    };
+    const reach = (v: VehicleId) => isReachable(WORLD_MAP, WORLD_MAP.door, marker, v);
+    expect(reach('PICKUP_4X4')).toBe(true);
+    for (const v of ['FOOT_BIKE', 'COMPACT_CAR', 'LAB_VAN'] as const)
+      expect(reach(v), v).toBe(false);
+  });
+
+  it('o plano de referência voa o pod LiDAR no T3: faixa de 168,05 m, 7 linhas, 158,7 pts/m² e solo ≥ 8', () => {
+    const ref = C03.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'VTOL_T3',
+      sensorId: 'POD_LIDAR',
+      heightM: 120,
+      forwardOverlapPct: 70,
+      sideOverlapPct: 50,
+      speedMs: 18,
+      lighting: 'OVERCAST',
+    });
+    expect(ref.heightM).toBeLessThanOrEqual(C03.ceilingM);
+    // Clareiras de GCP e CP: todos os pontos de apoio no centro de uma delas.
+    const centers = terrain.guaranteedAccessible.map((p) => `${p.u},${p.v}`);
+    for (const p of [...ref.gcps, ...ref.cps]) expect(centers).toContain(`${p.u},${p.v}`);
+    expect(ref.gcps).toHaveLength(5);
+    expect(ref.cps).toHaveLength(2);
+    // Com o dossel de 0,97 da mata: ~17 pts/m² de solo; com a média real da AOI, mais.
+    const plan = buildFlightPlan(referenceParams(C03), C03, CATALOG, { meanCanopy: 0.97 });
+    expect(plan.params.primarySensor).toBe('LIDAR');
+    expect(plan.stats.lidarSwathM).toBeCloseTo(168.05, 1);
+    expect(plan.stats.nLines).toBe(7);
+    expect(plan.stats.lidarDensity).toBeCloseTo(158.7, 1);
+    expect(plan.stats.groundDensity).toBeGreaterThanOrEqual(8);
+    expect(plan.stats.groundDensity).toBeCloseTo(17, 0);
+    const real = buildFlightPlan(referenceParams(C03), C03, CATALOG, {
+      meanCanopy: meanCanopy(terrain),
+    });
+    expect(real.stats.groundDensity).toBeGreaterThanOrEqual(8);
+  });
+
+  it('com o plano de referência (missão sintética), a densidade de solo medida é ≥ 8 e o relatório aprova', () => {
+    const mission = syntheticMission(C03, terrain, CATALOG);
+    expect(mission.lidar?.grid.pulses).toHaveLength(64 * 64);
+    const stats = lidarStats(mission, []);
+    expect(stats?.meanDensity).toBeCloseTo(158.7, 0);
+    expect(stats?.meanGroundDensity).toBeGreaterThanOrEqual(8);
+    const report = evaluateMission(mission, C03, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    expect(report.requirements.find((r) => r.id === 'C03-ground')?.pass).toBe(true);
+    expect(report.requirements.find((r) => r.id === 'C03-sensor')?.pass).toBe(true);
+    expect(report.asprs?.passH && report.asprs?.passV).toBe(true);
+  });
+
+  it('sem LiDAR (só fotos) a missão é reprovada por requisito crítico', () => {
+    const photoPlan = buildFlightPlan(
+      { ...referenceParams(C03), sensorId: 'CAM_MS5', primarySensor: 'RGB' },
+      C03,
+      CATALOG,
+    );
+    // A missão sintética é a do pod; tirando o laser e trocando o plano, sobram só as fotos.
+    const { lidar, ...photosOnly } = syntheticMission(C03, terrain, CATALOG);
+    expect(lidar).toBeDefined();
+    const mission = { ...photosOnly, plan: photoPlan };
+    expect('lidar' in mission).toBe(false);
+    const report = evaluateMission(mission, C03, context());
+    const sensor = report.requirements.find((r) => r.id === 'C03-sensor');
+    expect(sensor?.pass).toBe(false);
+    expect(sensor?.severity).toBe('CRITICAL');
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('o MDT sem LiDAR fica sem dados sob o dossel (hachura); com o laser, o solo aparece', () => {
+    const grid = createCoverageGrid(C03.aoi);
+    const base = {
+      terrain,
+      coverage: {
+        cols: grid.cols,
+        rows: grid.rows,
+        counts: grid.counts.map(() => 6),
+        excludedCells: [] as number[],
+      },
+      lighting: 'OVERCAST' as const,
+      rmseZM: 0.1,
+      seed: 3,
+    };
+    const hatchedShare = (r: { hatched: Uint8Array }) =>
+      r.hatched.reduce((a, b) => a + b, 0) / r.hatched.length;
+    // Só fotos: o solo da mata não é visto, e só as clareiras (e a água) têm MDT.
+    expect(hatchedShare(generateProduct('DTM', base))).toBeGreaterThan(0.8);
+    // Com o LiDAR do plano de referência: o laser chega ao solo em todas as células.
+    const mission = syntheticMission(C03, terrain, CATALOG);
+    const density = mission.lidar?.grid.ground.map(
+      (g) => g / (mission.lidar?.grid.cellAreaM2 ?? 1),
+    );
+    expect(
+      hatchedShare(generateProduct('DTM', { ...base, lidarGroundDensity: density })),
+    ).toBeLessThan(0.02);
   });
 });

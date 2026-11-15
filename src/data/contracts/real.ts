@@ -1,11 +1,11 @@
 /** Campanha principal: contratos do Mundo Real (contracts-real). */
-import { Anchor, Church, Landmark, Pickaxe, Tractor, Wheat } from 'lucide-react';
+import { Anchor, Church, Landmark, Pickaxe, Tractor, TreePine, Wheat } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 import { museumSlot } from './museum';
 
-registerIcons({ Anchor, Church, Landmark, Pickaxe, Tractor, Wheat });
+registerIcons({ Anchor, Church, Landmark, Pickaxe, Tractor, TreePine, Wheat });
 
 /** C00 — Sítio do Avô (tutorial). */
 export const C00: Contract = {
@@ -725,5 +725,132 @@ export const C04: Contract = {
   },
 };
 
-/** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
-export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06, C02, C04];
+/** C03 — Floresta Amazônica (T058): MDT sob o dossel com LiDAR (`AMAZON`). */
+export const C03: Contract = {
+  id: 'C03',
+  dimension: 'REAL',
+  title: 'Floresta Amazônica',
+  client: {
+    name: 'Dra. Jaci Tupinambá',
+    role: 'ONG Raízes da Floresta',
+    description: 'Pesquisadora da ONG Raízes da Floresta, ao lado das comunidades tradicionais.',
+    portrait: {
+      shape: 'CIRCLE',
+      icon: 'TreePine',
+      primary: '#16a34a',
+      secondary: '#052e16',
+      initials: 'JT',
+    },
+  },
+  objective:
+    'Modelo Digital de Terreno sob o dossel para regularização fundiária de comunidades tradicionais.',
+  biome: 'AMAZON',
+  seed: 3003,
+  aoi: { widthM: 500, lengthM: 1000 },
+  ceilingM: 150,
+  terrainReliefM: 40,
+  lightingOptions: ['OVERCAST', 'SUN_HIGH'],
+  wind: { meanMs: 3, gustMs: 2, directionDeg: 180 },
+  specialRules: ['DENSE_CANOPY'],
+  requirements: [
+    {
+      id: 'C03-sensor',
+      label: 'Sensor LiDAR',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'LIDAR' },
+    },
+    {
+      id: 'C03-ground',
+      label: 'Densidade de solo ≥ 8 pts/m²',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_GROUND_DENSITY', value: 8 },
+    },
+    {
+      id: 'C03-density',
+      label: 'Densidade total ≥ 100 pts/m²',
+      severity: 'MAJOR',
+      check: { type: 'MIN_LIDAR_DENSITY', value: 100 },
+    },
+    {
+      id: 'C03-asprs',
+      label: 'ASPRS: 10 cm (H) e 15 cm (V)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 10, verticalCm: 15 },
+    },
+    {
+      id: 'C03-gcp',
+      label: 'Ao menos 4 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 4 },
+    },
+    {
+      id: 'C03-cp',
+      label: 'Ao menos 2 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 2 },
+    },
+  ],
+  recommended: {
+    aircraft: ['VTOL_T3'],
+    sensors: ['POD_LIDAR'],
+    vehicle: 'PICKUP_4X4',
+    notes: '',
+  },
+  // O acesso é por brejo: só a picape chega.
+  minVehicle: 'PICKUP_4X4',
+  basePaymentBRL: brl(90_000),
+  xp: 1500,
+  reputationReward: 15,
+  souvenirId: 'SV_BRAZIL_NUT',
+  museum: { wing: 'REAL', slot: museumSlot(2, 0), incomePerMinBRL: brl(150) },
+  unlock: {
+    type: 'ALL',
+    of: [
+      { type: 'CONTRACT_DONE', contractId: 'C04' },
+      { type: 'CONTRACT_DONE', contractId: 'C02' },
+      { type: 'REPUTATION', min: 65 },
+    ],
+  },
+  overworldMarker: '3',
+  dialogs: {
+    briefing: [
+      'A foto aérea só enxerga copa. O chão onde essas famílias vivem há séculos é invisível.',
+      'Precisamos do laser — múltiplos retornos atravessando as folhas até o solo.',
+    ],
+    success: ['Pela primeira vez, o igarapé e cada grota aparecem no mapa. Isso muda vidas.'],
+    failure: ['Sem pontos de solo, o cartório não aceita. Precisamos tentar de novo.'],
+  },
+  referencePlan: {
+    aircraftId: 'VTOL_T3',
+    sensorId: 'POD_LIDAR',
+    heightM: 120,
+    forwardOverlapPct: 70,
+    sideOverlapPct: 50,
+    speedMs: 18,
+    modes: [],
+    lighting: 'OVERCAST',
+    // GCPs e CPs nos centros das clareiras fixas do bioma.
+    gcps: [
+      { u: 150, v: 100 },
+      { u: 850, v: 100 },
+      { u: 150, v: 400 },
+      { u: 850, v: 400 },
+      { u: 500, v: 250 },
+    ],
+    cps: [
+      { u: 300, v: 250 },
+      { u: 700, v: 250 },
+    ],
+    // `gsdCm` é o da câmera RGB do pod; o que vale é a faixa e as densidades do LiDAR (o solo, de
+    // 17 pts/m², é o do dossel de 0,97 da mata).
+    expected: {
+      gsdCm: 3.2,
+      nLines: 7,
+      flightTimeS: 580.2,
+      lidar: { swathM: 168.05, density: 158.7, groundDensity: 17 },
+    },
+  },
+};
+
+/** Ordem da campanha (contracts-real). */
+export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06, C02, C04, C03];

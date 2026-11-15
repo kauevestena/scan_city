@@ -181,3 +181,28 @@ describe('BriefingModal — C04 Mina a Céu Aberto', () => {
     expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
   });
 });
+
+describe('BriefingModal — C03 Floresta Amazônica', () => {
+  it('dossel denso, requisitos de LiDAR e de solo, e a picape 4x4 recomendada', () => {
+    const { d } = open('C03', 'Floresta Amazônica');
+    expect(d.getAllByText('Dra. Jaci Tupinambá').length).toBeGreaterThan(0);
+    const rules = within(d.getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual(['DENSE_CANOPY']);
+    expect(rules[0]).toHaveTextContent('Dossel denso');
+    expect(d.getByText('500 × 1000 m')).toBeInTheDocument();
+    expect(d.getByText('Nublado, Sol alto')).toBeInTheDocument();
+    const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
+    expect(reqs).toHaveLength(6);
+    expect(reqs[0]).toHaveTextContent('Sensor LiDAR');
+    expect(reqs[1]).toHaveTextContent('Densidade de solo ≥ 8 pts/m²');
+    expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 90.000,00');
+    expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Castanheira/);
+  });
+
+  it('bloqueado até concluir o C04 e o C02 e atingir reputação 65', () => {
+    const { d } = open('C03', 'Floresta Amazônica');
+    expect(d.getByTestId('briefing')).toHaveAttribute('data-status', 'LOCKED');
+    expect(d.getByRole('button', { name: 'Aceitar' })).toBeDisabled();
+    expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(3);
+  });
+});

@@ -6,6 +6,7 @@ import type { LoopHandle } from '@/audio/sfx';
 import { CATALOG } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { COSMETICS } from '@/data/cosmetics';
+import { missionHasData } from '@/domain/sorties';
 import { STRINGS } from '@/data/strings';
 import { cropEnergy } from '@/engines/flight/atlas';
 import { FlightEngine, type SortieResult } from '@/engines/flight/FlightEngine';
@@ -165,7 +166,7 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         onNewSortie();
         return;
       }
-      if (m.active.shots.length === 0) return;
+      if (!missionHasData(m.active)) return;
       queueActive();
       goTo('WORLD_MAP', { outcome: 'QUEUED' });
     }, AUTOPILOT_CONFIRM_MS);

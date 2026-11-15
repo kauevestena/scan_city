@@ -1,5 +1,7 @@
 import type { Catalog } from '@/data/catalog';
 import { snapToAccessible, type AccessRules } from './accessibility';
+import { cellCenter, createCoverageGrid } from './coverage';
+import { groundReturnProbability } from './lidar';
 import { buildFlightPlan } from './flightPlanner';
 import {
   exposureTimeS,
@@ -10,7 +12,15 @@ import {
   rollingShutterSkewPx,
 } from './photogrammetry';
 import { planEquipment } from './requirements';
-import type { Contract, GroundPoint, MissionData, PlanParams, Shot, Vehicle } from '@/types';
+import type {
+  Contract,
+  GroundPoint,
+  LidarGrid,
+  MissionData,
+  PlanParams,
+  Shot,
+  Vehicle,
+} from '@/types';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
 
 /** Parâmetros do plano de referência do contrato. */
@@ -69,6 +79,32 @@ export function referencePoints(
 }
 
 /**
+ * Grade LiDAR "perfeita" do plano: a densidade prevista em toda a AOI e, em cada célula, a fração
+ * que chega ao solo pela probabilidade de retorno sob o dossel (o mesmo modelo do sensor).
+ */
+function perfectLidarGrid(
+  plan: MissionData['plan'],
+  contract: Pick<Contract, 'aoi'>,
+  terrain: Pick<TerrainSampler, 'canopy'>,
+  maxReturns: number,
+): LidarGrid {
+  const grid = createCoverageGrid(contract.aoi);
+  const cellAreaM2 = grid.cellLengthM * grid.cellWidthM;
+  const pulsesPerCell = (plan.stats.lidarDensity ?? 0) * cellAreaM2;
+  const n = grid.counts.length;
+  const pulses = new Array<number>(n).fill(pulsesPerCell);
+  const firstAbove: number[] = [];
+  const ground: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = cellCenter(grid, i);
+    const canopy = terrain.canopy(c.u, c.v);
+    firstAbove.push(pulsesPerCell * canopy);
+    ground.push(pulsesPerCell * groundReturnProbability(canopy, maxReturns));
+  }
+  return { cols: grid.cols, rows: grid.rows, pulses, firstAbove, ground, cellAreaM2 };
+}
+
+/**
  * Missão "perfeita" do plano de referência: fotos disparadas a cada base, na janela da
  * câmera (AOI ± 1 base), a altitude constante sobre a cota média da AOI (ou, com Terrain
  * Following, a H de AGL sobre o terreno de cada foto), sem ruído.
@@ -80,7 +116,8 @@ export function syntheticMission(
   overrides: Partial<MissionData> = {},
 ): MissionData {
   const plan = buildFlightPlan(referenceParams(contract), contract, catalog);
-  const { camera, focalM } = planEquipment(plan, catalog);
+  const { camera, focalM, podId } = planEquipment(plan, catalog);
+  const pod = catalog.payloads.find((p) => p.id === podId);
   const pitch = pixelPitchM(camera);
   const exposure = exposureTimeS(plan.params.lighting);
   let elevSum = 0;
@@ -161,6 +198,10 @@ export function syntheticMission(
     sorties: [{ index: 0, outcome: 'COMPLETED', durationS: plan.stats.flightTimeS }],
     completedLines: plan.lines.map((l) => l.index),
     shots,
+    // Plano com LiDAR primário: a nuvem perfeita acompanha as fotos da câmera do pod.
+    ...(pod && plan.params.primarySensor === 'LIDAR'
+      ? { lidar: { grid: perfectLidarGrid(plan, contract, terrain, pod.maxReturns), samples: [] } }
+      : {}),
     events: { collisions: 0, crashes: 0, detected: false, featuresCaptured: [], ringsCollected: 0 },
     status: 'PENDING_PROCESSING',
     ...overrides,
