@@ -1034,11 +1034,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T048 · **REQs:** REQ-PRG-008
 - **Spec:** [catalog §10](content/catalog.md), [office §5](features/office.md) (Carreira → Visual), [ui-style §2](design/ui-style.md) (`EmblemBadge`)
 - **Aceite:**
-  - [ ] Skins visíveis no mapa (avatar), pinturas no voo e na mesa, acessório do Atlas no voo e no poleiro.
-  - [ ] O emblema aparece na TopBar, no relatório e no escritório.
-  - [ ] O editor persiste e valida as iniciais (≤ 4, maiúsculas).
+  - [x] Skins visíveis no mapa (avatar), pinturas no voo e na mesa, acessório do Atlas no voo e no poleiro.
+  - [x] O emblema aparece na TopBar, no relatório e no escritório.
+  - [x] O editor persiste e valida as iniciais (≤ 4, maiúsculas).
 - **Verificação:** `npx vitest run src/screens/office`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Aba **Visual** no Quadro de Carreira (`VisualTab`): as skins do personagem (cards com cores, compra por `buyItem`, Equipar/Equipado e o motivo do bloqueio) e o editor de emblema: forma (4), ícone (8), cor principal e secundária (paleta `EMBLEM_PALETTE`) e sigla, com pré-visualização ao vivo. Cada mudança válida já vai para `inventory.emblem` (e, pelo autosave, para o save).
+  - Sigla: `domain/emblem.ts` (`sanitizeInitials`, `validInitials`): maiúsculas, só letras e números, de 1 a 4. O campo saneia enquanto se digita; vazio fica inválido na tela (borda e dica em vermelho) e não é gravado. `setEmblem` usa a mesma regra e, com sigla inválida, mantém a anterior.
+  - Onde cada cosmético aparece: a skin no avatar do mapa (já vinha de `characterColors`, T021/T039); a pintura no voo (T024) e agora na miniatura do drone da Mesa Holográfica (`HoloEngine.droneColors`; a ave mantém as cores do pombo); o acessório do Atlas no voo (T031) e no poleiro do escritório (T020/T048).
+  - O emblema aparece na TopBar (já existia), no Resumo do relatório (`report-emblem`) e na parede do escritório (`office-emblem`, uma placa em HTML sobre o canvas).
+  - Testes: `domain/emblem.test.ts`, `VisualTab.test.tsx` (skins, editor, TopBar ao vivo, persistência por `saveFromGameData` → `serializeSave` → `gameDataFromSave`, escritório e relatório) e a pintura na mesa em `HoloEngine.test.ts`.
+- **Status:** ✅
 
 ### T050 — Museu: renda passiva e estante de relíquias
 - **Fase:** F6 · **Depende de:** T049 · **REQs:** REQ-PRG-009, REQ-PRG-010, REQ-OFF-006, REQ-OFF-001
@@ -1417,7 +1423,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ✅ |
 | REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ✅ |
-| REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ☐ |
+| REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ✅ |
 | REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ☐ |
 | REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ☐ |
 | REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |

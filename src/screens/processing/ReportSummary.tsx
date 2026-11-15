@@ -4,7 +4,8 @@ import { STRINGS } from '@/data/strings';
 import { estimatedSideOverlapPct, medianForwardOverlapPct } from '@/domain/mission';
 import { formatCm, formatDuration, formatNumber } from '@/lib/format';
 import type { MissionData, QualityReport } from '@/types';
-import { ChecklistItem, cx, DialogueBox } from '@/ui';
+import { useGameStore } from '@/state/store';
+import { ChecklistItem, cx, DialogueBox, EmblemBadge } from '@/ui';
 
 const P = STRINGS.processing;
 
@@ -50,12 +51,16 @@ export function ReportSummary({
   report: QualityReport;
   mission: MissionData;
 }) {
+  const emblem = useGameStore((s) => s.inventory.emblem);
   const contract = getContract(report.contractId);
   const cls = report.pec?.planimetric.achieved;
   return (
     <div className="grid gap-6 lg:grid-cols-2" data-testid="report-summary">
       <div className="flex flex-col gap-4">
-        <div className="flex items-baseline gap-4">
+        <div className="flex items-center gap-4">
+          <span data-testid="report-emblem">
+            <EmblemBadge emblem={emblem} size={44} title={STRINGS.topBar.company} />
+          </span>
           <span
             className={cx(
               'text-3xl font-bold tracking-widest',

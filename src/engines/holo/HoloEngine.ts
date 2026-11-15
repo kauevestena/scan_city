@@ -30,6 +30,8 @@ export interface HoloEngineOptions {
   focusSlot: number | null;
   onSelect?: (slot: number | null) => void;
   onSculptDone?: () => void;
+  /** Pintura equipada nos drones; a ave (Atlas) mantém as cores do pombo. */
+  droneColors?: () => { primary: string; secondary: string };
 }
 
 interface Particle {
@@ -270,7 +272,10 @@ export class HoloEngine implements Simulation {
         timeS: this.timeS,
         speedMs: 10,
         bankRad: 0,
-        colors: { primary: '#cbd5e1', secondary: '#475569' },
+        colors:
+          kind === 'BIRD' || !this.opts.droneColors
+            ? { primary: '#cbd5e1', secondary: '#475569' }
+            : this.opts.droneColors(),
       });
     }
   }

@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AudioEngine } from '@/audio/AudioEngine';
+import { COSMETICS } from '@/data/cosmetics';
 import { STRINGS } from '@/data/strings';
 import { HoloEngine } from '@/engines/holo/HoloEngine';
 import { buildHoloScene } from '@/engines/holo/sceneBuilder';
@@ -42,6 +43,9 @@ export function HoloTableScreen() {
       focusSlot,
       onSelect: setSelected,
       onSculptDone: () => AudioEngine.get().play('STAGE_DONE'),
+      droneColors: () =>
+        COSMETICS.find((c) => c.id === useGameStore.getState().inventory.equipped.dronePaint)
+          ?.colors ?? { primary: '#64748b', secondary: '#0f172a' },
     });
   });
   const [initialSelected] = useState(() => engine.selected);

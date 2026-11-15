@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { ATLAS_RULES } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
+import { sanitizeInitials } from '@/domain/emblem';
 import { feedCrop } from '@/domain/sorties';
 import { addItems, canBuy, purchaseItems, shopItem, shopPrice } from '@/domain/economy';
 import { unlockStateFrom } from '@/domain/progression';
@@ -115,7 +116,11 @@ export const createInventorySlice: StateCreator<
     set((s) => ({
       inventory: {
         ...s.inventory,
-        emblem: { ...emblem, initials: emblem.initials.toUpperCase().slice(0, 4) },
+        // Sigla inválida (vazia) mantém a anterior: o emblema nunca fica sem sigla.
+        emblem: {
+          ...emblem,
+          initials: sanitizeInitials(emblem.initials) || s.inventory.emblem.initials,
+        },
       },
     })),
 

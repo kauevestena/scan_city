@@ -1,4 +1,5 @@
 import { museumSlot } from '@/data/contracts/museum';
+import type { AircraftId } from '@/types';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { FLY_TO_S, HoloEngine, SCULPT_S } from './HoloEngine';
 import { HoloPreview } from './HoloPreview';
@@ -143,5 +144,63 @@ describe('HoloEngine', () => {
     const { ctx } = surface();
     new HoloPreview(scene()).draw(ctx, 10, 10, 300, 120, 2);
     expect(ctx.clip).toHaveBeenCalled();
+  });
+});
+
+describe('pintura dos drones na mesa (REQ-PRG-008)', () => {
+  const sceneWith = (bestAircraftId: AircraftId) =>
+    buildHoloScene(
+      {
+        C00: {
+          contractId: 'C00',
+          qualityScore: 0.8,
+          mappedAt: 0,
+          incomePerMinBRL: 900,
+          className: 'C',
+        },
+      },
+      {
+        C00: {
+          status: 'COMPLETED',
+          completions: 1,
+          bestScore: 0.8,
+          bestMissionLines: lines,
+          bestAircraftId,
+        },
+      },
+      'LOW',
+      createTerrain,
+    );
+  const PAINT = { primary: '#22d3ee', secondary: '#0f172a' };
+
+  /** Cores usadas num quadro (fill e stroke). */
+  function colorsUsed(bestAircraftId: AircraftId): Set<string> {
+    const engine = new HoloEngine({
+      scene: sceneWith(bestAircraftId),
+      input: { axis: () => 0 },
+      focusSlot: null,
+      droneColors: () => PAINT,
+    });
+    const s = surface();
+    const used = new Set<string>();
+    for (const prop of ['fillStyle', 'strokeStyle'] as const) {
+      Object.defineProperty(s.ctx, prop, {
+        set: (v: string) => used.add(String(v)),
+        get: () => '',
+        configurable: true,
+      });
+    }
+    engine.attach(s);
+    engine.update(1 / 60);
+    engine.render();
+    return used;
+  }
+
+  it('a miniatura do drone usa a pintura equipada', () => {
+    expect(colorsUsed('DRONE_T1').has(PAINT.primary)).toBe(true);
+  });
+
+  it('o Atlas (ave) mantém as cores do pombo', () => {
+    expect(colorsUsed('ATLAS').has(PAINT.primary)).toBe(false);
   });
 });

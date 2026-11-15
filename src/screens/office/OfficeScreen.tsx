@@ -14,7 +14,7 @@ import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import type { GameStore } from '@/state/types';
-import { cx, FOCUS_RING } from '@/ui';
+import { cx, EmblemBadge, FOCUS_RING } from '@/ui';
 import { NamedIcon } from '@/ui/iconRegistry';
 import { useElementSize } from '@/ui/useElementSize';
 import { createTerrain } from '@/world/terrain/createTerrain';
@@ -83,6 +83,7 @@ function HotspotButton({
 /** Escritório (office §3–§5): sala em Canvas com hotspots, Workstation e introdução. */
 export function OfficeScreen() {
   const introSeen = useGameStore((s) => s.flags.introSeen);
+  const emblem = useGameStore((s) => s.inventory.emblem);
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [doorHint, setDoorHint] = useState(false);
   const areaRef = useRef<HTMLElement>(null);
@@ -175,6 +176,13 @@ export function OfficeScreen() {
           className="absolute inset-0 block h-full w-full"
           data-testid="office-canvas"
         />
+        {/* Placa da empresa na parede, com o emblema do jogador (REQ-PRG-008). */}
+        <div
+          className="pointer-events-none absolute top-[5%] left-[47%] flex items-center gap-2"
+          data-testid="office-emblem"
+        >
+          <EmblemBadge emblem={emblem} size={44} title={STRINGS.topBar.company} />
+        </div>
         {OFFICE_HOTSPOTS.filter((h) => ACTIVE_HOTSPOTS.has(h.id)).map((h) => (
           <HotspotButton
             key={h.id}

@@ -1,4 +1,4 @@
-import { Award, Check, Lock, Sparkles, UserRound, X } from 'lucide-react';
+import { Award, Check, Lock, Palette, Sparkles, UserRound, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { STRINGS } from '@/data/strings';
 import { reputationBand } from '@/domain/progression';
@@ -8,9 +8,10 @@ import { formatDuration, formatNumber } from '@/lib/format';
 import { useGameStore } from '@/state/store';
 import { Button, ConfirmDialog, cx, Panel, ProgressBar, Stat, Tabs } from '@/ui';
 import { SKILL_BRANCHES, branchNodes, skillView, type SkillView } from './skillTreeModel';
+import { VisualTab } from './VisualTab';
 
 const C = STRINGS.office.career;
-type CareerTab = 'SKILLS' | 'PROFILE';
+type CareerTab = 'SKILLS' | 'PROFILE' | 'VISUAL';
 
 function SkillNodeCard({ view, onAcquire }: { view: SkillView; onAcquire: () => void }) {
   const { node, state } = view;
@@ -177,7 +178,7 @@ function ProfileTab() {
   );
 }
 
-/** Quadro de Carreira (office §5): árvore de habilidades e perfil. O visual entra em T049. */
+/** Quadro de Carreira (office §5): árvore de habilidades, perfil e visual (skins e emblema). */
 export function CareerPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<CareerTab>('SKILLS');
@@ -205,12 +206,15 @@ export function CareerPanel({ onClose }: { onClose: () => void }) {
           tabs={[
             { id: 'SKILLS', label: C.tabs.SKILLS, icon: Sparkles },
             { id: 'PROFILE', label: C.tabs.PROFILE, icon: UserRound },
+            { id: 'VISUAL', label: C.tabs.VISUAL, icon: Palette },
           ]}
           value={tab}
           onChange={setTab}
           ariaLabel={C.title}
         />
-        {tab === 'SKILLS' ? <SkillsTab /> : <ProfileTab />}
+        {tab === 'SKILLS' && <SkillsTab />}
+        {tab === 'PROFILE' && <ProfileTab />}
+        {tab === 'VISUAL' && <VisualTab />}
       </Panel>
     </div>
   );
