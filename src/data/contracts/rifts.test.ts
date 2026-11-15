@@ -34,7 +34,7 @@ import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R03, R04, R05, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R03, R04, R05, R06, R07, R08, R09, R10, R11, RIFT_CONTRACTS } from './rifts';
 
 /** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
 function fly(
@@ -106,6 +106,7 @@ describe('catálogo das fendas', () => {
       'R07',
       'R08',
       'R09',
+      'R10',
       'R11',
     ]);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
@@ -118,6 +119,7 @@ describe('catálogo das fendas', () => {
     expect(getContract('R07')).toBe(R07);
     expect(getContract('R08')).toBe(R08);
     expect(getContract('R09')).toBe(R09);
+    expect(getContract('R10')).toBe(R10);
     expect(getContract('R11')).toBe(R11);
   });
 
@@ -2094,5 +2096,249 @@ describe('R04 — Bosque das Fadas Perdidas', () => {
         .session.toasts.filter((t) => t.type === 'rift')
         .map((t) => t.title),
     ).toEqual(['Anomalia dimensional detectada: Bosque das Fadas Perdidas']);
+  });
+});
+
+describe('R10 — Trincheira da Estrela de Ferro', () => {
+  const terrain = createTerrain(R10);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+  /** A mesma missão de LiDAR com os pulsos multiplicados por `k` (uma varredura mais rala). */
+  const sparser = (mission: MissionData, k: number): MissionData => {
+    const lidar = mission.lidar as NonNullable<MissionData['lidar']>;
+    return {
+      ...mission,
+      lidar: { ...lidar, grid: { ...lidar.grid, pulses: lidar.grid.pulses.map((p) => p * k) } },
+    };
+  };
+
+  it('conforme a ficha: AOI, teto, só luz do sol, vento, regras, 3 requisitos críticos, recompensa e museu', () => {
+    expect(R10.title).toBe('Trincheira da Estrela de Ferro');
+    expect(R10.client.name).toBe('Lorde Válter');
+    expect(R10.client.portrait).toEqual({
+      shape: 'SHIELD',
+      icon: 'Orbit',
+      primary: '#0f172a',
+      secondary: '#ef4444',
+      initials: 'LV',
+    });
+    expect([R10.dimension, R10.biome, R10.seed]).toEqual(['RIFT', 'RIFT_IRON_TRENCH', 9010]);
+    expect(R10.aoi).toEqual({ widthM: 120, lengthM: 900 });
+    expect([R10.ceilingM, R10.terrainReliefM]).toEqual([120, 40]);
+    expect(R10.lightingOptions).toEqual(['SUN_HIGH']);
+    expect(R10.wind).toEqual({ meanMs: 0, gustMs: 0, directionDeg: 0 });
+    expect(R10.specialRules).toEqual(['EM_INTERFERENCE', 'NARROW_TRENCH', 'FEATURE_TARGETS']);
+    expect(R10.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
+      ['CRITICAL', { type: 'MIN_LIDAR_DENSITY', value: 100 }],
+      ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'EXHAUST_PORT' }],
+    ]);
+    expect(R10.recommended).toMatchObject({
+      aircraft: ['DRONE_T2'],
+      sensors: ['POD_LIDAR'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R10.minVehicle).toBe('FOOT_BIKE');
+    expect([R10.basePaymentBRL, R10.xp, R10.reputationReward]).toEqual([15_000_000, 2000, 5]);
+    expect(R10.souvenirId).toBe('SV_EXHAUST_PORT');
+    expect(R10.museum).toEqual({ wing: 'RIFT', slot: 9, incomePerMinBRL: 20_000 });
+    expect(R10.unlock).toEqual({
+      type: 'ALL',
+      of: [
+        { type: 'CONTRACT_DONE', contractId: 'C03' },
+        { type: 'RIFTS_DONE', count: 5 },
+      ],
+    });
+    expect(R10.overworldMarker).toBe('j');
+    expect(
+      [R10.dialogs.briefing, R10.dialogs.success, R10.dialogs.failure].map((d) => d.length),
+    ).toEqual([2, 1, 1]);
+  });
+
+  it('o portal `j` é de quem vai a pé ou de bicicleta, e o slot 9 do museu é só dele; as 11 fendas ocupam os slots 0 a 10', () => {
+    expect(MARKER_ACCESS[R10.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R10.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+    expect(slots.sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(RIFT_CONTRACTS).toHaveLength(11);
+  });
+
+  it('o plano de referência voa o T2 com o pod LiDAR: faixa de 84,02 m, 4 linhas, 524,8 s e 714 pts/m²', () => {
+    const ref = R10.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'POD_LIDAR',
+      heightM: 60,
+      sideOverlapPct: 50,
+      speedMs: 8,
+      modes: [],
+      lighting: 'SUN_HIGH',
+      gcps: [],
+      cps: [],
+    });
+    expect(referenceParams(R10).primarySensor).toBe('LIDAR');
+    expect(ref.expected).toEqual({
+      gsdCm: 1.6,
+      nLines: 4,
+      flightTimeS: 524.8,
+      lidar: { swathM: 84.02, density: 714, groundDensity: 714 },
+    });
+    const plan = buildFlightPlan(referenceParams(R10), R10, CATALOG, { meanCanopy: 0 });
+    expect(plan.stats.lidarSwathM).toBeCloseTo(84.02, 2);
+    expect(plan.stats.nLines).toBe(4);
+    expect(plan.stats.flightTimeS).toBeCloseTo(524.8, 0);
+    expect(plan.stats.lidarDensity).toBeCloseTo(714, 0);
+    expect(plan.stats.groundDensity).toBeCloseTo(714, 0);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+    // A densidade cai com a altura e a velocidade (∝ 1/(H·v)): na altura de teto e a 18 m/s ainda passa de 100.
+    const fast = buildFlightPlan(
+      { ...referenceParams(R10), heightM: 120, speedMs: 18 },
+      R10,
+      CATALOG,
+      { meanCanopy: 0 },
+    );
+    expect(fast.stats.lidarDensity).toBeCloseTo(714 * (60 / 120) * (8 / 18), 0);
+    expect(fast.stats.lidarDensity as number).toBeGreaterThan(100);
+    // Sem pontos de apoio e sem CPs: a previsão passa em tudo.
+    const predicted = predictRequirements(plan, R10, [], {
+      catalog: CATALOG,
+      ownsRtkKit: true,
+      fieldEquipmentId: 'TOTAL_STATION',
+    });
+    expect(predicted.filter((r) => !r.pass).map((r) => r.id)).toEqual([]);
+  });
+
+  it('o autopilot voa o plano de referência com o LiDAR: 4 linhas, sem colisão, por cima das torres, e captura a escotilha', () => {
+    const towers = terrain.objects.filter((o) => o.kind === 'TOWER');
+    let minOverTower = Infinity;
+    let aglInTrench = 0;
+    const { result, used } = fly(R10, (e) => {
+      if (e.phase !== 'RUN') return;
+      const p = e.pos();
+      for (const t of towers) {
+        if (Math.hypot(p.u - t.u, p.v - t.v) < t.widthM) {
+          minOverTower = Math.min(
+            minOverTower,
+            e.ac.alt - (terrain.elevation(t.u, t.v) + t.heightM),
+          );
+        }
+      }
+      if (Math.abs(p.v - 60) < 25)
+        aglInTrench = Math.max(aglInTrench, e.ac.alt - terrain.elevation(p.u, p.v));
+    });
+    expect(result.outcome).toBe('COMPLETED');
+    expect(result.collisions).toBe(0);
+    expect(result.completedLines).toEqual([0, 1, 2, 3]);
+    expect(result.featuresCaptured).toEqual(['EXHAUST_PORT']);
+    expect(result.lidar).not.toBeNull();
+    // O LiDAR é o sensor primário: sem fotos.
+    expect(result.photos).toBe(0);
+    // 525 s de voo dos 2.100 s do T2.
+    expect(used).toBeLessThan(0.4);
+    // Sem TF, o T2 voa a cota média + 60 m (~44 m): 20 m acima das torres de 20 m, e no fundo o AGL passa dos 80 m.
+    expect(minOverTower).toBeGreaterThan(15);
+    expect(aglInTrench).toBeGreaterThan(80);
+  }, 30_000);
+
+  it('com o plano de referência (missão sintética), o relatório aprova com 714 pts/m² e a escotilha capturada', () => {
+    const mission = syntheticMission(R10, terrain, CATALOG);
+    expect(mission.groundPoints).toHaveLength(0);
+    expect(mission.lidar).toBeDefined();
+    const report = evaluateMission(mission, R10, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual(['R10-sensor', 'R10-density', 'R10-port']);
+    expect(report.requirements.every((r) => r.pass)).toBe(true);
+    expect(report.requirements.find((r) => r.id === 'R10-density')?.valueText).toMatch(
+      /^714,\d pts\/m²$/,
+    );
+    expect(report.requirements.find((r) => r.id === 'R10-port')?.valueText).toBe('Capturado');
+  });
+
+  it('com a câmera RGB reprova pelos três críticos; uma varredura rala (1/10 dos pulsos) reprova pela densidade e outra, mais rala, também pela escotilha', () => {
+    const rgbContract = {
+      ...R10,
+      referencePlan: { ...R10.referencePlan, sensorId: 'CAM_45MP_FF', lensId: 'LENS_24' as const },
+    };
+    const rgb = evaluateMission(syntheticMission(rgbContract, terrain, CATALOG), R10, context());
+    expect(rgb.requirements.filter((r) => !r.pass).map((r) => r.id)).toEqual([
+      'R10-sensor',
+      'R10-density',
+      'R10-port',
+    ]);
+    expect(rgb.approved).toBe(false);
+    const full = syntheticMission(R10, terrain, CATALOG);
+    const thin = evaluateMission(sparser(full, 0.1), R10, context());
+    const byId = (id: string) => thin.requirements.find((r) => r.id === id);
+    // 71 pts/m²: abaixo dos 100 exigidos, mas ainda acima dos 50 pulsos/m² que capturam a escotilha.
+    expect(byId('R10-density')?.pass).toBe(false);
+    expect(byId('R10-port')?.pass).toBe(true);
+    expect(thin.critical).toBe(true);
+    expect(thin.approved).toBe(false);
+    const thinner = evaluateMission(sparser(full, 0.05), R10, context());
+    expect(thinner.requirements.find((r) => r.id === 'R10-density')?.pass).toBe(false);
+    expect(thinner.requirements.find((r) => r.id === 'R10-port')?.pass).toBe(false);
+    expect(thinner.approved).toBe(false);
+  });
+
+  it('desbloqueio: o C03 e cinco fendas concluídas — com quatro a R10 segue bloqueada, com cinco abre com um aviso', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    const completed = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, done]));
+    // O C03 e quatro fendas: ainda não.
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: {
+          ...s.contracts,
+          ...completed(['C00', 'C01', 'C03', 'R01', 'R02', 'R03', 'R04']),
+        },
+        stats: { ...s.stats, contractsCompleted: 7 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R10?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).not.toContain('R10');
+    // Cinco fendas sem o C03: também não.
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: {
+          ...s.contracts,
+          C03: { status: 'AVAILABLE' as const, completions: 0, bestScore: 0 },
+          ...completed(['R05']),
+        },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R10?.status).toBe('LOCKED');
+    // O C03 e as cinco: abre, e a fenda é descoberta com um aviso.
+    act(() => {
+      useGameStore.setState((s) => ({ contracts: { ...s.contracts, ...completed(['C03']) } }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R10?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toContain('R10');
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toContain('Anomalia dimensional detectada: Trincheira da Estrela de Ferro');
   });
 });
