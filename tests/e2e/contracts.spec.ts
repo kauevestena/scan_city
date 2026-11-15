@@ -33,6 +33,14 @@ const CONTRACTS = [
     pec: false,
     souvenir: 'Garrafa com Mapa',
   },
+  {
+    id: 'C02',
+    title: 'Planalto Agrícola',
+    lines: 8,
+    photos: 328,
+    pec: true,
+    souvenir: 'Espiga Dourada',
+  },
 ] as const;
 
 for (const c of CONTRACTS) {

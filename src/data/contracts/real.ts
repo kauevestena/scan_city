@@ -1,11 +1,11 @@
 /** Campanha principal: contratos do Mundo Real (contracts-real). */
-import { Anchor, Church, Landmark, Tractor } from 'lucide-react';
+import { Anchor, Church, Landmark, Tractor, Wheat } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 import { museumSlot } from './museum';
 
-registerIcons({ Anchor, Church, Landmark, Tractor });
+registerIcons({ Anchor, Church, Landmark, Tractor, Wheat });
 
 /** C00 — Sítio do Avô (tutorial). */
 export const C00: Contract = {
@@ -479,5 +479,129 @@ export const C06: Contract = {
   },
 };
 
+/** C02 — Planalto Agrícola (T056): NDVI em área extensa com asa fixa (`AGRI_PLATEAU`). */
+export const C02: Contract = {
+  id: 'C02',
+  dimension: 'REAL',
+  title: 'Planalto Agrícola',
+  client: {
+    name: 'Seu Valdemar Prado',
+    role: 'Fazenda Boa Safra',
+    description: 'Produtor rural da Fazenda Boa Safra, de olho no vigor da lavoura.',
+    portrait: {
+      shape: 'HEXAGON',
+      icon: 'Wheat',
+      primary: '#65a30d',
+      secondary: '#fef9c3',
+      initials: 'VP',
+    },
+  },
+  objective: 'Monitoramento de safra e vigor vegetativo (NDVI) em área extensa.',
+  biome: 'AGRI_PLATEAU',
+  seed: 2020,
+  aoi: { widthM: 600, lengthM: 1500 },
+  // Autorização especial de voo: o teto normal é de 120 m.
+  ceilingM: 200,
+  terrainReliefM: 30,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR'],
+  wind: { meanMs: 5, gustMs: 3, directionDeg: 0 },
+  specialRules: ['HOMOGENEOUS_TEXTURE'],
+  requirements: [
+    {
+      id: 'C02-sensor',
+      label: 'Sensor multiespectral',
+      severity: 'CRITICAL',
+      check: { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' },
+    },
+    {
+      id: 'C02-aircraft',
+      label: 'Aeronave de asa fixa (VTOL)',
+      severity: 'CRITICAL',
+      check: { type: 'AIRCRAFT_KIND', value: 'FIXED_WING_VTOL' },
+    },
+    {
+      id: 'C02-cov',
+      label: 'Cobertura verde ≥ 75 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.75 },
+    },
+    {
+      id: 'C02-gsd',
+      label: 'GSD ≤ 15 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 15 },
+    },
+    {
+      id: 'C02-p',
+      label: 'Sobreposição longitudinal ≥ 80 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_FORWARD_OVERLAP', value: 80 },
+    },
+    {
+      id: 'C02-pec',
+      label: 'PEC-PCD classe B (1:5.000)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_PEC', cls: 'B', scaleDenominator: 5000 },
+    },
+    {
+      id: 'C02-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MINOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+  ],
+  recommended: {
+    aircraft: ['VTOL_T3'],
+    sensors: ['CAM_MS5'],
+    vehicle: 'PICKUP_4X4',
+    notes: 'Textura homogênea: use p ≥ 80 % para o SIFT não se perder.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(35_000),
+  xp: 900,
+  reputationReward: 12,
+  souvenirId: 'SV_CORN_GOLD',
+  museum: { wing: 'REAL', slot: museumSlot(0, 1), incomePerMinBRL: brl(90) },
+  unlock: {
+    type: 'ALL',
+    of: [
+      { type: 'CONTRACT_DONE', contractId: 'C06' },
+      { type: 'REPUTATION', min: 50 },
+    ],
+  },
+  overworldMarker: '2',
+  dialogs: {
+    briefing: [
+      'Mil e quinhentos metros de soja até onde a vista alcança.',
+      'Quero saber onde a planta tá sofrendo antes de eu perder a safra.',
+      'Drone de hélice não dá conta, não: precisa de asa.',
+    ],
+    success: ['Olha só esse NDVI! Aquela mancha amarela é o pivô 3 entupido. Valeu demais!'],
+    failure: ['Isso aí não mostra vigor nenhum, moço.'],
+  },
+  referencePlan: {
+    aircraftId: 'VTOL_T3',
+    sensorId: 'CAM_MS5',
+    heightM: 200,
+    forwardOverlapPct: 80,
+    sideOverlapPct: 65,
+    speedMs: 22,
+    modes: [],
+    lighting: 'SUN_HIGH',
+    gcps: [
+      { u: 100, v: 80 },
+      { u: 1400, v: 80 },
+      { u: 100, v: 520 },
+      { u: 1400, v: 520 },
+      { u: 750, v: 300 },
+    ],
+    cps: [
+      { u: 400, v: 200 },
+      { u: 1100, v: 400 },
+    ],
+    expected: { gsdCm: 12.54, nLines: 8, flightTimeS: 725.7 },
+  },
+};
+
 /** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
-export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06];
+export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06, C02];

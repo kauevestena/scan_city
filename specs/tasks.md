@@ -1173,10 +1173,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F7 · **Depende de:** T055 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*)
 - **Spec:** [contracts-real C02](content/contracts-real.md)
 - **Aceite específico:**
-  - [ ] NDVI com manchas de estresse visíveis no produto.
-  - [ ] A asa fixa faz as curvas com o tempo da fórmula.
-  - [ ] Textura homogênea penaliza com p < 80.
-- **Status:** ☐
+  - [x] NDVI com manchas de estresse visíveis no produto.
+  - [x] A asa fixa faz as curvas com o tempo da fórmula.
+  - [x] Textura homogênea penaliza com p < 80.
+- **Notas de implementação:**
+  - `world/terrain/biomes/agriPlateau.ts` (AOI de 600 × 1500 m): relevo suave de 0 a 30 m (fbm de 2 oitavas, escala 600 m, declive máximo de 12 %); 10 × 4 talhões de 190–270 m separados por estradas internas de 6 m (a principal, em v = 330, de 9 m), todos de cultivo (`CROP`, 80 % da AOI) exceto os cantos de pousio dos três pivôs e o pátio de terra da sede. Como o bioma é só deste contrato, a grade de divisas e as posições dos pivôs são constantes fixas (como o açude do C00), e a cidade-fazenda inteira cobre a margem de 20 %.
+  - **NDVI**: cada talhão tem um vigor de 0,55 a 0,85 (`fieldVigor`, por hash da posição) menos a mancha de estresse (`fbm` suavizado, até −0,4); 22 % do cultivo fica abaixo de 0,45 e 10 %, abaixo de 0,3. O pivô 3 (a mancha amarela do diálogo de sucesso) tem um setor de 30° a 80° com −0,4 (vale o maior entre o entupimento e o estresse, sem somar), a ~0,2 de NDVI contra ~0,5 no resto do círculo. Estradas, telhados e o pátio ficam abaixo de 0,15. No produto NDVI da Workstation (multiespectral) aparecem os talhões, as estradas alaranjadas, as manchas amarelas, os três círculos e o setor do pivô 3; o teste confere o histograma (faixas abaixo de 0,3 cheias) e que o raster tem pixels quentes e verdes.
+  - Objetos: os 3 pivôs, de torre central e braço radial de 8 postes não sólidos no ângulo próprio, 4 silos (`PIPE` de 16–22 m, sólidos), 2 galpões e a casa da sede no pátio — 34 objetos, e a criação do terreno leva ~150 ms.
+  - Contrato `C02` conforme a ficha (teto especial de 200 m, requisitos de sensor multiespectral e aeronave de asa fixa, R$ 35.000, 900 XP, +12, museu (0, 1) a R$ 90/min, desbloqueio `ALL[C06, reputação 50]`, marcador `2`). O plano de referência (T3 + CAM_MS5, H 200 m, p 80, 22 m/s, 8 linhas, 725,7 s, GSD 12,54 cm; 328 fotos) bate com a spec e a viabilidade passa de primeira.
+  - **Curvas da asa fixa**: `fixedWing.test.ts` confere `turnTimeS = (π·R + |s − 2R|)/v` com R = 80 m e o espaçamento de 90,6 m (curva em gota, 14,6 s) e que o motor voa as 8 linhas do plano com autopilot e a surtida dura `8 · 1.660 m / 22 + 7 curvas + 4,5 s`, o tempo do plano. **Textura homogênea**: o multiplicador de acurácia `texture` vale ×1,24 com p = 80 e ×1,6 com p = 70 (RMSE maior), e some sem a regra (`real.test.ts`); a nota do briefing pede p ≥ 80 % e o requisito de sobreposição, os mesmos 80 %.
+  - E2E: `tests/e2e/contracts.spec.ts` ganhou o C02 (~1,9 min): autopilot ×8 sem colisões, 328 fotos, relatório **APROVADO** com classe PEC, souvenir e museu. Revisão visual no satélite (talhões, círculos dos pivôs, sede), no voo (60 FPS) e nos produtos.
+- **Status:** ✅
 
 ### T057 — C04 Mina a Céu Aberto
 - **Fase:** F7 · **Depende de:** T056 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-PRC-013
