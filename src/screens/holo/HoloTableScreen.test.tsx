@@ -66,6 +66,16 @@ describe('HoloTableScreen', () => {
     expect(get().session.screen).toBe('OFFICE');
   });
 
+  it('chegada de uma fenda: o slot dela é do anel do Multiverso, então nenhum setor Real é selecionado', () => {
+    act(() => {
+      useGameStore.setState((s) => ({
+        session: { ...s.session, screen: 'HOLO_TABLE_VIEW', payload: { focusSectorId: 'R01' } },
+      }));
+    });
+    render(<HoloTableScreen />);
+    expect(screen.queryByTestId('sector-card')).not.toBeInTheDocument();
+  });
+
   it('setor em névoa mostra "Contrato: <nome> — não mapeado"', () => {
     act(() => {
       useGameStore.setState((s) => ({

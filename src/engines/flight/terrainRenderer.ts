@@ -420,11 +420,43 @@ function drawGlint(ctx: CanvasRenderingContext2D, p: Float64Array, timeS: number
   ctx.restore();
 }
 
-/** Desenha o terreno, os objetos e os alvos da missão. */
+/** Estilo das curvas de nível comuns e das mestras (a cada 5 níveis). */
+const CONTOUR_MINOR = 'rgba(15, 23, 42, 0.25)';
+const CONTOUR_MASTER = 'rgba(15, 23, 42, 0.45)';
+
+/** Um só traço para todos os segmentos (x1, y1, x2, y2) acumulados; esvazia a lista. */
+function strokeSegments(ctx: CanvasRenderingContext2D, segs: number[], style: string): void {
+  if (segs.length === 0) return;
+  ctx.strokeStyle = style;
+  ctx.beginPath();
+  for (let k = 0; k < segs.length; k += 4) {
+    ctx.moveTo(segs[k] as number, segs[k + 1] as number);
+    ctx.lineTo(segs[k + 2] as number, segs[k + 3] as number);
+  }
+  ctx.stroke();
+  segs.length = 0;
+}
+
+/**
+ * Desenha o terreno, os objetos e os alvos da missão. As curvas de nível de uma faixa saem num
+ * traço só por estilo, depois dos quads da faixa e antes dos seus objetos: um `stroke` por
+ * segmento custava caro nos relevos íngremes (R01, 35 m em 120 m).
+ */
 export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene): void {
   ctx.lineWidth = 1;
+  const minor: number[] = [];
+  const master: number[] = [];
+  let band = -1;
+  const flush = () => {
+    strokeSegments(ctx, minor, CONTOUR_MINOR);
+    strokeSegments(ctx, master, CONTOUR_MASTER);
+  };
   traverse(scene, {
-    quad: (_band, _z, p, color) => {
+    quad: (b, _z, p, color) => {
+      if (b !== band) {
+        flush();
+        band = b;
+      }
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
       ctx.beginPath();
@@ -437,23 +469,28 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
       // Contorno da mesma cor fecha as frestas de antisserrilhado entre quads.
       ctx.stroke();
     },
-    contour: (_band, x1, y1, x2, y2, master) => {
-      ctx.strokeStyle = master ? 'rgba(15, 23, 42, 0.45)' : 'rgba(15, 23, 42, 0.25)';
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
+    contour: (_band, x1, y1, x2, y2, isMaster) => {
+      (isMaster ? master : minor).push(x1, y1, x2, y2);
     },
-    shadow: (_band, o, s, lengthM) => drawShadow(ctx, o, s, lengthM),
+    shadow: (_band, o, s, lengthM) => {
+      flush();
+      drawShadow(ctx, o, s, lengthM);
+    },
     glint: (_band, _z, p, timeS) => drawGlint(ctx, p, timeS),
-    object: (_band, o, s) =>
+    object: (_band, o, s) => {
+      flush();
       drawSceneObject(ctx, o, {
         cam: s.cam,
         elevation: s.elevation,
         fog: fogFactor(o.Z, fogDistance(s.lighting)),
         fogColor: s.palette.fog,
         timeS: s.timeS,
-      }),
-    mark: (_band, mk, s) => drawMark(ctx, mk, s),
+      });
+    },
+    mark: (_band, mk, s) => {
+      flush();
+      drawMark(ctx, mk, s);
+    },
   });
+  flush();
 }

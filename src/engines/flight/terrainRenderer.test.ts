@@ -173,6 +173,50 @@ describe('draw list (§5.3, oclusão)', () => {
   });
 });
 
+describe('curvas de nível em lote', () => {
+  it('saem num traço só por faixa e estilo, sem perder nenhum segmento', () => {
+    const s = scene({ quality: 'MEDIUM' });
+    const list = buildDrawList(s);
+    const quads = list.filter((c) => c.type === 'QUAD');
+    const contours = list.filter((c) => c.type === 'CONTOUR').length;
+    // O morro de 80 m, com curvas a cada 10 m, cruza muitos quads.
+    expect(contours).toBeGreaterThan(50);
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    renderTerrain(ctx, s);
+    const strokes = vi.mocked(ctx.stroke).mock.calls.length;
+    const bands = new Set(quads.map((c) => c.band)).size;
+    // Cada quad ainda leva o seu traço de emenda; as curvas viram, no máximo, 2 por faixa.
+    expect(strokes).toBeGreaterThanOrEqual(quads.length);
+    expect(strokes).toBeLessThanOrEqual(quads.length + 2 * bands);
+    expect(strokes).toBeLessThan(quads.length + contours);
+    // Cada segmento continua no caminho: 1 moveTo por quad e 1 por curva.
+    expect(vi.mocked(ctx.moveTo).mock.calls.length).toBe(quads.length + contours);
+  });
+
+  it('as curvas de uma faixa saem antes dos objetos dela, que as cobrem', () => {
+    const tree = {
+      id: 1,
+      kind: 'TREE' as const,
+      X: 0,
+      Z: 200,
+      widthM: 6,
+      heightM: 8,
+      baseM: 0,
+      color: [40, 120, 50] as [number, number, number],
+    };
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const order: string[] = [];
+    vi.mocked(ctx.stroke).mockImplementation(() => order.push('stroke'));
+    vi.mocked(ctx.ellipse).mockImplementation(() => order.push('ellipse'));
+    vi.mocked(ctx.arc).mockImplementation(() => order.push('arc'));
+    renderTerrain(ctx, scene({ quality: 'MEDIUM', objects: [tree] }));
+    // A copa (arco ou elipse) só é desenhada depois do último traço da sua faixa.
+    const crown = order.findIndex((c) => c === 'arc' || c === 'ellipse');
+    expect(crown).toBeGreaterThan(0);
+    expect(order[crown - 1]).toBe('stroke');
+  });
+});
+
 describe('céu e sprites', () => {
   it('desenham sem erro para cada aeronave e iluminação', () => {
     const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;

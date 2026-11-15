@@ -39,9 +39,14 @@ export function testRifts(base: Contract): Contract[] {
   ];
 }
 
-/** O módulo de contratos com as fendas de teste no catálogo e em todas as consultas. */
+/**
+ * O módulo de contratos com as fendas de teste no catálogo e em todas as consultas. Só entram as
+ * fendas ainda ausentes do catálogo real: cada tarefa T060–T070 substitui a de teste do mesmo id
+ * pela ficha de verdade.
+ */
 export function withTestRifts(actual: typeof Catalog) {
-  const CONTRACTS = [...actual.CONTRACTS, ...testRifts(actual.C00)];
+  const missing = testRifts(actual.C00).filter((t) => !actual.CONTRACTS.some((c) => c.id === t.id));
+  const CONTRACTS = [...actual.CONTRACTS, ...missing];
   const byId = new Map(CONTRACTS.map((c) => [c.id, c]));
   return {
     ...actual,
