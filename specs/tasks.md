@@ -1123,10 +1123,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F7 · **Depende de:** T052 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-FLT-022
 - **Spec:** [contracts-real C01](content/contracts-real.md), [terrain §3](design/terrain.md) (`URBAN_VERTICAL`)
 - **Aceite específico:**
-  - [ ] Zonas `RTK_CANYON` geradas (≥ 2).
-  - [ ] Prédios > 60 m são ≥ 20 %.
-  - [ ] O briefing avisa a altura máxima.
-- **Status:** ☐
+  - [x] Zonas `RTK_CANYON` geradas (≥ 2).
+  - [x] Prédios > 60 m são ≥ 20 %.
+  - [x] O briefing avisa a altura máxima.
+- **Notas de implementação:**
+  - `world/terrain/biomes/urbanVertical.ts`: relevo de até 10 m (fbm de 2 oitavas, escala 260 m), grade de ruas de 10 m de largura a cada 60–80 m, ancorada nas quatro ruas que cercam a praça (u = 145/215, v = 85/155) e estendida até uma rua além de cada borda da margem de 20 %, de modo que as quadras cobrem tudo. Cada quadra (menos a praça) recebe de 2 a 6 lotes, por corte recursivo do lado maior, com calçada de 2 m e beco de 3 m. A praça de 60 × 60 m é GRASS, com 10 árvores e o miolo livre (`guaranteedAccessible`). Telhado e rua vêm do sampler (ROOF sob os prédios, ROAD nas polilinhas).
+  - Alturas `10 + 80·r³`: os prédios altos são sorteados à parte, 25 % em cada grupo (dentro e fora da AOI), com r ∈ [0,86; 0,995) → 60,9–89,6 m; os baixos usam r ≤ 0,85 → no máximo 59,1 m. Assim a fatia de altos (≥ 20 %) vale na AOI e no conjunto, e só os altos formam cânion. O mais alto da AOI é fixado em exatamente 90 m. Com a seed 2002: 120 prédios (44 na AOI, 25 % acima de 60 m) e 41 zonas `RTK_CANYON`, geradas por `rtkCanyonZones` (T052).
+  - Contrato `C01` em `data/contracts/real.ts` conforme a ficha (7 requisitos, R$ 12.000, 400 XP, +8 de reputação, museu (1, 0) a R$ 40/min, desbloqueio `CONTRACT_DONE(C00)`, marcador `1`). O plano de referência bate com a spec (GSD 3,02 cm, 10 linhas, 493,7 s; 190 fotos) e o teste de viabilidade passa de primeira.
+  - Aviso da altura máxima: a nota do cliente no briefing é "Voe acima dos prédios mais altos (90 m)!", e `real.test.ts` confere que o 90 é o do prédio mais alto da AOI gerada e que o plano de referência passa a ≥ 10 m acima do topo mais alto da cena (≈ 115 m contra ≤ 100 m). O briefing também mostra a regra de cânion (T052).
+  - Infra de depuração por contrato, reaproveitada pelas tarefas seguintes: `domain/referencePlan.ts` (`referenceParams`, `referencePoints` com encaixe opcional no ponto acessível e `syntheticMission`, agora com o catálogo injetado; `test/fixtures/syntheticMission.ts` virou um invólucro). `createDebugMission` usa o plano de referência do contrato (pontos encaixados, e fotos "perfeitas" com dados) para os contratos do catálogo, mantendo o plano fixo do C00 e o do tutorial para ids desconhecidos; `ensureActiveMission` libera o contrato bloqueado.
+  - E2E parametrizado `tests/e2e/contracts.spec.ts` (`--grep C01`): autopilot ×8 até "Voo concluído" com 0 colisões e ~190 fotos, leva os dados à sede, processa no notebook, relatório **APROVADO**, souvenir e setor no museu (~1,3 min). Revisão visual no satélite (grade de quadras com a praça verde), no voo (arranha-céus azulados a 107 m de AGL, 60 FPS), na ortofoto e na nuvem (29.892 pontos).
+  - Ajustes: `markers.test` deixou de supor um só contrato; o botão "Sugerir GCPs" continua só do tutorial (C00), então no C01 os pontos são cravados à mão. O `obstacleAhead` do autopilot segue `false`: no C01 o plano já passa acima de tudo e isso só vira necessário numa tarefa de contrato com obstáculos acima do plano. No aceite pelo briefing, o sorteio da contraproposta do C01 com `?seed=4` e nenhum contrato concluído dá oferta; use `?seed=5` ou conclua o C00 antes.
+- **Status:** ✅
 
 ### T054 — C05 Centro Histórico Colonial
 - **Fase:** F7 · **Depende de:** T053 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*)

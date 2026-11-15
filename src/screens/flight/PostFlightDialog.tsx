@@ -105,7 +105,10 @@ export function PostFlightDialog({
             />
             <Stat label={P.time} value={formatDuration(result.durationS)} />
             <Stat label={P.energyLeft} value={formatPct(energyLeft, 0)} />
-            <Stat label={P.collisions} value={mission.events.collisions} />
+            <Stat
+              label={P.collisions}
+              value={<span data-testid="post-collisions">{mission.events.collisions}</span>}
+            />
           </div>
         </div>
       </Modal>

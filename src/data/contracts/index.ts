@@ -2,7 +2,7 @@
 import type { Contract, ContractProgress } from '@/types';
 import { REAL_CONTRACTS } from './real';
 
-export { C00 } from './real';
+export { C00, C01 } from './real';
 export { MUSEUM_GRID, museumSlot, museumSlotCoords } from './museum';
 
 export const CONTRACTS: readonly Contract[] = [...REAL_CONTRACTS];
