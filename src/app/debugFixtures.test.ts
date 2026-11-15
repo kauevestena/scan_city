@@ -86,3 +86,39 @@ describe('applyDebugFlags com contract= de um contrato do catálogo', () => {
     expect(get().contracts.C01?.status).toBe('COMPLETED');
   });
 });
+
+describe('equipamento do plano de referência nos fluxos de depuração', () => {
+  beforeEach(() => resetGameStore());
+
+  it('contrato com aeronave RTK: o jogador ganha aeronave, câmera, lente e o kit GNSS do combo', () => {
+    expect(get().inventory.aircraft).not.toContain('DRONE_T2');
+    applyDebugFlags(parseDebugFlags('?debug=1&screen=SURVEY_FLIGHT&contract=C06'));
+    const inv = get().inventory;
+    expect(inv.aircraft).toContain('DRONE_T2');
+    expect(inv.sensors).toContain('CAM_45MP_FF');
+    expect(inv.lenses).toContain('LENS_24');
+    expect(inv.fieldEquipment).toContain('GNSS_RTK_KIT');
+    expect(get().contracts.C06?.status).toBe('AVAILABLE');
+  });
+
+  it('aeronave sem RTK não ganha o kit, e quem já tem o item não o recebe duas vezes', () => {
+    applyDebugFlags(parseDebugFlags('?debug=1&screen=SURVEY_FLIGHT&contract=C01'));
+    expect(get().inventory.aircraft.filter((a) => a === 'DRONE_T1')).toHaveLength(1);
+    expect(get().inventory.fieldEquipment).not.toContain('GNSS_RTK_KIT');
+    useGameStore.setState((s) => ({ mission: { ...s.mission, active: null } }));
+    applyDebugFlags(parseDebugFlags('?debug=1&screen=SURVEY_FLIGHT&contract=C01'));
+    expect(get().inventory.aircraft.filter((a) => a === 'DRONE_T1')).toHaveLength(1);
+  });
+
+  it('a tela de processamento também recebe o equipamento (o relatório conta com o RTK)', () => {
+    applyDebugFlags(parseDebugFlags('?debug=1&screen=PROCESSING_RESULTS&contract=C06'));
+    expect(get().inventory.fieldEquipment).toContain('GNSS_RTK_KIT');
+    expect(get().mission.pending[0]?.contractId).toBe('C06');
+  });
+
+  it('o C00 mantém o inventário do jogo novo', () => {
+    const before = get().inventory;
+    applyDebugFlags(parseDebugFlags('?debug=1&screen=SURVEY_FLIGHT'));
+    expect(get().inventory).toEqual(before);
+  });
+});

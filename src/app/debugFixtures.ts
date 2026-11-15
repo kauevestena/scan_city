@@ -15,6 +15,7 @@ import {
   AIRCRAFT,
   CATALOG,
   FIELD_EQUIPMENT,
+  getAircraft,
   getVehicle,
   LENSES,
   PAYLOADS,
@@ -199,26 +200,45 @@ function debugSector(contractId: string): MuseumSector {
 
 type Store = Pick<typeof useGameStore, 'getState' | 'setState'>;
 
+/**
+ * Contrato do catálogo nos fluxos de depuração: libera o contrato bloqueado e dá ao jogador o
+ * equipamento do plano de referência (aeronave, câmera, lente e, numa aeronave RTK, o kit GNSS
+ * que vem no combo), como se ele o tivesse comprado. Assim o relatório avalia o que o plano
+ * promete (o RTK só conta com o kit possuído).
+ */
+function prepareContractState(store: Store, contractId: string): void {
+  const contract = findContract(contractId);
+  if (!contract) return;
+  const ref = contract.referencePlan;
+  const lidar = ref.sensorId === 'POD_LIDAR';
+  const add = <T>(list: readonly T[], item: T | undefined): T[] =>
+    item === undefined || list.includes(item) ? [...list] : [...list, item];
+  const playable = (status: ContractProgress['status'] | undefined) =>
+    status === 'AVAILABLE' || status === 'COMPLETED';
+  store.setState((s) => ({
+    contracts: playable(s.contracts[contractId]?.status)
+      ? s.contracts
+      : { ...s.contracts, [contractId]: { status: 'AVAILABLE', completions: 0, bestScore: 0 } },
+    inventory: {
+      ...s.inventory,
+      aircraft: add(s.inventory.aircraft, ref.aircraftId),
+      sensors: lidar ? s.inventory.sensors : add(s.inventory.sensors, ref.sensorId),
+      payloads: lidar ? add(s.inventory.payloads, 'POD_LIDAR' as const) : s.inventory.payloads,
+      lenses: add(s.inventory.lenses, ref.lensId),
+      fieldEquipment: getAircraft(ref.aircraftId).rtk
+        ? add(s.inventory.fieldEquipment, 'GNSS_RTK_KIT' as const)
+        : s.inventory.fieldEquipment,
+    },
+  }));
+}
+
 function ensureActiveMission(store: Store, contractId: string, withData: boolean): MissionData {
   const current = store.getState().mission.active;
   const hasData = current !== null && current.shots.length > 0;
   if (current && current.contractId === contractId && hasData === withData) return current;
   const mission = { ...createDebugMission(contractId, withData), status: 'IN_FLIGHT' as const };
   store.getState().beginMission(mission);
-  // Contrato do catálogo ainda bloqueado: a depuração o libera, para o fluxo seguir até o museu.
-  const progress = store.getState().contracts[contractId];
-  if (
-    findContract(contractId) &&
-    progress?.status !== 'AVAILABLE' &&
-    progress?.status !== 'COMPLETED'
-  ) {
-    store.setState((s) => ({
-      contracts: {
-        ...s.contracts,
-        [contractId]: { status: 'AVAILABLE', completions: 0, bestScore: 0 },
-      },
-    }));
-  }
+  prepareContractState(store, contractId);
   return mission;
 }
 
@@ -237,6 +257,7 @@ export function prepareDebugTransition(
       store.setState({
         mission: { ...state.mission, pending: [...state.mission.pending, mission] },
       });
+      prepareContractState(store, contractId);
       return { missionId: mission.id, inField: false };
     }
     case 'T6': {

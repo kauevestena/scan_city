@@ -98,3 +98,32 @@ describe('BriefingModal — C05 Centro Histórico Colonial', () => {
     expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(1);
   });
 });
+
+describe('BriefingModal — C06 Zona Costeira e Estuário', () => {
+  it('as duas regras (água especular e vento forte), o vento cruzado e o requisito de nível 2', () => {
+    const { d } = open('C06', 'Zona Costeira e Estuário');
+    expect(d.getAllByText('Comandante Iara Moreira').length).toBeGreaterThan(0);
+    const rules = within(d.getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual([
+      'SPECULAR_WATER',
+      'STRONG_WIND',
+    ]);
+    expect(rules[0]).toHaveTextContent('Água especular');
+    expect(rules[1]).toHaveTextContent('Vento forte');
+    expect(d.getByText('9 m/s, rajadas de +4 m/s, de 90°')).toBeInTheDocument();
+    expect(d.getByText('300 × 800 m')).toBeInTheDocument();
+    const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
+    expect(reqs).toHaveLength(6);
+    expect(reqs[0]).toHaveTextContent('Aeronave de nível ≥ 2');
+    expect(reqs[2]).toHaveTextContent('ASPRS: 7 cm (H) e 10 cm (V)');
+    expect(d.getByText('Água não tem tie points: GCPs só na faixa de areia.')).toBeInTheDocument();
+    expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Garrafa com Mapa/);
+  });
+
+  it('bloqueado até concluir o C01 e atingir reputação 40', () => {
+    const { d } = open('C06', 'Zona Costeira e Estuário');
+    expect(d.getByTestId('briefing')).toHaveAttribute('data-status', 'LOCKED');
+    expect(d.getByRole('button', { name: 'Aceitar' })).toBeDisabled();
+    expect(within(d.getByTestId('briefing-unlock')).getAllByRole('listitem')).toHaveLength(2);
+  });
+});
