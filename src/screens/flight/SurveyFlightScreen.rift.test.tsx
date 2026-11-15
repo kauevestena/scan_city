@@ -1,13 +1,8 @@
-/** O voo de uma fenda ganha a moldura violeta no HUD (T059), com uma fenda de teste no catálogo. */
+/** O voo de uma fenda ganha a moldura violeta no HUD (T059), na R01 do catálogo. */
 import { act, render, screen, waitFor } from '@testing-library/react';
-
-vi.mock('@/data/contracts', async (importOriginal) =>
-  (await import('@/test/riftFixtures')).withTestRifts(await importOriginal()),
-);
-
-const { useGameStore } = await import('@/state/store');
-const { resetGameStore } = await import('@/test/resetStore');
-const { SurveyFlightScreen } = await import('./SurveyFlightScreen');
+import { useGameStore } from '@/state/store';
+import { resetGameStore } from '@/test/resetStore';
+import { SurveyFlightScreen } from './SurveyFlightScreen';
 
 const get = () => useGameStore.getState();
 

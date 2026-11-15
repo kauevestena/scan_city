@@ -1,12 +1,9 @@
 /** `?unlockAll=1` também descobre as fendas (T059): a aba Fendas do mapa aparece na depuração. */
-vi.mock('@/data/contracts', async (importOriginal) =>
-  (await import('@/test/riftFixtures')).withTestRifts(await importOriginal()),
-);
 
-const { useGameStore } = await import('@/state/store');
-const { resetGameStore } = await import('@/test/resetStore');
-const { applyDebugFlags } = await import('./debugFixtures');
-const { parseDebugFlags } = await import('./debugFlags');
+import { useGameStore } from '@/state/store';
+import { resetGameStore } from '@/test/resetStore';
+import { applyDebugFlags } from './debugFixtures';
+import { parseDebugFlags } from './debugFlags';
 
 const get = () => useGameStore.getState();
 
