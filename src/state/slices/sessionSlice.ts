@@ -10,6 +10,7 @@ export function initialSession(): SessionState {
     toasts: [],
     activeModal: null,
     transactions: [],
+    incomeCarryCents: 0,
   };
 }
 

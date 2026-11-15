@@ -1050,12 +1050,19 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T049 · **REQs:** REQ-PRG-009, REQ-PRG-010, REQ-OFF-006, REQ-OFF-001
 - **Spec:** [progression §10, §11](features/progression.md), [office §5](features/office.md) (Estante)
 - **Aceite:**
-  - [ ] O critério 5 de [progression §14](features/progression.md).
-  - [ ] Renda offline com toast.
-  - [ ] Estante com os 18 slots e estados.
-  - [ ] Todos os 9 hotspots do escritório funcionais (REQ-OFF-001 completo).
+  - [x] O critério 5 de [progression §14](features/progression.md).
+  - [x] Renda offline com toast.
+  - [x] Estante com os 18 slots e estados.
+  - [x] Todos os 9 hotspots do escritório funcionais (REQ-OFF-001 completo).
 - **Verificação:** `npx vitest run src/state src/screens/office`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Renda passiva: `tickIncome(nowMs)` credita `renda/min × Δt` desde `museum.lastIncomeAt`, soma os visitantes e guarda as frações de centavo em `session.incomeCarryCents` (a spec fala em `museum.carryCents` "só em memória"; como `museum` vai inteiro para o save, o campo ficou na sessão, que nunca é salva). O crédito entra direto no saldo, sem transação nem toast, para não inundar o histórico a cada 10 s.
+  - `state/museumIncome.startMuseumIncome()` é o timer global do `App`: conta os segundos não pausados e chama `tickIncome` a cada 10. Ao pausar, credita o que já correu; durante a pausa só avança o relógio (`syncIncomeClock`), então o tempo pausado não rende.
+  - Renda offline: `hydrateGame` chama `applyOfflineIncome(agora)` quando há um save carregado: `offlineIncome` (no máximo 2 h), com a transação "Renda do Museu" e o toast "Enquanto você esteve fora, o Museu rendeu R$ X"; jogo novo ou museu vazio não mostram nada.
+  - Critério 5 testado: C00 (0,8) e C01 (1,0), sem destaque, rendem R$ 49,00 em 1 min, de uma vez ou em 6 ticks de 10 s.
+  - Estante de Relíquias (`ShelfPanel`, hotspot SHELF): grade 6 × 3 com os 18 souvenirs e a contagem. Obtido: ícone na cor do souvenir, nome e história (no painel de detalhe do nicho escolhido). Não obtido: "?" e "Conclua <título>" se o contrato já está desbloqueado; "???" se está bloqueado ou se o contrato ainda não existe no catálogo.
+  - Com a Estante, os 9 hotspots do escritório estão ativos (REQ-OFF-001): um teste abre e fecha cada painel e confere as três trocas de tela; a navegação por teclado (unitário e E2E) cobre os 9.
+- **Status:** ✅
 
 ### T051 — Rival MegaMap e reputação no mapa
 - **Fase:** F6 · **Depende de:** T050 · **REQs:** REQ-PRG-011, REQ-PRG-012
@@ -1338,12 +1345,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ☐ |
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
-| REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ☐ |
+| REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ✅ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ✅ |
 | REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ✅ |
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ✅ |
-| REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ☐ |
+| REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ✅ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ✅ |
@@ -1424,8 +1431,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ✅ |
-| REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ☐ |
-| REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ☐ |
+| REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ✅ |
+| REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ✅ |
 | REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |
 | REQ-PRG-012 | Reputação | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046, T051 | ✅ |
 | REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ✅ |

@@ -11,6 +11,7 @@ import { SoundBoard } from '@/app/SoundBoard';
 import { TopBar } from '@/app/TopBar';
 import { UiKitGallery } from '@/app/UiKitGallery';
 import { startAutosave } from '@/state/autosave';
+import { startMuseumIncome } from '@/state/museumIncome';
 import { hydrateGame, useGameStore } from '@/state/store';
 import type { ScreenId } from '@/types';
 import { ToastHost } from '@/ui';
@@ -45,6 +46,7 @@ export function App() {
   });
 
   useEffect(() => startAutosave(), []);
+  useEffect(() => startMuseumIncome(), []);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">

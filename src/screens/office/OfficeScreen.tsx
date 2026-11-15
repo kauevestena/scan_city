@@ -22,10 +22,11 @@ import { CareerPanel } from './CareerPanel';
 import { GaragePanel } from './GaragePanel';
 import { IntroSequence } from './IntroSequence';
 import { PerchPanel } from './PerchPanel';
+import { ShelfPanel } from './ShelfPanel';
 import { StaffPanel } from './StaffPanel';
 import { WorkstationPanel } from './WorkstationPanel';
 
-type PanelId = 'WORKSTATION' | 'GARAGE' | 'CAREER' | 'STAFF' | 'PERCH';
+type PanelId = 'WORKSTATION' | 'GARAGE' | 'CAREER' | 'STAFF' | 'PERCH' | 'SHELF';
 
 function sceneState(s: GameStore, holo: OfficeSceneState['holo']): OfficeSceneState {
   const accessory = COSMETICS.find((c) => c.id === s.inventory.equipped.atlasAccessory);
@@ -156,6 +157,7 @@ export function OfficeScreen() {
     else if (id === 'GARAGE') setPanel('GARAGE');
     else if (id === 'CAREER') setPanel('CAREER');
     else if (id === 'STAFF') setPanel('STAFF');
+    else if (id === 'SHELF') setPanel('SHELF');
     else if (id === 'PERCH') {
       // Clicar no Atlas arrulha, e abre o Poleiro.
       AudioEngine.get().play('PIGEON_COO');
@@ -205,6 +207,14 @@ export function OfficeScreen() {
           onClose={() => {
             setPanel(null);
             areaRef.current?.querySelector<HTMLElement>('[data-hotspot="GARAGE"]')?.focus();
+          }}
+        />
+      )}
+      {panel === 'SHELF' && (
+        <ShelfPanel
+          onClose={() => {
+            setPanel(null);
+            areaRef.current?.querySelector<HTMLElement>('[data-hotspot="SHELF"]')?.focus();
           }}
         />
       )}

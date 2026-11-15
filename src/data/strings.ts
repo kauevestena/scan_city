@@ -109,6 +109,10 @@ export const STRINGS = {
     all: (parts: string[]) => parts.join(' e '),
     any: (parts: string[]) => parts.join(' ou '),
   },
+  museum: {
+    incomeReason: 'Renda do Museu',
+    offline: (money: string) => `Enquanto você esteve fora, o Museu rendeu ${money}`,
+  },
   perch: {
     cornReason: (n: number) => `Milho: ${n} unidades`,
     calibrated: (flights: number) => `Câmera do Atlas calibrada para ${flights} voos`,
@@ -156,6 +160,15 @@ export const STRINGS = {
       hardwareSpeed: (x: string) => `Velocidade de processamento ×${x}`,
       buy: (price: string) => `Comprar (${price})`,
       sequenceHint: 'O hardware segue uma sequência: cada upgrade exige o anterior.',
+    },
+    shelf: {
+      title: 'Estante de Relíquias',
+      count: (n: number, total: number) => `${n} / ${total} souvenirs`,
+      unknown: '???',
+      hint: (title: string) => `Conclua ${title}`,
+      empty: 'Escolha um nicho para ver a história.',
+      slot: (n: number) => `Nicho ${n}`,
+      locked: 'Souvenir ainda não obtido',
     },
     perchPanel: {
       title: 'Poleiro do Atlas',
