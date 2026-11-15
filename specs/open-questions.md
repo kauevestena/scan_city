@@ -93,3 +93,10 @@
 - **Opções:** A) manter a spec (a lava é chão); B) tratar a lava como a água: ponto inválido (novo motivo `LAVA`) e células de lava fora da cobertura.
 - **Padrão provisório:** A. Os patamares dos 5 GCPs do plano de referência nunca são lava (cota mínima de 8 m), então o plano de referência não depende da decisão.
 - **Resolução:** —
+
+### OQ-012 — A tabela de balanceamento de catalog §13 não conta a lente de 24 mm
+- **Aberta em:** 2026-11-15 por T071
+- **Contexto:** a simulação manual de [catalog §13](content/catalog.md) tira só o combo T2 (R$ 70.000) no C06, mas o combo traz a `LENS_35` e o plano de referência do C06 (e das fendas R07, R11, R03 e R05) usa a `LENS_24`, que custa R$ 6.000 à parte. A campanha simulada na store de verdade fica R$ 6.000 abaixo da tabela do C06 em diante e segue viável (sobram R$ 3.500 no ponto mais apertado depois do C06; o mais apertado de todos é o C01, com R$ 1.300).
+- **Opções:** A) manter os preços e tratar a tabela como informativa (a viabilidade vale); B) incluir a `LENS_24` no combo T2 (muda a [catalog §3](content/catalog.md)); C) trocar os planos de referência para a `LENS_35` (muda os GSD esperados de várias fichas).
+- **Padrão provisório:** A. O teste de campanha confere o saldo da tabela menos R$ 6.000 do C06 em diante.
+- **Resolução:** —

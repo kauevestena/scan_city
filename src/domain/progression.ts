@@ -1,4 +1,5 @@
 /** XP, níveis, desbloqueios e reputação — domain-math §12.2, progression §6, §9 e §12. */
+import { CAMPAIGN_FINALE } from '@/data/cosmetics';
 import { STRINGS } from '@/data/strings';
 import { clamp } from '@/lib/math';
 import type { SaveGame, SkillNode, UnlockCondition } from '@/types';
@@ -75,6 +76,20 @@ export function unlockStateFrom(
     ]),
     riftsDone: completed.filter((id) => id.startsWith('R')).length,
   };
+}
+
+/**
+ * O final da campanha (REQ-CNT-008) é devido quando a introdução já foi vista, o final ainda não
+ * e os 7 contratos reais estão concluídos: ele aparece uma única vez, ao entrar no escritório.
+ */
+export function finaleDue(
+  save: Pick<SaveGame, 'contracts' | 'player' | 'inventory' | 'flags'>,
+): boolean {
+  return (
+    save.flags.introSeen &&
+    !save.flags.finaleSeen &&
+    evaluateUnlock(CAMPAIGN_FINALE, unlockStateFrom(save))
+  );
 }
 
 /** Avalia uma condição de desbloqueio (recursiva em `ALL`/`ANY`). */

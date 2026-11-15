@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createDebugMission } from '@/app/debugFixtures';
-import { INTRO_LINES, OFFICE_HOTSPOTS } from '@/data/office';
+import { FINALE_LINES, FINALE_LETTER, INTRO_LINES, OFFICE_HOTSPOTS } from '@/data/office';
 import { DEFAULT_SPAWN } from '@/state/slices/worldSlice';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
@@ -156,5 +156,80 @@ describe('OfficeScreen', () => {
     });
     expect(label()?.className).not.toContain('animate-pulse');
     vi.useRealTimers();
+  });
+});
+
+describe('OfficeScreen — final da campanha (REQ-CNT-008)', () => {
+  const REAL = ['C00', 'C01', 'C02', 'C03', 'C04', 'C05', 'C06'];
+  const completed = (ids: string[]) =>
+    Object.fromEntries(
+      ids.map((id) => [id, { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 }]),
+    );
+  const finishCampaign = (ids = REAL) =>
+    useGameStore.setState((s) => ({ contracts: { ...s.contracts, ...completed(ids) } }));
+
+  it('com os 7 contratos reais concluídos, ao entrar: 4 cartões com a carta do avô, o chapéu e o toast; uma única vez', () => {
+    get().setFlags({ introSeen: true });
+    finishCampaign();
+    expect(get().inventory.cosmetics).not.toContain('CHAR_GRANDPA_HAT');
+    const { unmount } = render(<OfficeScreen />);
+    const dialog = screen.getByRole('dialog', { name: 'Museu da Terra' });
+    const next = within(dialog).getByRole('button', { name: 'Avançar diálogo' });
+    expect(FINALE_LINES).toHaveLength(4);
+    expect(FINALE_LINES[1]).toBe(FINALE_LETTER);
+    for (const line of FINALE_LINES) {
+      fireEvent.click(next);
+      expect(within(dialog).getByTestId('dialogue-text')).toHaveTextContent(line);
+      // O cartão ainda não entrega nada: o chapéu vem no fim.
+      expect(get().flags.finaleSeen).toBe(false);
+      fireEvent.click(next);
+    }
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(get().flags.finaleSeen).toBe(true);
+    expect(get().inventory.cosmetics).toContain('CHAR_GRANDPA_HAT');
+    expect(get().session.toasts.map((t) => t.title)).toContain('Museu da Terra inaugurado!');
+    // Entrar de novo no escritório não repete o final.
+    unmount();
+    render(<OfficeScreen />);
+    expect(screen.queryByRole('dialog', { name: 'Museu da Terra' })).not.toBeInTheDocument();
+    expect(
+      get().session.toasts.filter((t) => t.title === 'Museu da Terra inaugurado!'),
+    ).toHaveLength(1);
+  });
+
+  it('com 6 dos 7 contratos reais, ou com as fendas só, não há final', () => {
+    get().setFlags({ introSeen: true });
+    finishCampaign(REAL.filter((id) => id !== 'C03'));
+    const { unmount } = render(<OfficeScreen />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    unmount();
+    resetGameStore();
+    get().setFlags({ introSeen: true });
+    finishCampaign(['R01', 'R02', 'R03', 'R04', 'R05', 'R06', 'R07', 'R08', 'R09', 'R10', 'R11']);
+    render(<OfficeScreen />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(get().flags.finaleSeen).toBe(false);
+  });
+
+  it('com a introdução ainda por ver, só a introdução aparece; o final espera a próxima entrada', () => {
+    finishCampaign();
+    const { unmount } = render(<OfficeScreen />);
+    expect(screen.getByRole('dialog', { name: 'Uma carta na mesa' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Museu da Terra' })).not.toBeInTheDocument();
+    unmount();
+    get().setFlags({ introSeen: true });
+    render(<OfficeScreen />);
+    expect(screen.getByRole('dialog', { name: 'Museu da Terra' })).toBeInTheDocument();
+  });
+
+  it('concluir o último contrato com o escritório aberto não dispara o final na hora: ele vem na próxima entrada', () => {
+    get().setFlags({ introSeen: true });
+    finishCampaign(REAL.filter((id) => id !== 'C03'));
+    const { unmount } = render(<OfficeScreen />);
+    act(() => finishCampaign(['C03']));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    unmount();
+    render(<OfficeScreen />);
+    expect(screen.getByRole('dialog', { name: 'Museu da Terra' })).toBeInTheDocument();
   });
 });

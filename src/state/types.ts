@@ -89,6 +89,11 @@ export interface SessionActions {
 
 export interface PlayerActions {
   setFlags: (flags: Partial<SaveGame['flags']>) => void;
+  /**
+   * Encerra o final da campanha (REQ-CNT-008): marca `finaleSeen`, entrega o `CHAR_GRANDPA_HAT`,
+   * toca o `LEVEL_UP` e mostra o toast "Museu da Terra inaugurado!". Só vale uma vez.
+   */
+  completeFinale: () => void;
   earn: (amount: CentsBRL, reason: string) => void;
   /** Debita se houver saldo; senão, não altera nada, avisa e retorna `false`. */
   spend: (amount: CentsBRL, reason: string) => boolean;

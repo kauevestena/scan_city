@@ -8,6 +8,7 @@ import {
   canUnlockSkill,
   describeUnlock,
   evaluateUnlock,
+  finaleDue,
   reputationBand,
   scaleReputationGain,
   unlockStateFrom,
@@ -138,6 +139,38 @@ describe('evaluateUnlock', () => {
     expect(s.ownedItems.has('ATLAS')).toBe(true);
     expect(s.ownedItems.has('OLD_LAPTOP')).toBe(true);
     expect(s).toMatchObject({ level: 2, reputation: 41 });
+  });
+});
+
+describe('finaleDue (REQ-CNT-008)', () => {
+  const REAL = ['C00', 'C01', 'C02', 'C03', 'C04', 'C05', 'C06'];
+  const done = (ids: string[]) =>
+    Object.fromEntries(
+      ids.map((id) => [id, { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 }]),
+    );
+  const save = (ids: string[], flags: { introSeen: boolean; finaleSeen: boolean }) => ({
+    contracts: done(ids),
+    player: { level: 1, reputation: 30 } as never,
+    inventory: initialInventory(),
+    flags: { ...flags, tutorialStep: 0 },
+  });
+
+  it('devido só com a intro vista, o final ainda não visto e os 7 contratos reais concluídos', () => {
+    expect(finaleDue(save(REAL, { introSeen: true, finaleSeen: false }))).toBe(true);
+    // Falta um contrato real.
+    expect(finaleDue(save(REAL.slice(1), { introSeen: true, finaleSeen: false }))).toBe(false);
+    // As 11 fendas não contam.
+    const rifts = Array.from({ length: 11 }, (_, i) => `R${String(i + 1).padStart(2, '0')}`);
+    expect(finaleDue(save(rifts, { introSeen: true, finaleSeen: false }))).toBe(false);
+    // Sem a intro, ou depois de visto, não.
+    expect(finaleDue(save(REAL, { introSeen: false, finaleSeen: false }))).toBe(false);
+    expect(finaleDue(save(REAL, { introSeen: true, finaleSeen: true }))).toBe(false);
+  });
+
+  it('um contrato concluído e repetido conta como concluído (completions > 0)', () => {
+    const s = save(REAL, { introSeen: true, finaleSeen: false });
+    s.contracts.C03 = { status: 'AVAILABLE' as never, completions: 2, bestScore: 0.9 };
+    expect(finaleDue(s)).toBe(true);
   });
 });
 
