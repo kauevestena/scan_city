@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
  * até o fim sem queda nem colisão, leva os dados à Workstation e confere o relatório aprovado e
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
- * `photos` é o total do plano de referência. O autopilot cuida de várias surtidas: o C05 gasta 2
+ * `photos` é o total do plano de referência; `pec` diz se o relatório mostra a classe PEC-PCD. O autopilot cuida de várias surtidas: o C05 gasta 2
  * baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só aparece ao fim).
  */
 const CONTRACTS = [
@@ -14,6 +14,7 @@ const CONTRACTS = [
     title: 'Metrópole Vertical',
     lines: 10,
     photos: 190,
+    pec: true,
     souvenir: 'Chave da Cidade',
   },
   {
@@ -21,7 +22,16 @@ const CONTRACTS = [
     title: 'Centro Histórico Colonial',
     lines: 14,
     photos: 210,
+    pec: true,
     souvenir: 'Azulejo Português',
+  },
+  {
+    id: 'C06',
+    title: 'Zona Costeira e Estuário',
+    lines: 7,
+    photos: 224,
+    pec: false,
+    souvenir: 'Garrafa com Mapa',
   },
 ] as const;
 
@@ -57,7 +67,10 @@ for (const c of CONTRACTS) {
 
     await expect(page.getByTestId('report')).toBeVisible({ timeout: 90_000 });
     await expect(page.getByTestId('report-status')).toHaveText('APROVADO');
-    await expect(page.getByTestId('report-class')).toHaveText(/^Classe [ABC]$/);
+    // Só os contratos com PEC-PCD têm classe; os de ASPRS mostram apenas as exigências.
+    const cls = page.getByTestId('report-class');
+    if (c.pec) await expect(cls).toHaveText(/^Classe [ABC]$/);
+    else await expect(cls).toHaveCount(0);
     await page.getByRole('tab', { name: 'Pagamento' }).click();
     await expect(page.getByTestId('payment-total')).toBeVisible();
     await expect(page.getByTestId('souvenir-card')).toContainText(c.souvenir);

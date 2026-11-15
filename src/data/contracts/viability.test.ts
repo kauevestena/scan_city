@@ -3,7 +3,7 @@
  * gera o plano esperado e, com os pontos encaixados no acessível mais próximo,
  * nenhum requisito previsível falha.
  */
-import { CATALOG, getVehicle } from '@/data/catalog';
+import { CATALOG, getAircraft, getVehicle } from '@/data/catalog';
 import { snapToAccessible } from '@/domain/accessibility';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { predictRequirements } from '@/domain/requirements';
@@ -51,7 +51,8 @@ describe.each(CONTRACTS.map((c) => [c.id, c] as const))('viabilidade de %s', (_i
     }
     const results = predictRequirements(plan, c, points, {
       catalog: CATALOG,
-      ownsRtkKit: false,
+      // O T2 é vendido em combo com o kit GNSS: o plano que usa uma aeronave RTK conta com ele.
+      ownsRtkKit: getAircraft(ref.aircraftId).rtk,
       fieldEquipmentId: 'TOTAL_STATION',
     });
     expect(results.filter((r) => !r.pass).map((r) => `${r.id}: ${r.valueText}`)).toEqual([]);

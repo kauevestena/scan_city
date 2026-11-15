@@ -1,11 +1,11 @@
 /** Campanha principal: contratos do Mundo Real (contracts-real). */
-import { Church, Landmark, Tractor } from 'lucide-react';
+import { Anchor, Church, Landmark, Tractor } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 import { museumSlot } from './museum';
 
-registerIcons({ Church, Landmark, Tractor });
+registerIcons({ Anchor, Church, Landmark, Tractor });
 
 /** C00 — Sítio do Avô (tutorial). */
 export const C00: Contract = {
@@ -358,5 +358,126 @@ export const C05: Contract = {
   },
 };
 
+/** C06 — Zona Costeira e Estuário (T055): água, vento cruzado forte (`COASTAL_ESTUARY`). */
+export const C06: Contract = {
+  id: 'C06',
+  dimension: 'REAL',
+  title: 'Zona Costeira e Estuário',
+  client: {
+    name: 'Comandante Iara Moreira',
+    role: 'Agência Marítima',
+    description: 'Comandante da Agência Marítima, de olho na erosão da costa.',
+    portrait: {
+      shape: 'CIRCLE',
+      icon: 'Anchor',
+      primary: '#0891b2',
+      secondary: '#f8fafc',
+      initials: 'IM',
+    },
+  },
+  objective: 'Monitoramento da erosão costeira e do assoreamento do estuário.',
+  biome: 'COASTAL_ESTUARY',
+  seed: 6006,
+  aoi: { widthM: 300, lengthM: 800 },
+  ceilingM: 120,
+  terrainReliefM: 20,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR'],
+  wind: { meanMs: 9, gustMs: 4, directionDeg: 90 },
+  specialRules: ['SPECULAR_WATER', 'STRONG_WIND'],
+  requirements: [
+    {
+      id: 'C06-tier',
+      label: 'Aeronave de nível ≥ 2',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_AIRCRAFT_TIER', value: 2 },
+    },
+    {
+      id: 'C06-cov',
+      label: 'Cobertura verde ≥ 80 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.8 },
+    },
+    {
+      id: 'C06-asprs',
+      label: 'ASPRS: 7 cm (H) e 10 cm (V)',
+      severity: 'CRITICAL',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 7, verticalCm: 10 },
+    },
+    {
+      id: 'C06-gsd',
+      label: 'GSD ≤ 3 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 3 },
+    },
+    {
+      id: 'C06-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+    {
+      id: 'C06-cp',
+      label: 'Ao menos 3 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 3 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'FOOT_BIKE',
+    notes: 'Água não tem tie points: GCPs só na faixa de areia.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(22_000),
+  xp: 700,
+  reputationReward: 10,
+  souvenirId: 'SV_BOTTLE_MAP',
+  museum: { wing: 'REAL', slot: museumSlot(3, 0), incomePerMinBRL: brl(70) },
+  unlock: {
+    type: 'ALL',
+    of: [
+      { type: 'CONTRACT_DONE', contractId: 'C01' },
+      { type: 'REPUTATION', min: 40 },
+    ],
+  },
+  overworldMarker: '6',
+  dialogs: {
+    briefing: [
+      'O mar avança dois metros por ano aqui.',
+      'Vento cruzado forte — seu drone aguenta?',
+      'E água espelhada não serve para fotogrametria: escolha bem a hora do voo.',
+    ],
+    success: [
+      'Agora temos a linha de costa com precisão de centímetros. Bom trabalho, marinheiro.',
+    ],
+    failure: ['Metade do mapa é reflexo de sol. Isso não mede erosão nenhuma.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 110,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 12,
+    modes: [],
+    lighting: 'OVERCAST',
+    gcps: [
+      { u: 40, v: 40 },
+      { u: 760, v: 40 },
+      { u: 40, v: 140 },
+      { u: 760, v: 140 },
+      { u: 400, v: 90 },
+    ],
+    cps: [
+      { u: 200, v: 70 },
+      { u: 600, v: 110 },
+      { u: 400, v: 30 },
+    ],
+    expected: { gsdCm: 2.01, nLines: 7, flightTimeS: 568.5 },
+  },
+};
+
 /** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
-export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05];
+export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05, C06];

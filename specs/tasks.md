@@ -1156,10 +1156,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F7 · **Depende de:** T054 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-FLT-021 (*parc.*)
 - **Spec:** [contracts-real C06](content/contracts-real.md)
 - **Aceite específico:**
-  - [ ] Água excluída da cobertura.
-  - [ ] Com `SUN_HIGH`, as fotos sobre a água ficam inválidas.
-  - [ ] Faixa de terra garantida.
-- **Status:** ☐
+  - [x] Água excluída da cobertura.
+  - [x] Com `SUN_HIGH`, as fotos sobre a água ficam inválidas.
+  - [x] Faixa de terra garantida.
+- **Notas de implementação:**
+  - `world/terrain/biomes/coastalEstuary.ts` (AOI de 300 × 800 m): a costa fica entre v = 170 e 176 (`shoreV`, ondulada ao longo de `u`) e o mar, a −2 m, ocupa 43 % da AOI. Em terra, dunas de fbm (3 oitavas) de até ~18 m que baixam em 80 m até o topo de uma falésia baixa de 4 m (rocha) sobre a praia de areia; restinga (GRASS) nas baixadas e areia nas cristas. O declive das dunas fica abaixo de 35 % (o resto é a falésia e as margens do canal).
+  - Canal do estuário: o eixo serpenteia (`540 + 40·sen(v/24)`), a ponta de terra em v = 112 é arredondada e antes dela a várzea some aos poucos (sem degrau no terreno), a largura passa de 6,5 a 12 m e se abre a 20 m na foz, com leito a −2 m. Nas margens baixas nasce o manguezal (FOREST, dossel 0,7), onde o GCP não vale. As árvores do mangue são postas pela distância perpendicular ao eixo, então nenhuma cai na água.
+  - Acesso: estrada de terra no meio da faixa (v ≈ 95, sempre em terra firme, pois o canal acaba antes dela), trilha de 3 m na praia e o acesso ao farol; toda a terra da faixa fica a ≤ 150 m de uma via. Farol (TOWER de 25 m) na duna em (610, 136), 14 barcos não sólidos (`CUBE_BLOCK` sobre a água), ~160 árvores (mangue, palmeiras e arbustos da restinga).
+  - **Faixa de terra garantida**: a costa nunca recua de v = 170, só o canal tem água em v ∈ [0, 170] (1,5 % da faixa), e os 8 pontos de referência e os `guaranteedAccessible` são terra acessível a pé. **Água excluída da cobertura**: já era a regra da avaliação (OQ-007); o teste confere que 43 % das células da grade saem do cálculo e que as frações verde, amarela e vermelha somam 1 sobre o resto. **`SUN_HIGH` invalida as fotos sobre a água**: `recordShot` sobre a terra real do C06 marca `overWater` na linha do mar, `isShotValid` recusa sob sol alto e aceita sob nublado e hora dourada.
+  - Contrato `C06` conforme a ficha (nível ≥ 2 e ASPRS 7/10 cm críticos, R$ 22.000, 700 XP, +10, museu (3, 0) a R$ 70/min, desbloqueio `ALL[C01, reputação 40]`, marcador `6`). O plano de referência (T2 + câmera de 45 MP + lente 24, H 110 m, 12 m/s, nublado, 7 linhas, 568,5 s, GSD 2,01 cm; 224 fotos) bate com a spec. O vento (9 + 4 = 13 m/s) passa da tolerância do T2 (12 m/s): o HUD mostra "VENTO ACIMA DO LIMITE DA AERONAVE" e a deriva dobra, e o autopilot conclui o voo mesmo assim. O recomendado traz só o T2 e a câmera (a lente não cabe em `recommended`) e, sem veículo na ficha, `FOOT_BIKE`.
+  - **Viabilidade com o kit GNSS**: o teste passou a contar com o kit quando a aeronave do plano é RTK (`ownsRtkKit = aircraft.rtk`), já que o T2 é vendido em combo com ele (`T2_COMBO_ITEMS`); sem o kit o plano do C06 dá V = 15 cm contra os 10 cm exigidos. Pelo mesmo motivo, os fluxos de depuração por contrato (`prepareContractState`) agora dão ao jogador o equipamento do plano de referência (aeronave, câmera, lente e kit GNSS) além de liberar o contrato; sem isso o relatório do E2E avaliava sem RTK e reprovava.
+  - E2E: `tests/e2e/contracts.spec.ts` ganhou o C06 (~1,6 min): autopilot ×8 sem colisões, 224 fotos (98 sobre a água, válidas sob nublado), relatório **APROVADO** (ASPRS H 4,8 cm · V 9,2 cm, cobertura verde de 100 % das células de terra), souvenir e museu. O relatório de contratos ASPRS não tem classe PEC, então o E2E só confere o `report-class` nos contratos de PEC-PCD. Revisão visual no satélite (dunas, praia, canal com mangue, mar com barcos), no voo (costa, farol e o aviso de vento) e na ortofoto. Cuidado ao rodar os E2E à mão: o Playwright reaproveita um servidor que já esteja de pé na porta 4173, e então testa o build antigo.
+- **Status:** ✅
 
 ### T056 — C02 Planalto Agrícola
 - **Fase:** F7 · **Depende de:** T055 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*)

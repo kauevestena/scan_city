@@ -1,5 +1,6 @@
 import type { BiomeId } from '@/types';
 import type { BiomeRecipe } from '../TerrainSampler';
+import { COASTAL_ESTUARY } from './coastalEstuary';
 import { COLONIAL_CENTER } from './colonialCenter';
 import { RURAL_TUTORIAL } from './ruralTutorial';
 import { URBAN_VERTICAL } from './urbanVertical';
@@ -9,4 +10,5 @@ export const BIOMES: Partial<Record<BiomeId, BiomeRecipe>> = {
   RURAL_TUTORIAL,
   URBAN_VERTICAL,
   COLONIAL_CENTER,
+  COASTAL_ESTUARY,
 };

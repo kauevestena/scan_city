@@ -5,7 +5,7 @@ import { referenceParams } from '@/domain/referencePlan';
 import { RULE_PARAMS } from '@/domain/specialRules';
 import { meanAoiElevation } from '@/engines/flight/FlightEngine';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { C01, C05, museumSlotCoords } from '.';
+import { C01, C05, C06, museumSlotCoords } from '.';
 
 describe('C01 — Metrópole Vertical', () => {
   it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
@@ -162,5 +162,67 @@ describe('C05 — Centro Histórico Colonial', () => {
     expect(C05.recommended.notes).toContain(`${lo}–${hi} m`);
     expect(C05.recommended.notes).toContain('AGL acima de 20 m');
     expect(C05.referencePlan.heightM).toBeGreaterThan(20);
+  });
+});
+
+describe('C06 — Zona Costeira e Estuário', () => {
+  it('conforme a ficha: AOI, vento cruzado, regras, requisitos, recompensa e museu', () => {
+    expect(C06.title).toBe('Zona Costeira e Estuário');
+    expect(C06.client.name).toBe('Comandante Iara Moreira');
+    expect(C06.client.portrait).toMatchObject({ shape: 'CIRCLE', icon: 'Anchor', initials: 'IM' });
+    expect([C06.biome, C06.seed]).toEqual(['COASTAL_ESTUARY', 6006]);
+    expect(C06.aoi).toEqual({ widthM: 300, lengthM: 800 });
+    expect([C06.ceilingM, C06.terrainReliefM]).toEqual([120, 20]);
+    expect(C06.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
+    expect(C06.wind).toEqual({ meanMs: 9, gustMs: 4, directionDeg: 90 });
+    expect(C06.specialRules).toEqual(['SPECULAR_WATER', 'STRONG_WIND']);
+    expect(C06.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'MIN_AIRCRAFT_TIER', value: 2 }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.8 }],
+      ['CRITICAL', { type: 'ACCURACY_ASPRS', horizontalCm: 7, verticalCm: 10 }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 3 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+      ['MINOR', { type: 'MIN_CP', value: 3 }],
+    ]);
+    expect(C06.recommended).toMatchObject({ aircraft: ['DRONE_T2'], sensors: ['CAM_45MP_FF'] });
+    expect(C06.minVehicle).toBe('FOOT_BIKE');
+    expect([C06.basePaymentBRL, C06.xp, C06.reputationReward]).toEqual([2_200_000, 700, 10]);
+    expect(C06.souvenirId).toBe('SV_BOTTLE_MAP');
+    expect(museumSlotCoords(C06.museum.slot)).toEqual({ col: 3, lin: 0 });
+    expect(C06.museum.incomePerMinBRL).toBe(7_000);
+    expect(C06.unlock).toEqual({
+      type: 'ALL',
+      of: [
+        { type: 'CONTRACT_DONE', contractId: 'C01' },
+        { type: 'REPUTATION', min: 40 },
+      ],
+    });
+    expect(C06.overworldMarker).toBe('6');
+    expect(
+      [C06.dialogs.briefing, C06.dialogs.success, C06.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o plano de referência voa com o T2, a câmera de 45 MP e a lente 24, sob luz nublada', () => {
+    const ref = C06.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_45MP_FF',
+      lensId: 'LENS_24',
+      heightM: 110,
+      speedMs: 12,
+      lighting: 'OVERCAST',
+    });
+    expect(getAircraft(ref.aircraftId).tier).toBeGreaterThanOrEqual(2);
+    expect(ref.expected).toEqual({ gsdCm: 2.01, nLines: 7, flightTimeS: 568.5 });
+    // A luz nublada evita o reflexo (a regra `SPECULAR_WATER` só pesa sob `SUN_HIGH`).
+    expect(ref.lighting).not.toBe('SUN_HIGH');
+    // Os pontos de apoio ficam na faixa de terra garantida (v ≤ 170).
+    for (const p of [...ref.gcps, ...ref.cps]) expect(p.v).toBeLessThanOrEqual(170);
+  });
+
+  it('o briefing avisa que a água não tem tie points e manda pôr os GCPs na areia', () => {
+    expect(C06.recommended.notes).toContain('Água não tem tie points');
+    expect(C06.recommended.notes).toContain('GCPs só na faixa de areia');
   });
 });
