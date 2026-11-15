@@ -154,6 +154,8 @@ export const STRINGS = {
   office: {
     title: 'Sede da GeoSurvey',
     introTitle: 'Uma carta na mesa',
+    finaleTitle: 'Museu da Terra',
+    finaleToast: 'Museu da Terra inaugurado!',
     pendingToast: (n: number) =>
       n === 1
         ? 'Há 1 missão aguardando processamento na Workstation'

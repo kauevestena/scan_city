@@ -1339,12 +1339,19 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Spec:** [progression §11, §12](features/progression.md), [contracts-real §3, §4](content/contracts-real.md), [catalog §13](content/catalog.md)
 - **Arquivos:** \+ `src/domain/campaignSim.test.ts`, `src/screens/office/FinaleSequence.tsx`
 - **Aceite:**
-  - [ ] A simulação de campanha ([catalog §13](content/catalog.md)) passa: ordem de desbloqueio correta e compras viáveis.
-  - [ ] Replay a 40 %, sem souvenir.
-  - [ ] O final é exibido uma vez e desbloqueia o chapéu.
-  - [ ] Desbloqueios de cosméticos por coleção (6 e 11 fendas, C03).
+  - [x] A simulação de campanha ([catalog §13](content/catalog.md)) passa: ordem de desbloqueio correta e compras viáveis.
+  - [x] Replay a 40 %, sem souvenir.
+  - [x] O final é exibido uma vez e desbloqueia o chapéu.
+  - [x] Desbloqueios de cosméticos por coleção (6 e 11 fendas, C03).
 - **Verificação:** `npx vitest run src/domain/campaignSim`
-- **Status:** ☐
+- **Notas de implementação:**
+  - **Simulação** (`domain/campaignSim.test.ts`, 11 testes): roda pela **store de verdade**, comprando com `buyItem` e aplicando relatórios aprovados com score fixo de 0,8 (qualityFactor 0,92, sem renda passiva, equipe nem contraproposta) pelo `applyMissionResult`, que já dispara o `refreshUnlocks`, o museu, os souvenirs e a descoberta das fendas. Segue o roteiro de catalog §13 (C00, C01, R01, R02, C05, C06, R07, R08, R11, C02, R09, C04, R03, R05, C03) e, depois dele, as três fendas que sobram (R04, R06 e R10) para fechar as 11.
+  - **Resultado.** Cada contrato está disponível na hora de aceitá-lo (os reais na ordem C00 → C01 → C05 → C06 → C02 → C04 → C03, com as reputações mínimas de contracts-real §4: C06 ≥ 40, C02 ≥ 50, C04 ≥ 55, C03 ≥ 65 cumpridas) e **nada falta de dinheiro**: os itens do plano de referência de cada um (aeronave, câmera ou pod, lente e veículo) são comprados antes. O ponto mais apertado é o C01 (R$ 7.300 menos o T1 de R$ 6.000: sobram R$ 1.300) e, depois, o C06 (R$ 79.500 menos o combo T2 de R$ 70.000 e a lente de 24 mm de R$ 6.000: sobram R$ 3.500). Os saldos batem com a tabela manual de catalog §13 até o C05; **do C06 em diante estão R$ 6.000 abaixo**, porque a tabela só conta o combo T2 e o combo traz a LENS_35 (catalog §3), enquanto o C06 e as fendas de T2 (R07, R11, R03, R05) usam a de 24 mm: a lente é uma compra à parte. Sem falta de saldo, não há o que ajustar com ADR (OQ-012).
+  - **Fendas e cosméticos.** A R10 só abre com o C03 e cinco fendas: com cinco fendas (a R11, no roteiro) e sem o C03 segue bloqueada. As coleções liberam, por `canBuy`: `CHAR_MULTIVERSE` na 6ª fenda (a R09 no roteiro; na 5ª ainda não), `PAINT_CAMO` (R$ 1.200), `ATLAS_LAUREL` e `CHAR_GRANDPA_HAT` com o C03 (que fecha os 7 reais) e `PAINT_HOLO` só com a 11ª (a R10, a última).
+  - **Replay (REQ-CNT-005).** Pelo `applyMissionResult`: o replay do C00 paga R$ 920 contra os R$ 2.300 da primeira vez (40 %), dá 40 % do XP, não repete o souvenir nem conta setor novo, e o contrato segue concluído (2 conclusões); uma falha crítica no replay tira no máximo 3 de reputação e não rouba o contrato; fora do replay a falha tira 10 e o contrato é roubado.
+  - **Final (REQ-CNT-008).** `finaleDue` (`domain/progression.ts`: a introdução vista, o final ainda não visto e os 7 contratos reais concluídos; as 11 fendas não contam), `completeFinale` na store (marca `finaleSeen`, entrega o `CHAR_GRANDPA_HAT` sem equipá-lo, toca o `LEVEL_UP` e mostra o toast "Museu da Terra inaugurado!"; só vale uma vez) e `screens/office/FinaleSequence.tsx`: o `DialogueBox` com os 4 cartões (a caderneta, a **carta canônica** de contracts-real §3, a inauguração do Grande Museu da Terra e o chapéu). O `OfficeScreen` avalia o `finaleDue` **uma vez, ao montar**: concluir o último contrato com a sede aberta não o dispara na hora, ele vem na próxima entrada (e o foco do teclado só vai à Porta depois dele). Testes: `finaleDue` (2), `completeFinale` (3), `OfficeScreen` (4) e o E2E `finale.spec.ts`, que parte de um save gerado pelo próprio jogo com os 7 contratos reais trocados por concluídos, num contexto novo, e confere a carta, o toast, o chapéu no save e que o final não volta.
+  - **Marco M3 — Conteúdo completo:** os 7 contratos reais, as 11 fendas e a campanha integrada estão no ar.
+- **Status:** ✅
 
 > **Marco M3 — Conteúdo completo.**
 
@@ -1580,12 +1587,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-013 | Milho | [catalog](content/catalog.md), [field-setup](features/field-setup.md), [progression](features/progression.md) | T010, T032, T048 | ✅ |
 | REQ-CNT-001 | Contratos reais | [contracts-real](content/contracts-real.md), [data-model](design/data-model.md) | T022, T053, T054, T055, T056, T057, T058 | ✅ |
 | REQ-CNT-002 | Fendas | [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md) | T059, T060–T070, T071 | ✅ |
-| REQ-CNT-003 | Progressão e desbloqueio | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [progression](features/progression.md) | T019, T071 | ☐ |
+| REQ-CNT-003 | Progressão e desbloqueio | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [progression](features/progression.md) | T019, T071 | ✅ |
 | REQ-CNT-004 | Regras especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md), [terrain](design/terrain.md) | T052, T053, T054, T055, T056, T057, T058, T060–T070 | ✅ |
-| REQ-CNT-005 | Repetição | [contracts-real](content/contracts-real.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T071 | ☐ |
+| REQ-CNT-005 | Repetição | [contracts-real](content/contracts-real.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T071 | ✅ |
 | REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md) | T059, T060–T070, T079 | ✅ |
 | REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
-| REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ☐ |
+| REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077 | ☐ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ☐ |
 | REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ☐ |

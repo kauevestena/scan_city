@@ -20,6 +20,8 @@ import { useElementSize } from '@/ui/useElementSize';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CareerPanel } from './CareerPanel';
 import { GaragePanel } from './GaragePanel';
+import { finaleDue } from '@/domain/progression';
+import { FinaleSequence } from './FinaleSequence';
 import { IntroSequence } from './IntroSequence';
 import { PerchPanel } from './PerchPanel';
 import { ShelfPanel } from './ShelfPanel';
@@ -85,6 +87,9 @@ function HotspotButton({
 export function OfficeScreen() {
   const introSeen = useGameStore((s) => s.flags.introSeen);
   const emblem = useGameStore((s) => s.inventory.emblem);
+  // O final vale na entrada: avaliado uma vez ao montar (concluir o último contrato com a sede
+  // aberta não o dispara na hora; ele vem na próxima entrada).
+  const [finale, setFinale] = useState(() => finaleDue(useGameStore.getState()));
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [doorHint, setDoorHint] = useState(false);
   const areaRef = useRef<HTMLElement>(null);
@@ -93,7 +98,7 @@ export function OfficeScreen() {
   const box = fitOffice(area.width, area.height);
   const surface = useCanvas(canvasRef);
 
-  useFocusNavigation(areaRef, { active: introSeen && panel === null });
+  useFocusNavigation(areaRef, { active: introSeen && panel === null && !finale });
 
   // Ao entrar: avisa missões pendentes e foca a Porta (ou a Workstation, se houver fila).
   useEffect(() => {
@@ -239,6 +244,14 @@ export function OfficeScreen() {
           onClose={() => {
             setPanel(null);
             areaRef.current?.querySelector<HTMLElement>('[data-hotspot="CAREER"]')?.focus();
+          }}
+        />
+      )}
+      {finale && (
+        <FinaleSequence
+          onDone={() => {
+            useGameStore.getState().completeFinale();
+            setFinale(false);
           }}
         />
       )}

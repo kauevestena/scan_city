@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { STRINGS } from '@/data/strings';
 import { STAFF } from '@/data/catalog';
+import { FINALE_REWARD } from '@/data/office';
 import { SKILLS } from '@/data/skills';
 import { addXp, canUnlockSkill } from '@/domain/progression';
 import { formatBRL } from '@/lib/format';
@@ -55,6 +56,18 @@ export const createPlayerSlice: StateCreator<GameStore, [], [], PlayerSlice> = (
   souvenirs: [],
 
   setFlags: (flags) => set((s) => ({ flags: { ...s.flags, ...flags } })),
+
+  completeFinale: () => {
+    if (get().flags.finaleSeen) return;
+    set((s) => ({
+      flags: { ...s.flags, finaleSeen: true },
+      inventory: s.inventory.cosmetics.includes(FINALE_REWARD)
+        ? s.inventory
+        : { ...s.inventory, cosmetics: [...s.inventory.cosmetics, FINALE_REWARD] },
+    }));
+    AudioEngine.get().play('LEVEL_UP');
+    get().pushToast({ type: 'success', title: STRINGS.office.finaleToast });
+  },
 
   earn: (amount, reason) => {
     const cents = Math.max(0, Math.round(amount));

@@ -109,5 +109,20 @@ export const INTRO_LINES: readonly string[] = [
   'Comece pelo sítio. O Zé Bento te espera. — Vô',
 ];
 
+/** Texto canônico da carta do avô no final da campanha (contracts-real §3). */
+export const FINALE_LETTER =
+  'Neto, se você está lendo isto, é porque terminou o que eu comecei com uma trena e um pombo. O mundo muda depressa — mas agora ele está guardado. Continue medindo. — Vô';
+
+/** Final da campanha (REQ-CNT-008): 4 cartões com a carta e a inauguração do Grande Museu da Terra. */
+export const FINALE_LINES: readonly string[] = [
+  'Entre as folhas da caderneta velha, você encontra uma carta dobrada. A letra é do Vô.',
+  FINALE_LETTER,
+  'No pátio, as luzes se acendem: o Grande Museu da Terra abre as portas, com cada setor que você mapeou.',
+  'O Atlas pousa no seu ombro com algo no bico: o velho chapéu do Vô. Agora ele é seu.',
+];
+
+/** Cosmético liberado (e entregue) pelo final. */
+export const FINALE_REWARD = 'CHAR_GRANDPA_HAT';
+
 /** Duração do destaque da Porta depois da intro. */
 export const DOOR_HINT_MS = 6000;
