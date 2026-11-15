@@ -1,8 +1,11 @@
 /** Fichas dos contratos do Mundo Real conferidas contra a spec (contracts-real). */
-import { getAircraft, getSensor } from '@/data/catalog';
+import { CATALOG, getAircraft, getSensor } from '@/data/catalog';
+import { buildFlightPlan } from '@/domain/flightPlanner';
+import { referenceParams } from '@/domain/referencePlan';
+import { RULE_PARAMS } from '@/domain/specialRules';
 import { meanAoiElevation } from '@/engines/flight/FlightEngine';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { C01, museumSlotCoords } from '.';
+import { C01, C05, museumSlotCoords } from '.';
 
 describe('C01 — Metrópole Vertical', () => {
   it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
@@ -92,5 +95,72 @@ describe('C01 — Metrópole Vertical', () => {
     for (const o of terrain.objects) top = Math.max(top, terrain.elevation(o.u, o.v) + o.heightM);
     expect(planAltM - top).toBeGreaterThanOrEqual(10);
     expect(C01.referencePlan.heightM).toBeLessThanOrEqual(C01.ceilingM);
+  });
+});
+
+describe('C05 — Centro Histórico Colonial', () => {
+  it('conforme a ficha: AOI, teto, vento, regra, requisitos, recompensa e museu', () => {
+    expect(C05.title).toBe('Centro Histórico Colonial');
+    expect(C05.client.name).toBe('Arq.ª Helena Vasconcelos');
+    expect(C05.client.portrait).toMatchObject({ shape: 'DIAMOND', icon: 'Church', initials: 'HV' });
+    expect([C05.biome, C05.seed]).toEqual(['COLONIAL_CENTER', 5005]);
+    expect(C05.aoi).toEqual({ widthM: 150, lengthM: 150 });
+    expect([C05.ceilingM, C05.terrainReliefM]).toEqual([120, 25]);
+    expect(C05.lightingOptions).toEqual(['OVERCAST', 'SUN_HIGH', 'GOLDEN_HOUR']);
+    expect(C05.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 45 });
+    expect(C05.specialRules).toEqual(['LOW_WIRES']);
+    expect(C05.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'FLIGHT_MODE', value: 'OBLIQUE' }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
+      [
+        'CRITICAL',
+        { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 500, contourIntervalM: 0.5 },
+      ],
+      ['MAJOR', { type: 'FLIGHT_MODE', value: 'CROSS_GRID' }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 1.5 }],
+      ['MAJOR', { type: 'MIN_GCP', value: 5 }],
+      ['MINOR', { type: 'MIN_CP', value: 3 }],
+    ]);
+    expect(C05.recommended).toMatchObject({
+      aircraft: ['DRONE_T1', 'DRONE_T2'],
+      vehicle: 'COMPACT_CAR',
+    });
+    expect(C05.minVehicle).toBe('FOOT_BIKE');
+    expect([C05.basePaymentBRL, C05.xp, C05.reputationReward]).toEqual([1_800_000, 600, 10]);
+    expect(C05.souvenirId).toBe('SV_TILE');
+    expect(museumSlotCoords(C05.museum.slot)).toEqual({ col: 1, lin: 1 });
+    expect(C05.museum.incomePerMinBRL).toBe(6_000);
+    expect(C05.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C01' });
+    expect(C05.overworldMarker).toBe('5');
+    expect(
+      [C05.dialogs.briefing, C05.dialogs.success, C05.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o plano de referência voa oblíquo a 45° em malha cruzada e exige 2 surtidas com o T1', () => {
+    const ref = C05.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T1',
+      sensorId: 'CAM_20MP_RS',
+      heightM: 50,
+      modes: ['OBLIQUE', 'CROSS_GRID'],
+      obliqueDeg: 45,
+      lighting: 'OVERCAST',
+    });
+    const plan = buildFlightPlan(referenceParams(C05), C05, CATALOG);
+    expect(plan.params).toMatchObject({ obliqueDeg: 45, crossGrid: true });
+    expect(plan.stats.nLines).toBe(14);
+    // Uma bateria não dá: são 2 surtidas, e o T1 (1 bateria + 2 reservas) as completa.
+    expect(plan.stats.batteriesNeeded).toBe(2);
+    const t1 = getAircraft('DRONE_T1');
+    expect(1 + t1.spareBatteries).toBeGreaterThanOrEqual(plan.stats.batteriesNeeded);
+    expect(plan.stats.flightTimeS).toBeGreaterThan(t1.enduranceS * 0.8);
+  });
+
+  it('o briefing avisa da fiação a 8–14 m e do AGL mínimo, os números da regra', () => {
+    const [lo, hi] = RULE_PARAMS.lowWires.wireHeightM;
+    expect(C05.recommended.notes).toContain(`${lo}–${hi} m`);
+    expect(C05.recommended.notes).toContain('AGL acima de 20 m');
+    expect(C05.referencePlan.heightM).toBeGreaterThan(20);
   });
 });

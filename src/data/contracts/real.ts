@@ -1,11 +1,11 @@
 /** Campanha principal: contratos do Mundo Real (contracts-real). */
-import { Landmark, Tractor } from 'lucide-react';
+import { Church, Landmark, Tractor } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 import { museumSlot } from './museum';
 
-registerIcons({ Landmark, Tractor });
+registerIcons({ Church, Landmark, Tractor });
 
 /** C00 — Sítio do Avô (tutorial). */
 export const C00: Contract = {
@@ -238,5 +238,125 @@ export const C01: Contract = {
   },
 };
 
+/** C05 — Centro Histórico Colonial (T054): fachadas e fios baixos (`COLONIAL_CENTER`). */
+export const C05: Contract = {
+  id: 'C05',
+  dimension: 'REAL',
+  title: 'Centro Histórico Colonial',
+  client: {
+    name: 'Arq.ª Helena Vasconcelos',
+    role: 'Instituto do Patrimônio Histórico',
+    description:
+      'Arquiteta do Instituto do Patrimônio Histórico, às voltas com casarões de 250 anos.',
+    portrait: {
+      shape: 'DIAMOND',
+      icon: 'Church',
+      primary: '#3b82f6',
+      secondary: '#f8fafc',
+      initials: 'HV',
+    },
+  },
+  objective: 'Modelo 3D de fachadas de casarões e da igreja matriz para o projeto de restauração.',
+  biome: 'COLONIAL_CENTER',
+  seed: 5005,
+  aoi: { widthM: 150, lengthM: 150 },
+  ceilingM: 120,
+  terrainReliefM: 25,
+  lightingOptions: ['OVERCAST', 'SUN_HIGH', 'GOLDEN_HOUR'],
+  wind: { meanMs: 3, gustMs: 2, directionDeg: 45 },
+  specialRules: ['LOW_WIRES'],
+  requirements: [
+    {
+      id: 'C05-oblique',
+      label: 'Voo oblíquo (câmera inclinada)',
+      severity: 'CRITICAL',
+      check: { type: 'FLIGHT_MODE', value: 'OBLIQUE' },
+    },
+    {
+      id: 'C05-cov',
+      label: 'Cobertura verde ≥ 85 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.85 },
+    },
+    {
+      id: 'C05-pec',
+      label: 'PEC-PCD classe A (1:500, eq. 0,5 m)',
+      severity: 'CRITICAL',
+      check: { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 500, contourIntervalM: 0.5 },
+    },
+    {
+      id: 'C05-grid',
+      label: 'Voo em malha cruzada',
+      severity: 'MAJOR',
+      check: { type: 'FLIGHT_MODE', value: 'CROSS_GRID' },
+    },
+    {
+      id: 'C05-gsd',
+      label: 'GSD ≤ 1,5 cm',
+      severity: 'MAJOR',
+      check: { type: 'MAX_GSD_CM', value: 1.5 },
+    },
+    {
+      id: 'C05-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+    {
+      id: 'C05-cp',
+      label: 'Ao menos 3 pontos de checagem',
+      severity: 'MINOR',
+      check: { type: 'MIN_CP', value: 3 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T1', 'DRONE_T2'],
+    sensors: ['CAM_20MP_RS', 'CAM_45MP_FF'],
+    vehicle: 'COMPACT_CAR',
+    notes: 'Fiação a 8–14 m: mantenha o AGL acima de 20 m.',
+  },
+  minVehicle: 'FOOT_BIKE',
+  basePaymentBRL: brl(18_000),
+  xp: 600,
+  reputationReward: 10,
+  souvenirId: 'SV_TILE',
+  museum: { wing: 'REAL', slot: museumSlot(1, 1), incomePerMinBRL: brl(60) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C01' },
+  overworldMarker: '5',
+  dialogs: {
+    briefing: [
+      'Esses casarões têm 250 anos e fachadas que nenhum mapa vertical enxerga.',
+      'Preciso de câmera inclinada e voo em malha cruzada.',
+      'E pelo amor de Deus, não encoste na fiação!',
+    ],
+    success: ['Cada azulejo, cada cornija. Vamos restaurar com precisão milimétrica.'],
+    failure: ['As fachadas ficaram borradas e deformadas. O patrimônio merece mais.'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T1',
+    sensorId: 'CAM_20MP_RS',
+    heightM: 50,
+    forwardOverlapPct: 75,
+    sideOverlapPct: 65,
+    speedMs: 6,
+    modes: ['OBLIQUE', 'CROSS_GRID'],
+    obliqueDeg: 45,
+    lighting: 'OVERCAST',
+    gcps: [
+      { u: 15, v: 15 },
+      { u: 135, v: 15 },
+      { u: 15, v: 135 },
+      { u: 135, v: 135 },
+      { u: 75, v: 75 },
+    ],
+    cps: [
+      { u: 45, v: 105 },
+      { u: 105, v: 45 },
+      { u: 75, v: 20 },
+    ],
+    expected: { gsdCm: 1.37, nLines: 14, flightTimeS: 605.9 },
+  },
+};
+
 /** Ordem da campanha (contracts-real). Os demais contratos entram nas tarefas de conteúdo. */
-export const REAL_CONTRACTS: readonly Contract[] = [C00, C01];
+export const REAL_CONTRACTS: readonly Contract[] = [C00, C01, C05];

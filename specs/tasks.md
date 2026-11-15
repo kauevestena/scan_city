@@ -1140,9 +1140,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F7 · **Depende de:** T053 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*)
 - **Spec:** [contracts-real C05](content/contracts-real.md)
 - **Aceite específico:**
-  - [ ] Fios entre os postes colidem.
-  - [ ] O plano de referência exige 2 surtidas com o T1 e é completável.
-- **Status:** ☐
+  - [x] Fios entre os postes colidem.
+  - [x] O plano de referência exige 2 surtidas com o T1 e é completável.
+- **Notas de implementação:**
+  - `world/terrain/biomes/colonialCenter.ts`: a ladeira é um plano que sobe 25 m ao longo de `u` (6 m + 25 m · u/150, e segue subindo na margem) com uma ondulação de ±1,5 m; na AOI o relevo dá 24,9 m e a declividade máxima, 18 % (os veículos vencem 30 %). Seis ruas de pedra de 7 m em cada eixo, a ~54 m uma da outra, formam 25 quadras que cobrem toda a margem de 20 %. Cada quadra recebe quatro fileiras de casarões (faixa de 13 m, lotes de ~10,5 m de frente, 8–10 m de altura, fachadas em oito cores pastéis, vão de 0,8 m entre vizinhos) em volta de um quintal de grama com 1–2 árvores. O telhado e a rua vêm do sampler; o quintal sai de `inYard`, calculado pela grade fixa de ruas.
+  - A quadra do meio é a da igreja matriz: nave de 30 × 20 × 18 m em (75, 63), duas torres de 35 m encostadas na fachada sul (u = 62,5 e 87,5) e o largo de pedra aberto ao sul, com quatro árvores nos cantos e o miolo livre — o GCP de referência (75, 75) cai ali (`guaranteedAccessible`: (75, 90)). Com a seed 5005: 355 objetos (179 casarões, a nave, 2 torres, 25 árvores, 80 postes e 68 fios).
+  - `LOW_WIRES` (T052): `lowWireLine` em cada rua, a 3 m do eixo, com postes a 30–40 m e fios de 8–14 m que seguem o terreno (cada ponta fica à altura sobre o seu chão). O teste do bioma confere que o fio colide a ±1 m da sua altura (corpo de 0,6 m + fio de 0,5 m), que a 20 m de AGL nenhum fio é tocado (a nota do briefing) e que o plano de referência passa a ≥ 10 m acima do topo mais alto da cena (≈ 13 m, nas torres).
+  - Contrato `C05` conforme a ficha (7 requisitos, com `FLIGHT_MODE` oblíquo e malha cruzada e PEC A 1:500 de eq. 0,5 m; R$ 18.000, 600 XP, +10; museu (1, 1) a R$ 60/min; desbloqueio `CONTRACT_DONE(C01)`; marcador `5`; `SV_TILE`). O plano de referência (T1 + 20 MP, H 50 m, oblíquo de 45° em malha cruzada, 14 linhas, 605,9 s, GSD 1,37 cm) bate com a spec e a viabilidade passa de primeira. A lente `LENS_24` do equipamento recomendado não cabe em `recommended` (só aeronaves e sensores), então a lista traz T1 e T2 com as câmeras `CAM_20MP_RS` e `CAM_45MP_FF`.
+  - Duas surtidas: `plan.stats.batteriesNeeded = 2` e o T1 (1 bateria + 2 reservas) as completa. No E2E o autopilot faz o RTH da primeira, inicia a segunda sozinho e só aparece o pós-voo ao fim: ~210 fotos, 0 colisões, relatório **APROVADO**, souvenir e museu (~1,6 min). `tests/e2e/contracts.spec.ts` ganhou o C05.
+  - Testes: 10 do bioma (determinismo, ladeira, ruas e quintais, casarões, igreja, largo, fios, folga do plano, desempenho), ficha do contrato e o plano de 2 surtidas em `real.test.ts`, e o briefing com os dados reais (`BriefingModal.real.test.tsx`, renomeado do teste do C01). Revisão visual: satélite (grade de casarões coloridos, igreja e largo), voo (postes e fios sobre as fachadas a 52 m de AGL, 60 FPS) e ortofoto. O chão além da margem é uma planície bege lisa, como no C01.
+  - O autopilot ainda não sobe sobre obstáculos (`obstacleAhead` segue `false`): o plano do C05 já passa acima de tudo, e isso só passa a ser necessário numa tarefa com obstáculos acima do plano. Para o aceite pelo briefing do C05 com `?seed=`, use uma seed sem contraproposta (por exemplo `?seed=3`).
+- **Status:** ✅
 
 ### T055 — C06 Zona Costeira e Estuário
 - **Fase:** F7 · **Depende de:** T054 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-FLT-021 (*parc.*)
