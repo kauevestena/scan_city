@@ -109,6 +109,20 @@ export const STRINGS = {
     all: (parts: string[]) => parts.join(' e '),
     any: (parts: string[]) => parts.join(' ou '),
   },
+  rival: {
+    title: 'Contraproposta da MegaMap',
+    offer: "A MegaMap ofereceu fazer por 30 % menos. Sem GCPs, mas 'com IA'.",
+    matchPrice: 'Igualar preço',
+    matchPriceHint: 'O pagamento deste contrato cai 15 %.',
+    portfolio: 'Apresentar portfólio técnico',
+    portfolioHint:
+      'Com um contrato concluído em classe A, o preço se mantém. Sem isso, o pagamento cai 15 % e a reputação cai 2.',
+    convinced: 'Seu histórico fala por si',
+    notConvinced: 'Bonito, mas o preço da concorrência é menor',
+    resultKept: 'O preço do contrato foi mantido.',
+    resultCut: 'O pagamento cai 15 % e a reputação cai 2.',
+    proceed: 'Seguir para o campo',
+  },
   museum: {
     incomeReason: 'Renda do Museu',
     offline: (money: string) => `Enquanto você esteve fora, o Museu rendeu ${money}`,
@@ -255,6 +269,8 @@ export const STRINGS = {
         distanceValue: (tiles: string) => `${tiles} tiles`,
         rival: 'Rival: MegaMap',
         rivalScore: (n: number) => `Contratos perdidos para a MegaMap: ${n}`,
+        rivalSummary: (stolen: number, offers: number) =>
+          `MegaMap: ${stolen} ${stolen === 1 ? 'contrato roubado' : 'contratos roubados'}, ${offers} ${offers === 1 ? 'contraproposta' : 'contrapropostas'}`,
         rivalNone: 'A MegaMap ainda não tomou nenhum contrato.',
         rivalSteal: (id: string) => `Contrato ${id} tomado pela MegaMap`,
         rivalOffer: (id: string) => `Contraproposta em ${id}`,

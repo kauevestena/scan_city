@@ -73,7 +73,7 @@ test('a posição do avatar é gravada e restaurada ao voltar ao mapa', async ({
 test('teleporta até o C00, abre o briefing e aceita: vai ao planejamento de campo', async ({
   page,
 }) => {
-  await page.goto('/?debug=1&skipIntro=1');
+  await page.goto('/?debug=1&skipIntro=1&seed=4');
   await page.getByRole('button', { name: 'Porta — sair para o mapa' }).click();
   await expect(page.getByTestId('world-map-screen')).toBeVisible();
   await page.keyboard.press('F9');

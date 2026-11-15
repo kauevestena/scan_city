@@ -1,15 +1,19 @@
 import { CircleCheck, CircleX } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { getDebugFlags } from '@/app/debugFlags';
 import { itemName } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
 import { REPLAY_FACTOR } from '@/domain/economy';
 import { describeUnlock, evaluateUnlock, unlockStateFrom } from '@/domain/progression';
+import { counterOfferFor } from '@/domain/rival';
 import { formatBRL, formatNumber } from '@/lib/format';
+import { selectModifiers } from '@/state/selectors';
 import { useGameStore } from '@/state/store';
 import type { Contract, UnlockCondition } from '@/types';
 import { Button, ChecklistItem, cx, DialogueBox, EmblemBadge, Modal } from '@/ui';
+import { CounterOfferModal } from './CounterOfferModal';
 
 const B = STRINGS.briefing;
 
@@ -100,11 +104,25 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
     ...inventory.vehicles,
   ]);
 
-  const accept = () => {
+  const [counterOffer, setCounterOffer] = useState(false);
+  const start = (rivalAdjustment: number) => {
     const { startMission, goTo } = useGameStore.getState();
-    // A contraproposta da MegaMap entra em T051; até lá, o fator é 1.
-    startMission(contractId, 1);
-    goTo('FIELD_SETUP', { contractId, rivalAdjustment: 1 });
+    startMission(contractId, rivalAdjustment);
+    goTo('FIELD_SETUP', { contractId, rivalAdjustment });
+  };
+  const accept = () => {
+    const state = useGameStore.getState();
+    // A MegaMap pode fazer uma contraproposta (20 % × `rivalChance`), nunca em replay.
+    const offered = counterOfferFor({
+      globalSeed: getDebugFlags().seed ?? state.createdAt,
+      contractId,
+      // Cada aceite tem o seu sorteio: contam os contratos concluídos e o histórico da rival.
+      salt: state.stats.contractsCompleted + state.rival.history.length,
+      rivalChanceMod: selectModifiers(state).rivalChance,
+      isReplay: replay,
+    });
+    if (offered) setCounterOffer(true);
+    else start(1);
   };
 
   const footer = (
@@ -122,6 +140,17 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
       </Button>
     </>
   );
+
+  // A contraproposta toma o lugar do briefing até o jogador decidir.
+  if (counterOffer) {
+    return (
+      <CounterOfferModal
+        contractId={contractId}
+        client={{ ...contract.client.portrait, name: contract.client.name }}
+        onResolve={start}
+      />
+    );
+  }
 
   return (
     <Modal open title={contract.title} onClose={onClose} size="lg" footer={footer}>

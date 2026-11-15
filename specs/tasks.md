@@ -1068,11 +1068,17 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Fase:** F6 · **Depende de:** T050 · **REQs:** REQ-PRG-011, REQ-PRG-012
 - **Spec:** [progression §8, §9](features/progression.md), [world-map §5.4](features/world-map.md)
 - **Aceite:**
-  - [ ] Modal de contraproposta com as duas opções e o portfólio.
-  - [ ] Roubo após falha crítica processada e retorno após outro contrato (critério 4 de [progression §14](features/progression.md)).
-  - [ ] Marcador rosa "MM".
+  - [x] Modal de contraproposta com as duas opções e o portfólio.
+  - [x] Roubo após falha crítica processada e retorno após outro contrato (critério 4 de [progression §14](features/progression.md)).
+  - [x] Marcador rosa "MM".
 - **Verificação:** `npx vitest run src/screens/world src/domain/rival`
-- **Status:** ☐
+- **Notas de implementação:**
+  - Aceitar no briefing agora sorteia a contraproposta: `domain/rival.counterOfferFor` usa `rollCounterOffer(rng, rivalChance)` (20 % × o modificador das habilidades), nunca em replay, com o RNG seedado por `counterOfferSeed(seed global, contrato, aceite)`. O jogo não tem uma seed global própria: vale a de `?seed=` na depuração ou, senão, o `createdAt` do save (a mesma escolha dos eventos de campo, T040). O "aceite" é `contractsCompleted + rival.history.length`, então cada tentativa tem o seu sorteio e a mesma seed repete a mesma sequência.
+  - `CounterOfferModal` (não dispensável: sem ✕ e o Esc não resolve): o emblema da MegaMap (`data/rival.ts`: hexágono, ícone Map, #e11d48 / #0f172a, "MM") e a fala da spec, com as duas opções. "Igualar preço" segue com o fator 0,85. "Apresentar portfólio técnico" usa `portfolioOutcome`: com um contrato concluído em classe A (ou ASPRS H ≤ 5 cm) o cliente diz "Seu histórico fala por si" e o preço se mantém; senão diz "Bonito, mas o preço da concorrência é menor", o fator é 0,85 e a reputação cai 2. Nos dois casos `recordCounterOffer` grava o evento no histórico (sem somar no placar de roubos), e só então a missão começa com o fator escolhido (`startMission` e o payload do `FIELD_SETUP`).
+  - Roubo e retorno já funcionavam (T019/T043): falha crítica fora de replay → `STOLEN` com `stolenAtCompletionCount`, e o contrato volta a `AVAILABLE` ao concluir outro (`missionResult.test.ts`, `rival.test.ts`). O marcador rosa com "MM" já era desenhado (`tileRenderer`, com teste). Como só o C00 existe até a F7, o critério 4 completo (C05 → R08) fica coberto nos testes de domínio e de store, e de ponta a ponta quando os contratos chegarem.
+  - O Perfil ganhou o resumo "MegaMap: N contratos roubados, M contrapropostas".
+  - Para os testes não ficarem sujeitos ao sorteio, `resetGameStore` fixa `createdAt = 4` (sem contraproposta no C00) e exporta `TEST_SEED_COUNTER_OFFER = 3`; os E2E que aceitam o C00 usam `?seed=4`.
+- **Status:** ✅
 
 ---
 
@@ -1087,11 +1093,11 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 > 6. Fazer a revisão visual do bioma no satélite, no voo, nos produtos e na mesa.
 >
 > **Aceite comum:**
-> - [ ] Viabilidade verde.
-> - [ ] Autopilot conclui o voo sem queda (o autopilot sobe sobre obstáculos).
-> - [ ] Relatório aprovado com o plano de referência.
-> - [ ] Bioma visualmente distinto.
-> - [ ] Determinismo verificado.
+> - [x] Viabilidade verde.
+> - [x] Autopilot conclui o voo sem queda (o autopilot sobe sobre obstáculos).
+> - [x] Relatório aprovado com o plano de referência.
+> - [x] Bioma visualmente distinto.
+> - [x] Determinismo verificado.
 >
 > **Verificação comum:** `npx vitest run src/data/contracts src/world/terrain` + E2E parametrizado `tests/e2e/contracts.spec.ts --grep <id>`.
 

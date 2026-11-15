@@ -293,6 +293,8 @@ describe('Nuvem / TIN (T042)', () => {
     );
     fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
     await cloudReady();
+    // A nuvem sai de um rAF fora do act: fecha um act para os efeitos (a câmera) entrarem.
+    await act(async () => undefined);
     const canvas = screen.getByTestId('cloud-canvas');
     const camera = cameraRef.current as OrbitCamera;
     const yaw = camera.yaw;

@@ -237,6 +237,8 @@ export interface WorldActions {
 export interface RivalActions {
   /** A MegaMap toma o contrato (progression §8). */
   steal: (contractId: string) => void;
+  /** Registra uma contraproposta da MegaMap no histórico (não pontua a rival). */
+  recordCounterOffer: (contractId: string) => void;
 }
 
 export interface SettingsActions {
