@@ -3,35 +3,102 @@ import { act } from '@testing-library/react';
 import { CATALOG, getAircraft, getSensor, HARDWARE } from '@/data/catalog';
 import { MARKER_ACCESS } from '@/data/overworld/map';
 import { computePayment, computeRewards } from '@/domain/economy';
+import { createCoverageGrid } from '@/domain/coverage';
 import { capturedFeatures } from '@/domain/features';
 import { classifyPec } from '@/domain/standards';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { predictRequirements } from '@/domain/requirements';
-import { estimatedSideOverlapPct, evaluateMission, type MissionContext } from '@/domain/mission';
+import {
+  estimatedSideOverlapPct,
+  evaluateMission,
+  medianForwardOverlapPct,
+  type MissionContext,
+} from '@/domain/mission';
 import { neutralModifiers } from '@/domain/modifiers';
 import { FlightEngine, type SortieResult } from '@/engines/flight/FlightEngine';
+import { generateProduct } from '@/engines/raster/products';
 import { referenceParams, referencePoints, syntheticMission } from '@/domain/referencePlan';
 import { resolveRuleEffects, RULE_PARAMS } from '@/domain/specialRules';
 import { mulberry32 } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
-import type { Contract, MissionData, VehicleId } from '@/types';
+import type { Contract, MissionData, Shot, VehicleId } from '@/types';
 import { isReachable } from '@/world/overworld/pathfinding';
 import { WORLD_MAP } from '@/world/overworld/tiles';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { CONTRACTS, getContract } from '.';
-import { R01, R02, R06, R07, R08, R11, RIFT_CONTRACTS } from './rifts';
+import { R01, R02, R06, R07, R08, R09, R11, RIFT_CONTRACTS } from './rifts';
+
+/** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
+function fly(contract: Contract): { result: SortieResult; used: number; shots: Shot[] } {
+  const mission: MissionData = {
+    id: `${contract.id}-sim`,
+    contractId: contract.id,
+    createdAt: 0,
+    rivalAdjustment: 1,
+    isReplay: false,
+    plan: buildFlightPlan(referenceParams(contract), contract, CATALOG),
+    groundPoints: [],
+    fieldEquipmentId: 'TOTAL_STATION',
+    minigames: {},
+    atlasCalibrated: false,
+    sorties: [],
+    completedLines: [],
+    shots: [],
+    events: {
+      collisions: 0,
+      crashes: 0,
+      detected: false,
+      featuresCaptured: [],
+      ringsCollected: 0,
+    },
+    status: 'IN_FLIGHT',
+  };
+  let result: SortieResult | undefined;
+  const shots: Shot[] = [];
+  let now = 0;
+  const e = new FlightEngine({
+    mission,
+    contract,
+    terrain: createTerrain(contract),
+    catalog: CATALOG,
+    input: { axis: () => 0 },
+    mods: neutralModifiers(),
+    ownsRtkKit: true,
+    autopilot: true,
+    quality: () => 'LOW',
+    reduceFlashes: () => false,
+    colors: { primary: '#64748b', secondary: '#0f172a' },
+    sortie: 0,
+    shotOffset: 0,
+    onSortieEnd: (r) => (result = r),
+    onShots: (batch) => shots.push(...batch),
+    now: () => (now += 200),
+  });
+  for (let t = 0; t < 900 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) e.update(1 / 60);
+  if (!result) throw new Error('o voo não terminou');
+  return { result, used: 1 - e.energy, shots };
+}
 
 describe('catálogo das fendas', () => {
   it('as fendas do catálogo são só de dimensão RIFT, entram em CONTRACTS e seguem a ordem dos ids', () => {
     expect(RIFT_CONTRACTS.every((c) => c.dimension === 'RIFT')).toBe(true);
-    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual(['R01', 'R02', 'R06', 'R07', 'R08', 'R11']);
+    expect(RIFT_CONTRACTS.map((c) => c.id)).toEqual([
+      'R01',
+      'R02',
+      'R06',
+      'R07',
+      'R08',
+      'R09',
+      'R11',
+    ]);
     for (const c of RIFT_CONTRACTS) expect(CONTRACTS).toContain(c);
     expect(getContract('R01')).toBe(R01);
     expect(getContract('R02')).toBe(R02);
     expect(getContract('R06')).toBe(R06);
     expect(getContract('R07')).toBe(R07);
     expect(getContract('R08')).toBe(R08);
+    expect(getContract('R09')).toBe(R09);
     expect(getContract('R11')).toBe(R11);
   });
 
@@ -917,55 +984,6 @@ describe('R07 — Base Polar das Sombras', () => {
     deps: { computePayment, computeRewards },
   });
 
-  /** Voa o plano de referência inteiro, com o autopilot, a 1×: o resultado da surtida e a energia gasta. */
-  function fly(contract: Contract): { result: SortieResult; used: number } {
-    const mission: MissionData = {
-      id: `${contract.id}-sim`,
-      contractId: contract.id,
-      createdAt: 0,
-      rivalAdjustment: 1,
-      isReplay: false,
-      plan: buildFlightPlan(referenceParams(contract), contract, CATALOG),
-      groundPoints: [],
-      fieldEquipmentId: 'TOTAL_STATION',
-      minigames: {},
-      atlasCalibrated: false,
-      sorties: [],
-      completedLines: [],
-      shots: [],
-      events: {
-        collisions: 0,
-        crashes: 0,
-        detected: false,
-        featuresCaptured: [],
-        ringsCollected: 0,
-      },
-      status: 'IN_FLIGHT',
-    };
-    let result: SortieResult | undefined;
-    let now = 0;
-    const e = new FlightEngine({
-      mission,
-      contract,
-      terrain: createTerrain(contract),
-      catalog: CATALOG,
-      input: { axis: () => 0 },
-      mods: neutralModifiers(),
-      ownsRtkKit: true,
-      autopilot: true,
-      quality: () => 'LOW',
-      reduceFlashes: () => false,
-      colors: { primary: '#64748b', secondary: '#0f172a' },
-      sortie: 0,
-      shotOffset: 0,
-      onSortieEnd: (r) => (result = r),
-      now: () => (now += 200),
-    });
-    for (let t = 0; t < 900 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) e.update(1 / 60);
-    if (!result) throw new Error('o voo não terminou');
-    return { result, used: 1 - e.energy };
-  }
-
   it('conforme a ficha: AOI, nevasca, regras, 4 requisitos, recompensa e museu', () => {
     expect(R07.title).toBe('Base Polar das Sombras');
     expect(R07.client.name).toBe('Cobrinha Sólida');
@@ -1087,5 +1105,271 @@ describe('R07 — Base Polar das Sombras', () => {
     expect(bad.requirements.find((r) => r.id === 'R07-stealth')?.pass).toBe(false);
     expect(bad.critical).toBe(true);
     expect(bad.approved).toBe(false);
+  });
+});
+
+describe('R09 — Savana das Gramas Altas', () => {
+  const terrain = createTerrain(R09);
+  const context = (): MissionContext => ({
+    catalog: CATALOG,
+    terrain,
+    ownsRtkKit: true,
+    modifiers: neutralModifiers(),
+    staff: { INTERN: 0, JUNIOR_ENG: 0 },
+    hardware: HARDWARE[0] as (typeof HARDWARE)[number],
+    inField: false,
+    firstApproval: true,
+    rng: mulberry32(7),
+    deps: { computePayment, computeRewards },
+  });
+  /** O mesmo plano de referência com a câmera RGB de 45 MP no lugar da multiespectral. */
+  const rgbContract = {
+    ...R09,
+    referencePlan: { ...R09.referencePlan, sensorId: 'CAM_45MP_FF', lensId: 'LENS_24' as const },
+  };
+
+  it('conforme a ficha: AOI, teto, luzes, vento, regras, 4 requisitos, recompensa e museu', () => {
+    expect(R09.title).toBe('Savana das Gramas Altas');
+    expect(R09.client.name).toBe('Ailton da Rocha');
+    expect(R09.client.portrait).toEqual({
+      shape: 'CIRCLE',
+      icon: 'Backpack',
+      primary: '#ef4444',
+      secondary: '#f8fafc',
+      initials: 'AR',
+    });
+    expect([R09.dimension, R09.biome, R09.seed]).toEqual(['RIFT', 'RIFT_TALL_GRASS', 9909]);
+    expect(R09.aoi).toEqual({ widthM: 400, lengthM: 800 });
+    expect([R09.ceilingM, R09.terrainReliefM]).toEqual([150, 20]);
+    expect(R09.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST']);
+    expect(R09.wind).toEqual({ meanMs: 4, gustMs: 3, directionDeg: 0 });
+    expect(R09.specialRules).toEqual([
+      'EM_INTERFERENCE',
+      'ELECTRIC_CREATURES',
+      'HOMOGENEOUS_TEXTURE',
+    ]);
+    expect(R09.requirements.map((r) => [r.severity, r.check])).toEqual([
+      ['CRITICAL', { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' }],
+      ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
+      ['MAJOR', { type: 'MAX_GSD_CM', value: 12 }],
+      ['MAJOR', { type: 'MIN_FORWARD_OVERLAP', value: 80 }],
+    ]);
+    expect(R09.recommended).toMatchObject({
+      aircraft: ['DRONE_T2', 'VTOL_T3'],
+      sensors: ['CAM_MS5'],
+      vehicle: 'FOOT_BIKE',
+    });
+    expect(R09.minVehicle).toBe('FOOT_BIKE');
+    expect([R09.basePaymentBRL, R09.xp, R09.reputationReward]).toEqual([4_000_000, 800, 5]);
+    expect(R09.souvenirId).toBe('SV_CAP');
+    expect(R09.museum).toEqual({ wing: 'RIFT', slot: 8, incomePerMinBRL: 10_000 });
+    expect(R09.unlock).toEqual({ type: 'CONTRACT_DONE', contractId: 'C02' });
+    expect(R09.overworldMarker).toBe('i');
+    expect(
+      [R09.dialogs.briefing, R09.dialogs.success, R09.dialogs.failure].map((d) => d.length),
+    ).toEqual([3, 1, 1]);
+  });
+
+  it('o portal `i` é de quem vai a pé ou de bicicleta, e o slot 8 do museu é só dele', () => {
+    expect(MARKER_ACCESS[R09.overworldMarker]).toBe('FOOT_BIKE');
+    const marker = WORLD_MAP.markers.find((m) => m.char === R09.overworldMarker) as {
+      kind: string;
+      x: number;
+      y: number;
+    };
+    expect(marker.kind).toBe('RIFT');
+    expect(isReachable(WORLD_MAP, WORLD_MAP.door, marker, 'FOOT_BIKE')).toBe(true);
+    const slots = RIFT_CONTRACTS.map((c) => c.museum.slot);
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it('o plano de referência voa o T2 com a câmera multiespectral: GSD 7,53 cm, 9 linhas, 725 s, 333 fotos', () => {
+    const ref = R09.referencePlan;
+    expect(ref).toMatchObject({
+      aircraftId: 'DRONE_T2',
+      sensorId: 'CAM_MS5',
+      heightM: 120,
+      forwardOverlapPct: 80,
+      sideOverlapPct: 65,
+      speedMs: 12,
+      lighting: 'SUN_HIGH',
+      gcps: [],
+      cps: [],
+    });
+    expect(ref.heightM).toBeLessThanOrEqual(R09.ceilingM);
+    expect(ref.expected).toEqual({ gsdCm: 7.53, nLines: 9, flightTimeS: 725.2 });
+    const plan = buildFlightPlan(referenceParams(R09), R09, CATALOG);
+    expect(plan.stats.gsdM * 100).toBeCloseTo(7.53, 2);
+    expect(plan.stats.nLines).toBe(9);
+    expect(plan.stats.flightTimeS).toBeCloseTo(725.2, 0);
+    expect(plan.stats.totalPhotos).toBe(333);
+    expect(plan.stats.batteriesNeeded).toBe(1);
+    // A previsão, antes do voo, só enxerga o que depende do plano (sensor, GSD e p).
+    const predicted = predictRequirements(plan, R09, [], {
+      catalog: CATALOG,
+      ownsRtkKit: true,
+      fieldEquipmentId: 'TOTAL_STATION',
+    });
+    expect(predicted.map((r) => [r.id, r.pass])).toEqual([
+      ['R09-sensor', true],
+      ['R09-cov', true],
+      ['R09-gsd', true],
+      ['R09-fwd', true],
+    ]);
+  });
+
+  it('as criaturas elétricas dão um pico a cada 8–12 s que dura 2 s e empurra o T2 3 m/s de lado; o T2 não é imune', () => {
+    const fx = resolveRuleEffects(R09.specialRules);
+    expect(fx.flight.electricCreatures).toEqual({ intervalS: [8, 12], spikeS: 2, forceMs: 3 });
+    expect(fx.flight.electricCreatures).toEqual(RULE_PARAMS.electric);
+    expect(fx.flight.emInterference).not.toBeNull();
+    expect(fx.accuracy.homogeneousTexture).toEqual({ tiePointFactor: 0.6 });
+    expect(getAircraft('DRONE_T2').emImmune).toBe(false);
+    expect(getSensor('CAM_MS5').kind).toBe('MULTISPECTRAL');
+  });
+
+  it('o autopilot voa o plano de referência inteiro: 9 linhas, 333 fotos, sem colisão, no meio dos picos elétricos', () => {
+    const { result, used } = fly(R09);
+    expect(result.outcome).toBe('COMPLETED');
+    expect(result.collisions).toBe(0);
+    expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(result.photos).toBe(333);
+    expect(result.detected).toBe(false);
+    // 725 s de voo dos 2.100 s do T2: sobra bateria.
+    expect(used).toBeLessThan(0.6);
+    // Sem as criaturas o voo também fecha: o empurrão só desvia, não derruba.
+    const calm = {
+      ...R09,
+      specialRules: R09.specialRules.filter((r) => r !== 'ELECTRIC_CREATURES'),
+    };
+    expect(fly(calm).result.outcome).toBe('COMPLETED');
+  });
+
+  it('com o plano de referência (missão sintética), o relatório aprova com a sobreposição longitudinal na casa de 80 %', () => {
+    const mission = syntheticMission(R09, terrain, CATALOG);
+    expect(mission.groundPoints).toHaveLength(0);
+    expect(mission.shots).toHaveLength(333);
+    const report = evaluateMission(mission, R09, context());
+    expect(report.critical).toBe(false);
+    expect(report.approved).toBe(true);
+    expect(report.requirements.map((r) => r.id)).toEqual([
+      'R09-sensor',
+      'R09-cov',
+      'R09-gsd',
+      'R09-fwd',
+    ]);
+    const byId = (id: string) => report.requirements.find((r) => r.id === id);
+    expect(['R09-sensor', 'R09-cov', 'R09-gsd'].every((id) => byId(id)?.pass)).toBe(true);
+    expect(report.coverage.green).toBeGreaterThanOrEqual(0.75);
+    // A ficha pede p ≥ 80 % e o plano de referência tem p = 80 %, sem folga: o relevo de até 20 m
+    // mexe na escala de cada foto e a mediana medida fica na casa de 80 %.
+    const p = medianForwardOverlapPct(mission.shots) as number;
+    expect(p).toBeGreaterThan(79.8);
+    expect(p).toBeLessThan(80.3);
+    expect(R09.recommended.notes).toContain('p ≥ 80 %');
+    expect(R09.recommended.notes).toContain('dê folga ao p');
+    // A textura homogênea do capim pesa no relatório (×1,24 com p ≥ 80 %), assim como a interferência.
+    const keys = report.multipliers.map((m) => m.key);
+    expect(keys).toEqual(expect.arrayContaining(['texture', 'em']));
+    expect(report.multipliers.find((m) => m.key === 'texture')?.xy).toBeCloseTo(1.24, 6);
+  });
+
+  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o AGL só cai nos morros e a mediana de p fica um décimo abaixo de 80 %', () => {
+    expect(getAircraft('DRONE_T2').hMaxM).toBe(R09.referencePlan.heightM);
+    const { shots } = fly(R09);
+    expect(shots).toHaveLength(333);
+    // O teto de AGL do T2 corta os vales: nenhuma foto sai com AGL acima do H do plano (±10 cm de passo).
+    expect(Math.max(...shots.map((s) => s.aglM))).toBeLessThanOrEqual(120.1);
+    expect(Math.min(...shots.map((s) => s.aglM))).toBeLessThan(112);
+    // A mediana medida na pegada real fica logo abaixo do 80 % nominal (o relatório marca
+    // "Sobreposição longitudinal" como não atendida, IMPORTANTE, e a missão segue aprovada).
+    const p = medianForwardOverlapPct(shots) as number;
+    expect(p).toBeGreaterThan(79.5);
+    expect(p).toBeLessThan(80);
+    // Com 2 pontos percentuais de folga no p, o voo de verdade passa com sobra.
+    const roomy = { ...R09, referencePlan: { ...R09.referencePlan, forwardOverlapPct: 82 } };
+    const better = medianForwardOverlapPct(fly(roomy).shots) as number;
+    expect(better).toBeGreaterThan(81.5);
+  });
+
+  it('com p = 75 % a textura homogênea pesa ×1,6 e a sobreposição reprova (MAJOR); com 82 % passa com folga', () => {
+    const lowP = { ...R09, referencePlan: { ...R09.referencePlan, forwardOverlapPct: 75 } };
+    const mission = syntheticMission(lowP, terrain, CATALOG);
+    const report = evaluateMission(mission, R09, context());
+    expect(report.requirements.find((r) => r.id === 'R09-fwd')?.pass).toBe(false);
+    expect(report.critical).toBe(false);
+    expect(report.multipliers.find((m) => m.key === 'texture')?.xy).toBeCloseTo(1.6, 6);
+    const highP = { ...R09, referencePlan: { ...R09.referencePlan, forwardOverlapPct: 82 } };
+    const better = syntheticMission(highP, terrain, CATALOG);
+    expect(medianForwardOverlapPct(better.shots) as number).toBeGreaterThan(81.9);
+    expect(
+      evaluateMission(better, R09, context()).requirements.find((r) => r.id === 'R09-fwd')?.pass,
+    ).toBe(true);
+  });
+
+  it('voar com a câmera RGB reprova pelo crítico: sem sensor multiespectral, sem NDVI', () => {
+    const mission = syntheticMission(rgbContract, terrain, CATALOG);
+    const report = evaluateMission(mission, R09, context());
+    const bySensor = report.requirements.find((r) => r.id === 'R09-sensor');
+    expect(bySensor?.pass).toBe(false);
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+  });
+
+  it('o NDVI separa o capim alto (≥ 0,8) do capim baixo (~0,5), da areia/estrada e da água', () => {
+    const grid = createCoverageGrid(R09.aoi);
+    const raster = generateProduct('NDVI', {
+      terrain,
+      coverage: {
+        cols: grid.cols,
+        rows: grid.rows,
+        counts: grid.counts.map(() => 6),
+        excludedCells: [],
+      },
+      lighting: 'SUN_HIGH',
+      rmseZM: 0.1,
+      seed: 1,
+    });
+    const hist = raster.histogram as number[];
+    const total = hist.reduce((s, v) => s + v, 0);
+    const share = (from: number, to: number) =>
+      hist.slice(from, to).reduce((s, v) => s + v, 0) / total;
+    // 22 faixas de 0,05 entre −0,2 e 0,9: ≥ 0,8 são as faixas 20 e 21.
+    expect(share(20, 22)).toBeGreaterThan(0.3);
+    expect(share(20, 22)).toBeLessThan(0.45);
+    // O capim baixo (0,5 ± 0,06) cai nas faixas 13–15 e é a maior parte do mapa.
+    expect(share(12, 16)).toBeGreaterThan(0.45);
+    // A água (NDVI < 0) fica nas faixas 0–3.
+    expect(share(0, 4)).toBeGreaterThan(0.04);
+    expect(share(0, 4)).toBeLessThan(0.12);
+  });
+
+  it('concluir o C02 libera a R09: a fenda é descoberta e sai um aviso', () => {
+    resetGameStore();
+    const get = () => useGameStore.getState();
+    const done = { status: 'COMPLETED' as const, completions: 1, bestScore: 0.9 };
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C00: done, C01: done },
+        stats: { ...s.stats, contractsCompleted: 2 },
+      }));
+      get().refreshUnlocks({ silent: true });
+    });
+    expect(get().contracts.R09?.status).toBe('LOCKED');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02']);
+    act(() => {
+      useGameStore.setState((s) => ({
+        contracts: { ...s.contracts, C02: done },
+        stats: { ...s.stats, contractsCompleted: 3 },
+      }));
+      get().refreshUnlocks();
+    });
+    expect(get().contracts.R09?.status).toBe('AVAILABLE');
+    expect(get().world.discoveredRifts).toEqual(['R01', 'R02', 'R09']);
+    expect(
+      get()
+        .session.toasts.filter((t) => t.type === 'rift')
+        .map((t) => t.title),
+    ).toEqual(['Anomalia dimensional detectada: Savana das Gramas Altas']);
   });
 });

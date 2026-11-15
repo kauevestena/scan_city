@@ -124,6 +124,15 @@ const CONTRACTS: readonly Entry[] = [
     souvenir: 'Caixa de Papelão',
     rift: true,
   },
+  {
+    id: 'R09',
+    title: 'Savana das Gramas Altas',
+    lines: 9,
+    photos: 333,
+    pec: false,
+    souvenir: 'Boné Virado para Trás',
+    rift: true,
+  },
 ];
 
 for (const c of CONTRACTS) {
