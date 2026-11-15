@@ -87,3 +87,9 @@
 - **Padrão provisório:** A (`canBeStolen` em `missionSlice`). Cobre o C00 e qualquer situação equivalente, sem mudar a regra no resto da campanha.
 - **Resolução:** —
 
+### OQ-011 — GCP sobre a lava (R05)
+- **Aberta em:** 2026-11-15 por T068
+- **Contexto:** a [acessibilidade](features/field-setup.md) só invalida o ponto na água, no telhado, sob dossel > 0,6 ou fora do alcance do veículo (rede, distância, declive e brejo). A lava da R05 (`LAVA`, as colunas abaixo de 8 m) não entra na lista: é plana, a picape chega e o declive passa, então o jogador pode cravar um GCP no meio da lava. As fotos sobre lava também valem (só a água é excluída da cobertura: OQ-007).
+- **Opções:** A) manter a spec (a lava é chão); B) tratar a lava como a água: ponto inválido (novo motivo `LAVA`) e células de lava fora da cobertura.
+- **Padrão provisório:** A. Os patamares dos 5 GCPs do plano de referência nunca são lava (cota mínima de 8 m), então o plano de referência não depende da decisão.
+- **Resolução:** —

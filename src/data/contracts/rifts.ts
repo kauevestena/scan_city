@@ -3,12 +3,12 @@
  * Paródias com nomes e descrições originais; nada aqui reproduz personagem, marca ou layout de
  * obra existente (constitution §6, guardado por `npm run check:terms`).
  */
-import { Backpack, Bike, Crosshair, Flame, Package, Sword, Wrench, Zap } from 'lucide-react';
+import { Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Wrench, Zap } from 'lucide-react';
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
 
-registerIcons({ Backpack, Bike, Crosshair, Flame, Package, Sword, Wrench, Zap });
+registerIcons({ Backpack, Bike, Box, Crosshair, Flame, Package, Sword, Wrench, Zap });
 
 /** R01 — Colinas Verdes dos Espinhos (T060): arcos de pedra, anéis dourados e o Atlas imune. */
 export const R01: Contract = {
@@ -541,6 +541,112 @@ export const R03: Contract = {
   },
 };
 
+/** R05 — Mina dos Blocos Cúbicos (T068): terreno quantizado em degraus de 4 m, lava com térmicas e TF. */
+export const R05: Contract = {
+  id: 'R05',
+  dimension: 'RIFT',
+  title: 'Mina dos Blocos Cúbicos',
+  client: {
+    name: 'Estêvão',
+    role: 'Minerador',
+    description: 'Minerador de camisa ciano que não pisca e anda em ângulos retos.',
+    portrait: {
+      shape: 'HEXAGON',
+      icon: 'Box',
+      primary: '#06b6d4',
+      secondary: '#4d7c0f',
+      initials: 'ES',
+    },
+  },
+  objective:
+    'Nuvem de pontos 3D de taludes em degraus cúbicos para identificar deformações e prevenir vazamento de lava.',
+  biome: 'RIFT_CUBES',
+  seed: 9505,
+  aoi: { widthM: 240, lengthM: 320 },
+  ceilingM: 120,
+  terrainReliefM: 80,
+  lightingOptions: ['SUN_HIGH', 'OVERCAST'],
+  wind: { meanMs: 2, gustMs: 2, directionDeg: 0 },
+  specialRules: ['EM_INTERFERENCE', 'LAVA_THERMALS', 'STEEP_RELIEF'],
+  requirements: [
+    {
+      id: 'R05-cov',
+      label: 'Cobertura verde ≥ 85 %',
+      severity: 'CRITICAL',
+      check: { type: 'MIN_COVERAGE_GREEN', value: 0.85 },
+    },
+    {
+      id: 'R05-fwd',
+      label: 'Sobreposição longitudinal ≥ 80 %',
+      severity: 'MAJOR',
+      check: { type: 'MIN_FORWARD_OVERLAP', value: 80 },
+    },
+    {
+      id: 'R05-asprs',
+      label: 'ASPRS: 6 cm (H) e 8 cm (V)',
+      severity: 'MAJOR',
+      check: { type: 'ACCURACY_ASPRS', horizontalCm: 6, verticalCm: 8 },
+    },
+    {
+      id: 'R05-tf',
+      label: 'Terrain Following',
+      severity: 'MAJOR',
+      check: { type: 'FLIGHT_MODE', value: 'TERRAIN_FOLLOWING' },
+    },
+    {
+      id: 'R05-gcp',
+      label: 'Ao menos 5 GCPs',
+      severity: 'MAJOR',
+      check: { type: 'MIN_GCP', value: 5 },
+    },
+  ],
+  recommended: {
+    aircraft: ['DRONE_T2'],
+    sensors: ['CAM_45MP_FF'],
+    vehicle: 'PICKUP_4X4',
+    notes:
+      'Terrain Following: o terreno tem 80 m de degraus de 4 m. A lava gera térmicas de 6 m/s (r = 40 m) que empurram o drone para cima.',
+  },
+  // A ficha não traz o veículo mínimo; o layout do mapa põe a fenda atrás do cinturão (OQ-009).
+  minVehicle: 'PICKUP_4X4',
+  basePaymentBRL: brl(50_000),
+  xp: 1000,
+  reputationReward: 5,
+  souvenirId: 'SV_CUBE_ORE',
+  museum: { wing: 'RIFT', slot: 4, incomePerMinBRL: brl(120) },
+  unlock: { type: 'CONTRACT_DONE', contractId: 'C04' },
+  overworldMarker: 'e',
+  dialogs: {
+    briefing: [
+      '… (Estêvão vira 90° e olha para você.)',
+      'Talude. Degrau. Lava. Mapa.',
+      '(Ele vira mais 90°.)',
+    ],
+    success: ['Mapa. Bom. (Ele entrega um bloco perfeitamente cúbico.)'],
+    failure: ['Mapa. Ruim. (Ele coloca um bloco de terra na sua frente, em protesto.)'],
+  },
+  referencePlan: {
+    aircraftId: 'DRONE_T2',
+    sensorId: 'CAM_45MP_FF',
+    lensId: 'LENS_24',
+    heightM: 80,
+    forwardOverlapPct: 80,
+    sideOverlapPct: 70,
+    speedMs: 8,
+    modes: ['TERRAIN_FOLLOWING'],
+    lighting: 'OVERCAST',
+    gcps: [
+      { u: 20, v: 20 },
+      { u: 300, v: 20 },
+      { u: 20, v: 220 },
+      { u: 300, v: 220 },
+      { u: 160, v: 120 },
+    ],
+    cps: [],
+    expected: { gsdCm: 1.46, nLines: 8, flightTimeS: 452.4 },
+  },
+};
+
 /** R06 — Pântano Cinzento (T064): câmera térmica obrigatória, tocas que só o calor revela. */
 export const R06: Contract = {
   id: 'R06',
@@ -834,4 +940,4 @@ export const R09: Contract = {
 };
 
 /** Fendas do catálogo, na ordem dos ids (cada tarefa T060–T070 acrescenta a sua). */
-export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R03, R06, R07, R08, R09, R11];
+export const RIFT_CONTRACTS: readonly Contract[] = [R01, R02, R03, R05, R06, R07, R08, R09, R11];

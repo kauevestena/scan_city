@@ -52,7 +52,13 @@ export interface BiomeRecipe {
   roads(aoi: Contract['aoi'], rng: Rng): Polyline[];
   placeObjects(ctx: PlacementCtx, rng: Rng): WorldObject[];
   features?(aoi: Contract['aoi']): FeatureTarget[];
-  zones?(objects: readonly WorldObject[], aoi: Contract['aoi'], rng: Rng): SpecialZone[];
+  /** Zonas especiais; `ctx` é o mesmo contexto de `placeObjects` (a cota, para achar a lava, por exemplo). */
+  zones?(
+    objects: readonly WorldObject[],
+    aoi: Contract['aoi'],
+    rng: Rng,
+    ctx: PlacementCtx,
+  ): SpecialZone[];
   /** Pontos garantidamente acessíveis (clareiras, praia), usados no plano de referência. */
   guaranteedAccessible?: AoiPoint[];
 }
@@ -182,16 +188,14 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
   const roads = recipe.roads(aoi, rng.fork('roads'));
 
   let nextObjectId = 1;
-  const objects = [
-    ...recipe.placeObjects(
-      { aoi, bounds, elevation, roads, nextId: () => nextObjectId++ },
-      rng.fork('objects'),
-    ),
-  ].sort((a, b) => a.u - b.u);
+  const placement: PlacementCtx = { aoi, bounds, elevation, roads, nextId: () => nextObjectId++ };
+  const objects = [...recipe.placeObjects(placement, rng.fork('objects'))].sort(
+    (a, b) => a.u - b.u,
+  );
   const maxReach = objects.reduce((m, o) => Math.max(m, objectReach(o)), 0);
   const hash = createSpatialHash(objects);
   const features = recipe.features?.(aoi) ?? [];
-  const zones = recipe.zones?.(objects, aoi, rng.fork('zones')) ?? [];
+  const zones = recipe.zones?.(objects, aoi, rng.fork('zones'), placement) ?? [];
 
   const roadTest = (kinds: ReadonlySet<Polyline['kind']>, minHalfM = 0) =>
     segmentTest(roads, kinds, minHalfM);

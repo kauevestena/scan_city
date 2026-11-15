@@ -70,6 +70,8 @@ export interface TerrainScene {
   reliefM: number;
   /** Regra `SPECULAR_WATER`: brilho na água sob `SUN_HIGH`. */
   specularWater?: boolean;
+  /** Regra `LAVA_THERMALS`: a lava pulsa num brilho laranja. */
+  lavaGlow?: boolean;
   /**
    * Câmera termal: o terreno vira uma rampa de calor (cobertura mais o calor extra de `heatAt`,
    * em coordenadas do *run*), no lugar das cores do bioma.
@@ -265,6 +267,10 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       if (cover === 'WATER') {
         base = scene.palette.water;
         shade = 1 + 0.06 * Math.sin(scene.timeS * 2 + Zi * 0.1 + (g.x[k00] as number) * 0.05);
+      }
+      if (cover === 'LAVA' && scene.lavaGlow) {
+        // Brilho laranja: mais claro que o resto e pulsando devagar, de ponto em ponto.
+        shade = 1.18 + 0.14 * Math.sin(scene.timeS * 2.4 + Zi * 0.08 + (g.x[k00] as number) * 0.06);
       }
       if (scene.thermal) {
         // Termal: o calor da cobertura, a mancha quente do ponto e um toque do relevo.
