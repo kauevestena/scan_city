@@ -18,6 +18,7 @@ import {
 } from '@/domain/flightPhysics';
 import { gsd } from '@/domain/photogrammetry';
 import { planEquipment } from '@/domain/requirements';
+import { resolveRuleEffects, type RuleEffects } from '@/domain/specialRules';
 import { clamp, lerp } from '@/lib/math';
 import { hashString, mulberry32, type Rng } from '@/lib/rng';
 import type {
@@ -251,6 +252,8 @@ export class FlightEngine implements Simulation {
   private readonly hud = new HudThrottle();
   private surface: CanvasSurface | null = null;
   private weather: WeatherParticles | null = null;
+  /** Efeitos das regras especiais do contrato (domain/specialRules). */
+  private readonly rules: RuleEffects;
   private readonly em: boolean;
   private emHeading = 0;
   private lastRtk: RtkStatus = 'NONE';
@@ -277,10 +280,11 @@ export class FlightEngine implements Simulation {
     const { aircraft } = planEquipment(opts.mission.plan, opts.catalog);
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
+    this.rules = resolveRuleEffects(opts.contract.specialRules);
     this.em = emActive(opts.contract.specialRules, aircraft);
     // Criaturas elétricas: o Atlas é imune; os picos são seedados pela missão.
     this.electric =
-      opts.contract.specialRules.includes('ELECTRIC_CREATURES') && !aircraft.emImmune
+      this.rules.flight.electricCreatures !== null && !aircraft.emImmune
         ? new ElectricSchedule(mulberry32(hashString(`${opts.mission.id}:electric`)))
         : null;
     const pod = planEquipment(opts.mission.plan, opts.catalog);
@@ -470,7 +474,7 @@ export class FlightEngine implements Simulation {
       vCruiseMs: this.aircraft.vCruiseMs,
       windMs: Math.hypot(this.crossWind, this.headWind),
       climbing: this.ac.climbing,
-      blizzard: this.opts.contract.specialRules.includes('BLIZZARD_DRAIN'),
+      blizzard: this.rules.flight.energyDrainFactor > 1,
     });
     this.energy = Math.max(0, this.energy - rate * dtS);
   }
@@ -805,7 +809,7 @@ export class FlightEngine implements Simulation {
         focalM,
         rules: {
           sensorKind: camera.kind,
-          specularWater: this.opts.contract.specialRules.includes('SPECULAR_WATER'),
+          specularWater: this.rules.coverage.specularWater,
         },
       },
     );
@@ -977,7 +981,7 @@ export class FlightEngine implements Simulation {
   }
 
   private hasRings(): boolean {
-    return this.opts.contract.specialRules.includes('COLLECTIBLE_RINGS');
+    return this.rules.flight.rings !== null;
   }
 
   private lidarHud(): { lidarDensity?: number; groundDensity?: number } {
@@ -1073,7 +1077,7 @@ export class FlightEngine implements Simulation {
       lighting: plan.params.lighting,
       sun: sunInRunFrame(plan.params.lighting, frame.dir, frame.right),
       reliefM: this.opts.contract.terrainReliefM,
-      specularWater: this.opts.contract.specialRules.includes('SPECULAR_WATER'),
+      specularWater: this.rules.flight.specularWater,
       timeS: this.sortieT,
       objects,
       marks,

@@ -12,6 +12,7 @@ vi.mock('@/data/contracts', async (importOriginal) => {
     title: 'Metrópole Vertical',
     overworldMarker: '1',
     recommended: { ...actual.C00.recommended, aircraft: ['DRONE_T1'], notes: 'Voe alto!' },
+    specialRules: ['URBAN_CANYON_RTK_LOSS', 'COLLECTIBLE_RINGS'],
     unlock: {
       type: 'ALL',
       of: [
@@ -148,5 +149,31 @@ describe('BriefingModal', () => {
     expect(within(dialog).getByRole('button', { name: 'Aceitar' })).toBeDisabled();
     fireEvent.click(within(dialog).getByRole('button', { name: /Recusar/ }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('regras especiais: ícone, nome e descrição de cada uma; sem regras, a seção não aparece', () => {
+    const { dialog } = open('C01');
+    const rules = within(within(dialog).getByTestId('briefing-rules')).getAllByRole('listitem');
+    expect(rules.map((li) => li.getAttribute('data-rule'))).toEqual([
+      'URBAN_CANYON_RTK_LOSS',
+      'COLLECTIBLE_RINGS',
+    ]);
+    expect(rules[0]).toHaveTextContent('Cânions urbanos');
+    expect(rules[0]).toHaveTextContent('o RTK cai para FLOAT');
+    expect(rules[1]).toHaveTextContent('Anéis coletáveis');
+    expect(rules[1]).toHaveTextContent('R$ 50 extras');
+    // O ícone vem do registro (não o de reserva) e é um SVG.
+    expect(
+      within(rules[0] as HTMLElement)
+        .getByTestId('rule-icon-URBAN_CANYON_RTK_LOSS')
+        .querySelector('svg'),
+    ).not.toBeNull();
+    expect(within(dialog).getByText('Regras especiais')).toBeInTheDocument();
+  });
+
+  it('C00 não tem regras: sem a seção "Regras especiais"', () => {
+    const { dialog } = open();
+    expect(within(dialog).queryByTestId('briefing-rules')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Regras especiais')).not.toBeInTheDocument();
   });
 });

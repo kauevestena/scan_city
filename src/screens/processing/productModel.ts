@@ -11,6 +11,7 @@ import {
 import { hashString } from '@/lib/rng';
 import type { Contract, MissionData, QualityReport } from '@/types';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
+import { resolveRuleEffects } from '@/domain/specialRules';
 
 const U = STRINGS.processing.products.unavailable;
 
@@ -32,7 +33,7 @@ export function validPhotoCount(mission: MissionData, contract: Contract): numbe
   const { camera } = planEquipment(mission.plan, CATALOG);
   const rules = {
     sensorKind: camera.kind,
-    specularWater: contract.specialRules.includes('SPECULAR_WATER'),
+    specularWater: resolveRuleEffects(contract.specialRules).coverage.specularWater,
   };
   return mission.shots.filter((s) => isShotValid(s, rules)).length;
 }

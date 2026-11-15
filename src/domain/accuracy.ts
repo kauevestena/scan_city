@@ -22,6 +22,7 @@ import type {
 import { collinearityIndex, hullCoverage } from './geometry';
 import { lidarRmseXY, lidarRmseZ } from './lidar';
 import { gsd } from './photogrammetry';
+import { resolveRuleEffects, RULE_PARAMS } from './specialRules';
 
 const L = STRINGS.accuracy.multipliers;
 
@@ -151,7 +152,7 @@ export function accuracyMultipliers(ctx: AccuracyContext): Multiplier[] {
   if (ctx.meanCount < 5) add('overlap', L.overlap, 1 + 0.12 * (5 - ctx.meanCount));
   if (ctx.redFraction > 0.1) add('holes', L.holes, 1 + ctx.redFraction);
   add('blur', L.blur, 1 + 0.5 * ctx.blurFraction);
-  if (ctx.emInterference && !ctx.emImmune) add('em', L.em, 1.2);
+  if (ctx.emInterference && !ctx.emImmune) add('em', L.em, RULE_PARAMS.em.rmseFactor);
 
   const q = ctx.atlasCalibrated ? 1 + (ctx.cameraPenalty - 1) * 0.5 : ctx.cameraPenalty;
   add('camera', ctx.atlasCalibrated ? L.cameraCalibrated : L.camera, q);
@@ -285,6 +286,7 @@ export interface PhotoAccuracyInput {
 
 /** Contexto de §6.3 a partir das medições (ou da previsão) da missão. */
 export function photoAccuracyContext(i: PhotoAccuracyInput): AccuracyContext {
+  const effects = resolveRuleEffects(i.specialRules);
   return {
     gcpCount: i.gcps.length,
     phi: i.phi,
@@ -294,13 +296,13 @@ export function photoAccuracyContext(i: PhotoAccuracyInput): AccuracyContext {
     meanSkewPx: i.meanSkewPx,
     rgbPhotos: i.camera.kind === 'RGB',
     lighting: i.lighting,
-    homogeneousTexture: i.specialRules.includes('HOMOGENEOUS_TEXTURE'),
+    homogeneousTexture: effects.accuracy.homogeneousTexture !== null,
     forwardOverlapPct: i.forwardOverlapPct,
-    specularWater: i.specialRules.includes('SPECULAR_WATER'),
+    specularWater: effects.accuracy.specularWater,
     meanCount: i.meanCount,
     redFraction: i.redFraction,
     blurFraction: i.blurFraction,
-    emInterference: i.specialRules.includes('EM_INTERFERENCE'),
+    emInterference: effects.flight.emInterference !== null,
     emImmune: i.emImmune,
     cameraPenalty: i.camera.qualityPenalty,
     atlasCalibrated: i.atlasCalibrated,
@@ -323,7 +325,7 @@ export function photoModel(input: PhotoAccuracyInput): {
 }
 
 /** EM ativo e aeronave não imune: fator 1,2 também no LiDAR (§6.7). */
-export const EM_FACTOR = 1.2;
+export const EM_FACTOR = RULE_PARAMS.em.rmseFactor;
 
 /** §6.7 — Modelo LiDAR: ruído de §4.3 com EM e habilidades. */
 export function lidarModel(

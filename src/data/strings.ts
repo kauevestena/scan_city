@@ -797,6 +797,7 @@ export const STRINGS = {
     objective: 'Objetivo',
     requirements: 'Requisitos técnicos',
     conditions: 'Condições',
+    specialRules: 'Regras especiais',
     aoi: 'AOI',
     aoiValue: (widthM: number, lengthM: number) => `${widthM} × ${lengthM} m`,
     ceiling: 'Teto',

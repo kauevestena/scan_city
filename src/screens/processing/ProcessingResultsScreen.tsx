@@ -27,6 +27,7 @@ import { drawLidarStage } from '@/engines/raster/lidarViz';
 import { ProductViewer } from './ProductViewer';
 import { ReportSummary } from './ReportSummary';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
+import { resolveRuleEffects } from '@/domain/specialRules';
 
 const P = STRINGS.processing;
 type ReportTab = 'SUMMARY' | 'ACCURACY' | 'COVERAGE' | 'PRODUCTS' | 'PAYMENT';
@@ -128,7 +129,7 @@ function Processing({ job }: { job: Job }) {
       cloud: cloudSamples(terrain, mulberry32(assetsSeed)),
       objects: terrain.objects,
       roads: terrain.roads,
-      homogeneous: contract.specialRules.includes('HOMOGENEOUS_TEXTURE'),
+      homogeneous: resolveRuleEffects(contract.specialRules).accuracy.homogeneousTexture !== null,
       seed: assetsSeed,
     };
     if (report.lens) result.lens = report.lens;

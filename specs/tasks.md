@@ -1106,11 +1106,18 @@ O paralelismo é possível em F6, F7 e F8. Nesse caso, respeite os campos "Depen
 - **Spec:** [contracts-real §1](content/contracts-real.md)
 - **Arquivos:** \+ `src/data/specialRules.ts` (metadados: nome, descrição pt-BR, ícone), `src/domain/specialRules.ts` (registro de efeitos por sistema: `terrain`, `flight`, `field`, `coverage`, `accuracy`) + testes
 - **Aceite:**
-  - [ ] Todas as 20 regras têm metadados e efeito registrado.
-  - [ ] 1 teste por regra, usando a `testArena` de T036.
-  - [ ] O briefing exibe as regras com ícone e descrição.
+  - [x] Todas as 20 regras têm metadados e efeito registrado.
+  - [x] 1 teste por regra, usando a `testArena` de T036.
+  - [x] O briefing exibe as regras com ícone e descrição.
 - **Verificação:** `npx vitest run src/domain/specialRules`
-- **Status:** ☐
+- **Notas de implementação:**
+  - `data/specialRules.ts`: as 20 regras com nome, descrição pt-BR, ícone (lucide, registrado em `registerIcons`) e os sistemas em que atuam (`systems`, a coluna "onde atua" da spec). `domain/specialRules.ts` guarda os números normativos num só lugar (`RULE_PARAMS`: 60 m/40 m do cânion, 0,6 de tie points, 8 m/s, ±0,8 m/s e 3°, ×2/400 m, 250 m, 1,5 s/3 s, anéis de 3 m, R$ 50…) e o registro `RULE_REGISTRY`: cada regra liga os seus efeitos em `RuleEffects`, com cinco grupos (`terrain`, `flight`, `field`, `coverage`, `accuracy`). `resolveRuleEffects(contract.specialRules)` junta as regras (memoizado) e é o que os sistemas consultam, no lugar de procurar a regra pelo nome.
+  - Os consumidores foram migrados para os efeitos: `engines/flight/{environment,fieldElements,FlightEngine}`, `domain/{mission,accuracy,requirements,energy}`, `screens/field/{PlanStats,useFieldContext}`, `screens/processing/{ProcessingResultsScreen,productModel}` e `engines/raster/pipelineViz` (o fator de tie points da textura homogênea). Os sistemas sem grupo próprio caem num grupo existente: ENERGY, EVALUATION e ECONOMY em `flight`; PROCESSING em `accuracy` (`SYSTEM_GROUP`). Um teste garante que cada regra liga efeito em todos os sistemas que declara (`touchedGroups`).
+  - `world/terrain/ruleGenerators.ts`: os geradores que as receitas de bioma das tarefas seguintes vão reusar — `rtkCanyonZones` (a caixa que cobre dois prédios > 60 m a < 40 m um do outro), `lavaThermalZones` (uma térmica de 6 m/s e r = 40 m por aglomerado de lava), `trenchElevation` (−40 m em |v − centro| < 25) e `lowWireLine` (postes a 30–40 m, fios a 8–14 m, a seed vem do chamador). Também `terrainReliefM` e `maxSlopeDeg`, que os testes de viabilidade dos biomas `STEEP_RELIEF` e `VERTICAL_CLIFFS` vão usar.
+  - Briefing: a seção "Regras especiais" (`SpecialRulesList`, com o ícone, o nome e a descrição de cada regra) aparece entre as condições e o equipamento recomendado, e some nos contratos sem regra (C00).
+  - Testes: metadados completos, "onde atua" idêntico à spec, registro completo, `resolveRuleEffects` (soma, memoização, neutro) e **20 testes, um por regra**, todos sobre `buildTestArena` (T036) — por exemplo cânion → `rtkStatusAt` devolve FLOAT; fio → colide a ±1 m; térmica → 6 m/s no centro e 3 m/s sem sol alto; trincheira → −40 m com torres sólidas; anel → coleta a < 3 m sem colisão; pico elétrico → a cada 8–12 s com 2 s de duração e Atlas imune; feature de LIDAR → só com ≥ 50 pulsos/m². Mais os testes dos geradores e do briefing (ícone, nome e descrição).
+  - `REQ-CNT-004` continua ☐ na matriz: a regra só fecha quando os contratos T053–T070 usarem o framework.
+- **Status:** ✅
 
 ### T053 — C01 Metrópole Vertical
 - **Fase:** F7 · **Depende de:** T052 · **REQs:** REQ-CNT-001 (*parc.*), REQ-CNT-004 (*parc.*), REQ-FLT-022

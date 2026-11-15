@@ -7,6 +7,7 @@ import { useGameStore } from '@/state/store';
 import type { ReactNode } from 'react';
 import { Stat, type StatusTone } from '@/ui';
 import type { FieldContext } from './useFieldContext';
+import { resolveRuleEffects } from '@/domain/specialRules';
 
 const S = STRINGS.field.stats;
 
@@ -54,7 +55,8 @@ export function PlanStats({ field }: { field: FieldContext }) {
   const cross = plan.lines.filter((l) => l.pass === 'CROSS').length;
   const energy = energyFor(plan.params.aircraftId, { corn }, st.flightTimeS, st.batteriesNeeded);
   const fog =
-    contract.lightingOptions.includes('MAGIC_FOG') || contract.specialRules.includes('MAGIC_FOG');
+    contract.lightingOptions.includes('MAGIC_FOG') ||
+    resolveRuleEffects(contract.specialRules).coverage.fog;
   const aircraft = getAircraft(plan.params.aircraftId);
   const teardrop = aircraft.turnRadiusM > 0 && st.spacingM < 2 * aircraft.turnRadiusM;
 

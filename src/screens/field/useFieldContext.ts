@@ -15,6 +15,7 @@ import type { Contract, FieldEquipment, MissionData, Vehicle } from '@/types';
 import { pointLimits, type PointLimits } from './fieldModel';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
+import { resolveRuleEffects } from '@/domain/specialRules';
 
 export interface FieldContext {
   mission: MissionData;
@@ -46,7 +47,7 @@ export function useFieldContext(mission: MissionData): FieldContext {
     contract,
     terrain,
     vehicles,
-    rules: { paintMarkers: contract.specialRules.includes('PAINT_MARKERS') },
+    rules: { paintMarkers: resolveRuleEffects(contract.specialRules).field.paintMarkers },
     equipment: getFieldEquipment(mission.fieldEquipmentId),
     ownedEquipment: FIELD_EQUIPMENT.filter((f) => inventory.fieldEquipment.includes(f.id)),
     limits: pointLimits(inventory.fieldEquipment),

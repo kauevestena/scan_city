@@ -14,6 +14,7 @@ import { useGameStore } from '@/state/store';
 import type { Contract, UnlockCondition } from '@/types';
 import { Button, ChecklistItem, cx, DialogueBox, EmblemBadge, Modal } from '@/ui';
 import { CounterOfferModal } from './CounterOfferModal';
+import { SpecialRulesList } from './SpecialRulesList';
 
 const B = STRINGS.briefing;
 
@@ -207,6 +208,11 @@ export function BriefingModal({ contractId, onClose }: BriefingModalProps) {
           <Section title={B.conditions}>
             <Conditions contract={contract} />
           </Section>
+          {contract.specialRules.length > 0 && (
+            <Section title={B.specialRules}>
+              <SpecialRulesList rules={contract.specialRules} />
+            </Section>
+          )}
           <Section title={B.recommended}>
             <ul className="flex flex-col gap-1" data-testid="briefing-recommended">
               {[

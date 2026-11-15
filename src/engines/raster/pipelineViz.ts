@@ -3,6 +3,7 @@
  * determinístico (RNG seedado pela missão). A etapa 4 desenha a nuvem densa em 3D com o
  * `soft3d`, girando devagar.
  */
+import { RULE_PARAMS } from '@/domain/specialRules';
 import { formatNumber } from '@/lib/format';
 import { mulberry32, type Rng } from '@/lib/rng';
 import type { AoiPoint, LensCalibration, WorldObject } from '@/types';
@@ -14,6 +15,8 @@ import { hypsometricColor } from './orthoPreview';
 
 export const VIZ_W = 640;
 export const VIZ_H = 360;
+/** Fator de tie points e features com `HOMOGENEOUS_TEXTURE` (×0,6). */
+const TIE_POINT_FACTOR = RULE_PARAMS.homogeneousTexture.tiePointFactor;
 /** Features por imagem com textura normal (×0,6 com textura homogênea). */
 export const FEATURES_PER_IMAGE = 8000;
 
@@ -129,7 +132,7 @@ function stageFeatures(
     const x = 20 + (k % cols) * (w + 6);
     const y = 40 + Math.floor(k / cols) * (h + 8);
     thumb(ctx, a, s, x, y, w, h);
-    const dots = Math.floor(28 * p * (a.homogeneous ? 0.6 : 1));
+    const dots = Math.floor(28 * p * (a.homogeneous ? TIE_POINT_FACTOR : 1));
     ctx.fillStyle = COLORS.warn;
     for (let d = 0; d < 28; d++) {
       const px = x + rng.next() * w;
@@ -137,7 +140,7 @@ function stageFeatures(
       if (d < dots) ctx.fillRect(px - 1, py - 1, 2, 2);
     }
   });
-  const n = Math.round(FEATURES_PER_IMAGE * (a.homogeneous ? 0.6 : 1) * p);
+  const n = Math.round(FEATURES_PER_IMAGE * (a.homogeneous ? TIE_POINT_FACTOR : 1) * p);
   label(ctx, texts.featuresPerImage(formatNumber(n, 0)), 20, 14);
 }
 
@@ -156,7 +159,7 @@ function stageTiePoints(
   thumb(ctx, a, left, 30, 70, w, h);
   thumb(ctx, a, right, 330, 70, w, h);
   const rng = mulberry32(a.seed + pair);
-  const lines = Math.round(30 * (a.homogeneous ? 0.6 : 1));
+  const lines = Math.round(30 * (a.homogeneous ? TIE_POINT_FACTOR : 1));
   ctx.strokeStyle = withAlpha(COLORS.ok, 0.8);
   ctx.lineWidth = 1;
   for (let k = 0; k < lines; k++) {
@@ -172,7 +175,10 @@ function stageTiePoints(
   label(
     ctx,
     texts.tiePoints(
-      formatNumber(Math.round(a.shots.length * 900 * (a.homogeneous ? 0.6 : 1) * p), 0),
+      formatNumber(
+        Math.round(a.shots.length * 900 * (a.homogeneous ? TIE_POINT_FACTOR : 1) * p),
+        0,
+      ),
     ),
     30,
     40,
