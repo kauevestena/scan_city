@@ -1,5 +1,6 @@
 import type { AxisAction } from '@/input/actions';
 import { initialContracts } from '@/data/contracts';
+import { PERF, setPerfEnabled } from '@/engines/perf';
 import { markerViews, type MarkerView } from '@/world/overworld/markers';
 import { parseMap, WORLD_MAP } from '@/world/overworld/tiles';
 import { AVATAR_BOX, boxBlocker, stepAvatar, type AvatarState } from './avatar';
@@ -421,5 +422,26 @@ describe('eventos de campo: ganchos do engine', () => {
       return n;
     };
     expect(strokes(true)).toBeGreaterThan(strokes(false));
+  });
+});
+
+describe('OverworldEngine — contador de tempo por etapa (REQ-NFR-001)', () => {
+  afterEach(() => setPerfEnabled(false));
+
+  it('ligado, cada render fecha um quadro com chunks, camada animada e atmosfera', () => {
+    const { engine } = engineOn();
+    engine.attach(surface());
+    engine.update(1 / 60);
+    engine.render();
+    expect(PERF.world.frameCount).toBe(0);
+
+    setPerfEnabled(true);
+    engine.update(1 / 60);
+    engine.render();
+    expect(PERF.world.frameCount).toBe(1);
+    const readings = PERF.world.readings();
+    expect(readings.map((r) => r.stage)).toEqual(PERF.world.stages);
+    expect(readings.every((r) => Number.isFinite(r.ms) && r.ms >= 0)).toBe(true);
+    expect(PERF.world.totalMs).toBeGreaterThan(0);
   });
 });

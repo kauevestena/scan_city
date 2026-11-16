@@ -78,6 +78,11 @@ export interface TerrainSampler {
   /** MDS: solo + objetos e copas. */
   surface(u: number, v: number): number;
   landCover(u: number, v: number): LandCover;
+  /**
+   * Como `landCover`, com a elevação do ponto já conhecida (`groundM`): o voo amostra os dois de
+   * uma vez por ponto da grade, sem avaliar o relevo duas vezes (survey-flight §5.18).
+   */
+  landCoverAt(u: number, v: number, groundM: number): LandCover;
   /** Cobertura de dossel, 0..1. */
   canopy(u: number, v: number): number;
   ndvi(u: number, v: number): number;
@@ -214,16 +219,25 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
     roadTest(new Set(['ROAD', 'TRAIL']), seedHalfM),
   );
 
-  const isRoof = (u: number, v: number) =>
-    hash.near(u, v).some((o) => o.kind === 'BUILDING' && insideFootprint(o, u, v));
+  // Só os prédios entram no hash dos telhados: a grade do voo pergunta "é telhado?" a cada ponto,
+  // e numa floresta de 4 mil copas o hash geral devolvia dezenas de árvores por célula.
+  const roofHash = createSpatialHash(objects.filter((o) => o.kind === 'BUILDING'));
+  const isRoof = (u: number, v: number) => {
+    const near = roofHash.near(u, v);
+    for (let i = 0; i < near.length; i++) {
+      if (insideFootprint(near[i] as WorldObject, u, v)) return true;
+    }
+    return false;
+  };
   const roadAt = roadTest(new Set(['ROAD']));
 
-  const landCover = (u: number, v: number): LandCover => {
+  const landCoverAt = (u: number, v: number, groundM: number): LandCover => {
     if (isRoof(u, v)) return 'ROOF';
-    const cover = recipe.landCover(u, v, elevation(u, v), n);
+    const cover = recipe.landCover(u, v, groundM, n);
     if (cover !== 'WATER' && roadAt(u, v)) return 'ROAD';
     return cover;
   };
+  const landCover = (u: number, v: number): LandCover => landCoverAt(u, v, elevation(u, v));
 
   // Busca binária pelo primeiro objeto com u ≥ x.
   const lowerBound = (x: number) => {
@@ -256,6 +270,7 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
       return ground + top;
     },
     landCover,
+    landCoverAt,
     canopy(u, v) {
       const base = recipe.canopy(u, v, landCover(u, v), n);
       const underTree = hash

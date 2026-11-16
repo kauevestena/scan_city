@@ -159,3 +159,35 @@
   - o governor de qualidade mede o FPS no **`render`** (o relógio real entre desenhos), não no `update`.
 - **Consequências:** com os 18 setores a mesa fica entre 52,8 e 60,3 FPS no mesmo ambiente (REQ-NFR-001, parcial; a tabela completa vem na T077). O traço inflado sobrepõe vizinhos em menos de 1 px (imperceptível no sombreamento *flat*). Os dioramas ficam um pouco mais facetados do que os setores Reais, mas ocupam uma fração da tela e a queda automática de qualidade continua cortando um nível por vez. Quem desenhar translúcidos em `soft3d` deve usar `MeshInstance.alpha` (o caminho dos opacos não os mistura).
 - **Status:** Aceita · 2026-11-16
+
+### ADR-024 — Medições de performance: custo de rasterização por software e otimizações do voo
+- **Contexto:** o REQ-NFR-001 pede ≥ 55 FPS (média de 10 s) a 1280 × 720, DPR 1, em Alta, no voo e na mesa, e ≥ 58 FPS no mapa-múndi, num notebook de 4 núcleos. O [survey-flight §5.18](features/survey-flight.md) dá o orçamento de ≤ 12 ms por quadro no voo e o [holo-table §5.7](features/holo-table.md), de ≤ 10 ms na mesa. O ambiente de medição **não tem GPU**: o Chromium headless do Playwright rasteriza o canvas por software, na thread principal (4 vCPU Xeon de 2,3 GHz), que é o **pior caso** perto do notebook de referência (onde o canvas 2D é acelerado). No começo da T077 o voo na C03 (floresta de 4 mil copas) fazia 52,4 FPS e o da R04, 54,6, abaixo da meta.
+- **Método:** FPS é a média de 10 s de `requestAnimationFrame` depois de 10 s de aquecimento (voo com autopilot e `seed=3`; mesa com os 18 setores mapeados, 10 s por combinação; mapa andando a pé), em Alta, Média e Baixa (`scan-city-settings`), com o vsync de 60 Hz. A **capacidade** é a mediana de ms por quadro sem vsync (`--disable-frame-rate-limit --disable-gpu-vsync`), que mostra a folga que o teto de 60 Hz esconde. As etapas vêm do contador do painel F9 (`engines/perf.ts`); o diagnóstico fino, de um *trace* do Chromium e de microbenchmarks com os 1.811 quads reais de um quadro da C03.
+- **Diagnóstico:** a thread principal fica ~100 % ocupada. Na C03 (13,2 ms por quadro sem vsync) o JS do motor somava 5,7 ms (grade do terreno 2,0 · terreno 1,2 · objetos 0,9 · simulação 0,9 · LiDAR e clima 0,6) e o resto era a **rasterização por software**, feita no *commit* do quadro e que o JS não enxerga: os quads custavam ~5,5 ms (um `fill` e um `stroke` por quad) e as copas, ~1,4 ms. O contador por etapa mede o JS; a rasterização aparece como a diferença para o tempo do quadro.
+- **Decisão (aplicadas):**
+  1. **Sem `stroke` por quad** (survey-flight §5.18, fillStyle e Path): cada quad avança `QUAD_OVERLAP_PX` = 1 px na borda de baixo e na da direita; a faixa mais perto e a coluna seguinte são pintadas depois e cobrem o avanço, então a emenda de antisserrilhado some sem contorno. Medido com os 1.811 quads reais de um quadro da C03: 5,3 → 3,9 ms por quadro; na cena inteira, +14 % de FPS sem vsync (64,7 → 73,8).
+  2. **Elevação uma vez por ponto da grade**: `TerrainScene.sampleGround` e `TerrainSampler.landCoverAt` entregam elevação e cobertura juntas (a cobertura reaproveitava o relevo, que era avaliado duas vezes por ponto).
+  3. **Objetos, sombras e alvos assentam na malha da grade** (`gridElevation`, interpolação bilinear das elevações já amostradas), sem reavaliar o relevo por objeto: é o item "elevação por faixa calculada uma vez por frame, sem recálculo por objeto" do §5.18, e a base do objeto fica na superfície que os quads desenham.
+  4. **Hash espacial com chave numérica** e um hash só de prédios para a pergunta "é telhado?" que a grade faz a cada ponto: a chave de texto (`"cx,cy"`) era montada milhares de vezes por quadro e, numa floresta, cada célula devolvia dezenas de árvores.
+  5. **Sem alocação por quadro** nos pontos quentes: a grade reaproveita os buffers (um jogo por qualidade) e a cor do quad sai sem vetores temporários; os pontos do LiDAR usam estilos prontos por degrau de desvanecimento (12), em vez de uma string por ponto.
+- **Decisão (avaliadas e não adotadas, com a medição):**
+  - **Quads de mesma cor num caminho só** (o que a mesa faz, ADR-023): num caminho com os 48 quads de cada faixa, 14,6 ms contra 5,2 ms com os quads separados (um caminho com vários contornos fica caro no raster por software).
+  - **Lote de cores iguais mais quads inflados a partir do centro** (também como na mesa): na cena real da C03, 64,5 FPS sem vsync, igual ao traço por quad (64,7) e abaixo do quad simples com avanço de 1 px (73,8); o avanço lateral vence.
+  - **`Path2D` reutilizado** (§5.18): um círculo unitário com `setTransform` para as 700 copas custou 2,9 ms contra 2,7 ms do `arc`; sem ganho, então fica o `arc`.
+  - **`fillRect` no lugar do quad** (1,5 ms): descartado, porque troca a geometria por degraus nas encostas.
+  - **Limitar o tamanho dos runs de cor na mesa** (6 ou 2 quads por caminho): sem diferença além do ruído (± 5 %).
+- **Já atendidas (§5.18):** normais da mesma grade (`dzdx` e `dzdz` das elevações da grade), cache de `fillStyle` por cor quantizada (64 níveis), objetos fora do frustum descartados antes da ordenação (corte lateral no motor e `bandOf`) e quads fora da tela descartados.
+- **Resultados** (Chromium sem GPU, 1280 × 720, DPR 1, vsync de 60 Hz; média de 10 s):
+
+| Tela | Alta | Média | Baixa |
+| :--- | :---: | :---: | :---: |
+| Voo C01 (cidade) | 60,0 | 60,0 | 60,0 |
+| Voo C03 (floresta) | 58,8 | 60,0 | 60,0 |
+| Voo R04 (fada) | 59,9 | 59,3 | 60,0 |
+| Mesa, Real · Ortofoto / Hipsometria / LiDAR Neon | 59,1 / 58,8 / 59,4 | 59,8 / 59,9 / 60,0 | 60,0 / 59,8 / 60,0 |
+| Mesa, Multiverso · Ortofoto / Hipsometria / LiDAR Neon | 59,7 / 59,1 / 59,9 | 60,0 / 60,0 / 59,5 | 60,0 / 60,0 / 60,0 |
+| Mapa-múndi, Real e Fendas (andando) | 60,0 | 60,0 | 60,0 |
+
+  Capacidade (mediana de ms por quadro sem vsync, Alta), antes e depois: C01 **7,3 → 4,9 ms**; C03 **14,5 → 10,3 ms**; R04 **16,4 → 10,7 ms**; mesa (18 setores) 14–16 ms, sem mudança (o código da mesa não mudou); mapa 1,2–1,3 ms. JS por etapa no painel F9 (Alta): C03 de 5,7 para **3,8 ms** (grade 2,0 → 1,1; terreno 1,2 → 0,9; LiDAR e clima 0,6 → 0,2; simulação 0,9 → 0,7), R04 **3,6 ms**, C01 **1,6 ms**, mesa 5,0 a 7,4 ms conforme a combinação (orçamentos: voo ≤ 12 ms, mesa ≤ 10 ms). Com a qualidade Média o `QualityGovernor` da mesa nunca precisou agir (a qualidade final de cada combinação é a pedida).
+- **Consequências:** o voo e a mesa passam de 55 FPS em Alta e o mapa passa de 58 neste ambiente, que é mais lento que o de referência; a C03 em Alta é o cenário com menos folga (≈ 10,3 ms sem vsync contra 16,7 ms do quadro). O contador por etapa, ligado só com o painel F9 aberto, mede o JS (a rasterização por software não aparece nele; ver o diagnóstico): uma regressão de raster se vê no FPS do overlay, não nas etapas. O avanço de 1 px dos quads pode fazer o terreno invadir 1 px do vizinho nos degraus de silhueta (imperceptível). Quem acrescentar desenho ao voo deve preferir muitos `fill` simples e curtos a caminhos grandes, e evitar `stroke` por primitiva.
+- **Status:** Aceita · 2026-11-16

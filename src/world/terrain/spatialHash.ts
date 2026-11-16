@@ -2,6 +2,8 @@
 import type { WorldObject } from '@/types';
 
 export const SPATIAL_CELL_M = 16;
+/** Deslocamento dos índices de célula para a chave numérica ser sempre positiva e única. */
+const CELL_OFFSET = 1 << 20;
 
 export interface SpatialHash {
   /** Objetos cuja caixa envolvente pode conter (u, v). */
@@ -20,8 +22,11 @@ export function createSpatialHash(
   objects: readonly WorldObject[],
   cellM = SPATIAL_CELL_M,
 ): SpatialHash {
-  const cells = new Map<string, WorldObject[]>();
-  const key = (cx: number, cy: number) => `${cx},${cy}`;
+  // Chave numérica (a consulta é por ponto da grade do voo, milhares de vezes por quadro: montar
+  // uma string por consulta custava caro). Os índices de célula cabem em ± CELL_OFFSET.
+  const cells = new Map<number, WorldObject[]>();
+  const key = (cx: number, cy: number) =>
+    (cx + CELL_OFFSET) * (2 * CELL_OFFSET) + (cy + CELL_OFFSET);
   for (const o of objects) {
     const reach = objectReach(o);
     const cu = o.kind === 'WIRE' && o.u2 !== undefined ? (o.u + o.u2) / 2 : o.u;

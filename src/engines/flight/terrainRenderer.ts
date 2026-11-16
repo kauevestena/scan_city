@@ -6,6 +6,7 @@
  */
 import { shadowLengthM } from '@/domain/flightPhysics';
 import { LIGHTING } from '@/domain/photogrammetry';
+import { FLIGHT_STAGE, PERF } from '@/engines/perf';
 import type { LandCover, LightingId, Rgb, WorldObjectKind } from '@/types';
 import { drawSceneObject, type SceneObject } from './objectRenderer';
 import type { BiomePalette } from '@/world/terrain/TerrainSampler';
@@ -57,12 +58,24 @@ export interface GroundMark {
 
 export type { SceneObject };
 
+/** Resultado de `TerrainScene.sampleGround`, reaproveitado entre as amostras. */
+export interface GroundSample {
+  elev: number;
+  cover: LandCover;
+}
+
 export interface TerrainScene {
   cam: FlightCamera;
   quality: Quality;
   /** Elevação e cobertura nas coordenadas do *run* (Z = 0 na aeronave). */
   elevation: (X: number, Z: number) => number;
   cover: (X: number, Z: number) => LandCover;
+  /**
+   * Elevação e cobertura de uma vez só: uma busca do ponto no mapa e uma avaliação do relevo por
+   * amostra da grade (a cobertura reaproveita a elevação). Sem ela, a grade chama `elevation` e
+   * `cover` separados.
+   */
+  sampleGround?: (X: number, Z: number, out: GroundSample) => void;
   palette: BiomePalette;
   lighting: LightingId;
   /** Vetor do sol no frame do *run* (X à direita, Z à frente). */
@@ -132,16 +145,25 @@ const QUAD_ORDER = [0, 1, 2, 3] as const;
 const MAX_CONTOURS_PER_QUAD = 6;
 
 /** Destino dos comandos: o canvas (render) ou uma lista (testes). */
+/** Elevação do chão em (X, Z) tirada da malha da grade (a mesma superfície dos quads). */
+type GroundFn = (X: number, Z: number) => number;
+
 interface Sink {
   quad(band: number, z: number, pts: Float64Array, color: string): void;
   contour(band: number, x1: number, y1: number, x2: number, y2: number, master: boolean): void;
-  object(band: number, o: SceneObject, scene: TerrainScene): void;
-  shadow(band: number, o: SceneObject, scene: TerrainScene, lengthM: number): void;
+  object(band: number, o: SceneObject, scene: TerrainScene, ground: GroundFn): void;
+  shadow(
+    band: number,
+    o: SceneObject,
+    scene: TerrainScene,
+    lengthM: number,
+    ground: GroundFn,
+  ): void;
   glint(band: number, z: number, pts: Float64Array, timeS: number): void;
-  mark(band: number, m: GroundMark, scene: TerrainScene): void;
+  mark(band: number, m: GroundMark, scene: TerrainScene, ground: GroundFn): void;
 }
 
-interface Grid {
+export interface Grid {
   n: number;
   m: number;
   z: Float64Array;
@@ -152,9 +174,12 @@ interface Grid {
   cover: LandCover[];
 }
 
-function sampleGrid(scene: TerrainScene): Grid {
-  const { cam } = scene;
-  const { bands: n, cols: m } = QUALITY[scene.quality];
+/** A grade é a mesma a cada quadro (só muda o conteúdo): um jogo de buffers por qualidade. */
+let gridCache: Grid | null = null;
+
+function gridFor(n: number, m: number): Grid {
+  const cached = gridCache;
+  if (cached && cached.n === n && cached.m === m) return cached;
   const size = (n + 1) * (m + 1);
   const g: Grid = {
     n,
@@ -164,8 +189,17 @@ function sampleGrid(scene: TerrainScene): Grid {
     elev: new Float64Array(size),
     sx: new Float64Array(size),
     sy: new Float64Array(size),
-    cover: new Array<LandCover>(size),
+    cover: new Array<LandCover>(size).fill('GRASS'),
   };
+  gridCache = g;
+  return g;
+}
+
+export function sampleGrid(scene: TerrainScene): Grid {
+  const { cam } = scene;
+  const { bands: n, cols: m } = QUALITY[scene.quality];
+  const g = gridFor(n, m);
+  const out: GroundSample = { elev: 0, cover: 'GRASS' };
   for (let i = 0; i <= n; i++) {
     const Z = bandDistance(i, n, cam);
     g.z[i] = Z;
@@ -174,24 +208,66 @@ function sampleGrid(scene: TerrainScene): Grid {
     for (let j = 0; j <= m; j++) {
       const k = i * (m + 1) + j;
       const X = cam.camX - half + (2 * half * j) / m;
-      const e = scene.elevation(X, Z);
+      if (scene.sampleGround) {
+        scene.sampleGround(X, Z, out);
+      } else {
+        out.elev = scene.elevation(X, Z);
+        out.cover = scene.cover(X, Z);
+      }
       g.x[k] = X;
-      g.elev[k] = e;
-      g.cover[k] = scene.cover(X, Z);
+      g.elev[k] = out.elev;
+      g.cover[k] = out.cover;
       g.sx[k] = cam.horizonX + (X - cam.camX) * scale;
-      g.sy[k] = cam.horizonY + (cam.camAlt - e) * scale;
+      g.sy[k] = cam.horizonY + (cam.camAlt - out.elev) * scale;
     }
   }
   return g;
 }
 
-function mix(a: Rgb, b: Rgb, t: number): [number, number, number] {
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+/** Elevação da grade ao longo da fileira `r` (interpolada em X). */
+function rowElevation(g: Grid, r: number, X: number): number {
+  const base = r * (g.m + 1);
+  const x0 = g.x[base] as number;
+  const span = (g.x[base + g.m] as number) - x0;
+  let u = span > 0 ? ((X - x0) / span) * g.m : 0;
+  if (u < 0) u = 0;
+  else if (u > g.m) u = g.m;
+  const j = Math.min(Math.floor(u), g.m - 1);
+  const a = g.elev[base + j] as number;
+  return a + ((g.elev[base + j + 1] as number) - a) * (u - j);
+}
+
+/**
+ * Elevação do ponto (X, Z) pela **malha da grade** (interpolação bilinear das elevações já
+ * amostradas no quadro), em vez de reavaliar o relevo por objeto, sombra ou alvo (survey-flight
+ * §5.18). É a superfície que os quads desenham, então a base dos objetos assenta nela sem folga.
+ * Fora do alcance da grade vale a borda.
+ */
+export function gridElevation(
+  g: Grid,
+  cam: Pick<FlightCamera, 'zNear' | 'zFar'>,
+  X: number,
+  Z: number,
+): number {
+  const n = g.n;
+  // Inverso de `bandDistance`, ajustado pelos vizinhos (arredondamento).
+  let i = Math.floor(n * ((Z - cam.zNear) / (cam.zFar - cam.zNear)) ** (1 / 2.2));
+  if (!(i > 0)) i = 0;
+  else if (i > n - 1) i = n - 1;
+  while (i > 0 && Z < (g.z[i] as number)) i--;
+  while (i < n - 1 && Z >= (g.z[i + 1] as number)) i++;
+  const z0 = g.z[i] as number;
+  const t = Math.min(1, Math.max(0, (Z - z0) / ((g.z[i + 1] as number) - z0)));
+  const near = rowElevation(g, i, X);
+  return near + (rowElevation(g, i + 1, X) - near) * t;
 }
 
 function traverse(scene: TerrainScene, sink: Sink): void {
+  PERF.flight.enter(FLIGHT_STAGE.GRID);
   const g = sampleGrid(scene);
+  PERF.flight.enter(FLIGHT_STAGE.OBJECTS);
   const { n, m } = g;
+  const ground: GroundFn = (X, Z) => gridElevation(g, scene.cam, X, Z);
   const H = scene.cam.height;
   const zFog = fogDistance(scene.lighting);
   const interval = contourInterval(scene.reliefM);
@@ -224,17 +300,18 @@ function traverse(scene: TerrainScene, sink: Sink): void {
         draw: (band) => {
           // Sombras só com sol (SUN_HIGH e GOLDEN_HOUR), no chão, antes do objeto.
           const len = castsShadow(o.kind) ? shadowLengthM(o.heightM + o.baseM, scene.lighting) : 0;
-          if (len > 0 && scene.sun) sink.shadow(band, o, scene, len);
-          sink.object(band, o, scene);
+          if (len > 0 && scene.sun) sink.shadow(band, o, scene, len, ground);
+          sink.object(band, o, scene, ground);
         },
       });
     }
   }
   for (const mk of scene.marks) {
     const b = bandOf(mk.Z);
-    if (b >= 0) byBand[b]?.push({ z: mk.Z, draw: (band) => sink.mark(band, mk, scene) });
+    if (b >= 0) byBand[b]?.push({ z: mk.Z, draw: (band) => sink.mark(band, mk, scene, ground) });
   }
 
+  PERF.flight.enter(FLIGHT_STAGE.TERRAIN);
   for (let i = n - 1; i >= 0; i--) {
     const Zi = g.z[i] as number;
     const Zn = g.z[i + 1] as number;
@@ -280,8 +357,14 @@ function traverse(scene: TerrainScene, sink: Sink): void {
         base = thermalColor(heat);
         shade = 1;
       }
-      const lit: Rgb = [base[0] * shade, base[1] * shade, base[2] * shade];
-      const [r, gg, b] = mix(lit, scene.palette.fog, fog);
+      // Cor com sombreamento e névoa, sem alocar vetores por quad (mesma conta de `mix`).
+      const fogColor = scene.palette.fog;
+      const lr = base[0] * shade;
+      const lg = base[1] * shade;
+      const lb = base[2] * shade;
+      const r = lr + (fogColor[0] - lr) * fog;
+      const gg = lg + (fogColor[1] - lg) * fog;
+      const b = lb + (fogColor[2] - lb) * fog;
       pts[0] = g.sx[k00] as number;
       pts[1] = y00;
       pts[2] = g.sx[k01] as number;
@@ -344,8 +427,10 @@ function traverse(scene: TerrainScene, sink: Sink): void {
     }
     const items = byBand[i];
     if (items && items.length > 0) {
+      PERF.flight.enter(FLIGHT_STAGE.OBJECTS);
       items.sort((a, b) => b.z - a.z);
       for (const it of items) it.draw(i);
+      PERF.flight.enter(FLIGHT_STAGE.TERRAIN);
     }
   }
 }
@@ -364,9 +449,13 @@ export function buildDrawList(scene: TerrainScene): DrawCommand[] {
   return list;
 }
 
-function drawMark(ctx: CanvasRenderingContext2D, mk: GroundMark, scene: TerrainScene): void {
-  const e = scene.elevation(mk.X, mk.Z);
-  const c = projectAbs(mk.X, e, mk.Z, scene.cam);
+function drawMark(
+  ctx: CanvasRenderingContext2D,
+  mk: GroundMark,
+  scene: TerrainScene,
+  ground: GroundFn,
+): void {
+  const c = projectAbs(mk.X, ground(mk.X, mk.Z), mk.Z, scene.cam);
   if (!c || c.scale <= 0.5) return;
   const s = Math.max(2, c.scale);
   ctx.fillStyle = '#ffffff';
@@ -402,13 +491,14 @@ function drawShadow(
   o: SceneObject,
   s: TerrainScene,
   lengthM: number,
+  ground: GroundFn,
 ): void {
   const sun = s.sun;
   if (!sun) return;
   const h = Math.hypot(sun.x, sun.z) || 1;
   const dx = (-sun.x / h) * lengthM;
   const dz = (-sun.z / h) * lengthM;
-  const g = (X: number, Z: number) => projectAbs(X, s.elevation(X, Z), Z, s.cam);
+  const g = (X: number, Z: number) => projectAbs(X, ground(X, Z), Z, s.cam);
   const half = o.widthM / 2;
   const a = g(o.X - half, o.Z);
   const b = g(o.X + half, o.Z);
@@ -458,15 +548,44 @@ function strokeSegments(ctx: CanvasRenderingContext2D, segs: number[], style: st
 }
 
 /**
- * Desenha o terreno, os objetos e os alvos da missão. As curvas de nível de uma faixa saem num
- * traço só por estilo, depois dos quads da faixa e antes dos seus objetos: um `stroke` por
- * segmento custava caro nos relevos íngremes (R01, 35 m em 120 m).
+ * Quanto cada quad avança sobre o vizinho que vem depois (embaixo e à direita), em px. A grade é
+ * pintada de longe para perto e, em cada faixa, da esquerda para a direita, então o vizinho cobre
+ * esse avanço por cima: a emenda de antisserrilhado entre os dois some sem precisar de contorno.
+ */
+export const QUAD_OVERLAP_PX = 1;
+
+/**
+ * Cantos do quad `p` (x, y × 4, na ordem perto-esquerda, perto-direita, longe-direita,
+ * longe-esquerda; `perto` fica embaixo na tela) com o avanço de `QUAD_OVERLAP_PX` na borda de baixo
+ * (a da faixa mais perto, pintada depois) e na da direita (a da coluna seguinte). As bordas de cima
+ * e da esquerda ficam onde estão. Escreve em `out` e o devolve.
+ */
+export function extendQuad(p: Float64Array, out: Float64Array): Float64Array {
+  out[0] = p[0] as number;
+  out[1] = (p[1] as number) + QUAD_OVERLAP_PX;
+  out[2] = (p[2] as number) + QUAD_OVERLAP_PX;
+  out[3] = (p[3] as number) + QUAD_OVERLAP_PX;
+  out[4] = (p[4] as number) + QUAD_OVERLAP_PX;
+  out[5] = p[5] as number;
+  out[6] = p[6] as number;
+  out[7] = p[7] as number;
+  return out;
+}
+
+/**
+ * Desenha o terreno, os objetos e os alvos da missão. Ganhos de custo (survey-flight §5.18),
+ * medidos no navegador sem GPU: (1) o `stroke` por quad (que escondia as emendas) saiu, trocado
+ * pelo avanço de `QUAD_OVERLAP_PX` sobre o vizinho; (2) as curvas de nível de uma faixa saem num
+ * traço só por estilo, depois dos quads dela e antes dos seus objetos (um `stroke` por segmento
+ * custava caro nos relevos íngremes, R01); (3) objetos, sombras e alvos assentam na elevação da
+ * própria grade, sem reavaliar o relevo.
  */
 export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene): void {
   ctx.lineWidth = 1;
   const minor: number[] = [];
   const master: number[] = [];
   let band = -1;
+  const extended = new Float64Array(8);
   const flush = () => {
     strokeSegments(ctx, minor, CONTOUR_MINOR);
     strokeSegments(ctx, master, CONTOUR_MASTER);
@@ -478,38 +597,36 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
         band = b;
       }
       ctx.fillStyle = color;
-      ctx.strokeStyle = color;
       ctx.beginPath();
-      ctx.moveTo(p[0] as number, p[1] as number);
-      ctx.lineTo(p[2] as number, p[3] as number);
-      ctx.lineTo(p[4] as number, p[5] as number);
-      ctx.lineTo(p[6] as number, p[7] as number);
+      const q = extendQuad(p, extended);
+      ctx.moveTo(q[0] as number, q[1] as number);
+      ctx.lineTo(q[2] as number, q[3] as number);
+      ctx.lineTo(q[4] as number, q[5] as number);
+      ctx.lineTo(q[6] as number, q[7] as number);
       ctx.closePath();
       ctx.fill();
-      // Contorno da mesma cor fecha as frestas de antisserrilhado entre quads.
-      ctx.stroke();
     },
     contour: (_band, x1, y1, x2, y2, isMaster) => {
       (isMaster ? master : minor).push(x1, y1, x2, y2);
     },
-    shadow: (_band, o, s, lengthM) => {
+    shadow: (_band, o, s, lengthM, ground) => {
       flush();
-      drawShadow(ctx, o, s, lengthM);
+      drawShadow(ctx, o, s, lengthM, ground);
     },
     glint: (_band, _z, p, timeS) => drawGlint(ctx, p, timeS),
-    object: (_band, o, s) => {
+    object: (_band, o, s, ground) => {
       flush();
       drawSceneObject(ctx, o, {
         cam: s.cam,
-        elevation: s.elevation,
+        elevation: ground,
         fog: fogFactor(o.Z, fogDistance(s.lighting)),
         fogColor: s.palette.fog,
         timeS: s.timeS,
       });
     },
-    mark: (_band, mk, s) => {
+    mark: (_band, mk, s, ground) => {
       flush();
-      drawMark(ctx, mk, s);
+      drawMark(ctx, mk, s, ground);
     },
   });
   flush();

@@ -17,6 +17,7 @@ import {
   type FlightInput,
 } from '@/domain/flightPhysics';
 import { gsd } from '@/domain/photogrammetry';
+import { FLIGHT_STAGE, PERF } from '@/engines/perf';
 import { planEquipment } from '@/domain/requirements';
 import { resolveRuleEffects, type RuleEffects } from '@/domain/specialRules';
 import { clamp, lerp } from '@/lib/math';
@@ -112,6 +113,16 @@ import { drawRiftParticles, drawRiftSky, drawSky } from './sky';
 import { renderTerrain, sunInRunFrame, type GroundMark, type SceneObject } from './terrainRenderer';
 import { drawElectricSparks } from './electricSparks';
 import { hotSpotHeat, objectHeat, thermalColor, thermalFeatures } from './thermal';
+
+/** Degraus do desvanecimento dos pontos do LiDAR e os estilos prontos de cada retorno. */
+export const LIDAR_FADE_LEVELS = 12;
+const lidarStyles = (rgb: string): string[] =>
+  Array.from(
+    { length: LIDAR_FADE_LEVELS + 1 },
+    (_, k) => `rgba(${rgb}, ${(k / LIDAR_FADE_LEVELS).toFixed(3)})`,
+  );
+const LIDAR_FIRST_STYLES = lidarStyles('34, 211, 238');
+const LIDAR_LAST_STYLES = lidarStyles('52, 211, 153');
 
 export const TAKEOFF_S = 2.5;
 export const LANDING_S = 2;
@@ -484,6 +495,12 @@ export class FlightEngine implements Simulation {
   }
 
   update(dtS: number): void {
+    PERF.flight.enter(FLIGHT_STAGE.UPDATE);
+    this.step(dtS);
+    PERF.flight.leave();
+  }
+
+  private step(dtS: number): void {
     if (this.phase === 'POST_FLIGHT') return;
     this.phaseT += dtS;
     this.sortieT += dtS;
@@ -1012,9 +1029,14 @@ export class FlightEngine implements Simulation {
   }
 
   render(): void {
+    PERF.flight.enter(FLIGHT_STAGE.HUD);
     this.publish();
     const surface = this.surface;
-    if (!surface) return;
+    if (!surface) {
+      PERF.flight.leave();
+      return;
+    }
+    PERF.flight.enter(FLIGHT_STAGE.SCENE);
     const { ctx, width, height, dpr } = surface;
     this.camX += (this.ac.x - this.camX) * CAM_FOLLOW;
     const cam = this.flightCamera();
@@ -1094,6 +1116,12 @@ export class FlightEngine implements Simulation {
         const p = at(X, Z);
         return terrain.landCover(p.u, p.v);
       },
+      // A grade amostra elevação e cobertura juntas: o relevo é avaliado uma vez por ponto.
+      sampleGround: (X, Z, out) => {
+        const p = at(X, Z);
+        out.elev = terrain.elevation(p.u, p.v);
+        out.cover = terrain.landCoverAt(p.u, p.v, out.elev);
+      },
       palette: terrain.palette,
       lighting: plan.params.lighting,
       sun: sunInRunFrame(plan.params.lighting, frame.dir, frame.right),
@@ -1114,6 +1142,7 @@ export class FlightEngine implements Simulation {
           }
         : {}),
     });
+    PERF.flight.enter(FLIGHT_STAGE.OVERLAYS);
     this.drawFootprints(ctx, cam);
     this.drawSearchlights(ctx, cam);
     this.drawLidar(ctx, cam);
@@ -1130,6 +1159,7 @@ export class FlightEngine implements Simulation {
     }
     this.weather?.draw(ctx, this.sortieT);
     if (rift && !calm) drawRiftParticles(ctx, width, height, this.sortieT);
+    PERF.flight.enter(FLIGHT_STAGE.SPRITE);
     this.drawAircraftSprite(ctx, cam);
     if (this.sortieT < this.flashUntil) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
@@ -1144,6 +1174,7 @@ export class FlightEngine implements Simulation {
       ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();
+    PERF.flight.endFrame();
   }
 
   /** Manchas dos holofotes no chão: elipses amarelas translúcidas. */
@@ -1179,12 +1210,18 @@ export class FlightEngine implements Simulation {
       const r = toRun(this.frame, h);
       return projectAbs(r.x, h.z, r.s - this.ac.s, cam);
     };
+    // O desvanecimento vai em degraus (LIDAR_FADE_LEVELS): as strings de estilo são prontas e o
+    // `fillStyle` só muda quando o estilo muda, em vez de uma string nova por ponto.
+    let style = '';
     for (const h of this.lidar.hits) {
       const p = project(h);
       if (!p) continue;
-      const fade = 1 - h.age / 1.5;
-      ctx.fillStyle =
-        h.ret === 'FIRST' ? `rgba(34, 211, 238, ${fade})` : `rgba(52, 211, 153, ${fade})`;
+      const level = Math.round(clamp(1 - h.age / 1.5, 0, 1) * LIDAR_FADE_LEVELS);
+      const next = (h.ret === 'FIRST' ? LIDAR_FIRST_STYLES : LIDAR_LAST_STYLES)[level] as string;
+      if (next !== style) {
+        ctx.fillStyle = next;
+        style = next;
+      }
       ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
     }
     if (!origin) return;

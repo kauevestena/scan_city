@@ -100,3 +100,10 @@
 - **Opções:** A) manter os preços e tratar a tabela como informativa (a viabilidade vale); B) incluir a `LENS_24` no combo T2 (muda a [catalog §3](content/catalog.md)); C) trocar os planos de referência para a `LENS_35` (muda os GSD esperados de várias fichas).
 - **Padrão provisório:** A. O teste de campanha confere o saldo da tabela menos R$ 6.000 do C06 em diante.
 - **Resolução:** —
+
+### OQ-013 — Medição de FPS no perfil de referência (com GPU)
+- **Aberta em:** 2026-11-16 por T077
+- **Contexto:** o REQ-NFR-001 fala de um notebook de 4 núcleos com Chrome atual, mas o único ambiente de medição disponível é o Chromium headless do Playwright, **sem GPU** (raster do canvas por software, na thread principal; ver [ADR-024](decisions.md)). Lá o jogo passa da meta, e com GPU o raster sai da thread principal, então a expectativa é de folga maior; mas isso é uma expectativa, não uma medição.
+- **Opções:** A) aceitar a medição sem GPU como o pior caso e seguir; B) repetir a tabela do ADR-024 num notebook real (overlay de FPS, "Mostrar FPS" em Configurações) antes do release.
+- **Padrão provisório:** A. A tabela, o método e o painel F9 (tempo por etapa) estão no ADR-024, então a repetição em outro hardware é só rodar o mesmo roteiro.
+- **Resolução:** —

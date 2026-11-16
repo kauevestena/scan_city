@@ -1,5 +1,6 @@
 import { museumSlot } from '@/data/contracts/museum';
 import type { AircraftId } from '@/types';
+import { PERF, setPerfEnabled } from '@/engines/perf';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { FLY_TO_S, HoloEngine, SCULPT_S } from './HoloEngine';
 import { HoloPreview } from './HoloPreview';
@@ -202,5 +203,28 @@ describe('pintura dos drones na mesa (REQ-PRG-008)', () => {
 
   it('o Atlas (ave) mantém as cores do pombo', () => {
     expect(colorsUsed('ATLAS').has(PAINT.primary)).toBe(false);
+  });
+});
+
+describe('HoloEngine — contador de tempo por etapa (holo-table §5.7)', () => {
+  afterEach(() => setPerfEnabled(false));
+
+  it('ligado, cada render fecha um quadro com cena, renderer e rótulos; desligado, não mede', () => {
+    const e = new HoloEngine({ scene: scene(), input: { axis: () => 0 }, focusSlot: null });
+    e.attach(surface());
+    e.update(1 / 60);
+    e.render();
+    expect(PERF.holo.frameCount).toBe(0);
+
+    setPerfEnabled(true);
+    e.update(1 / 60);
+    e.render();
+    e.update(1 / 60);
+    e.render();
+    expect(PERF.holo.frameCount).toBe(2);
+    const [update, sceneMs, raster] = PERF.holo.readings();
+    expect(update?.ms).toBeGreaterThanOrEqual(0);
+    expect(sceneMs?.ms).toBeGreaterThan(0);
+    expect(raster?.ms).toBeGreaterThan(0);
   });
 });
