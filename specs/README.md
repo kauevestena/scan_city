@@ -31,9 +31,10 @@ O desenvolvimento segue **Spec-Driven Development (SDD)**: primeiro a spec, depo
 | 6 | [content/catalog.md](content/catalog.md) | Números de equipamentos, skills, cosméticos, souvenirs, eventos, balanceamento |
 | 6 | [content/contracts-real.md](content/contracts-real.md) | Regras especiais + C00–C06 com planos de referência verificados |
 | 6 | [content/contracts-rifts.md](content/contracts-rifts.md) | R01–R11 (Fendas) com planos de referência |
-| 7 | [tasks.md](tasks.md) | **79 tarefas** em 10 fases (F0–F9), com a matriz de rastreabilidade |
+| 7 | [tasks.md](tasks.md) | **79 tarefas** em 10 fases (F0–F9), com a matriz de rastreabilidade, e o pós-release (T080) |
 | — | [decisions.md](decisions.md) | ADRs (20 iniciais) |
 | — | [open-questions.md](open-questions.md) | Ambiguidades e padrões provisórios |
+| — | [qa-manual.md](qa-manual.md) | Roteiro dos testes que só uma pessoa faz: Firefox e Edge, controle real, FPS com GPU, som e campanha jogada |
 
 ---
 

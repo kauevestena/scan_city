@@ -13,7 +13,6 @@ export const DISTRACTION_MAX_S = 3;
 /** Contrabalanço: segurar o lado oposto com intensidade > 0,7 por 0,5 s anula a distração. */
 export const COUNTER_INTENSITY = 0.7;
 export const COUNTER_HOLD_S = 0.5;
-export const SECONDS_PER_CORN = 60;
 
 export interface DistractionPlan {
   /** Instante (s desde o início da linha) em que o aviso começa. */

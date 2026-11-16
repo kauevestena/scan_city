@@ -37,7 +37,6 @@ export const CHURCH = {
   towerU: [62.5, 87.5],
 } as const;
 /** Largo da matriz: piso de pedra aberto, ponto de apoio garantido no meio. */
-export const LARGO = { uMin: 52, uMax: 98, vMin: 80, vMax: 98 } as const;
 export const LARGO_CENTER: AoiPoint = { u: 75, v: 90 };
 
 const FACADES: readonly Rgb[] = [

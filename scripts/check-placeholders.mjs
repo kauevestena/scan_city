@@ -3,8 +3,9 @@
 // (`@typescript-eslint/no-empty-function`); aqui o grep as pega em qualquer arquivo de produção.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../src', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../src', import.meta.url));
 const PATTERN = /\b(TODO|FIXME|XXX)\b/;
 /** O shell provisório de depuração (constitution §4.3) saiu na T079: nada pode voltar a usá-lo. */
 const SHELL = /\bDebugScreenShell\b/;

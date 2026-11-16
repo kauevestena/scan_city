@@ -51,19 +51,20 @@ O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NF
 
 ## Scripts
 
-| Comando                                                 | O que faz                                                                                                    |
-| :------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                           | Vite em modo de desenvolvimento                                                                              |
-| `npm run build`                                         | `tsc -b` e build de produção em `dist/`                                                                      |
-| `npm run preview`                                       | serve o `dist/`                                                                                              |
-| `npm test`                                              | testes de unidade e de componente (Vitest + jsdom)                                                           |
-| `npm run test:coverage`                                 | os mesmos testes com cobertura v8 e limites (global ≥ 60 %; `src/domain` e `src/lib` ≥ 90 %)                 |
-| `npm run e2e`                                           | Playwright em Chromium (constrói e serve o app na porta 4173)                                                |
-| `npm run typecheck` / `npm run lint` / `npm run format` | TypeScript estrito, ESLint (zero avisos) e Prettier                                                          |
-| `npm run check:placeholders`                            | zero `TODO`/`FIXME`/`XXX`, funções vazias e `DebugScreenShell` em `src/` (REQ-NFR-005)                       |
-| `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                              |
-| `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                |
-| `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar |
+| Comando                                                 | O que faz                                                                                                                                                                             |
+| :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                                           | Vite em modo de desenvolvimento                                                                                                                                                       |
+| `npm run build`                                         | `tsc -b` e build de produção em `dist/`                                                                                                                                               |
+| `npm run preview`                                       | serve o `dist/`                                                                                                                                                                       |
+| `npm test`                                              | testes de unidade e de componente (Vitest + jsdom)                                                                                                                                    |
+| `npm run test:coverage`                                 | os mesmos testes com cobertura v8 e limites (global ≥ 60 %; `src/domain` e `src/lib` ≥ 90 %)                                                                                          |
+| `npm run e2e`                                           | Playwright em Chromium (constrói e serve o app na porta 4173)                                                                                                                         |
+| `npm run typecheck` / `npm run lint` / `npm run format` | TypeScript estrito, ESLint (zero avisos) e Prettier                                                                                                                                   |
+| `npm run check:placeholders`                            | zero `TODO`/`FIXME`/`XXX`, funções vazias e `DebugScreenShell` em `src/` (REQ-NFR-005)                                                                                                |
+| `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                                                                                                       |
+| `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                                                                                         |
+| `npm run qa:random`                                     | entradas aleatórias (teclado, mouse e controle) contra o `npm run preview`, procurando erro, queda e travada; com `--soak` mede a memória (opções no topo de `scripts/qa-random.mjs`) |
+| `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                          |
 
 Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa leva cerca de 16 minutos; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
 
@@ -114,6 +115,8 @@ O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](sp
 - [`decisions.md`](specs/decisions.md) e [`open-questions.md`](specs/open-questions.md): decisões (ADRs) e perguntas em aberto.
 
 ## Pendências conhecidas
+
+O roteiro dos testes que só uma pessoa faz (Firefox e Edge, controle real, FPS com GPU, som e campanha jogada) está em [`specs/qa-manual.md`](specs/qa-manual.md).
 
 - **Firefox:** o smoke manual do REQ-NFR-009 não pôde ser feito no ambiente de desenvolvimento ([OQ-014](specs/open-questions.md)); o roteiro está escrito.
 - **GPU:** os FPS foram medidos em Chromium sem GPU, com raster por software ([OQ-013](specs/open-questions.md)).

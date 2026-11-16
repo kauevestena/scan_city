@@ -4,6 +4,7 @@
 // Uso: node scripts/check-forbidden-terms.mjs [diretório]   (padrão: src/)
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /** Termos proibidos (contracts-rifts §3). A lista pode ser expandida. */
 export const FORBIDDEN_TERMS = [
@@ -91,9 +92,10 @@ export function checkDirectory(dir) {
   return hits;
 }
 
-// Só roda como script (não quando importado pelos testes).
-if (process.argv[1] && resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
-  const target = resolve(process.argv[2] ?? new URL('../src', import.meta.url).pathname);
+// Só roda como script (não quando importado pelos testes). A comparação é entre URLs: o
+// `.pathname` falha com espaço ou acento no caminho e no Windows, e o script saía sem varrer nada.
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  const target = resolve(process.argv[2] ?? fileURLToPath(new URL('../src', import.meta.url)));
   const hits = checkDirectory(target);
   if (hits.length > 0) {
     console.error(`check:terms — ${hits.length} termo(s) proibido(s) encontrado(s):`);

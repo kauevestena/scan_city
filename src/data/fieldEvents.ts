@@ -1,24 +1,6 @@
 /** Eventos de campo (catalog §12): efeitos, custos e durações. O sorteio está em `domain/fieldEvents`. */
-import type { FieldEventId } from '@/domain/fieldEvents';
 import type { CentsBRL } from '@/types';
 import { brl } from './catalog/money';
-
-/** Como o evento se apresenta: modal com escolha, diálogo curto, bloqueio com banner ou só toast. */
-export type FieldEventMode = 'MODAL' | 'DIALOG' | 'BLOCK' | 'PASSIVE';
-
-export interface FieldEventDef {
-  id: FieldEventId;
-  mode: FieldEventMode;
-}
-
-export const FIELD_EVENTS: Readonly<Record<FieldEventId, FieldEventDef>> = {
-  FLAT_TIRE: { id: 'FLAT_TIRE', mode: 'MODAL' },
-  CATTLE: { id: 'CATTLE', mode: 'BLOCK' },
-  LOST_BENCHMARK: { id: 'LOST_BENCHMARK', mode: 'DIALOG' },
-  SUSPICIOUS_OWNER: { id: 'SUSPICIOUS_OWNER', mode: 'MODAL' },
-  SUDDEN_RAIN: { id: 'SUDDEN_RAIN', mode: 'PASSIVE' },
-  ATLAS_FINDS_CORN: { id: 'ATLAS_FINDS_CORN', mode: 'PASSIVE' },
-};
 
 /** Pneu furado: toques de `INTERACT` para trocar, ou o guincho. */
 export const TIRE_REPAIR_TAPS = 10;
