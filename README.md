@@ -4,6 +4,10 @@ Simulador RPG de gerenciamento, exploração e engenharia cartográfica. O jogad
 
 O jogo roda inteiro no navegador, sem servidor e sem arquivo externo: o terreno é gerado por seed, a arte é desenhada no Canvas 2D e o som é sintetizado na Web Audio. O texto do jogo está em português do Brasil.
 
+## Jogar online
+
+**https://kauevestena.github.io/scan_city/**: cada push na `main` que passa no `npm run verify` publica a versão nova ([`.github/workflows/pages.yml`](.github/workflows/pages.yml), [ADR-028](specs/decisions.md)). Os parâmetros de depuração de [Depuração](#depuração-debug1) valem também lá.
+
 ## Como rodar
 
 Requer Node.js 22 (a versão usada no desenvolvimento).

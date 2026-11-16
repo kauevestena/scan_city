@@ -9,6 +9,9 @@ const pkg = JSON.parse(
 ) as { version: string };
 
 export default defineConfig({
+  // Caminhos relativos: o `dist/` funciona em qualquer endereço (a raiz, ou a subpasta do GitHub
+  // Pages, `https://<usuário>.github.io/scan_city/`), sem amarrar o build ao nome do repositório.
+  base: './',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

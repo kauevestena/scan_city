@@ -6,6 +6,8 @@
 
 ## 0. Preparação
 
+**Sem instalar nada:** a versão publicada, `https://kauevestena.github.io/scan_city/`, é o mesmo build de produção e aceita os mesmos parâmetros de URL (`https://kauevestena.github.io/scan_city/?debug=1&skipIntro=1`); onde o roteiro diz `http://localhost:4173`, use esse endereço. Serve para Firefox, Edge, controle e som em qualquer máquina.
+
 1. **Build de produção**, não o `npm run dev` (o servidor de desenvolvimento compila na hora e muda os tempos):
 
    ```bash
