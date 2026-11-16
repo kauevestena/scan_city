@@ -60,7 +60,7 @@ Dependências de runtime permitidas: `react`, `react-dom`, `zustand`, `lucide-re
 
 1. **Zero `TODO`, `FIXME`, `XXX`, funções vazias ou `throw new Error('not implemented')`** no código entregue. Uma tarefa só termina com o escopo dela 100 % funcional.
 2. **Escopo estrito.** Implemente apenas o que a tarefa pede. Funcionalidade de tarefa futura não entra antes da hora. Pequenos ganchos (*interfaces*, *enums*) são permitidos quando a spec da tarefa atual os define.
-3. **Telas ainda não implementadas** são servidas pelo `DebugScreenShell` (ver [tasks.md](tasks.md), T005). Ele mostra o nome da tela e os botões das transições válidas. O marco **M4** exige zero uso desse shell em produção.
+3. **Telas ainda não implementadas** são servidas pelo `DebugScreenShell` (ver [tasks.md](tasks.md), T005). Ele mostra o nome da tela e os botões das transições válidas. O marco **M4** exige zero uso desse shell em produção. *(Encerrado na T079: o shell e a cena de demonstração saíram do repositório e o `ScreenRouter` virou um `Record<ScreenId, ComponentType>` total; ver ADR-026.)*
 4. **A spec manda.** Se o código precisar divergir da spec, primeiro atualize a spec e registre uma ADR, depois mude o código.
 5. **Ambiguidade:** não invente. Registre em [open-questions.md](open-questions.md) e escolha o comportamento mais conservador descrito na spec. Se nenhum existir, pare a tarefa.
 6. **Testes primeiro no domínio.** Para tarefas de `domain/`, escreva os testes com os *golden values* de [design/domain-math.md](design/domain-math.md) antes da implementação.

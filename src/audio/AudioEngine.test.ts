@@ -279,7 +279,10 @@ describe('env', () => {
     const p = new (class {
       calls: Array<[string, number, number]> = [];
       value = 0;
-      cancelScheduledValues() {}
+      cancelled = 0;
+      cancelScheduledValues() {
+        this.cancelled++;
+      }
       setValueAtTime(v: number, t: number) {
         this.calls.push(['set', v, t]);
       }
@@ -292,6 +295,8 @@ describe('env', () => {
     })();
     const end = env(p as unknown as AudioParam, 1, { a: 0.01, d: 0.1, peak: 0.5 });
     expect(end).toBeCloseTo(1.11, 12);
+    // O envelope limpa a automação anterior do parâmetro antes de agendar a nova.
+    expect(p.cancelled).toBe(1);
     expect(p.calls).toEqual([
       ['set', MIN_GAIN, 1],
       ['linear', 0.5, 1.01],

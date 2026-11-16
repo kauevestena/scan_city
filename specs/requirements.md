@@ -61,7 +61,7 @@
 **REQ-CORE-007: Flags de depuração.** Onde a URL contiver `?debug=1`, o sistema deve:
 - habilitar o overlay de FPS;
 - habilitar os parâmetros `seed`, `screen`, `autopilot`, `unlockAll`, `money` e `skipIntro`;
-- habilitar o `DebugScreenShell` e a galeria `?screen=UIKIT`.
+- habilitar o painel `F9` e as galerias `?screen=UIKIT` e `?screen=SOUNDBOARD`.
 - *Aceite:* `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` abre um voo com missão de teste que se completa sozinho.
 
 **REQ-CORE-008: Game loop e Canvas.** O sistema deve executar as simulações com `requestAnimationFrame`, limitando `dt` a 50 ms e usando sub-passos de no máximo 1/60 s. Os Canvas devem escalar por `devicePixelRatio` e responder a redimensionamento.

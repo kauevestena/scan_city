@@ -8,10 +8,12 @@ import { InfographicLabScreen } from '@/screens/lab/InfographicLabScreen';
 import { OfficeScreen } from '@/screens/office/OfficeScreen';
 import { ProcessingResultsScreen } from '@/screens/processing/ProcessingResultsScreen';
 import { WorldMapScreen } from '@/screens/world/WorldMapScreen';
-import { DebugScreenShell } from './DebugScreenShell';
 
-/** Telas implementadas. As ausentes são servidas pelo `DebugScreenShell` (constitution §4.3). */
-export const SCREEN_COMPONENTS: Partial<Record<ScreenId, ComponentType>> = {
+/**
+ * Uma tela real para cada `ScreenId`: o tipo é total, então um id novo sem tela não compila (o
+ * shell provisório de depuração, constitution §4.3, saiu na T079; REQ-NFR-005).
+ */
+export const SCREEN_COMPONENTS: Record<ScreenId, ComponentType> = {
   OFFICE: OfficeScreen,
   WORLD_MAP: WorldMapScreen,
   FIELD_SETUP: FieldSetupScreen,
@@ -23,6 +25,6 @@ export const SCREEN_COMPONENTS: Partial<Record<ScreenId, ComponentType>> = {
 
 export function ScreenRouter() {
   const screen = useGameStore((s) => s.session.screen);
-  const Screen = SCREEN_COMPONENTS[screen] ?? DebugScreenShell;
+  const Screen = SCREEN_COMPONENTS[screen];
   return <Screen />;
 }
