@@ -12,6 +12,7 @@ import {
   prepareDebugTransition,
 } from './debugFixtures';
 import { getDebugFlags } from './debugFlags';
+import { PerfSection } from './PerfSection';
 
 const GRANT_CENTS = 1_000_000;
 
@@ -105,6 +106,7 @@ export function DebugPanel() {
             </Button>
           </div>
         </div>
+        <PerfSection />
         {markers.length > 0 && (
           <div>
             <p className="mb-2 text-xs tracking-widest text-slate-400 uppercase">

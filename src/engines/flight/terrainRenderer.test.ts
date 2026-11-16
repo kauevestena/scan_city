@@ -8,10 +8,15 @@ import {
   bandDistance,
   buildDrawList,
   contourInterval,
+  extendQuad,
   fogDistance,
   fogFactor,
+  gridElevation,
+  type GroundSample,
+  QUAD_OVERLAP_PX,
   quantizedColor,
   renderTerrain,
+  sampleGrid,
   shadeFor,
   sunInRunFrame,
   type TerrainScene,
@@ -216,11 +221,12 @@ describe('curvas de nível em lote', () => {
     renderTerrain(ctx, s);
     const strokes = vi.mocked(ctx.stroke).mock.calls.length;
     const bands = new Set(quads.map((c) => c.band)).size;
-    // Cada quad ainda leva o seu traço de emenda; as curvas viram, no máximo, 2 por faixa.
-    expect(strokes).toBeGreaterThanOrEqual(quads.length);
-    expect(strokes).toBeLessThanOrEqual(quads.length + 2 * bands);
-    expect(strokes).toBeLessThan(quads.length + contours);
-    // Cada segmento continua no caminho: 1 moveTo por quad e 1 por curva.
+    // Os quads não levam mais traço de emenda: só as curvas, no máximo 2 traços por faixa.
+    expect(strokes).toBeGreaterThan(0);
+    expect(strokes).toBeLessThanOrEqual(2 * bands);
+    expect(strokes).toBeLessThan(contours);
+    // Um `fill` por quad e cada segmento continua no caminho: 1 moveTo por quad e 1 por curva.
+    expect(vi.mocked(ctx.fill).mock.calls.length).toBe(quads.length);
     expect(vi.mocked(ctx.moveTo).mock.calls.length).toBe(quads.length + contours);
   });
 
@@ -269,5 +275,153 @@ describe('céu e sprites', () => {
     }
     drawGroundShadow(ctx, 640, 700, 30, 60);
     expect(ctx.ellipse).toHaveBeenCalled();
+  });
+});
+
+describe('quads sem contorno (survey-flight §5.18)', () => {
+  it('a borda de baixo e a da direita avançam QUAD_OVERLAP_PX sobre o vizinho; as outras ficam', () => {
+    // perto-esq, perto-dir, longe-dir, longe-esq (perto = embaixo na tela).
+    const p = Float64Array.from([10, 100, 40, 100, 38, 90, 12, 90]);
+    const q = extendQuad(p, new Float64Array(8));
+    const o = QUAD_OVERLAP_PX;
+    expect(o).toBeGreaterThanOrEqual(1);
+    expect([...q]).toEqual([10, 100 + o, 40 + o, 100 + o, 38 + o, 90, 12, 90]);
+    // O quad original não muda: ele é reaproveitado pelas curvas de nível e pelo brilho.
+    expect([...p]).toEqual([10, 100, 40, 100, 38, 90, 12, 90]);
+  });
+
+  it('cada quad é um `fill` com a sua cor e nenhum `stroke` por quad', () => {
+    const s = scene({ quality: 'MEDIUM', elevation: () => 0 });
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const styles: unknown[] = [];
+    vi.mocked(ctx.fill).mockImplementation(() => styles.push(ctx.fillStyle));
+    renderTerrain(ctx, s);
+    const quads = buildDrawList(s).filter((c) => c.type === 'QUAD');
+    expect(styles).toHaveLength(quads.length);
+    // O canvas guarda a cor em hexadecimal; a lista de comandos, em `rgb(r,g,b)`.
+    const hex = (rgb: string) =>
+      '#' + (rgb.match(/\d+/g) ?? []).map((v) => Number(v).toString(16).padStart(2, '0')).join('');
+    expect(styles).toEqual(quads.map((c) => (c.type === 'QUAD' ? hex(c.color) : '')));
+    // Plano sem relevo: não há curva de nível, então nenhum traço.
+    expect(vi.mocked(ctx.stroke)).not.toHaveBeenCalled();
+  });
+});
+
+describe('grade: elevação e cobertura de uma vez, buffers reaproveitados', () => {
+  /** Plano inclinado: a malha bilinear o reproduz exatamente. */
+  const plane = (X: number, Z: number) => 0.1 * X + 0.05 * Z + 3;
+
+  it('com `sampleGround`, a grade não chama `elevation` nem `cover`; o resultado é o mesmo', () => {
+    const elevation = vi.fn(plane);
+    const cover = vi.fn(() => 'GRASS' as const);
+    const sampleGround = vi.fn((X: number, Z: number, out: GroundSample) => {
+      out.elev = plane(X, Z);
+      out.cover = 'GRASS';
+    });
+    const together = scene({ elevation, cover, sampleGround });
+    const apart = scene({ elevation: plane, cover: () => 'GRASS' });
+    expect(buildDrawList(together)).toEqual(buildDrawList(apart));
+    // 41 faixas × 29 colunas na qualidade BAIXA (40 e 28 mais a borda).
+    expect(sampleGround).toHaveBeenCalledTimes(41 * 29);
+    expect(elevation).not.toHaveBeenCalled();
+    expect(cover).not.toHaveBeenCalled();
+  });
+
+  it('objetos, sombras e alvos assentam na malha da grade, sem reavaliar o relevo', () => {
+    const elevation = vi.fn(plane);
+    const sampleGround = (X: number, Z: number, out: GroundSample) => {
+      out.elev = plane(X, Z);
+      out.cover = 'GRASS';
+    };
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    renderTerrain(
+      ctx,
+      scene({
+        elevation,
+        cover: () => 'GRASS',
+        sampleGround,
+        objects: [
+          {
+            id: 1,
+            kind: 'BUILDING',
+            X: 5,
+            Z: 120,
+            widthM: 10,
+            heightM: 6,
+            baseM: 0,
+            color: [1, 2, 3],
+          },
+          { id: 2, kind: 'TREE', X: -8, Z: 300, widthM: 6, heightM: 8, baseM: 0, color: [1, 2, 3] },
+        ],
+        marks: [{ id: 'GCP-01', kind: 'GCP', X: 0, Z: 60 }],
+      }),
+    );
+    expect(elevation).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalled();
+  });
+
+  it('`gridElevation` reproduz os vértices e o plano; fora da grade vale a borda', () => {
+    const s = scene({ elevation: plane });
+    const g = sampleGrid(s);
+    // Nos vértices: o valor amostrado, exatamente.
+    for (const [i, j] of [
+      [0, 0],
+      [10, 7],
+      [25, 28],
+      [40, 14],
+    ] as const) {
+      const k = i * (g.m + 1) + j;
+      expect(gridElevation(g, s.cam, g.x[k] as number, g.z[i] as number)).toBeCloseTo(
+        g.elev[k] as number,
+        9,
+      );
+    }
+    // Entre vértices: um plano é reproduzido pela interpolação bilinear.
+    for (const [X, Z] of [
+      [3.3, 42.5],
+      [-20, 100],
+      [14.2, 333.3],
+      [-60, 640],
+    ] as const) {
+      expect(gridElevation(g, s.cam, X, Z)).toBeCloseTo(plane(X, Z), 6);
+    }
+    // Muito à direita e muito à esquerda: a elevação da borda da faixa, sem extrapolar.
+    const right = gridElevation(g, s.cam, 1e6, 200);
+    const left = gridElevation(g, s.cam, -1e6, 200);
+    expect(Number.isFinite(right) && Number.isFinite(left)).toBe(true);
+    expect(right).toBeGreaterThan(left);
+    expect(right).toBeLessThan(plane(1e6, 200));
+    // Antes de zNear e depois de zFar: a primeira e a última faixa.
+    expect(Number.isFinite(gridElevation(g, s.cam, 0, -50))).toBe(true);
+    expect(Number.isFinite(gridElevation(g, s.cam, 0, 1e5))).toBe(true);
+  });
+
+  it('o relevo curvo da malha fica perto do verdadeiro (o erro é o da própria grade)', () => {
+    const hills = (X: number, Z: number) => 6 * Math.sin(X / 25) + 4 * Math.cos(Z / 60);
+    const s = scene({ quality: 'HIGH', elevation: hills });
+    const g = sampleGrid(s);
+    let worst = 0;
+    for (const Z of [40, 90, 150, 220, 400]) {
+      for (const X of [-30, -7, 0, 11, 28]) {
+        worst = Math.max(worst, Math.abs(gridElevation(g, s.cam, X, Z) - hills(X, Z)));
+      }
+    }
+    expect(worst).toBeLessThan(0.35);
+  });
+
+  it('os buffers da grade são os mesmos entre quadros da mesma qualidade', () => {
+    const low = sampleGrid(scene({ quality: 'LOW' }));
+    expect(sampleGrid(scene({ quality: 'LOW' }))).toBe(low);
+    const high = sampleGrid(scene({ quality: 'HIGH' }));
+    expect(high).not.toBe(low);
+    expect(high.n).toBe(72);
+    expect(high.m).toBe(48);
+    // A grade reaproveitada traz o conteúdo do quadro novo.
+    const moved = sampleGrid(
+      scene({ quality: 'HIGH', cam: makeCamera(1280, 720, 50, 40, 'HIGH') }),
+    );
+    expect(moved).toBe(high);
+    // A coluna do meio da primeira faixa está no X da câmera.
+    expect(moved.x[24] as number).toBeCloseTo(50, 6);
   });
 });

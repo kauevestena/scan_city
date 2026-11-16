@@ -2,6 +2,7 @@ import { CATALOG } from '@/data/catalog';
 import { C00 } from '@/data/contracts';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { neutralModifiers } from '@/domain/modifiers';
+import { FLIGHT_STAGE, PERF, setPerfEnabled } from '@/engines/perf';
 import { referenceParams } from '@/test/fixtures/syntheticMission';
 import type { MissionData, Shot, WorldObject } from '@/types';
 import { makeObject } from '@/world/terrain/objects';
@@ -301,5 +302,40 @@ describe('FlightEngine — colisão, dano e queda (§5.11)', () => {
       if (Math.round(t * 60) % 30 === 0) e.render();
     }
     expect(e.collisions).toBe(0);
+  });
+});
+
+describe('FlightEngine — contador de tempo por etapa (survey-flight §5.18)', () => {
+  afterEach(() => setPerfEnabled(false));
+
+  it('desligado não mede; ligado, cada render fecha um quadro com as etapas do voo', () => {
+    const { e } = engine();
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    e.attach({ ctx, width: 1280, height: 720, dpr: 1 });
+    e.update(1 / 60);
+    e.render();
+    expect(PERF.flight.frameCount).toBe(0);
+
+    setPerfEnabled(true);
+    for (let k = 0; k < 3; k++) {
+      e.update(1 / 60);
+      e.render();
+    }
+    expect(PERF.flight.frameCount).toBe(3);
+    const readings = PERF.flight.readings();
+    expect(readings).toHaveLength(Object.keys(FLIGHT_STAGE).length);
+    expect(readings.every((r) => Number.isFinite(r.ms) && r.ms >= 0)).toBe(true);
+    // O terreno (amostragem e quads) é o grosso do quadro e sempre passa pelas duas etapas.
+    expect(readings[FLIGHT_STAGE.GRID]?.ms).toBeGreaterThan(0);
+    expect(readings[FLIGHT_STAGE.TERRAIN]?.ms).toBeGreaterThan(0);
+    expect(PERF.flight.totalMs).toBeGreaterThan(0);
+  });
+
+  it('sem superfície (o render só publica o HUD) nenhum quadro é fechado', () => {
+    const { e } = engine();
+    setPerfEnabled(true);
+    e.update(1 / 60);
+    e.render();
+    expect(PERF.flight.frameCount).toBe(0);
   });
 });

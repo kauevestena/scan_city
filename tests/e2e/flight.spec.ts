@@ -33,3 +33,31 @@ test('a pausa congela o voo', async ({ page }) => {
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect.poll(() => hud.textContent(), { timeout: 3000 }).not.toBe(frozen);
 });
+
+test('o painel F9 mostra o tempo por etapa do voo, dentro do orçamento de 12 ms', async ({
+  page,
+}) => {
+  await page.goto('/?debug=1&skipIntro=1&autopilot=1&screen=SURVEY_FLIGHT');
+  await expect(page.getByTestId('survey-flight-screen')).toBeVisible();
+  await page.keyboard.press('F9');
+  const perf = page.locator('[data-perf="flight"]');
+  await expect(perf).toBeVisible({ timeout: 5000 });
+  for (const stage of [
+    'simulação (update)',
+    'HUD (publicação)',
+    'grade do terreno (amostragem)',
+    'terreno (quads e curvas)',
+    'objetos, sombras e alvos',
+  ]) {
+    await expect(perf).toContainText(stage);
+  }
+  // O total aparece como "x,xx ms / 12,0 ms" e fecha o quadro na ordem de grandeza esperada: o
+  // C00 é leve, então fica longe do teto mesmo num Chromium sem GPU.
+  const head = (await perf.locator('p').first().textContent()) ?? '';
+  const total = Number((/([\d,]+) ms \/ 12,0 ms/.exec(head)?.[1] ?? 'NaN').replace(',', '.'));
+  expect(total).toBeGreaterThan(0);
+  expect(total).toBeLessThan(12);
+  // Fechar o painel desliga a medição: o contador para de ganhar quadros.
+  await page.keyboard.press('F9');
+  await expect(perf).toBeHidden();
+});

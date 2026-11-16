@@ -1,3 +1,4 @@
+import { CONTRACTS } from '@/data/contracts';
 import type { BiomeId } from '@/types';
 import { mulberry32 } from '@/lib/rng';
 import { createDistanceField } from './distanceField';
@@ -244,6 +245,29 @@ describe('createTerrain — RURAL_TUTORIAL (C00)', () => {
     expect(t.ndvi(HOUSE.u, HOUSE.v)).toBeLessThan(0.2);
     expect(t.ndvi(120, 80)).toBeLessThan(0.2);
     expect(t.ndvi(ORCHARD.uMin + 2, ORCHARD.vMin + 2)).toBeGreaterThan(0.6);
+  });
+
+  it('landCoverAt com a elevação do ponto é igual a landCover, em todos os biomas', () => {
+    // A grade do voo amostra os dois de uma vez (survey-flight §5.18): o resultado não pode mudar.
+    const rng = mulberry32(77);
+    for (const contract of CONTRACTS) {
+      const t = createTerrain(contract);
+      for (let i = 0; i < 300; i++) {
+        const u = rng.range(t.bounds.uMin, t.bounds.uMax);
+        const v = rng.range(t.bounds.vMin, t.bounds.vMax);
+        expect(t.landCoverAt(u, v, t.elevation(u, v))).toBe(t.landCover(u, v));
+      }
+    }
+    // Os pontos de referência da C00 passam pelos mesmos ramos (telhado, estrada, água).
+    const c00 = createTerrain(C00);
+    for (const [u, v] of [
+      [POND.u, POND.v],
+      [HOUSE.u, HOUSE.v],
+      [120, 80],
+      [25, 140],
+    ] as const) {
+      expect(c00.landCoverAt(u, v, c00.elevation(u, v))).toBe(c00.landCover(u, v));
+    }
   });
 
   it('distanceToRoad é 0 sobre a estrada e cresce ao se afastar', () => {

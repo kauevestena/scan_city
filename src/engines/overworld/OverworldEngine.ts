@@ -11,6 +11,7 @@ import { nearestWalkable } from '@/world/overworld/pathfinding';
 import { COLORS } from '@/ui/tokens';
 import type { CanvasSurface } from '../canvas';
 import type { Simulation } from '../loop';
+import { PERF, WORLD_STAGE } from '../perf';
 import { boxBlocker, stepAvatar, type AvatarState } from './avatar';
 import { clampCamera, followCamera, type CameraState } from './camera';
 import {
@@ -185,6 +186,12 @@ export class OverworldEngine implements Simulation {
   }
 
   update(dtS: number): void {
+    PERF.world.enter(WORLD_STAGE.UPDATE);
+    this.step(dtS);
+    PERF.world.leave();
+  }
+
+  private step(dtS: number): void {
     this.timeS += dtS;
     const vehicle = this.opts.vehicle();
     const mx = this.opts.input.axis('MOVE_X');
@@ -224,6 +231,7 @@ export class OverworldEngine implements Simulation {
   render(): void {
     const surface = this.surface;
     if (!surface) return;
+    PERF.world.enter(WORLD_STAGE.CHUNKS);
     const { ctx, width, height, dpr } = surface;
     const zoom = this.zoom;
     const tilePx = TILE_PX * zoom;
@@ -262,6 +270,7 @@ export class OverworldEngine implements Simulation {
     }
 
     // Camada animada.
+    PERF.world.enter(WORLD_STAGE.ANIMATED);
     const x0 = Math.max(0, Math.floor(left));
     const y0 = Math.max(0, Math.floor(top));
     const x1 = Math.min(this.map.width - 1, Math.ceil(left + view.w));
@@ -280,10 +289,12 @@ export class OverworldEngine implements Simulation {
       moving: this.moving,
     });
     ctx.restore();
+    PERF.world.enter(WORLD_STAGE.ATMOSPHERE);
     if (this.opts.dimension?.() === 'RIFT') {
       drawRiftAtmosphere(ctx, width, height, dpr, this.timeS, calm);
     }
     if (this.opts.rain?.()) drawRain(ctx, width, height, dpr, this.timeS);
+    PERF.world.endFrame();
   }
 }
 

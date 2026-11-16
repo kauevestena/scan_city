@@ -12,6 +12,7 @@ import { COLORS, FONTS, withAlpha } from '@/ui/tokens';
 import type { CanvasSurface } from '../canvas';
 import { drawAircraft } from '../flight/aircraftSprite';
 import type { Simulation } from '../loop';
+import { HOLO_STAGE, PERF } from '../perf';
 import { projectPoint } from '../soft3d/mat4';
 import { OrbitCamera } from '../soft3d/OrbitCamera';
 import { pickSector } from '../soft3d/picking';
@@ -247,6 +248,12 @@ export class HoloEngine implements Simulation {
   // --- simulação --------------------------------------------------------------------
 
   update(dtS: number): void {
+    PERF.holo.enter(HOLO_STAGE.UPDATE);
+    this.step(dtS);
+    PERF.holo.leave();
+  }
+
+  private step(dtS: number): void {
     this.timeS += dtS;
     const lx = this.opts.input.axis('LOOK_X');
     const ly = this.opts.input.axis('LOOK_Y');
@@ -295,6 +302,7 @@ export class HoloEngine implements Simulation {
   render(): void {
     const s = this.surface;
     if (!s) return;
+    PERF.holo.enter(HOLO_STAGE.SCENE);
     this.trackFrameRate();
     const { ctx, width, height, dpr } = s;
     const neon = this.scene.mode === 'NEON';
@@ -359,11 +367,14 @@ export class HoloEngine implements Simulation {
         yOffset: sculptSec ? this.offsetOf(sculptSec) : 0,
       });
     }
+    PERF.holo.enter(HOLO_STAGE.RASTER);
     this.renderer.render(ctx, width, height, m, meshes, lines, points, {
       light: normalize([0.5, 1, 0.35]),
     });
+    PERF.holo.enter(HOLO_STAGE.SPRITES);
     this.drawSprites(ctx, width, height, m);
     ctx.restore();
+    PERF.holo.endFrame();
   }
 
   private floorRadius = 0;
