@@ -157,6 +157,18 @@ export function rollingShutterSkewPx(
   return readoutS ? (speedMs * readoutS) / gsdM : 0;
 }
 
+/**
+ * Ângulo de cisalhamento do rolling shutter (rad): atan(skew · GSD / altura da imagem no solo).
+ * Uma coluna vertical na cena sai inclinada por esse ângulo na imagem.
+ */
+export function rollingShutterShearRad(
+  skewPx: number,
+  gsdM: number,
+  groundHeightM: number,
+): number {
+  return Math.atan((skewPx * gsdM) / groundHeightM);
+}
+
 export type BlurClass = 'OK' | 'WARN' | 'BLURRED';
 
 export function blurClass(px: number): BlurClass {

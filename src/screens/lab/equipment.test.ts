@@ -1,4 +1,4 @@
-import { AIRCRAFT, getAircraft, LENSES, SENSORS } from '@/data/catalog';
+import { AIRCRAFT, getAircraft, LENSES, PAYLOADS, SENSORS } from '@/data/catalog';
 import { airBase, footprint } from '@/domain/photogrammetry';
 import { CAMERA_PRESETS, equipmentValues, STEREO_OVERLAP_PCT, WORKING_HEIGHT_M } from './equipment';
 
@@ -83,5 +83,73 @@ describe('"Usar valores do meu equipamento"', () => {
 
   it('a altura respeita o teto da aeronave (Atlas: 80 m)', () => {
     expect(equipmentValues(inventory()).stereo.heightM).toBe(80);
+  });
+});
+
+describe('"Usar valores do meu equipamento": dossel e shutter', () => {
+  it('sem o Pod, o dossel usa só a aeronave: a altura e a velocidade de cruzeiro', () => {
+    const eq = equipmentValues(inventory());
+    expect(eq.payloadName).toBeNull();
+    expect(eq.canopy.prrKHz).toBeUndefined();
+    expect(eq.canopy.maxReturns).toBeUndefined();
+    expect(eq.canopy.heightM).toBe(80);
+    expect(eq.canopy.speedMs).toBe(10);
+  });
+
+  it('com o Pod, o dossel usa o PRR e os retornos dele', () => {
+    const eq = equipmentValues({
+      aircraft: ['DRONE_T2'],
+      sensors: ['CAM_45MP_FF'],
+      lenses: ['LENS_35'],
+      payloads: PAYLOADS.map((p) => p.id),
+    });
+    expect(eq.payloadName).toBe(PAYLOADS[0]?.name);
+    expect(eq.canopy.prrKHz).toBe(240);
+    expect(eq.canopy.maxReturns).toBe(5);
+    expect(eq.canopy.speedMs).toBe(getAircraft('DRONE_T2').vCruiseMs);
+  });
+
+  it('a câmera de peito é mecânica: sensor global e sem leitura; o GSD sai do domínio', () => {
+    const eq = equipmentValues(inventory());
+    expect(eq.shutter.global).toBe(true);
+    expect(eq.shutter.readoutMs).toBeUndefined();
+    // 80 m · 1,89 µm / 4,5 mm = 3,36 cm, preso na faixa do slider (0,5 a 5 cm).
+    expect(eq.shutter.gsdCm).toBeCloseTo(3.36, 1);
+    expect(eq.shutter.speedMs).toBe(10);
+  });
+
+  it('a câmera de 20 MP é rolling, lida em 30 ms: GSD de 2,74 cm a 100 m (G6)', () => {
+    const eq = equipmentValues({
+      aircraft: ['DRONE_T1'],
+      sensors: ['CAM_20MP_RS'],
+      lenses: [],
+    });
+    expect(eq.shutter.global).toBe(false);
+    expect(eq.shutter.readoutMs).toBe(30);
+    expect(eq.shutter.gsdCm).toBeCloseTo(2.74, 2);
+  });
+
+  it('o full frame com obturador global não distorce', () => {
+    const eq = equipmentValues({
+      aircraft: ['DRONE_T2'],
+      sensors: ['CAM_45MP_FF'],
+      lenses: ['LENS_35'],
+    });
+    expect(eq.shutter.global).toBe(true);
+    expect(eq.shutter.readoutMs).toBeUndefined();
+  });
+
+  it('as velocidades e o GSD respeitam as faixas dos sliders em qualquer equipamento', () => {
+    const everything = equipmentValues({
+      aircraft: AIRCRAFT.map((a) => a.id),
+      sensors: SENSORS.map((s) => s.id),
+      lenses: LENSES.map((l) => l.id),
+      payloads: PAYLOADS.map((p) => p.id),
+    });
+    expect(everything.canopy.speedMs).toBeGreaterThanOrEqual(5);
+    expect(everything.canopy.speedMs).toBeLessThanOrEqual(25);
+    expect(everything.canopy.heightM).toBeGreaterThanOrEqual(40);
+    expect(everything.shutter.gsdCm).toBeGreaterThanOrEqual(0.5);
+    expect(everything.shutter.gsdCm).toBeLessThanOrEqual(5);
   });
 });

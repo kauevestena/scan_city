@@ -190,12 +190,12 @@ describe('InfographicLabScreen — navegação', () => {
   it('Q e E (ou LB e RB) trocam de aba, com volta', () => {
     open();
     const lab = screen.getByTestId('lab-screen');
-    fireEvent.keyDown(window, { key: 'e', code: 'KeyE' });
-    expect(lab).toHaveAttribute('data-panel', 'STEREO');
-    fireEvent.keyDown(window, { key: 'e', code: 'KeyE' });
-    expect(lab).toHaveAttribute('data-panel', 'OPTICS');
+    for (const panel of ['STEREO', 'CANOPY', 'SHUTTER', 'OPTICS']) {
+      fireEvent.keyDown(window, { key: 'e', code: 'KeyE' });
+      expect(lab).toHaveAttribute('data-panel', panel);
+    }
     fireEvent.keyDown(window, { key: 'q', code: 'KeyQ' });
-    expect(lab).toHaveAttribute('data-panel', 'STEREO');
+    expect(lab).toHaveAttribute('data-panel', 'SHUTTER');
   });
 
   it('Esc e o botão Voltar levam ao escritório (T15), sem pausar', () => {
@@ -217,5 +217,171 @@ describe('InfographicLabScreen — navegação', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName(/sensor, lente, cone de raios/);
     fireEvent.click(screen.getByRole('tab', { name: '2 Estereoscopia & Paralaxe' }));
     expect(screen.getByRole('img')).toHaveAccessibleName(/duas câmeras/);
+  });
+});
+
+describe('InfographicLabScreen — LiDAR vs. Fotogrametria no Dossel (REQ-LAB-003)', () => {
+  it('G16 — cobertura de 97 % e 5 retornos: P_solo = 10,76 %', () => {
+    open({ panel: 'CANOPY' });
+    expect(screen.getByTestId('lab-screen')).toHaveAttribute('data-panel', 'CANOPY');
+    expect(screen.getByRole('tab', { name: '3 LiDAR vs. Fotogrametria' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    press(slider('Cobertura do dossel'), 'PageUp', 3); // 70 → 100, preso em 98
+    expect(slider('Cobertura do dossel')).toHaveAttribute('aria-valuenow', '98');
+    press(slider('Cobertura do dossel'), 'ArrowLeft'); // 97
+    press(slider('Nº máximo de retornos'), 'End');
+    expect(slider('Cobertura do dossel')).toHaveAttribute('aria-valuenow', '97');
+    expect(slider('Nº máximo de retornos')).toHaveAttribute('aria-valuenow', '5');
+    expect(value('reading-p-ground')).toBe('10,76 %');
+    expect(screen.getByTestId('formula-0')).toHaveTextContent('= 10,76 %');
+    // Só 0,09 % do solo aparece em duas fotos: (1 − 0,97)².
+    expect(value('reading-photo-visibility')).toBe('0,09 %');
+  });
+
+  it('a densidade de solo e o veredito do MDT (≥ 4 pts/m²: confiável)', () => {
+    open({ panel: 'CANOPY' });
+    // Abertura: 70 %, 3 retornos, 240 kHz, 100 m e 12 m/s.
+    expect(value('reading-verdict')).toBe('MDT confiável');
+    expect(value('reading-swath')).toBe('140,0 m');
+    expect(value('reading-density')).toBe('142,8 pts/m²');
+    expect(value('reading-ground-density')).toMatch(/pts\/m²$/);
+    // 98 % de dossel, 1 retorno, o pulso mais ralo (50 kHz) e o mais rápido: ~0,02·ρ de solo.
+    press(slider('Cobertura do dossel'), 'End');
+    press(slider('Nº máximo de retornos'), 'Home');
+    press(slider('PRR do pulso'), 'Home');
+    press(slider('Velocidade v'), 'End');
+    press(slider('Altura H'), 'End');
+    expect(value('reading-p-ground')).toBe('2,00 %');
+    expect(value('reading-verdict')).toBe('MDT insuficiente');
+    expect(value('reading-ground-density')).toBe('0,1 pts/m²');
+  });
+
+  it('o FOV é fixo em 70° e as leituras vêm dos sliders', () => {
+    open({ panel: 'CANOPY' });
+    expect(screen.getByText('FOV (fixo): 70°')).toBeInTheDocument();
+    press(slider('Altura H'), 'ArrowRight');
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '105');
+    expect(value('reading-swath')).toBe('147,0 m');
+  });
+
+  it('"Usar valores do meu equipamento": sem o Pod, usa só a aeronave e avisa', () => {
+    open({ panel: 'CANOPY' });
+    fireEvent.click(screen.getByTestId('use-equipment'));
+    expect(screen.getByTestId('equipment-note')).toHaveTextContent(
+      'Equipamento: sem Pod LiDAR (só a aeronave) em Pombo Atlas',
+    );
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '80');
+    expect(slider('PRR do pulso')).toHaveAttribute('aria-valuenow', '240');
+    expect(slider('Velocidade v')).toHaveAttribute('aria-valuenow', '10');
+  });
+
+  it('com o Pod, usa o PRR e os retornos dele', () => {
+    useGameStore.setState((s) => ({
+      inventory: { ...s.inventory, payloads: ['POD_LIDAR'], aircraft: ['ATLAS', 'DRONE_T2'] },
+    }));
+    open({ panel: 'CANOPY' });
+    press(slider('PRR do pulso'), 'Home');
+    press(slider('Nº máximo de retornos'), 'Home');
+    fireEvent.click(screen.getByTestId('use-equipment'));
+    expect(screen.getByTestId('equipment-note')).toHaveTextContent('Pod LiDAR "Vaga-lume"');
+    expect(slider('PRR do pulso')).toHaveAttribute('aria-valuenow', '240');
+    expect(slider('Nº máximo de retornos')).toHaveAttribute('aria-valuenow', '5');
+  });
+});
+
+describe('InfographicLabScreen — Global vs. Rolling Shutter (REQ-LAB-004)', () => {
+  it('G11 — v 8 m/s, leitura de 30 ms e GSD de 2,74 cm: skew de 8,76 px', () => {
+    open({ panel: 'SHUTTER' });
+    expect(screen.getByTestId('lab-screen')).toHaveAttribute('data-panel', 'SHUTTER');
+    expect(value('reading-skew')).toBe('8,76 px');
+    expect(screen.getByTestId('formula-0')).toHaveTextContent('= 8,76 px');
+    // Ângulo de cisalhamento: atan(skew · GSD / altura da imagem no solo), em 160 linhas.
+    expect(value('reading-shear')).toBe('3,13°');
+    expect(value('reading-ground-height')).toBe('4,4 m');
+  });
+
+  it('o jogo penaliza o RMSE: × 1,35 sem RTK e × 1,18 com RTK', () => {
+    open({ panel: 'SHUTTER' });
+    expect(value('reading-rmse-no-rtk')).toBe('× 1,35');
+    expect(value('reading-rmse-rtk')).toBe('× 1,18');
+  });
+
+  it('o sensor global não tem skew nem penalidade; o interruptor volta ao rolling', () => {
+    open({ panel: 'SHUTTER' });
+    const toggle = screen.getByTestId('shutter-global');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(value('reading-skew')).toBe('0,00 px');
+    expect(value('reading-shear')).toBe('0,00°');
+    expect(value('reading-rmse-no-rtk')).toBe('× 1,00');
+    expect(value('reading-rmse-rtk')).toBe('× 1,00');
+    expect(slider('Tempo de leitura')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(toggle);
+    expect(value('reading-skew')).toBe('8,76 px');
+  });
+
+  it('v = 0 zera o skew; mais velocidade e leitura mais lenta crescem o skew', () => {
+    open({ panel: 'SHUTTER' });
+    press(slider('Velocidade v'), 'Home');
+    expect(value('reading-skew')).toBe('0,00 px');
+    expect(value('reading-rmse-no-rtk')).toBe('× 1,00');
+    press(slider('Velocidade v'), 'End');
+    press(slider('Tempo de leitura'), 'End');
+    // 25 m/s · 60 ms / 2,74 cm = 54,74 px; o teto do multiplicador é 1,8 (sem RTK) e 1,4 (com RTK).
+    expect(value('reading-skew')).toBe('54,74 px');
+    expect(value('reading-rmse-no-rtk')).toBe('× 1,80');
+    expect(value('reading-rmse-rtk')).toBe('× 1,40');
+  });
+
+  it('"Usar valores do meu equipamento": a câmera de peito do Atlas é mecânica (sem rolling)', () => {
+    open({ panel: 'SHUTTER' });
+    fireEvent.click(screen.getByTestId('use-equipment'));
+    expect(screen.getByTestId('equipment-note')).toHaveTextContent('Câmera de Peito do Avô');
+    expect(screen.getByTestId('shutter-global')).toHaveAttribute('aria-pressed', 'true');
+    expect(value('reading-skew')).toBe('0,00 px');
+  });
+
+  it('com o drone T1 (20 MP, rolling de 30 ms), usa a leitura dele e dá o skew da G6', () => {
+    useGameStore.setState((s) => ({
+      inventory: {
+        ...s.inventory,
+        aircraft: ['ATLAS', 'DRONE_T1'],
+        sensors: [...s.inventory.sensors, 'CAM_20MP_RS'],
+      },
+    }));
+    open({ panel: 'SHUTTER' });
+    fireEvent.click(screen.getByTestId('use-equipment'));
+    expect(screen.getByTestId('shutter-global')).toHaveAttribute('aria-pressed', 'false');
+    expect(slider('Tempo de leitura')).toHaveAttribute('aria-valuenow', '30');
+    // GSD a 100 m com 8,8 mm e 2,41 µm de pixel: 2,74 cm.
+    expect(slider('GSD')).toHaveAttribute('aria-valuenow', '2.74');
+  });
+});
+
+describe('InfographicLabScreen — quatro painéis', () => {
+  it('cada painel guarda os próprios sliders ao trocar de aba', () => {
+    open();
+    press(slider('Altura H'), 'PageUp');
+    fireEvent.click(screen.getByRole('tab', { name: '3 LiDAR vs. Fotogrametria' }));
+    press(slider('Cobertura do dossel'), 'PageDown');
+    fireEvent.click(screen.getByRole('tab', { name: '4 Global vs. Rolling' }));
+    press(slider('Taxa de giro'), 'PageUp');
+    fireEvent.click(screen.getByRole('tab', { name: '3 LiDAR vs. Fotogrametria' }));
+    expect(slider('Cobertura do dossel')).toHaveAttribute('aria-valuenow', '60');
+    fireEvent.click(screen.getByRole('tab', { name: '4 Global vs. Rolling' }));
+    expect(slider('Taxa de giro')).toHaveAttribute('aria-valuenow', '10');
+    fireEvent.click(screen.getByRole('tab', { name: '1 Óptica & GSD' }));
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '110');
+  });
+
+  it('o payload abre qualquer um dos quatro', () => {
+    for (const panel of ['OPTICS', 'STEREO', 'CANOPY', 'SHUTTER']) {
+      const { unmount } = open({ panel });
+      expect(screen.getByTestId('lab-screen')).toHaveAttribute('data-panel', panel);
+      unmount();
+    }
   });
 });

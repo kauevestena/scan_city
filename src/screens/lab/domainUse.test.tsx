@@ -4,7 +4,23 @@
  * tela mostra o resultado trocado (não há fórmula reescrita no componente).
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { footprint, gsd, horizontalFovRad, pecMaxScaleDenominator } from '@/domain/photogrammetry';
+import { accuracyMultipliers } from '@/domain/accuracy';
+import {
+  groundDensity,
+  groundReturnProbability,
+  isDtmReliable,
+  lidarDensity,
+  lidarSwathM,
+  photoGroundVisibility,
+} from '@/domain/lidar';
+import {
+  footprint,
+  gsd,
+  horizontalFovRad,
+  pecMaxScaleDenominator,
+  rollingShutterShearRad,
+  rollingShutterSkewPx,
+} from '@/domain/photogrammetry';
 import {
   baseHeightClass,
   baseHeightRatio,
@@ -13,6 +29,7 @@ import {
   parallaxDiffM,
   photoBaseM,
 } from '@/domain/stereo';
+import { degToRad } from '@/lib/math';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { InfographicLabScreen } from './InfographicLabScreen';
@@ -25,7 +42,25 @@ vi.mock('@/domain/photogrammetry', async (importOriginal) => {
     footprint: vi.fn(mod.footprint),
     horizontalFovRad: vi.fn(mod.horizontalFovRad),
     pecMaxScaleDenominator: vi.fn(mod.pecMaxScaleDenominator),
+    rollingShutterSkewPx: vi.fn(mod.rollingShutterSkewPx),
+    rollingShutterShearRad: vi.fn(mod.rollingShutterShearRad),
   };
+});
+vi.mock('@/domain/lidar', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/domain/lidar')>();
+  return {
+    ...mod,
+    lidarSwathM: vi.fn(mod.lidarSwathM),
+    lidarDensity: vi.fn(mod.lidarDensity),
+    groundReturnProbability: vi.fn(mod.groundReturnProbability),
+    groundDensity: vi.fn(mod.groundDensity),
+    photoGroundVisibility: vi.fn(mod.photoGroundVisibility),
+    isDtmReliable: vi.fn(mod.isDtmReliable),
+  };
+});
+vi.mock('@/domain/accuracy', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/domain/accuracy')>();
+  return { ...mod, accuracyMultipliers: vi.fn(mod.accuracyMultipliers) };
 });
 vi.mock('@/domain/stereo', async (importOriginal) => {
   const mod = await importOriginal<typeof import('@/domain/stereo')>();
@@ -44,9 +79,11 @@ const originals = {
   photogrammetry:
     await vi.importActual<typeof import('@/domain/photogrammetry')>('@/domain/photogrammetry'),
   stereo: await vi.importActual<typeof import('@/domain/stereo')>('@/domain/stereo'),
+  lidar: await vi.importActual<typeof import('@/domain/lidar')>('@/domain/lidar'),
+  accuracy: await vi.importActual<typeof import('@/domain/accuracy')>('@/domain/accuracy'),
 };
 
-function open(panel: 'OPTICS' | 'STEREO') {
+function open(panel: 'OPTICS' | 'STEREO' | 'CANOPY' | 'SHUTTER') {
   act(() => {
     useGameStore.setState((s) => ({
       session: { ...s.session, screen: 'INFOGRAPHIC_LAB', payload: { panel } },
@@ -65,6 +102,17 @@ beforeEach(() => {
   vi.mocked(heightFromParallax).mockImplementation(originals.stereo.heightFromParallax);
   vi.mocked(depthPrecisionM).mockImplementation(originals.stereo.depthPrecisionM);
   vi.mocked(baseHeightClass).mockImplementation(originals.stereo.baseHeightClass);
+  vi.mocked(lidarSwathM).mockImplementation(originals.lidar.lidarSwathM);
+  vi.mocked(lidarDensity).mockImplementation(originals.lidar.lidarDensity);
+  vi.mocked(groundReturnProbability).mockImplementation(originals.lidar.groundReturnProbability);
+  vi.mocked(groundDensity).mockImplementation(originals.lidar.groundDensity);
+  vi.mocked(photoGroundVisibility).mockImplementation(originals.lidar.photoGroundVisibility);
+  vi.mocked(isDtmReliable).mockImplementation(originals.lidar.isDtmReliable);
+  vi.mocked(rollingShutterSkewPx).mockImplementation(originals.photogrammetry.rollingShutterSkewPx);
+  vi.mocked(rollingShutterShearRad).mockImplementation(
+    originals.photogrammetry.rollingShutterShearRad,
+  );
+  vi.mocked(accuracyMultipliers).mockImplementation(originals.accuracy.accuracyMultipliers);
   vi.clearAllMocks();
 });
 
@@ -133,5 +181,73 @@ describe('REQ-LAB-005 — o laboratório usa o domínio', () => {
     expect(value('reading-h')).toBe('12,34 m');
     expect(value('reading-sigma-z')).toBe('5,67 cm');
     expect(value('reading-ratio')).toBe('0,30 · forte, mas com oclusões');
+  });
+
+  it('dossel: chama o LiDAR do domínio com PRR, v, H, o FOV de 70° e a cobertura dos sliders', () => {
+    open('CANOPY');
+    // PRR 240 kHz, v 12 m/s, H 100 m e FOV de 70°.
+    expect(lidarDensity).toHaveBeenCalledWith(240_000, 12, 100, expect.closeTo(degToRad(70), 12));
+    expect(lidarSwathM).toHaveBeenCalledWith(100, expect.closeTo(degToRad(70), 12));
+    expect(groundReturnProbability).toHaveBeenCalledWith(0.7, 3);
+    expect(photoGroundVisibility).toHaveBeenCalledWith(0.7);
+    const density = vi.mocked(lidarDensity).mock.results[0]?.value as number;
+    expect(groundDensity).toHaveBeenCalledWith(density, 0.7, 3);
+    const ground = vi.mocked(groundDensity).mock.results[0]?.value as number;
+    expect(isDtmReliable).toHaveBeenCalledWith(ground);
+  });
+
+  it('dossel: P_solo, densidades, faixa, visibilidade e veredito exibidos são os do domínio', () => {
+    vi.mocked(groundReturnProbability).mockImplementation((c) => (c === 1 ? 0.04 : 0.5));
+    vi.mocked(groundDensity).mockReturnValue(77.7);
+    vi.mocked(lidarDensity).mockReturnValue(200);
+    vi.mocked(lidarSwathM).mockReturnValue(123.4);
+    vi.mocked(photoGroundVisibility).mockReturnValue(0.2);
+    vi.mocked(isDtmReliable).mockReturnValue(false);
+    open('CANOPY');
+    expect(value('reading-p-ground')).toBe('50,00 %');
+    expect(value('reading-ground-density')).toBe('77,7 pts/m²');
+    expect(value('reading-density')).toBe('200,0 pts/m²');
+    expect(value('reading-swath')).toBe('123,4 m');
+    expect(value('reading-photo-visibility')).toBe('20,00 %');
+    expect(value('reading-verdict')).toBe('MDT insuficiente');
+  });
+
+  it('shutter: chama rollingShutterSkewPx(v, leitura, GSD) e o ângulo de cisalhamento do domínio', () => {
+    open('SHUTTER');
+    expect(rollingShutterSkewPx).toHaveBeenCalledWith(8, 0.03, expect.closeTo(0.0274, 12));
+    const skew = vi.mocked(rollingShutterSkewPx).mock.results[0]?.value as number;
+    // Imagem de 160 linhas de 2,74 cm: 4,384 m de altura no solo.
+    expect(rollingShutterShearRad).toHaveBeenCalledWith(
+      skew,
+      expect.closeTo(0.0274, 12),
+      expect.closeTo(160 * 0.0274, 9),
+    );
+    // A penalidade de RMSE vem de `accuracyMultipliers`, com φ = 0 e φ = 1.
+    const phis = vi.mocked(accuracyMultipliers).mock.calls.map(([ctx]) => ctx.phi);
+    expect(phis).toContain(0);
+    expect(phis).toContain(1);
+    expect(
+      vi.mocked(accuracyMultipliers).mock.calls.every(([ctx]) => ctx.meanSkewPx === skew),
+    ).toBe(true);
+  });
+
+  it('shutter: skew, ângulo e penalidades exibidos são os do domínio', () => {
+    vi.mocked(rollingShutterSkewPx).mockReturnValue(12.34);
+    vi.mocked(rollingShutterShearRad).mockReturnValue(0.1);
+    vi.mocked(accuracyMultipliers).mockReturnValue([
+      { key: 'rollingShutter', label: 'Rolling shutter', xy: 1.7, z: 1.7 },
+    ]);
+    open('SHUTTER');
+    expect(value('reading-skew')).toBe('12,34 px');
+    expect(value('reading-shear')).toBe('5,73°');
+    expect(value('reading-rmse-no-rtk')).toBe('× 1,70');
+    expect(value('reading-rmse-rtk')).toBe('× 1,70');
+  });
+
+  it('shutter: com o sensor global o domínio recebe leitura indefinida (sem rolling)', () => {
+    open('SHUTTER');
+    vi.mocked(rollingShutterSkewPx).mockClear();
+    fireEvent.click(screen.getByTestId('shutter-global'));
+    expect(rollingShutterSkewPx).toHaveBeenCalledWith(8, undefined, expect.closeTo(0.0274, 12));
   });
 });

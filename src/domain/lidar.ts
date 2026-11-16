@@ -35,6 +35,13 @@ export function groundDensity(density: number, canopy: number, maxReturns: numbe
   return density * groundReturnProbability(canopy, maxReturns);
 }
 
+/** Densidade mínima de solo (pts/m²) para o MDT ser confiável (infographic-lab §5.3). */
+export const MIN_GROUND_DENSITY = 4;
+
+export function isDtmReliable(groundDensityPtsM2: number): boolean {
+  return groundDensityPtsM2 >= MIN_GROUND_DENSITY;
+}
+
 /** Fração do solo visível em fotos sob dossel c: precisa aparecer em 2 fotos, (1 − c)². */
 export function photoGroundVisibility(canopy: number): number {
   return (1 - canopy) ** 2;

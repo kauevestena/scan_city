@@ -2,10 +2,11 @@
  * Presets de câmera e "Usar valores do meu equipamento" (infographic-lab §3): preenche os sliders
  * com a melhor câmera e a melhor aeronave que o jogador possui. Tudo vem do catálogo e do domínio.
  */
-import { AIRCRAFT, LENSES, SENSORS } from '@/data/catalog';
-import { airBase, footprint, pixelPitchM, realFocalM } from '@/domain/photogrammetry';
+import { AIRCRAFT, LENSES, PAYLOADS, SENSORS } from '@/data/catalog';
+import { airBase, footprint, gsd, pixelPitchM, realFocalM } from '@/domain/photogrammetry';
 import type { CameraSensor, Lens, SaveGame } from '@/types';
-import type { OpticsInput, StereoInput } from './readings';
+import { clamp } from '@/lib/math';
+import type { CanopyInput, OpticsInput, ShutterInput, StereoInput } from './readings';
 
 export interface CameraPreset {
   id: string;
@@ -38,10 +39,24 @@ export const STEREO_OVERLAP_PCT = 70;
 export interface EquipmentValues {
   optics: OpticsInput;
   stereo: Pick<StereoInput, 'baseM' | 'heightM' | 'focalMm'>;
+  /** Dossel: o pod possuído (PRR e retornos) e a aeronave (altura e velocidade). */
+  canopy: Pick<CanopyInput, 'heightM' | 'speedMs'> &
+    Partial<Pick<CanopyInput, 'prrKHz' | 'maxReturns'>>;
+  /** Shutter: o obturador da câmera (leitura, se for rolling), a velocidade da aeronave e o GSD. */
+  shutter: Pick<ShutterInput, 'speedMs' | 'gsdCm' | 'global'> &
+    Partial<Pick<ShutterInput, 'readoutMs'>>;
   /** Nomes do que foi usado, para a confirmação na tela. */
   cameraLabel: string;
   aircraftName: string;
+  /** O Pod LiDAR, quando o jogador o possui. */
+  payloadName: string | null;
 }
+
+/** Faixas dos sliders de dossel e shutter que o equipamento precisa respeitar. */
+const CANOPY_HEIGHT_M = { min: 40, max: 300 } as const;
+const SPEED_MS = { min: 5, max: 25 } as const;
+const SHUTTER_READOUT_MS = { min: 5, max: 60 } as const;
+const SHUTTER_GSD_CM = { min: 0.5, max: 5 } as const;
 
 const owned = <T extends { id: string }>(list: readonly T[], ids: readonly string[]): T[] =>
   list.filter((x) => ids.includes(x.id));
@@ -51,7 +66,8 @@ const owned = <T extends { id: string }>(list: readonly T[], ids: readonly strin
  * que o jogador tem) e a melhor aeronave (a de maior teto). Sem lente comprada, usa a de 35 mm.
  */
 export function equipmentValues(
-  inv: Pick<SaveGame['inventory'], 'aircraft' | 'sensors' | 'lenses'>,
+  inv: Pick<SaveGame['inventory'], 'aircraft' | 'sensors' | 'lenses'> &
+    Partial<Pick<SaveGame['inventory'], 'payloads'>>,
 ): EquipmentValues {
   const sensors = owned(SENSORS, inv.sensors).filter((s) => s.kind === 'RGB');
   const sensor = [...sensors].sort((a, b) => b.imageWidthPx - a.imageWidthPx)[0] ?? SENSORS[0];
@@ -66,6 +82,9 @@ export function equipmentValues(
   const heightM = Math.min(WORKING_HEIGHT_M, aircraft?.hMaxM ?? WORKING_HEIGHT_M);
   const focalM = realFocalM(sensor, lens);
   const fp = footprint(heightM, sensor.sensorWidthMm / 1000, sensor.sensorHeightMm / 1000, focalM);
+  const speedMs = clamp(aircraft?.vCruiseMs ?? 10, SPEED_MS.min, SPEED_MS.max);
+  const pod = owned(PAYLOADS, inv.payloads ?? [])[0];
+  const gsdCm = gsd(heightM, pixelPitchM(sensor), focalM) * 100;
   return {
     optics: {
       heightM,
@@ -78,7 +97,28 @@ export function equipmentValues(
       heightM,
       focalMm: preset.focalMm,
     },
+    canopy: {
+      heightM: clamp(heightM, CANOPY_HEIGHT_M.min, CANOPY_HEIGHT_M.max),
+      speedMs,
+      ...(pod ? { prrKHz: pod.prrHz / 1000, maxReturns: pod.maxReturns } : {}),
+    },
+    shutter: {
+      speedMs,
+      gsdCm: clamp(gsdCm, SHUTTER_GSD_CM.min, SHUTTER_GSD_CM.max),
+      // Só o sensor de leitura por linha distorce; o mecânico e o global não.
+      global: sensor.shutter !== 'ROLLING',
+      ...(sensor.readoutS
+        ? {
+            readoutMs: clamp(
+              sensor.readoutS * 1000,
+              SHUTTER_READOUT_MS.min,
+              SHUTTER_READOUT_MS.max,
+            ),
+          }
+        : {}),
+    },
     cameraLabel: preset.label,
     aircraftName: aircraft?.name ?? '',
+    payloadName: pod?.name ?? null,
   };
 }
