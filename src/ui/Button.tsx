@@ -4,6 +4,7 @@ import { AudioEngine } from '@/audio/AudioEngine';
 import type { ButtonAction } from '@/input/actions';
 import { InputGlyph } from '@/input/InputGlyph';
 import { cx, FOCUS_RING } from './classes';
+import { focusFromNavigation, isHoverPointer, playHover } from './hoverSound';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'rift';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -45,6 +46,8 @@ export function Button({
   children,
   type = 'button',
   onClick,
+  onPointerEnter,
+  onFocus,
   ...rest
 }: ButtonProps) {
   const s = SIZE[size];
@@ -67,6 +70,14 @@ export function Button({
       onClick={(e) => {
         AudioEngine.get().play('UI_CLICK');
         onClick?.(e);
+      }}
+      onPointerEnter={(e) => {
+        if (!inactive && isHoverPointer(e.pointerType)) playHover();
+        onPointerEnter?.(e);
+      }}
+      onFocus={(e) => {
+        if (!inactive && focusFromNavigation(e.currentTarget)) playHover();
+        onFocus?.(e);
       }}
       {...rest}
     >

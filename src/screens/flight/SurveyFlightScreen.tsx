@@ -2,8 +2,9 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getDebugFlags } from '@/app/debugFlags';
 import { AudioEngine } from '@/audio/AudioEngine';
+import { FlightAmbience } from '@/audio/flightAmbience';
 import type { LoopHandle } from '@/audio/sfx';
-import { CATALOG } from '@/data/catalog';
+import { CATALOG, getAircraft } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
 import { COSMETICS } from '@/data/cosmetics';
 import { missionHasData } from '@/domain/sorties';
@@ -35,6 +36,7 @@ function createEngine(
   mission: MissionData,
   onHud: (s: FlightHudSnapshot) => void,
   onEnd: (r: SortieResult) => void,
+  ambience: FlightAmbience,
 ): FlightEngine {
   const state = useGameStore.getState();
   const contract = getContract(mission.contractId);
@@ -84,10 +86,15 @@ function createEngine(
       }
     },
     onCrash: () => AudioEngine.get().play('CRASH'),
-    onHud,
+    onHud: (snap) => {
+      // O motor segue a velocidade e o vento, o ganho do vento.
+      ambience.update(snap.speedMs, snap.windCrossMs);
+      onHud(snap);
+    },
     onSortieEnd: (result) => {
       lidarLoop?.stop(0.2);
       lidarLoop = null;
+      ambience.stop();
       useGameStore.getState().endSortie(result);
       completeTutorialStep(3);
       onEnd(result);
@@ -134,7 +141,10 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
   const surface = useCanvas(canvasRef);
   const [hud, setHud] = useState<FlightHudSnapshot | null>(null);
   const [result, setResult] = useState<SortieResult | null>(null);
-  const [engine] = useState(() => createEngine(mission, setHud, setResult));
+  const [ambience] = useState(
+    () => new FlightAmbience(AudioEngine.get(), getAircraft(mission.plan.params.aircraftId).kind),
+  );
+  const [engine] = useState(() => createEngine(mission, setHud, setResult, ambience));
   const autopilot = getDebugFlags().autopilot;
 
   // FIRE chega como ação discreta: disparo manual.
@@ -151,6 +161,19 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
       }),
     [engine],
   );
+
+  // Motor e vento: ligam com a tela, calam na pausa e param ao sair (ou ao fim da surtida).
+  useEffect(() => {
+    ambience.start();
+    ambience.setPaused(useGameStore.getState().session.paused);
+    const off = useGameStore.subscribe((state, prev) => {
+      if (state.session.paused !== prev.session.paused) ambience.setPaused(state.session.paused);
+    });
+    return () => {
+      off();
+      ambience.stop();
+    };
+  }, [ambience]);
 
   // Ao sair da tela, o zumbido do LiDAR para.
   useEffect(() => () => engine.dispose(), [engine]);

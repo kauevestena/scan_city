@@ -7,6 +7,7 @@ import { FpsOverlay } from '@/app/FpsOverlay';
 import { InputDriver } from '@/app/InputDriver';
 import { PauseOverlay } from '@/app/PauseOverlay';
 import { ScreenRouter } from '@/app/ScreenRouter';
+import { ScreenTransition } from '@/app/ScreenTransition';
 import { SoundBoard } from '@/app/SoundBoard';
 import { TopBar } from '@/app/TopBar';
 import { UiKitGallery } from '@/app/UiKitGallery';
@@ -30,7 +31,9 @@ function GameLayout() {
     <div className="flex h-full w-full flex-col">
       {TOP_BAR_SCREENS.has(screen) && <TopBar />}
       <div className="min-h-0 flex-1">
-        <ScreenRouter />
+        <ScreenTransition>
+          <ScreenRouter />
+        </ScreenTransition>
       </div>
     </div>
   );

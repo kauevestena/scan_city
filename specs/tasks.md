@@ -1456,13 +1456,22 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Fase:** F9 · **Depende de:** T075 · **REQs:** REQ-UI-004, REQ-AUD-002
 - **Spec:** [audio §4](design/audio.md), [survey-flight §5.5](features/survey-flight.md), [ui-style §5](design/ui-style.md)
 - **Aceite:**
-  - [ ] Transições de tela com fade de 200 ms e "distorção" nas fendas.
-  - [ ] Loops `MOTOR`, `WIND` e `PROCESSING` integrados.
-  - [ ] `UI_HOVER` nos botões.
-  - [ ] Toasts com ícones por tipo.
-  - [ ] Tudo respeita `reduceFlashes` e o mudo.
+  - [x] Transições de tela com fade de 200 ms e "distorção" nas fendas.
+  - [x] Loops `MOTOR`, `WIND` e `PROCESSING` integrados.
+  - [x] `UI_HOVER` nos botões.
+  - [x] Toasts com ícones por tipo.
+  - [x] Tudo respeita `reduceFlashes` e o mudo.
 - **Verificação:** `npm run verify && npm run e2e` · manual: jogar o C00 com som e com `reduceFlashes` ligado.
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/app/ScreenTransition.tsx`, `src/ui/hoverSound.ts`, `src/audio/flightAmbience.ts`, `src/app/ScreenTransition.test.tsx`, `src/ui/{hoverSound,Toast}.test.tsx`, `src/audio/flightAmbience.test.ts`, `tests/e2e/transitions.spec.ts`; ~ `src/App.tsx`, `src/index.css`, `src/ui/{Button,Tabs}.tsx`, `src/screens/flight/{SurveyFlightScreen.tsx,flightScreens.test.tsx}`
+- **Notas de implementação:**
+  - **Transições** (`ScreenTransition`, em volta do `ScreenRouter` no `GameLayout`). A cada troca de `screen.current` o contêiner da tela remonta (`key` = contador) com a animação CSS `screen-fade` (opacidade de 0 a 1, **200 ms**, `ease-out`); a abertura do jogo entra sem fade. O estado "mostrado" é derivado **durante a renderização** (padrão do React para estado derivado de props, sem efeito e sem ref, que o lint do React 19 proíbe). A **distorção** (`screen-rift`, também 200 ms: matiz girado, saturação, desfoque de 5 px, escala 1,03 e inclinação de 1,5°, que relaxam até a tela normal) vale quando a troca **entra ou sai de um contexto de fenda** (`inRiftContext`): o mapa na aba Fendas, ou o planejamento, o voo e o processamento de uma missão ou contrato com `dimension === 'RIFT'` (a missão é achada pelo `missionId` entre as ativas e as pendentes). Trocar de aba **dentro** do mapa não é transição. Com **"Reduzir flashes e tremores"** a distorção vira o fade simples, e com `prefers-reduced-motion: reduce` as duas animações ficam desligadas. A tela expõe `data-transition` (`NONE`, `FADE` ou `RIFT`) para os testes.
+  - **Sons de ambiente** (`audio/flightAmbience.ts`, REQ-AUD-002). `FlightAmbience` nasce em cada surtida do `SurveyFlightScreen`: liga o `MOTOR` com a **variante da aeronave** (`BIRD` para o Atlas, `MULTIROTOR`, `FIXED_WING` para a asa VTOL; os três do audio §3) e o `WIND`; a cada snapshot do HUD (`update(speedMs, vento cruzado)`) leva a velocidade ao `rate` do motor e o |vento transversal| à intensidade do vento (`windIntensity`: 0 a 1, cheia a partir de 12 m/s, sem sinal); `setPaused` **cala os dois na pausa** e os devolve ao nível de antes ao retomar (a store `session.paused` é assinada); `stop` encerra com um fade de 0,3 s no fim da surtida e ao desmontar, e `start` de novo (StrictMode) religa. O `PROCESSING` (esteira do pós-voo) e o `LIDAR_HUM` (liga e desliga com o sensor) **já estavam ligados** desde as tarefas de cada tela: a tabela de [audio §4](design/audio.md) está completa, e cada um dos 13 efeitos tem pelo menos uma chamada fora do módulo de áudio (`SHUTTER`, `LIDAR_HUM`, `RTH_BEEP`, `PIGEON_COO`, `CASH_REGISTER`, `CRASH`, `UI_CLICK`, `UI_HOVER`, `DENIED`, `LEVEL_UP`, `COLLECT`, `RIFT_OPEN`, `STAGE_DONE`).
+  - **`UI_HOVER`** (`ui/hoverSound.ts`). O `Button` e as abas (`Tabs`) tocam o hover ao **passar o mouse** (só ponteiro de mouse: o toque não "passa por cima") e ao **receber foco por navegação**: o do gamepad (`data-input-device="GAMEPAD"`) conta sempre, o do teclado só se for `:focus-visible` (clicar no botão não soa duas vezes). Há um intervalo mínimo de **70 ms** entre dois hovers (varrer uma grade de cartões não vira rajada) e botões desabilitados ou carregando, e abas desabilitadas, ficam mudos; os handlers `onPointerEnter` e `onFocus` do chamador seguem valendo. O clique continua tocando o `UI_CLICK`.
+  - **Toasts com ícone por tipo** (REQ-UI-004). O `Toast` já trazia um ícone `lucide` por tipo desde a T004 (info, success, warn, error, money e rift, cada um com a sua cor de borda e `aria-hidden`; erros e avisos são `role="alert"`, o resto `role="status"`; um `icon` da própria mensagem tem prioridade). O que faltava era o **teste**, que agora trava o contrato: ícone distinto por tipo, decorativo, papel de leitor de tela e borda distinta.
+  - **Partículas** (survey-flight §5.5) já existiam desde a T024c (`engines/flight/particles.ts`: neve, vaga-lumes, poeira da mina e faíscas, no máximo 300, sorteio seedado). Nada a acrescentar: o tremor de tela (0 px), as faíscas das criaturas elétricas e a piscada da invulnerabilidade (translúcida fixa) já ficam quietos com `reduceFlashes`, e o flash do obturador (80 ms) nem é desenhado com ele.
+  - **Respeito ao mudo.** Mudo e volumes são o ganho do nó master (T009/T075), que o hover, os loops de voo e todos os efeitos atravessam; não há caminho de som fora do `AudioEngine`. E o `reduceFlashes` agora também alcança as transições.
+  - **Testes.** `ScreenTransition.test.tsx` (9: `transitionKind` e a constante de 200 ms; `inRiftContext` no mapa, no planejamento, no voo e no processamento, achando o contrato pela missão ativa ou pendente; abertura sem fade; fade em cada troca; distorção ao entrar numa fenda e ao sair do mapa em Fendas; trocar de aba não é transição; `reduceFlashes` → só o fade), `hoverSound.test.tsx` (8: intervalo de 70 ms, mouse × toque, foco do gamepad e do teclado, `Button` e `Tabs`, desabilitados, handlers do chamador), `flightAmbience.test.ts` (7: variantes, intensidade do vento, motor e vento ligados com a velocidade, variantes por aeronave, pausa e retomada, começar pausado, `stop` e religar), `Toast.test.tsx` (4) e, em `flightScreens.test.tsx`, o som de ambiente no voo (BIRD e vento ao entrar, `rate` > 0 com o HUD, `stop` ao desmontar, pausa cala e retomar devolve). E2E `transitions.spec.ts` (2): trocar de tela entra com `screen-fade` de 0,2 s no navegador real, e sair da aba Fendas do mapa pelo menu de pausa ganha `screen-rift` (e com "Reduzir flashes", só `screen-fade`).
+- **Status:** ✅
 
 ### T077 — Passe de performance
 - **Fase:** F9 · **Depende de:** T076 · **REQs:** REQ-NFR-001, REQ-NFR-004
@@ -1532,12 +1541,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ☐ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
-| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |
+| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
-| REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ☐ |
+| REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ✅ |
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ✅ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |

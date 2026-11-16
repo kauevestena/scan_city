@@ -65,3 +65,46 @@ body {
   display: inline-block;
   animation: photo-pulse 0.35s ease-out;
 }
+
+/*
+ * Troca de tela (T076): a tela nova entra com fade de 200 ms; ao entrar ou sair de uma fenda, o
+ * mesmo fade ganha a "distorção" (matiz violeta-ciano, desfoque e um leve empenamento).
+ * `prefers-reduced-motion` e "Reduzir flashes e tremores" (que só escolhe o fade simples) valem.
+ */
+@keyframes screen-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes screen-rift {
+  0% {
+    opacity: 0;
+    filter: hue-rotate(70deg) saturate(1.8) blur(5px);
+    transform: scale(1.03) skewX(1.5deg);
+  }
+  60% {
+    opacity: 1;
+    filter: hue-rotate(-25deg) saturate(1.4) blur(1px);
+    transform: scale(1.005) skewX(-0.6deg);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+.screen-fade {
+  animation: screen-fade 200ms ease-out both;
+}
+.screen-rift {
+  animation: screen-rift 200ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-fade,
+  .screen-rift {
+    animation: none;
+  }
+}
