@@ -1,7 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
-import { DebugCanvasDemo } from './DebugCanvasDemo';
 import { resetDebugFlagsCache } from './debugFlags';
 import { FpsOverlay } from './FpsOverlay';
 
@@ -52,20 +51,5 @@ describe('FpsOverlay', () => {
     resetDebugFlagsCache();
     render(<FpsOverlay />);
     expect(screen.getByTestId('fps-overlay')).toBeInTheDocument();
-  });
-});
-
-describe('DebugCanvasDemo', () => {
-  it('desenha o quadrado girando no canvas', () => {
-    render(<DebugCanvasDemo />);
-    const canvas = screen.getByTestId<HTMLCanvasElement>('debug-canvas');
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-    const rotate = vi.spyOn(ctx, 'rotate');
-    step(0);
-    step(1000);
-    expect(rotate).toHaveBeenCalledTimes(2);
-    // 0,05 s (clamp) a 0,25 volta/s.
-    expect(rotate.mock.calls[1]?.[0]).toBeCloseTo(0.05 * 0.25 * 2 * Math.PI, 9);
-    expect(ctx.strokeRect).toHaveBeenCalled();
   });
 });

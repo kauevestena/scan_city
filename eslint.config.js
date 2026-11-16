@@ -16,6 +16,8 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'no-console': ['error', { allow: ['warn', 'error'] }],
+      // REQ-NFR-005: nada de função vazia (os construtores só com propriedades de parâmetro passam).
+      '@typescript-eslint/no-empty-function': 'error',
     },
   },
   {

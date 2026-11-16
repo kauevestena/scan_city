@@ -1551,11 +1551,22 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   3. Atualizar a matriz de rastreabilidade (abaixo) com o status final.
   4. Jogar a campanha (manual, com debug de dinheiro permitido) para uma verificação de sanidade.
 - **Aceite:**
-  - [ ] Todos os scripts verdes.
-  - [ ] Cobertura atendida.
-  - [ ] Todos os REQs com status ✅ na matriz.
+  - [x] Todos os scripts verdes.
+  - [x] Cobertura atendida.
+  - [x] Todos os REQs com status ✅ na matriz, exceto o REQ-NFR-009 (Firefox), que espera a verificação humana da [OQ-014](open-questions.md).
 - **Verificação:** `npm run verify && npm run e2e && npm run check:assets && npm run test:coverage`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `README.md`; − `src/app/{DebugScreenShell,DebugCanvasDemo}.tsx`; ~ `src/app/{ScreenRouter,DebugOverlay,debugFixtures}.ts(x)`, `src/app/{app,FpsOverlay}.test.tsx`, `src/audio/AudioEngine.test.ts`, `src/engines/raster/products.test.ts`, `eslint.config.js`, `scripts/check-placeholders.mjs`, `tests/e2e/{slice,navigation}.spec.ts` e as specs (`constitution`, `requirements`, `design/architecture`, `decisions`, `tasks`).
+- **Notas de implementação:**
+  - **O shell saiu do repositório, e não só de trás do `?debug=1`** ([ADR-026](decisions.md)). O passo 1 pedia o shell atrás do parâmetro; como as sete telas já eram reais, o arquivo e a cena de demonstração do Canvas (`DebugCanvasDemo`) foram apagados. O `ScreenRouter` exporta `SCREEN_COMPONENTS: Record<ScreenId, ComponentType>`, que é total pelo tipo: um `ScreenId` novo sem tela não compila. `app.test.tsx` ganhou o teste que compara as chaves com `SCREEN_IDS` e confere que nenhuma tela renderiza um `debug-screen-shell`; as asserções equivalentes saíram de `slice.spec.ts` e `navigation.spec.ts`. O `?debug=1` segue abrindo o painel `F9` e as galerias `UIKIT` e `SOUNDBOARD`, que são ferramentas. O texto da constituição (§4.3), do REQ-CORE-007 e da arquitetura foi atualizado junto.
+  - **Zero placeholders, por duas redes** (REQ-NFR-005). `check:placeholders` barra em `src/` `TODO`/`FIXME`/`XXX`, o nome `DebugScreenShell` e função de corpo vazio escrita numa linha (`() => {}`, `function f() {}`), fora dos testes; o ESLint (`@typescript-eslint/no-empty-function`, erro) pega o resto: funções em várias linhas e métodos. Provado com arquivos de teste, depois apagados: o script acusou as 4 linhas (2 funções vazias, o shell, um `TODO`) e o ESLint 4 erros, entre eles uma seta em duas linhas e um método vazio que o script não vê. O código já estava limpo, exceto por um `cancelScheduledValues(){}` no mock de áudio, que agora conta as chamadas (`AudioEngine.test.ts` confere a contagem).
+  - **Cobertura** (`npm run test:coverage`, 172 arquivos e 1985 testes, limites: global ≥ 60 %, `src/domain` e `src/lib` ≥ 90 % de linhas). Total: **96,30 %** dos comandos, **91,50 %** dos ramos, **96,16 %** das funções e **96,78 %** das linhas. `src/domain`: 99,06 / 95,93 / 99,16 / **99,56 %**; `src/lib`: 100 %. A única mudança de teste por causa da cobertura foi o teto de 8 ms (em vez de 4) do "nenhuma tarefa passa de metade da fatia" quando `NODE_V8_COVERAGE` existe: o v8 instrumentado levou uma tarefa a 4,36 ms. O orçamento do jogo não mudou (ADR-026).
+  - **Build e assets** (REQ-NFR-002, REQ-NFR-006). `npm run verify` (`typecheck`, `lint` com zero avisos, os 1985 testes, `build`, `check:placeholders`, `check:terms`) verde; `check:assets` lista 3 arquivos em `dist/` (`index.html`, um `.js` de 884 kB, 287 kB com gzip, e um `.css` de 44 kB) e nenhum asset externo. O Vite avisa que o `.js` passa de 500 kB: o jogo é um chunk só, que carrega uma vez e não busca nada na rede; não há requisito de tamanho de bundle, e dividir o código não mudaria nenhum REQ.
+  - **E2E** (`CI=1 npx playwright test`, Chromium, 2 *workers*): **132 de 132** testes em 15,8 min, todos os arquivos, incluindo os de acessibilidade da T078.
+  - **Sanidade da campanha** (passo 4). Sem sessão humana aqui, a campanha é jogada pelos testes, que usam as mesmas telas e botões do jogador e só pegam atalhos de depuração para chegar ao ponto de partida (`screen=`, `contract=`, `autopilot=`, o teleporte do mapa). `slice.spec` joga o **C00** do escritório ao museu (mapa, briefing, campo, voo com o autopilot a ×8, recarga da página com a missão na fila, Workstation, relatório aprovado, mesa) e `keyboard-only.spec` repete o percurso sem tocar no mouse; `contracts.spec` abre o voo de cada um dos **17 outros contratos** (C01 a C06 e R01 a R11) e segue pelo caminho real: sem colisão, mapa, sede, Workstation, relatório **APROVADO** (com a classe PEC-PCD onde há), pagamento, souvenir e setor na mesa, com o saldo da barra superior alterado; `finale.spec` parte de um save de jogo novo com os 7 contratos reais concluídos e confere o final (uma vez, a carta do avô em 4 cartões, o toast e o chapéu); `gamepad.spec` joga painéis, abas e o briefing só com o controle; `campaignSim.test.ts` simula a campanha toda: ordem de desbloqueio dos contratos e das fendas, reputações mínimas, compras viáveis e saldos contra a tabela do catálogo (§13).
+  - **O que um humano ainda precisa fazer:** ouvir os sons (`audio.spec.ts` toca os 14 efeitos e os 4 loops (nas 3 aeronaves) na Web Audio real e confere que não há erro, mas não "escuta" nada), abrir o jogo no Firefox ([OQ-014](open-questions.md), roteiro escrito na T078) e medir o FPS com GPU ([OQ-013](open-questions.md)). Nada disso muda o código.
+  - **Matriz final** (abaixo): 131 requisitos, **130 ✅** e o REQ-NFR-009 ☐. Viraram ✅ nesta tarefa o REQ-NFR-002, o 003, o 005 e o 006 (as linhas que citavam a T079) e o **REQ-UI-002**, que ficou ☐ desde a T004 porque o `InputGlyph` só foi ligado na T008: a galeria `?debug=1&screen=UIKIT` mostra os 17 componentes do kit (os 12 do requisito e mais 5) e o `UiKitGallery.test.tsx` os renderiza.
+  - **`README.md`** na raiz: o que é o jogo, como rodar, roteiro, controles, scripts, depuração, estrutura e o mapa da especificação.
+- **Status:** ✅
 
 > **Marco M4 — Release.**
 
@@ -1586,7 +1597,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
-| REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
+| REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ✅ |
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
@@ -1690,11 +1701,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077 | ✅ |
-| REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ☐ |
-| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ☐ |
+| REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ✅ |
+| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |
-| REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ☐ |
-| REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ☐ |
+| REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ✅ |
+| REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078 | ☐ |

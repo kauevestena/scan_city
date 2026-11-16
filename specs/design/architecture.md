@@ -19,7 +19,7 @@ scan_city/
 ├── eslint.config.js
 ├── .prettierrc
 ├── scripts/
-│   ├── check-placeholders.mjs   # grep TODO/FIXME/XXX/DebugScreenShell fora de debug
+│   ├── check-placeholders.mjs   # TODO/FIXME/XXX, funções vazias e DebugScreenShell em src/ (REQ-NFR-005)
 │   ├── check-assets.mjs         # REQ-NFR-006
 │   └── check-forbidden-terms.mjs# REQ-CNT-006
 ├── tests/e2e/                   # specs Playwright (*.spec.ts)
@@ -28,9 +28,8 @@ scan_city/
     ├── index.css                # @import "tailwindcss"; @theme tokens
     ├── App.tsx                  # providers + <ScreenRouter/> + <PauseOverlay/> + <ToastHost/>
     ├── app/
-    │   ├── ScreenRouter.tsx     # switch(screen) → componente da tela
+    │   ├── ScreenRouter.tsx     # SCREEN_COMPONENTS: Record<ScreenId, ComponentType> (total: toda tela tem componente)
     │   ├── PauseOverlay.tsx
-    │   ├── DebugScreenShell.tsx # só com ?debug=1 ou enquanto a tela não existir (ver constitution §4.3)
     │   ├── FpsOverlay.tsx
     │   ├── TopBar.tsx
     │   └── debugFlags.ts        # parse de query string

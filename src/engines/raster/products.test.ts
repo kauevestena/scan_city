@@ -96,10 +96,13 @@ describe('fatias sem travar', () => {
       }
       return times;
     };
+    // Com a cobertura (`test:coverage`, provedor v8) o código instrumentado roda mais devagar:
+    // o teto da tarefa passa de 4 para 8 ms, o que ainda mantém a fatia do loop abaixo de 16 ms.
+    const limitMs = process.env.NODE_V8_COVERAGE ? 8 : 4;
     for (const kind of PRODUCT_KINDS) {
       const [a, b] = [taskTimes(kind), taskTimes(kind)] as [number[], number[]];
       const best = a.map((t, k) => Math.min(t, b[k] as number));
-      expect(Math.max(...best), kind).toBeLessThan(4);
+      expect(Math.max(...best), kind).toBeLessThan(limitMs);
     }
   });
 

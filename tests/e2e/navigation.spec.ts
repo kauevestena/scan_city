@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** Clica numa transição do painel de depuração (F9 nas telas reais, embutido no shell). */
-/** Telas reais e o `data-testid` de cada uma; as demais ainda usam o shell. */
-const REAL_SCREENS: Record<string, string> = {
+/** Telas e o `data-testid` de cada uma: toda tela da máquina de estados é real (T079). */
+const SCREENS: Record<string, string> = {
   OFFICE: 'office-screen',
   WORLD_MAP: 'world-map-screen',
   FIELD_SETUP: 'field-setup-screen',
@@ -12,11 +11,10 @@ const REAL_SCREENS: Record<string, string> = {
   INFOGRAPHIC_LAB: 'lab-screen',
 };
 
+/** Clica numa transição do painel de depuração (F9) e espera a tela de destino. */
 async function go(page: Page, transition: string, expected: string) {
   await page.locator(`[data-transition="${transition}"]`).click();
-  const testId = REAL_SCREENS[expected];
-  if (testId) await expect(page.getByTestId(testId)).toBeVisible();
-  else await expect(page.getByTestId('screen-name')).toHaveText(expected);
+  await expect(page.getByTestId(SCREENS[expected] as string)).toBeVisible();
 }
 
 test('percorre as transições T1–T16 pelo painel de depuração', async ({ page }) => {

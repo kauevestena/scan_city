@@ -69,8 +69,6 @@ test('vertical slice do C00: escritório → campo → voo → recarregar → pr
   await expect(page.getByTestId('holo-screen')).toBeVisible();
   await expect(page.getByTestId('sector-card')).toContainText('Sítio do Avô');
   await expect(page.getByTestId('holo-empty')).toBeHidden();
-  // Nenhuma tela do fluxo usou o shell de depuração.
-  await expect(page.getByTestId('debug-screen-shell')).toHaveCount(0);
   // As 5 dicas foram vistas (o autosave grava 1 s depois da troca de tela).
   await expect
     .poll(

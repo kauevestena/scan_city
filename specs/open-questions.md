@@ -112,5 +112,5 @@
 - **Aberta em:** 2026-11-16 por T078
 - **Contexto:** o REQ-NFR-009 pede o jogo nas versões atuais de Chrome, Edge e Firefox, com "smoke E2E no Chromium + verificação manual no Firefox documentada". O ambiente das tarefas só tem o Chromium (o `playwright install firefox` é bloqueado pela rede), então o Firefox não foi aberto. O código não usa API só do Chromium (varredura na T078) e o `roundRect` do canvas, o único recurso recente, existe no Firefox desde a versão 112.
 - **Opções:** A) um humano roda o roteiro da T078 no Firefox e fecha o requisito; B) aceitar o requisito como "Chromium verificado, Firefox por construção" no release.
-- **Padrão provisório:** A é o pedido da spec; até lá, o REQ-NFR-009 fica ☐ na matriz (a T079 decide como o release o trata).
+- **Padrão provisório:** A é o pedido da spec; até lá, o REQ-NFR-009 fica ☐ na matriz. **Decisão do release (T079):** o jogo sai com o requisito ☐ e a pendência listada no `README.md`, em vez de marcá-lo ✅ sem ninguém ter aberto o Firefox; o roteiro da T078 segue valendo, e quem o rodar fecha a pergunta e vira a linha da matriz.
 - **Resolução:** —

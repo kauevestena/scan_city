@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from '@/App';
 import { InputManager } from '@/input/InputManager';
+import { SCREEN_IDS } from '@/state/machine';
 import { Button, Modal } from '@/ui';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { resetDebugFlagsCache } from './debugFlags';
+import { SCREEN_COMPONENTS } from './ScreenRouter';
 
 const get = () => useGameStore.getState();
 
@@ -28,12 +30,25 @@ function skipIntro() {
 }
 
 describe('App + ScreenRouter', () => {
+  it('cada tela da máquina de estados tem o seu componente real, e não há shell de depuração (REQ-NFR-005)', () => {
+    expect(Object.keys(SCREEN_COMPONENTS).sort()).toEqual([...SCREEN_IDS].sort());
+    // Nenhuma tela, com ou sem `?debug=1`, monta o antigo shell provisório.
+    for (const id of SCREEN_IDS) {
+      act(() => {
+        useGameStore.getState().setFlags({ introSeen: true });
+        useGameStore.setState((s) => ({ session: { ...s.session, screen: id } }));
+      });
+      const { unmount } = open('/');
+      expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it('abre no escritório real, com a barra superior', () => {
     skipIntro();
     open('/');
     expect(screen.getByTestId('office-screen')).toBeInTheDocument();
     expect(screen.getByTestId('top-bar')).toBeInTheDocument();
-    expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
   });
 
   it('as telas são reais; o painel de depuração abre com F9 e continua aberto entre elas', () => {

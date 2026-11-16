@@ -29,9 +29,8 @@ import { createTerrain } from '@/world/terrain/createTerrain';
 import type { DebugFlags } from './debugFlags';
 
 /**
- * Estado e payloads de teste para depuração (architecture §7): o shell de telas,
- * `?screen=`, e as ações rápidas do painel F9. Nada aqui roda sem `?debug=1`,
- * exceto pelo `DebugScreenShell` enquanto houver telas sem implementação.
+ * Estado e payloads de teste para depuração (architecture §7): `?screen=` e as ações rápidas do
+ * painel F9. Nada aqui roda sem `?debug=1`.
  */
 export const DEBUG_CONTRACT_ID = 'C00';
 
