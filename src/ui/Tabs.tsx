@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { cx, FOCUS_RING } from './classes';
+import { focusFromNavigation, isHoverPointer, playHover } from './hoverSound';
 import { Tooltip } from './Tooltip';
 
 export interface TabDef<T extends string = string> {
@@ -68,6 +69,12 @@ export function Tabs<T extends string = string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => {
               if (!tab.disabled && !selected) onChange(tab.id);
+            }}
+            onPointerEnter={(e) => {
+              if (!tab.disabled && isHoverPointer(e.pointerType)) playHover();
+            }}
+            onFocus={(e) => {
+              if (!tab.disabled && focusFromNavigation(e.currentTarget)) playHover();
             }}
             className={cx(
               '-mb-px flex h-10 items-center gap-2 rounded-t-md border-b-2 px-4 text-sm font-medium transition-colors',

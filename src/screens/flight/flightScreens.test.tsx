@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createDebugMission } from '@/app/debugFixtures';
+import { AudioEngine } from '@/audio/AudioEngine';
+import type { LoopHandle, LoopId, MotorVariant } from '@/audio/sfx';
 import { resetDebugFlagsCache } from '@/app/debugFlags';
 import { makeAlert, type FlightHudSnapshot } from '@/engines/flight/hudPublisher';
 import { useGameStore } from '@/state/store';
@@ -362,4 +364,75 @@ describe('SurveyFlightScreen', () => {
     await act(() => new Promise<void>((r) => setTimeout(r, 200)));
     expect(count()).toBeGreaterThan(before);
   }, 20000);
+});
+
+describe('SurveyFlightScreen — som de ambiente (T076)', () => {
+  interface FakeLoop {
+    id: LoopId;
+    variant: MotorVariant | undefined;
+    params: Record<string, number>;
+    stopped: boolean;
+  }
+
+  /** Troca o `startLoop` do AudioEngine por loops falsos que anotam o que recebem. */
+  function spyLoops(): FakeLoop[] {
+    const loops: FakeLoop[] = [];
+    vi.spyOn(AudioEngine.get(), 'startLoop').mockImplementation((id, opts) => {
+      const loop: FakeLoop = { id, variant: opts?.variant, params: {}, stopped: false };
+      loops.push(loop);
+      const handle: LoopHandle = {
+        setParam: (name, value) => {
+          loop.params[name] = value;
+        },
+        stop: () => {
+          loop.stopped = true;
+        },
+      };
+      return handle;
+    });
+    return loops;
+  }
+
+  function startFlight() {
+    act(() => {
+      get().goTo('WORLD_MAP');
+      get().startMission('C00', 1);
+      get().launchMission();
+    });
+    useGameStore.setState((s) => ({
+      session: { ...s.session, screen: 'SURVEY_FLIGHT' },
+      settings: { ...s.settings, quality: 'LOW' },
+    }));
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('liga o motor da aeronave (o bater de asas do Atlas) e o vento ao entrar no voo', async () => {
+    const loops = spyLoops();
+    startFlight();
+    const { unmount } = render(<SurveyFlightScreen />);
+    const motor = loops.find((l) => l.id === 'MOTOR');
+    expect(motor?.variant).toBe('BIRD');
+    expect(loops.some((l) => l.id === 'WIND')).toBe(true);
+    // O HUD publicado leva a velocidade ao motor (o Atlas voa a ~10 m/s).
+    await waitFor(() => expect(motor?.params.rate).toBeGreaterThan(0), { timeout: 4000 });
+    unmount();
+    expect(loops.filter((l) => l.id === 'MOTOR' || l.id === 'WIND').every((l) => l.stopped)).toBe(
+      true,
+    );
+  });
+
+  it('a pausa cala o motor e o vento; retomar os devolve', async () => {
+    const loops = spyLoops();
+    startFlight();
+    render(<SurveyFlightScreen />);
+    const motor = loops.find((l) => l.id === 'MOTOR');
+    await waitFor(() => expect(motor?.params.rate).toBeGreaterThan(0), { timeout: 4000 });
+    expect(motor?.params.gain).toBe(1);
+    act(() => get().setPaused(true));
+    expect(motor?.params.gain).toBe(0);
+    expect(loops.find((l) => l.id === 'WIND')?.params.gain).toBe(0);
+    act(() => get().setPaused(false));
+    expect(motor?.params.gain).toBe(1);
+  });
 });
