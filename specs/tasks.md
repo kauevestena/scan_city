@@ -1540,7 +1540,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | Dica do tutorial | ✅ `H` | ✅ `View` | ✅ | — | `keyboard-only`, `gamepad`, `TutorialHint` |
 | Contraste AA dos textos do DOM | — | — | — | — | `contrast` (13), `tokens` |
 | Reduzir flashes e tremores | — | — | — | — | `flight` (flash), `FlightEngine` |
-| Firefox atual (smoke manual) | roteiro escrito | roteiro escrito | — | — | **pendente**: [OQ-014](open-questions.md) |
+| Firefox atual (smoke manual) | roteiro escrito | roteiro escrito | — | — | E2E inteiro no Firefox 155 na [T083](#t083--e2e-no-firefox-155-req-nfr-009); o toque humano segue no [QA manual](qa-manual.md) |
 - **Status:** ✅
 
 ### T079 — Regressão final e release
@@ -1645,6 +1645,30 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **Workflow** (`.github/workflows/pages.yml`). Em todo push na `main`, em todo pull request e no disparo manual: `actions/checkout`, `actions/setup-node` (Node 22, com cache do npm), `npm ci`, `npm run verify` e `npm run check:assets`. Só o push na `main` (e o disparo manual) empacota o `dist/` (`actions/upload-pages-artifact`) e publica (`actions/deploy-pages`, com `pages: write` e `id-token: write` só nesse job; o resto roda com `contents: read`). Um pull request novo cancela a execução velha dele; a da `main` nunca é cancelada no meio. Como o `verify` é o mesmo do commit, o pull request ganha o CI que faltava. O E2E (≈ 16 min) fica fora do caminho da publicação.
   - **Um teste de relógio no caminho da publicação.** O `products.test` ("nenhuma tarefa passa de metade da fatia", 4 ms por tarefa) é o único do `verify` que mede tempo de verdade com folga apertada; numa máquina compartilhada e mais lenta ele poderia barrar uma publicação, então o teto de 8 ms que já valia sob cobertura vale também com `CI` definida. Os outros testes de tempo (`terrain` 200 ms para 100 mil chamadas, `FieldSetupScreen` 16 ms para recalcular o plano, `RiftWarp`) têm folga larga.
   - **O que a pessoa precisa saber.** O site fica em `https://kauevestena.github.io/scan_city/` e aceita os mesmos parâmetros de URL do `npm run preview`; o `localStorage` é da origem `kauevestena.github.io`. O QA manual passa a poder rodar nessa URL, sem instalar nada.
+  - **Publicação conferida.** O pull request rodou o workflow no GitHub: `build` verde (o `verify` em 1 min 46 s, o `check:assets` e o "Empacota o site" pulado) e `deploy` pulado, como projetado. Depois do merge, o push na `main` rodou de novo: `build` verde (`verify` em 1 min 39 s) e **`deploy` verde** ("Reported success!", URL `https://kauevestena.github.io/scan_city/`). A URL publicada serve o `index.html` com `./assets/...` e, aberta num navegador, passou o **vertical slice do C00 inteiro** (a carta do avô num jogo novo, escritório, mapa, briefing, campo, voo com o autopilot, recarga com a missão na fila, Workstation, relatório APROVADO e o setor na mesa) **no Chromium e no Firefox 155**, em 44 s cada, sem erro de console nem resposta 4xx; o save ficou em 39 KB (o limite do `localStorage` é de uns 5 MB).
+  - **Aviso do GitHub.** A execução avisa que as *actions* (`checkout`, `setup-node` e `deploy-pages`, na versão 4) declaram o Node 20 e o GitHub as roda no Node 24; funciona, e a troca por versões novas fica para quando houver.
+- **Status:** ✅
+
+### T083 — E2E no Firefox 155 (REQ-NFR-009)
+- **Fase:** pós-M4 · **Depende de:** T082 · **REQs:** REQ-NFR-009
+- **Passos:**
+  1. Instalar o Firefox do Playwright.
+  2. Uma configuração e um script para rodar a suíte no Firefox.
+  3. Rodar os 135 testes e triar cada falha (defeito do jogo ou diferença do teste).
+  4. Corrigir, registrar na spec e na matriz.
+- **Aceite:**
+  - [x] Os 135 testes E2E passam no Firefox 155.
+  - [x] [OQ-014](open-questions.md), o QA manual e a matriz refletem o resultado.
+- **Verificação:** `npm run e2e:firefox` (na primeira vez, `npx playwright install firefox`).
+- **Arquivos (efetivos):** \+ `playwright.firefox.config.ts`; ~ `package.json` (`e2e:firefox`), `tsconfig.node.json`, `tests/e2e/keyboard.ts`, `README.md`, `specs/{open-questions,qa-manual,tasks}.md`.
+- **Notas de implementação:**
+  - **Como o Firefox chegou.** Até aqui o ambiente não alcançava os hosts de download de navegadores do Playwright (`playwright install firefox` era recusado pelo proxy). O usuário aprovou um ambiente `scan_city` que libera `cdn.playwright.dev` e `playwright.download.prss.microsoft.com`; o `npx playwright install firefox` baixou o **Firefox 155.0** (revisão 1543 do Playwright, 109,5 MiB) em 6 s e ele abre sem dependência extra, com Canvas 2D, `roundRect`, `AudioContext`, `getGamepads`, `oklch()` e `CSS.registerProperty`.
+  - **Configuração.** `playwright.firefox.config.ts` reaproveita a configuração padrão (o mesmo servidor e os mesmos testes) e troca só o projeto por `Desktop Firefox` a 1280 × 720; `npm run e2e:firefox`. A configuração padrão segue só com o Chromium, então `npm run e2e` não muda.
+  - **Primeira execução: 132 de 135** (19,3 min). As 3 falhas eram o mesmo caso, na auditoria de foco do escritório (`CAREER`, `PERCH` e `SHELF`): o helper `reach` só apertava `Tab`, e no Firefox sem barra de ferramentas o `Tab` no último controle fica nele, enquanto o Chromium dá a volta pelo documento (`body → button → SHELF`); como esses três controles vêm antes do da porta, onde o foco nasce, o foco nunca chegava. **É diferença do teste, não defeito do jogo**: num Firefox de verdade o `Tab` sai para a barra do navegador e volta. O `reach` agora, quando o `Tab` para (a posição do foco no documento não muda em 3 apertos), tenta o `Shift+Tab`; o controle continua precisando ser alcançável pelo teclado. `focus-audit` e `keyboard-only` passam 29 de 29 nos dois navegadores.
+  - **Segunda execução, na árvore final: 135 de 135** (19,3 min). Nenhum defeito do jogo apareceu no Firefox: o áudio real na Web Audio, o voo, o processamento, a mesa, o laboratório, o controle emulado, o contraste AA, o DPR 2 e as janelas de 1280 × 720 e 1920 × 1080 passam do mesmo jeito.
+  - **A versão publicada** (T082) também passou o vertical slice do C00 no Firefox 155, aberta pela URL do GitHub Pages.
+  - **Matriz: REQ-NFR-009 passa a ✅.** O aceite da spec era "smoke E2E no Chromium + verificação manual no Firefox documentada"; a verificação no Firefox agora não é um roteiro escrito, e sim a suíte inteira rodando nele (e o jogo publicado). O Edge é Chromium e passa pela mesma suíte. O toque humano (aparência, som, o controle de verdade) continua no [QA manual](qa-manual.md), como confirmação, e a [OQ-014](open-questions.md) fica resolvida.
+  - **TLS no Firefox do ambiente.** O Firefox do Playwright não usa o armazenamento de certificados do sistema, então não confia na CA do proxy de saída do ambiente (`SEC_ERROR_UNKNOWN_ISSUER` ao abrir a URL publicada). A verificação de TLS ficou ligada: o certificado da CA (`/root/.ccr/agent-proxy-ca.crt`) foi importado, com o `certutil`, no banco NSS de um perfil que o teste usa (`launchPersistentContext`). Isso só vale para testar daqui; não muda nada no jogo nem na máquina de quem joga.
 - **Status:** ✅
 
 
@@ -1786,4 +1810,4 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
-| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078 | ☐ |
+| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |

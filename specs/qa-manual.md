@@ -1,6 +1,6 @@
 # Roteiro de QA manual
 
-> O que só uma pessoa consegue verificar: **Firefox e Edge**, **controle de verdade**, **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1985 testes de unidade, 132 testes E2E no Chromium (inclusive acessibilidade, teclado e controle emulado) e um teste de entradas aleatórias (`npm run qa:random`); ver a T079 e a T080 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§8).
+> O que só uma pessoa consegue verificar: o toque humano no **Firefox e no Edge**, o **controle de verdade**, o **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1996 testes de unidade, os 135 testes E2E no Chromium **e no Firefox 155** (`npm run e2e` e `npm run e2e:firefox`, inclusive acessibilidade, teclado e controle emulado), o jogo publicado e um teste de entradas aleatórias (`npm run qa:random`); ver da T079 à T083 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§8).
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## 1. Firefox (REQ-NFR-009, [OQ-014](open-questions.md))
 
-O Firefox é o único requisito sem verificação: o Playwright não instala o Firefox no ambiente de desenvolvimento. O Tailwind v4 exige Firefox **128 ou mais novo**; anote a versão testada.
+O REQ-NFR-009 já está ✅: a suíte E2E inteira passa no Firefox 155 e o jogo publicado passa o vertical slice do C00 nele ([OQ-014](open-questions.md), T083). Esta seção é a **confirmação humana**: o que a suíte não enxerga (como o jogo *parece* e *soa* no Firefox, o controle de verdade). O Tailwind v4 exige Firefox **128 ou mais novo**; anote a versão testada.
 
 **Roteiro do C00** (o mesmo do `slice.spec.ts`; leva uns 5 minutos). Abra o console (F12) antes e **não deve aparecer erro em vermelho** em nenhum passo.
 
@@ -219,6 +219,6 @@ O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automátic
 
 ## 8. Fechando as pendências
 
-- **Passou tudo na §1 (e na §2 para Chrome e Edge):** em [open-questions.md](open-questions.md) preencha a **Resolução** da OQ-014 e, em [tasks.md](tasks.md), vire o REQ-NFR-009 da matriz para ✅.
+- **Achou algo no Firefox, no Chrome ou no Edge (§1 e §2):** anote o navegador e a versão e abra uma tarefa nova (abaixo); o REQ-NFR-009 está ✅ pela suíte E2E, e uma falha humana o reabre.
 - **FPS (§4) abaixo da meta:** anote a máquina e as etapas do F9 e abra uma pergunta nova; a OQ-013 fica com a Resolução "medido em ___".
 - **Qualquer falha:** vire uma tarefa nova em [tasks.md](tasks.md) (com a spec afetada) antes de mexer no código, como em qualquer mudança (SDD, [README](README.md) §2).
