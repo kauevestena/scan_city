@@ -14,14 +14,31 @@ export async function describeFocus(page: Page): Promise<string> {
 
 /**
  * Leva o foco ao elemento `target` pressionando `key` (Tab por padrão) até ele ficar focado.
- * Falha, dizendo onde o foco parou, se não chegar em `max` passos: o controle seria inalcançável.
+ * Com o Tab, se o foco parar (o último controle da página), volta com Shift+Tab: o Chromium sem
+ * barra de ferramentas dá a volta pelo documento, o Firefox sem barra fica no último controle, e
+ * o que importa é o controle ser alcançável pelo teclado. Falha, dizendo onde o foco parou, se
+ * não chegar em `max` passos.
  */
 export async function reach(page: Page, target: Locator, key = 'Tab', max = 80): Promise<void> {
   await expect(target).toBeVisible();
-  for (let step = 0; step < max; step++) {
-    if (await target.evaluate((el) => el === document.activeElement)) return;
-    await page.keyboard.press(key);
+  const focused = () => target.evaluate((el) => el === document.activeElement);
+  // Posição do foco no documento: muda a cada controle novo, mesmo entre botões de marcação igual.
+  const where = () =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll('*')).indexOf(document.activeElement!),
+    );
+  for (const press of key === 'Tab' ? ['Tab', 'Shift+Tab'] : [key]) {
+    let last = -2;
+    let still = 0;
+    for (let step = 0; step < max && still < 3; step++) {
+      if (await focused()) return;
+      await page.keyboard.press(press);
+      const now = await where();
+      still = now === last ? still + 1 : 0;
+      last = now;
+    }
   }
+  if (await focused()) return;
   throw new Error(
     `o foco não chegou a ${String(target)} com ${key}; parou em ${await describeFocus(page)}`,
   );

@@ -63,6 +63,7 @@ O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NF
 | `npm test`                                              | testes de unidade e de componente (Vitest + jsdom)                                                                                                                                    |
 | `npm run test:coverage`                                 | os mesmos testes com cobertura v8 e limites (global ≥ 60 %; `src/domain` e `src/lib` ≥ 90 %)                                                                                          |
 | `npm run e2e`                                           | Playwright em Chromium (constrói e serve o app na porta 4173)                                                                                                                         |
+| `npm run e2e:firefox`                                   | os mesmos testes no Firefox (REQ-NFR-009); na primeira vez, `npx playwright install firefox`                                                                                          |
 | `npm run typecheck` / `npm run lint` / `npm run format` | TypeScript estrito, ESLint (zero avisos) e Prettier                                                                                                                                   |
 | `npm run check:placeholders`                            | zero `TODO`/`FIXME`/`XXX`, funções vazias e `DebugScreenShell` em `src/` (REQ-NFR-005)                                                                                                |
 | `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                                                                                                       |
@@ -122,5 +123,5 @@ O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](sp
 
 O roteiro dos testes que só uma pessoa faz (Firefox e Edge, controle real, FPS com GPU, som e campanha jogada) está em [`specs/qa-manual.md`](specs/qa-manual.md).
 
-- **Firefox:** o smoke manual do REQ-NFR-009 não pôde ser feito no ambiente de desenvolvimento ([OQ-014](specs/open-questions.md)); o roteiro está escrito.
+- **Firefox:** a suíte E2E inteira (135 testes) passa no Firefox 155 (`npm run e2e:firefox`) e o jogo publicado também ([OQ-014](specs/open-questions.md), resolvida); o toque humano (aparência, som, controle de verdade) segue no roteiro.
 - **GPU:** os FPS foram medidos em Chromium sem GPU, com raster por software ([OQ-013](specs/open-questions.md)).
