@@ -181,17 +181,68 @@ export type LoadResult =
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
+/** Sem armazenamento: não lê nada e recusa toda gravação (quem grava já trata a recusa). */
+const NO_STORAGE: KeyValueStorage = {
+  getItem: () => null,
+  setItem: () => {
+    throw new Error('armazenamento do navegador indisponível');
+  },
+  removeItem: () => undefined,
+};
+
+/**
+ * O `localStorage` do navegador, protegido. Só *acessar* `localStorage` já lança (`SecurityError`)
+ * com os cookies bloqueados ou num iframe sem `allow-same-origin`, e `getItem` e `removeItem`
+ * lançam por erro do navegador. Nesses casos o jogo abre vazio e segue sem salvar; o primeiro
+ * autosave recusado avisa o jogador (REQ-CORE-004). A gravação continua lançando para quem grava
+ * (`writeSave`, `writeSettings`, `backupSave`) tratar a recusa.
+ */
+export function browserStorage(): KeyValueStorage {
+  let storage: Storage;
+  try {
+    storage = localStorage;
+  } catch {
+    return NO_STORAGE;
+  }
+  return {
+    getItem: (key) => {
+      try {
+        return storage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (key, value) => storage.setItem(key, value),
+    removeItem: (key) => {
+      try {
+        storage.removeItem(key);
+      } catch {
+        // sem armazenamento, não há o que apagar
+      }
+    },
+  };
+}
+
+/** Apaga o save (o `removeItem` do `persist`). */
+export function removeSave(storage: KeyValueStorage = browserStorage()): void {
+  storage.removeItem(SAVE_KEY);
+}
+
 /**
  * Lê e valida o save. Um save inválido (JSON quebrado, schema inválido ou versão futura)
  * é movido para `scan-city-save-backup` e o resultado é `INVALID` (REQ-CORE-005).
  */
-export function loadSave(storage: KeyValueStorage = localStorage): LoadResult {
+export function loadSave(storage: KeyValueStorage = browserStorage()): LoadResult {
   const raw = storage.getItem(SAVE_KEY);
   if (raw === null) return { status: 'EMPTY' };
 
   const invalid = (reason: string): LoadResult => {
-    storage.setItem(SAVE_BACKUP_KEY, raw);
-    storage.removeItem(SAVE_KEY);
+    try {
+      storage.setItem(SAVE_BACKUP_KEY, raw);
+      storage.removeItem(SAVE_KEY);
+    } catch {
+      // Sem espaço para o backup: o save inválido fica onde está (nada é apagado sem cópia).
+    }
     return { status: 'INVALID', reason };
   };
 
@@ -216,7 +267,7 @@ export function loadSave(storage: KeyValueStorage = localStorage): LoadResult {
 }
 
 /** Grava o save; devolve `false` se o armazenamento recusar (cota, modo privado). */
-export function writeSave(save: SaveGame, storage: KeyValueStorage = localStorage): boolean {
+export function writeSave(save: SaveGame, storage: KeyValueStorage = browserStorage()): boolean {
   try {
     storage.setItem(SAVE_KEY, serializeSave(save));
     return true;
@@ -226,11 +277,15 @@ export function writeSave(save: SaveGame, storage: KeyValueStorage = localStorag
 }
 
 /** Copia o save atual para a chave de backup (antes de um "Novo jogo"). */
-export function backupSave(storage: KeyValueStorage = localStorage): boolean {
+export function backupSave(storage: KeyValueStorage = browserStorage()): boolean {
   const raw = storage.getItem(SAVE_KEY);
   if (raw === null) return false;
-  storage.setItem(SAVE_BACKUP_KEY, raw);
-  return true;
+  try {
+    storage.setItem(SAVE_BACKUP_KEY, raw);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function clamp01(v: unknown, fallback: number): number {
@@ -238,7 +293,7 @@ function clamp01(v: unknown, fallback: number): number {
 }
 
 /** Configurações salvas, completadas com os padrões (chave própria: sobrevivem ao "Novo jogo"). */
-export function loadSettings(storage: KeyValueStorage = localStorage): Settings {
+export function loadSettings(storage: KeyValueStorage = browserStorage()): Settings {
   const defaults = defaultSettings();
   const raw = storage.getItem(SETTINGS_KEY);
   if (raw === null) return defaults;
@@ -263,7 +318,7 @@ export function loadSettings(storage: KeyValueStorage = localStorage): Settings 
 
 export function writeSettings(
   settings: Settings,
-  storage: KeyValueStorage = localStorage,
+  storage: KeyValueStorage = browserStorage(),
 ): boolean {
   try {
     storage.setItem(SETTINGS_KEY, JSON.stringify(settings));

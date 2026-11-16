@@ -39,3 +39,26 @@ test('um save corrompido é descartado com aviso e vai para o backup', async ({ 
     '{"version":1,"player":',
   );
 });
+
+test('com o armazenamento do navegador bloqueado, o jogo abre, joga e avisa que não salva', async ({
+  page,
+}) => {
+  // Cookies bloqueados (ou um iframe sem same-origin): só acessar `localStorage` já lança.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      get() {
+        throw new DOMException('The operation is insecure.', 'SecurityError');
+      },
+    });
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?debug=1&skipIntro=1');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
+  await expect(page.getByTestId('top-bar')).toContainText('5.000,00');
+  // A troca de tela dispara o autosave: o navegador recusa e o jogador é avisado, uma vez.
+  await page.getByRole('button', { name: 'Porta — sair para o mapa' }).click();
+  await expect(page.getByTestId('world-map-screen')).toBeVisible();
+  await expect(page.getByText('Não foi possível salvar')).toBeVisible({ timeout: 5000 });
+  expect(errors).toEqual([]);
+});

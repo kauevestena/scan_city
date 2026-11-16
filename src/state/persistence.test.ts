@@ -8,6 +8,7 @@ import {
   loadSave,
   loadSettings,
   MAX_SAVED_LIDAR_SAMPLES,
+  removeSave,
   SAVE_BACKUP_KEY,
   SAVE_KEY,
   serializeSave,
@@ -283,5 +284,46 @@ describe('settings', () => {
       JSON.stringify({ masterVolume: 7, sfxVolume: 'alto', quality: 'ULTRA', showFps: true }),
     );
     expect(loadSettings()).toEqual({ ...defaultSettings(), masterVolume: 1, showFps: true });
+  });
+});
+
+describe('armazenamento do navegador indisponível (REQ-CORE-004)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('com `localStorage` lançando ao ser acessado (cookies bloqueados), lê vazio e recusa gravar, sem lançar', () => {
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    expect(loadSave()).toEqual({ status: 'EMPTY' });
+    expect(loadSettings()).toEqual(defaultSettings());
+    expect(writeSave(fresh())).toBe(false);
+    expect(writeSettings(defaultSettings())).toBe(false);
+    expect(backupSave()).toBe(false);
+    expect(() => removeSave()).not.toThrow();
+  });
+
+  it('com `getItem` e `removeItem` quebrados, a leitura é vazia e a remoção não lança', () => {
+    localStorage.setItem(SAVE_KEY, serializeSave(fresh()));
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('quebrado', 'InvalidStateError');
+    });
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('quebrado', 'InvalidStateError');
+    });
+    expect(loadSave()).toEqual({ status: 'EMPTY' });
+    expect(loadSettings()).toEqual(defaultSettings());
+    expect(backupSave()).toBe(false);
+    expect(() => removeSave()).not.toThrow();
+  });
+
+  it('com a cota cheia, o backup falha sem lançar e um save inválido não é apagado sem cópia', () => {
+    localStorage.setItem(SAVE_KEY, '{"version":1,"player":');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('cheio', 'QuotaExceededError');
+    });
+    expect(backupSave()).toBe(false);
+    expect(loadSave()).toMatchObject({ status: 'INVALID' });
+    expect(localStorage.getItem(SAVE_KEY)).toBe('{"version":1,"player":');
+    expect(localStorage.getItem(SAVE_BACKUP_KEY)).toBeNull();
   });
 });

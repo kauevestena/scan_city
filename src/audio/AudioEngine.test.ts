@@ -48,6 +48,33 @@ describe('AudioEngine (audio §5)', () => {
     expect(ctx().resumed).toBe(1);
   });
 
+  it('sem dispositivo de áudio (o AudioContext lança), o unlock não lança, o jogo segue mudo e não tenta de novo', () => {
+    let attempts = 0;
+    const mute = AudioEngine.resetForTests(() => {
+      attempts++;
+      throw new DOMException('sem dispositivo de áudio', 'NotSupportedError');
+    });
+    expect(() => mute.unlock()).not.toThrow();
+    expect(() => mute.unlock()).not.toThrow();
+    expect(attempts).toBe(1);
+    expect(mute.ready).toBe(false);
+    expect(mute.context).toBeNull();
+    expect(() => mute.play('SHUTTER')).not.toThrow();
+    expect(() => mute.setVolumes(0.5, 0.5, false)).not.toThrow();
+    expect(() => mute.startLoop('MOTOR').stop()).not.toThrow();
+  });
+
+  it('um resume() recusado pelo navegador não vira erro (o próximo gesto tenta de novo)', () => {
+    engine.unlock();
+    ctx().state = 'suspended';
+    const refused = Promise.reject(new DOMException('bloqueado', 'NotAllowedError'));
+    const handled = vi.spyOn(refused, 'catch');
+    ctx().resume = () => refused;
+    expect(() => engine.unlock()).not.toThrow();
+    // Sem tratamento, a rejeição viraria "Uncaught (in promise)" a cada gesto.
+    expect(handled).toHaveBeenCalled();
+  });
+
   it('monta o grafo sfx → master → compressor (−18 dB, 4:1) → destino', () => {
     engine.unlock();
     const compressor = ctx().created('compressor')[0] as unknown as {

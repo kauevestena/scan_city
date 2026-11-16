@@ -319,6 +319,7 @@ export function createTerrain(contract: Contract): TerrainSampler;   // memoizad
   - via subscription da store, com debounce de 1 s, após `goTo`;
   - por intervalo de 30 s de jogo não pausado;
   - no `beforeunload`.
+- **Armazenamento indisponível:** só *acessar* `localStorage` já lança (`SecurityError`) com os cookies bloqueados ou num iframe sem `allow-same-origin`, e `getItem` e `removeItem` podem lançar por erro do navegador. Toda leitura e gravação passa por `browserStorage()` (`persistence.ts`): sem armazenamento, o jogo abre vazio (um jogo novo) e o primeiro autosave recusado mostra o toast "Não foi possível salvar", uma vez por sequência de falhas. A gravação continua lançando para quem grava tratar a recusa (`writeSave`, `writeSettings`, `backupSave`).
 - **Dados volumosos** da fila de missões (shots e grade LiDAR) são salvos com `number[]`. As amostras LiDAR são limitadas a 8.000 por missão no save, e na memória a 50.000.
 - **Renda offline:** ao carregar, calcula `min(now − lastIncomeAt, 2 h)` × renda/min.
 

@@ -138,6 +138,33 @@ describe('save e load pela store', () => {
   });
 });
 
+describe('armazenamento do navegador indisponível (REQ-CORE-004)', () => {
+  it('com o `localStorage` bloqueado, a partida abre, joga e avisa uma vez que não salva', () => {
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    expect(reload()).toEqual({ status: 'EMPTY' });
+    expect(get().player.money).toBe(500_000);
+    expect(get().settings).toEqual(defaultSettings());
+    get().earn(1, 'a');
+    expect(flushSave()).toBe(false);
+    get().earn(1, 'b');
+    expect(flushSave()).toBe(false);
+    expect(get().session.toasts.filter((t) => t.type === 'error')).toHaveLength(1);
+    expect(() => newGame()).not.toThrow();
+    expect(get().player.money).toBe(500_000);
+  });
+
+  it('com `getItem` quebrado, a partida abre vazia (um jogo novo) sem lançar', () => {
+    localStorage.setItem(SAVE_KEY, serializeSave(createNewGame()));
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('quebrado', 'InvalidStateError');
+    });
+    expect(reload()).toEqual({ status: 'EMPTY' });
+    expect(get().player.money).toBe(500_000);
+  });
+});
+
 describe('newGame', () => {
   it('faz backup, volta ao estado inicial e força a tela OFFICE', () => {
     get().earn(900_000, 'teste');

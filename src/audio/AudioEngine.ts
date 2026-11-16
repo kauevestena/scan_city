@@ -53,6 +53,8 @@ export class AudioEngine {
 
   private readonly createContext: () => AudioContext;
   private ctx: AudioContext | null = null;
+  /** O navegador não deixou criar o contexto: o áudio fica desligado nesta sessão. */
+  private unavailable = false;
   private master: GainNode | null = null;
   private sfx: GainNode | null = null;
   private noise: AudioBuffer | null = null;
@@ -95,23 +97,31 @@ export class AudioEngine {
   }
 
   unlock(): void {
-    if (!this.ctx) {
-      const ctx = this.createContext();
-      const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -18;
-      compressor.ratio.value = 4;
-      compressor.connect(ctx.destination);
-      const master = ctx.createGain();
-      master.connect(compressor);
-      const sfx = ctx.createGain();
-      sfx.connect(master);
-      this.ctx = ctx;
-      this.master = master;
-      this.sfx = sfx;
+    if (!this.ctx && !this.unavailable) {
+      try {
+        const ctx = this.createContext();
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -18;
+        compressor.ratio.value = 4;
+        compressor.connect(ctx.destination);
+        const master = ctx.createGain();
+        master.connect(compressor);
+        const sfx = ctx.createGain();
+        sfx.connect(master);
+        this.ctx = ctx;
+        this.master = master;
+        this.sfx = sfx;
+      } catch {
+        // Sem dispositivo de áudio ou com a API bloqueada: o jogo segue mudo (`play` e
+        // `startLoop` ficam inertes) e não tenta de novo a cada gesto.
+        this.unavailable = true;
+        return;
+      }
       this.applyVolumes(false);
       this.readyListeners.forEach((fn) => fn());
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    // O navegador pode recusar o `resume` (autoplay); o próximo gesto tenta de novo.
+    if (this.ctx?.state === 'suspended') Promise.resolve(this.ctx.resume()).catch(() => undefined);
   }
 
   /** Volumes 0..1 com curva perceptual (`valor²`); `muted` zera o master em 50 ms. */

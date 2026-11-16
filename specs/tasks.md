@@ -1604,6 +1604,28 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **Observações que não viraram mudança** (nada disso é requisito): o `index.html` do build aponta para `/assets/...` (absoluto), então publicar o `dist/` numa subpasta pediria `base: './'` no Vite; o JS do jogo é um chunk só de 884 kB (287 kB com gzip), e dividir por tela (`React.lazy`) encurtaria a primeira carga.
 - **Status:** ✅
 
+### T081 — APIs do navegador indisponíveis não derrubam o jogo
+- **Fase:** pós-M4 · **Depende de:** T080 · **REQs:** — (reforça REQ-CORE-004, REQ-INP-002 e REQ-AUD-001; nenhum muda de status)
+- **Spec:** [architecture §6](design/architecture.md), [ADR-027](decisions.md)
+- **Passos:**
+  1. Reproduzir: tirar do navegador o `localStorage`, o `navigator.getGamepads` e o `AudioContext` (e mais cinco condições hostis).
+  2. Atualizar a spec e registrar a ADR.
+  3. Tornar tolerantes a leitura do save, o `poll` do controle e o `unlock` do áudio.
+  4. Testes de unidade e E2E que falham com o código antigo.
+- **Aceite:**
+  - [x] Com o `localStorage` bloqueado ou quebrado, o jogo abre no escritório, joga e avisa "Não foi possível salvar".
+  - [x] Com `getGamepads` lançando, o voo e o mapa seguem (o loop não morre) e o teclado vale.
+  - [x] Com o `AudioContext` lançando, o jogo segue mudo, sem erro e sem tentar de novo a cada gesto.
+- **Verificação:** `npx vitest run src/state src/audio src/input` · `npx playwright test tests/e2e/persistence.spec.ts tests/e2e/environment.spec.ts`
+- **Arquivos (efetivos):** ~ `src/state/{persistence,store}.ts`, `src/audio/AudioEngine.ts`, `src/input/InputManager.ts` e os testes `persistence`, `storePersistence`, `AudioEngine` e `InputManager`; \+ `tests/e2e/environment.spec.ts`; ~ `tests/e2e/persistence.spec.ts`; ~ `specs/{requirements,decisions,tasks}.md`, `specs/design/architecture.md`.
+- **Notas de implementação:**
+  - **Como apareceu.** Um teste avulso do ambiente, feito depois das entradas aleatórias da T080: ele abre o jogo de produção com uma API do navegador quebrada e confere se a tela aparece e se dá para andar do escritório ao voo. Onze condições: `localStorage` que lança ao ser acessado, `setItem` que lança por cota cheia, `getItem` que lança, `AudioContext` que lança, sem `AudioContext`, `resume()` recusado, `getGamepads` ausente, `getGamepads` que lança, controle genérico (6 botões, 2 eixos, `mapping` vazio, `null` no slot 0), sem `ResizeObserver` e quadros de animação a 5 Hz. **Cinco falhavam:** com o `localStorage` bloqueado ou com o `getItem` quebrado a tela ficava **em branco** (a leitura do save é do boot); com `getGamepads` lançando o `poll`, que roda no começo de cada quadro, matava o loop do `InputDriver` e dos motores antes de pedir o quadro seguinte (o `GameLoop` fica "rodando" sem quadros), então o voo e o mapa paravam; e a falta de dispositivo de áudio lançava uma exceção a cada tecla ou clique. As outras seis já passavam.
+  - **Correção** ([ADR-027](decisions.md)). `browserStorage()` em `persistence.ts` (o `localStorage` protegido, ou um armazenamento vazio que recusa gravar) é o padrão de leitura e de gravação; o `store.ts` passa a apagar o save por `removeSave()`; o backup de um save inválido com a cota cheia não apaga o original; `InputManager.readGamepads()` trata a exceção de `getGamepads()` como "sem controle"; `AudioEngine.unlock()` captura a falha de criar o contexto, marca o áudio como indisponível (uma tentativa só) e trata o `resume()` recusado. O aviso ao jogador é o que já existia: o primeiro autosave recusado mostra "Não foi possível salvar", uma vez.
+  - **Depois:** as onze condições passam, sem tela em branco nem exceção, e o fluxo escritório → mapa → voo anda em todas.
+  - **Testes** (todos falham com o código antigo): unidade, `persistence` (3: acesso que lança, `getItem` e `removeItem` quebrados, cota cheia com save inválido), `storePersistence` (2: partida inteira com o armazenamento bloqueado e com o `getItem` quebrado), `AudioEngine` (2: sem dispositivo, `resume()` recusado) e `InputManager` (2: `getGamepads` lançando e ausente); E2E, `persistence.spec.ts` (o jogo abre, joga e avisa com o armazenamento bloqueado) e `environment.spec.ts` (o voo tira fotos com o controle bloqueado, e o jogo anda mudo sem dispositivo de áudio, sem nenhum `pageerror`).
+  - **Não feito, de propósito.** Nenhum `try/catch` em volta dos loops de jogo: uma exceção própria no `update` ou no `render` mata o loop do mesmo jeito (e o `GameLoop` segue "rodando"), mas as 31 execuções aleatórias da T080 não acharam nenhuma, e esconder o defeito seria pior do que vê-lo. Nenhum aviso de "sem som" ou "sem controle": o jogo só segue sem eles.
+- **Status:** ✅
+
 
 ---
 
