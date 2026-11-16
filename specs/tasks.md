@@ -1435,11 +1435,22 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Fase:** F9 · **Depende de:** T074 · **REQs:** REQ-CORE-003, REQ-CORE-009, REQ-AUD-003, REQ-NFR-007 (*parc.*)
 - **Spec:** [architecture §2 (pausa)](design/architecture.md), [progression §13](features/progression.md), [ui-style §5](design/ui-style.md)
 - **Aceite:**
-  - [ ] Pausa com Continuar, Configurações (volumes, mudo, qualidade, reduzir flashes, FPS), Controles (tabela de glyphs do dispositivo ativo), Salvar agora, Novo jogo (ConfirmDialog), Abandonar missão (no FIELD_SETUP e no voo) e Sair para o escritório (onde fizer sentido pela tabela de transições).
-  - [ ] Teste do REQ-CORE-003 (voo congelado por 5 s).
-  - [ ] E2E do novo jogo.
+  - [x] Pausa com Continuar, Configurações (volumes, mudo, qualidade, reduzir flashes, FPS), Controles (tabela de glyphs do dispositivo ativo), Salvar agora, Novo jogo (ConfirmDialog), Abandonar missão (no FIELD_SETUP e no voo) e Sair para o escritório (onde fizer sentido pela tabela de transições).
+  - [x] Teste do REQ-CORE-003 (voo congelado por 5 s).
+  - [x] E2E do novo jogo.
 - **Verificação:** `npx vitest run src/app src/state && npx playwright test tests/e2e/pause.spec.ts`
-- **Status:** ☐
+- **Arquivos (efetivos):** ~ `src/app/PauseOverlay.tsx`, `src/data/strings.ts`; \+ `src/app/{SettingsPanel,ControlsPanel}.tsx`, `src/app/PauseOverlay.test.tsx`, `src/engines/flight/pause.test.ts`, `tests/e2e/pause.spec.ts`
+- **Notas de implementação:**
+  - **Menu** (`PauseOverlay`): a pausa segue sendo `session.paused` com o overlay por cima da tela (`Esc`/`M`/Menu). O menu monta ao pausar e desmonta ao retomar (a aba e as confirmações voltam ao começo). Itens: **Continuar**, **Configurações**, **Controles**, **Salvar agora** (`flushSave`: grava o que estiver pendente e avisa "Jogo salvo"; a falha já avisa por conta própria), **Novo jogo**, **Abandonar missão** (só no `FIELD_SETUP` e no `SURVEY_FLIGHT`) e **Sair para o escritório** (só onde a tabela de transições leva ao `OFFICE` com a guarda satisfeita: mapa, mesa e laboratório; nunca no planejamento nem no voo). As confirmações são `ConfirmDialog`s irmãos do menu (não filhos), para a camada de input da confirmação ficar acima da do menu: o `Esc` fecha só a confirmação.
+  - **Esc e M.** Onde há para onde voltar, o `Esc` é "voltar" (`UI_BACK`) e não pausa (a mesa e o laboratório vão ao escritório; o planejamento abre a confirmação de cancelar), como no ADR-022; o `M` (e o Menu/Options do gamepad) pausa em qualquer tela. Dentro de Configurações ou Controles o `Esc` volta ao menu; no menu, retoma.
+  - **Configurações** (`SettingsPanel`, REQ-AUD-003, REQ-NFR-007): volume geral e de efeitos (sliders de 0 a 100 %), mudo, qualidade gráfica (Baixa, Média, Alta), "Reduzir flashes e tremores" e "Mostrar FPS", estes como interruptores acessíveis (`role="switch"`, `aria-checked`). Mudam na hora (o `AudioDriver` já aplica os volumes ao nó master) e o autosave grava a chave `scan-city-settings` na hora, **à parte do save**, por isso sobrevivem ao reload e ao "Novo jogo". Com `?debug=1` o overlay de FPS fica sempre ligado; sem ele, só pela configuração.
+  - **Controles** (`ControlsPanel`, REQ-INP-004): uma linha por ação (mover, olhar, zoom, subir e descer, interagir, disparar, sensor, RTH, dimensão, veículo, tempo, confirmar, voltar, abas e pausa) com o glyph do **dispositivo ativo** (`InputGlyph`), que troca em tempo real; mostra "Dispositivo ativo: Teclado, Xbox ou PlayStation".
+  - **Novo jogo** (REQ-CORE-009): `ConfirmDialog` in-app ("Todo o progresso será perdido. Um backup será guardado."); ao confirmar, `newGame()` (que já existia) grava o save atual em `scan-city-save-backup`, volta ao estado inicial, força a máquina de telas ao `OFFICE` e a intro volta; as configurações ficam. Nenhum `window.confirm` (testes RTL e E2E conferem; o E2E reprova qualquer diálogo nativo).
+  - **Abandonar** (T7 e T10): descarta a missão (`discardActive`) e vai ao mapa, com o desfecho `ABORTED` no voo; confirmação com os mesmos textos do cancelar do planejamento e do abandono do pós-voo.
+  - **REQ-CORE-003** (`engines/flight/pause.test.ts`): o `FlightEngine` com autopilot, o `useGameLoop` real e um `requestAnimationFrame` falso; com a store pausada por 5 s simulados, a posição, a bateria, as fotos e a fase **não mudam**, e ao retomar o voo continua de onde parou; o laço segue desenhando (só a simulação congela). O resto da pausa já estava coberto: a renda passiva (`museumIncome`) e o autosave de 30 s ignoram o tempo pausado, e o E2E `flight.spec.ts` ("a pausa congela o voo") confere o HUD no navegador.
+  - **Testes.** RTL (`PauseOverlay.test.tsx`, 16, pelo `<App/>`): itens do menu por tela, Continuar/Esc/M, foco inicial, "Sair para o escritório" no mapa, mesa e laboratório (e a ausência no planejamento e no voo), abandonar no planejamento e no voo (confirmar e cancelar, Esc só na confirmação), sliders e interruptores de configurações com a gravação à parte, Esc voltando ao menu, a tabela de controles, Salvar agora e o novo jogo (cancelar, confirmar com backup, intro e configurações mantidas). E2E `pause.spec.ts` (3): o menu e as configurações que sobrevivem ao reload (volume, mudo, qualidade, flashes, FPS), os controles e o salvar; o novo jogo sem diálogo nativo; e abandonar no planejamento e no voo e sair para o escritório.
+  - **Fora do escopo desta tarefa:** o E2E de "reduzir flashes" sem o overlay branco do obturador (REQ-NFR-007, *parc.*) fica para a auditoria de acessibilidade da T078: o flash é um preenchimento de 80 ms em tempo de simulação (10 ms reais a ×8), difícil de amostrar sem fragilidade.
+- **Status:** ✅
 
 ### T076 — *Game juice*: transições, partículas e sons de ambiente
 - **Fase:** F9 · **Depende de:** T075 · **REQs:** REQ-UI-004, REQ-AUD-002
@@ -1507,13 +1518,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | :--- | :--- | :--- | :--- | :-: |
 | REQ-CORE-001 | Máquina de estados de telas | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-002 | Transição inválida | [architecture](design/architecture.md) | T005 | ✅ |
-| REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ☐ |
+| REQ-CORE-003 | Pausa | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T005, T007, T075 | ✅ |
 | REQ-CORE-004 | Persistência e autosave | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006, T027 | ✅ |
 | REQ-CORE-005 | Migração e corrupção de save | [architecture](design/architecture.md), [data-model](design/data-model.md) | T006 | ✅ |
 | REQ-CORE-006 | Determinismo | [architecture](design/architecture.md), [terrain](design/terrain.md) | T002, T017 | ✅ |
 | REQ-CORE-007 | Flags de depuração | [architecture](design/architecture.md) | T005 | ✅ |
 | REQ-CORE-008 | Game loop e Canvas | [architecture](design/architecture.md), [survey-flight](features/survey-flight.md) | T007 | ✅ |
-| REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ☐ |
+| REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ✅ |
 | REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
 | REQ-INP-002 | Detecção de gamepad | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
@@ -1522,7 +1533,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ☐ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ☐ |
-| REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ☐ |
+| REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ☐ |
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
