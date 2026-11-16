@@ -9,6 +9,7 @@ const REAL_SCREENS: Record<string, string> = {
   SURVEY_FLIGHT: 'survey-flight-screen',
   PROCESSING_RESULTS: 'processing-screen',
   HOLO_TABLE_VIEW: 'holo-screen',
+  INFOGRAPHIC_LAB: 'lab-screen',
 };
 
 async function go(page: Page, transition: string, expected: string) {

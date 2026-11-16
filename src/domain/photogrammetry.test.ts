@@ -16,6 +16,7 @@ import {
   motionBlurPx,
   obliqueFootprint,
   obliqueGsdM,
+  pecMaxScaleDenominator,
   photosPerLine,
   pixelPitchM,
   planLineCount,
@@ -225,5 +226,19 @@ describe('sobreposição real (§2.9)', () => {
   it('q_real = 1 − (S + |e|)/W_g', () => {
     close(realSideOverlap(0, 32.907, 82.267), 0.6, 1e-3);
     close(realSideOverlap(-5, 32.907, 82.267), 1 - (32.907 + 5) / 82.267, 1e-12);
+  });
+});
+
+describe('escala máxima pela regra prática (infographic-lab §5.1)', () => {
+  it('1 : (GSD · 4000), com o GSD em metros', () => {
+    expect(pecMaxScaleDenominator(0.0125)).toBeCloseTo(50, 9);
+    expect(pecMaxScaleDenominator(0.05)).toBeCloseTo(200, 9);
+    expect(pecMaxScaleDenominator(0)).toBe(0);
+  });
+
+  it('cresce linearmente com o GSD (a G2: 1,2521 cm/px → 1 : 50)', () => {
+    const g2 = gsd(100, 4.3823e-6, 0.035);
+    expect(Math.round(pecMaxScaleDenominator(g2))).toBe(50);
+    expect(pecMaxScaleDenominator(2 * g2)).toBeCloseTo(2 * pecMaxScaleDenominator(g2), 9);
   });
 });

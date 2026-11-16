@@ -36,7 +36,7 @@ describe('App + ScreenRouter', () => {
     expect(screen.queryByTestId('debug-screen-shell')).not.toBeInTheDocument();
   });
 
-  it('mapa e campo são telas reais; as sem implementação usam o shell', () => {
+  it('as telas são reais; o painel de depuração abre com F9 e continua aberto entre elas', () => {
     open('/?debug=1&screen=WORLD_MAP');
     expect(screen.getByTestId('world-map-screen')).toBeInTheDocument();
     expect(screen.getByTestId('top-bar')).toBeInTheDocument();
@@ -62,6 +62,7 @@ describe('App + ScreenRouter', () => {
 
   it('as ações rápidas dão dinheiro e geram missão pendente', () => {
     open('/?debug=1&screen=INFOGRAPHIC_LAB');
+    fireEvent.keyDown(window, { key: 'F9' });
     fireEvent.click(screen.getByRole('button', { name: /^\+ R\$/ }));
     expect(get().player.money).toBe(1_500_000);
     expect(screen.getByTestId('debug-money').textContent?.replace(/\s/g, ' ')).toBe(
@@ -78,9 +79,9 @@ describe('App + ScreenRouter', () => {
     fireEvent.keyDown(window, { key: 'F9' });
     expect(screen.getByTestId('debug-overlay')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'T3 → INFOGRAPHIC_LAB' }));
-    // No shell, o painel embutido substitui o flutuante.
-    expect(screen.queryByTestId('debug-overlay')).not.toBeInTheDocument();
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('INFOGRAPHIC_LAB');
+    // O laboratório é uma tela real: o painel flutuante segue aberto sobre ela.
+    expect(screen.getByTestId('lab-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('debug-overlay')).toBeInTheDocument();
     unmount();
     open('/');
     fireEvent.keyDown(window, { key: 'F9' });
@@ -99,7 +100,7 @@ describe('App + ScreenRouter', () => {
 
   it('?debug=1&screen=X abre a tela pedida', () => {
     open('/?debug=1&screen=INFOGRAPHIC_LAB&money=42');
-    expect(screen.getByTestId('screen-name')).toHaveTextContent('INFOGRAPHIC_LAB');
+    expect(screen.getByTestId('lab-screen')).toBeInTheDocument();
     expect(get().player.money).toBe(4200);
   });
 

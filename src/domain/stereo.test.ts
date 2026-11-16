@@ -1,5 +1,6 @@
 import { mulberry32 } from '@/lib/rng';
 import {
+  baseHeightClass,
   baseHeightRatio,
   depthPrecisionM,
   heightFromParallax,
@@ -37,5 +38,23 @@ describe('estereoscopia (domain-math §3)', () => {
       const recovered = heightFromParallax(H, photoBaseM(B, f, H), parallaxDiffM(B, f, H, h));
       expect(Math.abs(recovered - h)).toBeLessThan(1e-9);
     }
+  });
+});
+
+describe('classe da razão B/H (infographic-lab §5.2)', () => {
+  it('< 0,3 fraca; 0,3 a 0,6 boa; > 0,6 forte (com oclusões)', () => {
+    expect(baseHeightClass(0)).toBe('WEAK');
+    expect(baseHeightClass(0.29)).toBe('WEAK');
+    expect(baseHeightClass(0.3)).toBe('GOOD');
+    expect(baseHeightClass(0.45)).toBe('GOOD');
+    expect(baseHeightClass(0.6)).toBe('GOOD');
+    expect(baseHeightClass(0.61)).toBe('STRONG');
+    expect(baseHeightClass(2)).toBe('STRONG');
+  });
+
+  it('os limites seguem a razão calculada de B e H', () => {
+    expect(baseHeightClass(baseHeightRatio(20, 100))).toBe('WEAK');
+    expect(baseHeightClass(baseHeightRatio(30, 100))).toBe('GOOD');
+    expect(baseHeightClass(baseHeightRatio(70, 100))).toBe('STRONG');
   });
 });

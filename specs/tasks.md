@@ -1391,13 +1391,22 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Fase:** F8 · **Depende de:** T072 · **REQs:** REQ-LAB-001, REQ-LAB-002, REQ-LAB-005 (*parc.*)
 - **Spec:** [infographic-lab §3–§5.2](features/infographic-lab.md)
 - **Arquivos:** \+ `src/screens/lab/{InfographicLabScreen,OpticsPanel,StereoPanel}.tsx`, `src/engines/lab/{opticsRenderer,stereoRenderer}.ts`
+- **Arquivos (efetivos):** \+ `src/screens/lab/{InfographicLabScreen,OpticsPanel,StereoPanel,LabParts}.tsx`, `src/screens/lab/{readings,labels,equipment,LabSimulation}.ts`, `src/engines/lab/{opticsRenderer,stereoRenderer,draw,tween}.ts`, `tests/e2e/lab.spec.ts`; ~ `src/domain/{photogrammetry,stereo}.ts`, `src/app/ScreenRouter.tsx`, `src/data/strings.ts`
 - **Aceite:**
-  - [ ] Os critérios 1 e 2 de [infographic-lab §8](features/infographic-lab.md).
-  - [ ] "Usar valores do meu equipamento".
-  - [ ] Teste de *spy* confirmando o uso de `@/domain`.
-  - [ ] `INFOGRAPHIC_LAB` deixa de usar o shell.
+  - [x] Os critérios 1 e 2 de [infographic-lab §8](features/infographic-lab.md).
+  - [x] "Usar valores do meu equipamento".
+  - [x] Teste de *spy* confirmando o uso de `@/domain`.
+  - [x] `INFOGRAPHIC_LAB` deixa de usar o shell.
 - **Verificação:** `npx vitest run src/screens/lab src/engines/lab`
-- **Status:** ☐
+- **Notas de implementação:**
+  - **Tela** (`InfographicLabScreen`): abas (Q/E e LB/RB também trocam), o diagrama animado à esquerda e, à direita, a coluna do painel: sliders (UI kit), leituras, **fórmulas ao vivo** em `font-mono` com os valores substituídos e o "Você sabia?". O payload `panel` abre direto um painel (desconhecido cai no primeiro); `Esc`/`B`/"Voltar" → `OFFICE` (T15), sem pausar. Os valores dos sliders ficam no estado da tela (cada painel guarda os seus ao trocar de aba) e **não** são salvos. Nesta tarefa só há as duas primeiras abas; as de dossel e shutter entram na T074 (a lista `LAB_PANELS` cresce, sem *placeholder*). `INFOGRAPHIC_LAB` está no `ScreenRouter` e deixou o shell.
+  - **Domínio, sem fórmula no componente** (REQ-LAB-005): `readings.ts` monta as entradas e chama `gsd`, `footprint`, `horizontalFovRad`, `pixelPitchM`, `realFocalM` (`domain/photogrammetry`) e `photoBaseM`, `parallaxDiffM`, `heightFromParallax`, `baseHeightRatio`, `depthPrecisionM` (`domain/stereo`). Duas funções novas, com testes primeiro: `pecMaxScaleDenominator(gsd)` (a regra prática 1:(GSD·4000), exibida como **heurística**, com a nota) e `baseHeightClass(B/H)` (< 0,3 fraca, 0,3–0,6 boa, > 0,6 forte, mas com oclusões). A câmera do painel de óptica é um `CameraSensor` montado dos sliders (proporção 3:2, focal fixa) para passar pelas mesmas funções do jogo. O teste de *spy* (`domainUse.test.tsx`) confere duas coisas: as funções do domínio recebem as entradas dos sliders (`gsd(100, 4,38 µm, 0,035)`, `parallaxDiffM(30, 0,035, 100, 20)`…) e, **trocando o retorno delas** por um valor sentinela, a tela passa a mostrar esse valor (7,77 cm/px, 123,00 mm…), o que prova que nenhuma fórmula foi reescrita.
+  - **Golden values**: G2 (H 100 m, f 35 mm, pixel 4,38 µm → **1,25 cm/px**, W_g 102,9 m, escala ≈ 1:50) e G14/G15 (B 30, H 100, h 20, f 35 mm → **b 10,50 mm, Δp 2,625 mm, h 20,00 m, σ_Z 2,09 cm**, B/H 0,30 "boa") são os valores de abertura de cada painel e estão nos testes de leituras, de tela (RTL) e no E2E. O h reconstruído bate com o slider (± 0,1 %) em toda a faixa (teste em grade). O σ_Z usa o pixel da câmera de 45 MP (4,3823 µm), já que o painel não tem slider de pixel.
+  - **Óptica** (`opticsRenderer`): sensor com a grade de pixels e um em âmbar, lente a `f` em escala exagerada, **cone de raios no ângulo real** (`horizontalFovRad`/2) até o solo na **régua logarítmica de H** (20 a 300 m, com marcas), segmento W_g, pixel projetado em âmbar, **lupa** de 50 cm de chão (até 40 × 40 células do tamanho do GSD, com a textura de ladrilhos de 6 cm, juntas de 8 mm e uma faixa pintada, e cada pixel como a média de 3 × 3 amostras: o detalhe menor que o GSD some) e 7 pontos de luz do solo ao sensor. **Estereoscopia** (`stereoRenderer`): C1 e C2, prédio (cresce com h), raios ao topo (âmbar, cheio) e à base (ciano, tracejado) com pulsos, e os planos-imagem ampliados (foto 1, **sobreposição** com ○ foto 1 e ● foto 2 e foto 2) com as cotas b e Δp; a escala dos planos encolhe se o ponto mais afastado não couber (B/H alto). Os renderers só desenham: números e rótulos chegam prontos (`labels.ts`).
+  - **Animação de 150 ms** (`tween.ts`): `approach` é exponencial (95 % em 150 ms, independente de como o tempo é fatiado em quadros); o `LabSimulation` interpola todos os campos numéricos dos sliders, e o diagrama desenha as leituras do domínio dos valores já interpolados, enquanto a coluna lateral mostra os alvos. Na abertura os valores desenhados já são os dos sliders (sem animar).
+  - **"Usar valores do meu equipamento"** (`equipment.ts`): a melhor câmera RGB possuída (a de maior resolução; a de lente intercambiável usa a de maior focal que o jogador tem, ou a primeira do catálogo sem nenhuma) e a de maior teto entre as aeronaves; H = min(100 m, teto da aeronave). Na estereoscopia, B é a **base aérea de 70 % de sobreposição** do pegada da câmera (`footprint` e `airBase` do domínio). Mostra "Equipamento: <câmera> em <aeronave>". Os presets de câmera saem do catálogo (uma entrada por câmera; as intercambiáveis, uma por lente) e cabem nas faixas dos sliders (teste).
+  - **Testes.** `readings`, `labels`, `equipment`, `LabSimulation`, `opticsRenderer`, `stereoRenderer`, `tween`, os dois do domínio (`baseHeightClass`, `pecMaxScaleDenominator`), `InfographicLabScreen` (14 RTL: golden values, sliders, presets, equipamento, abas, Q/E, Esc, h ≤ 0,8·H) e `domainUse` (5, o *spy*). E2E `lab.spec.ts` (3): hotspot do escritório → sliders nas duas abas → Esc; equipamento; diagramas desenhados (âmbar e ciano no canvas) e animados. Os testes de `app.test.tsx` e o `navigation.spec.ts` deixaram de tratar o laboratório como shell (o painel F9 fica aberto sobre ele).
+- **Status:** ✅
 
 ### T074 — Laboratório: Dossel e Shutter
 - **Fase:** F8 · **Depende de:** T073 · **REQs:** REQ-LAB-003, REQ-LAB-004, REQ-LAB-005
@@ -1583,8 +1592,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-HOL-006 | Modos de exibição | [holo-table](features/holo-table.md) | T072 | ✅ |
 | REQ-HOL-007 | Gestão das alas | [holo-table](features/holo-table.md) | T072 | ✅ |
 | REQ-HOL-008 | Seleção de setor | [holo-table](features/holo-table.md) | T026 | ✅ |
-| REQ-LAB-001 | Óptica e GSD | [infographic-lab](features/infographic-lab.md) | T073 | ☐ |
-| REQ-LAB-002 | Estereoscopia e paralaxe | [infographic-lab](features/infographic-lab.md) | T012, T073 | ☐ |
+| REQ-LAB-001 | Óptica e GSD | [infographic-lab](features/infographic-lab.md) | T073 | ✅ |
+| REQ-LAB-002 | Estereoscopia e paralaxe | [infographic-lab](features/infographic-lab.md) | T012, T073 | ✅ |
 | REQ-LAB-003 | LiDAR vs. fotogrametria no dossel | [infographic-lab](features/infographic-lab.md) | T012, T074 | ☐ |
 | REQ-LAB-004 | Global vs. rolling shutter | [infographic-lab](features/infographic-lab.md) | T074 | ☐ |
 | REQ-LAB-005 | Reuso do domínio | [domain-math](design/domain-math.md), [infographic-lab](features/infographic-lab.md) | T011, T073, T074 | ☐ |

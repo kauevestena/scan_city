@@ -48,6 +48,14 @@ export function footprint(
   return { widthM: (heightM * sensorWidthM) / focalM, heightM: (heightM * sensorHeightM) / focalM };
 }
 
+/**
+ * Regra prática exibida no Laboratório (heurística, não norma): o denominador da escala mais
+ * detalhada que o GSD sustenta com PEC-PCD classe A, 1 : (GSD · 4000), com o GSD em metros.
+ */
+export function pecMaxScaleDenominator(gsdM: number): number {
+  return gsdM * 4000;
+}
+
 /** Base aérea: distância entre disparos consecutivos. */
 export function airBase(footprintHeightM: number, forwardOverlapPct: number): number {
   return footprintHeightM * (1 - forwardOverlapPct / 100);
