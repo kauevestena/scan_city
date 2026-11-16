@@ -23,6 +23,7 @@ import {
   realFocalM,
   realForwardOverlap,
   realSideOverlap,
+  rollingShutterShearRad,
   rollingShutterSkewPx,
   shotInterval,
   turnTimeS,
@@ -240,5 +241,22 @@ describe('escala máxima pela regra prática (infographic-lab §5.1)', () => {
     const g2 = gsd(100, 4.3823e-6, 0.035);
     expect(Math.round(pecMaxScaleDenominator(g2))).toBe(50);
     expect(pecMaxScaleDenominator(2 * g2)).toBeCloseTo(2 * pecMaxScaleDenominator(g2), 9);
+  });
+});
+
+describe('cisalhamento do rolling shutter (infographic-lab §5.4)', () => {
+  it('atan(skew · GSD / altura da imagem no solo): G11 numa imagem de 200 linhas', () => {
+    const gsdM = 0.027412;
+    const skew = rollingShutterSkewPx(8, 0.03, gsdM);
+    const angle = rollingShutterShearRad(skew, gsdM, 200 * gsdM);
+    // 8,7552 px sobre 200 linhas: atan(0,04378) = 2,507°.
+    expect(radToDeg(angle)).toBeCloseTo(2.507, 2);
+  });
+
+  it('o GSD se cancela quando a altura é linhas · GSD; sem skew, ângulo 0', () => {
+    for (const gsdM of [0.005, 0.03, 0.05]) {
+      expect(rollingShutterShearRad(10, gsdM, 200 * gsdM)).toBeCloseTo(Math.atan(10 / 200), 12);
+    }
+    expect(rollingShutterShearRad(0, 0.03, 6)).toBe(0);
   });
 });

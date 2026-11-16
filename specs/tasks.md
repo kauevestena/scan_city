@@ -1412,11 +1412,20 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Fase:** F8 · **Depende de:** T073 · **REQs:** REQ-LAB-003, REQ-LAB-004, REQ-LAB-005
 - **Spec:** [infographic-lab §5.3, §5.4](features/infographic-lab.md)
 - **Aceite:**
-  - [ ] Os critérios 3 e 4 de [infographic-lab §8](features/infographic-lab.md).
-  - [ ] `sampleRollingShutter` é puro e testado.
-  - [ ] E2E `lab.spec.ts`.
+  - [x] Os critérios 3 e 4 de [infographic-lab §8](features/infographic-lab.md).
+  - [x] `sampleRollingShutter` é puro e testado.
+  - [x] E2E `lab.spec.ts`.
 - **Verificação:** `npx vitest run src/screens/lab src/engines/lab && npx playwright test tests/e2e/lab.spec.ts`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/screens/lab/{CanopyPanel,ShutterPanel}.tsx`, `src/engines/lab/{canopyRenderer,shutterRenderer,rollingShutter}.ts`; ~ `src/screens/lab/{InfographicLabScreen,LabSimulation,readings,labels,equipment}`, `src/domain/{lidar,photogrammetry}.ts`, `src/data/strings.ts`, `tests/e2e/lab.spec.ts`
+- **Notas de implementação:**
+  - **As quatro abas** (`LAB_PANELS`: óptica, estereoscopia, dossel e shutter), com Q/E e LB/RB em volta; o `LabSimulation` e o "Usar valores do meu equipamento" passaram a cobrir os quatro painéis, e cada um guarda os próprios sliders.
+  - **Dossel** (`CanopyPanel`, `canopyRenderer`): sliders de cobertura (0–98 %), nº máximo de retornos (1–5), PRR (50–500 kHz), H (40–300 m) e v (5–25 m/s), com o FOV fixo em 70° (o do Pod). As leituras vêm só do domínio (`canopyReadings`): P_solo (`groundReturnProbability`), densidade de pontos (`lidarDensity`), densidade de solo (`groundDensity`), faixa (`lidarSwathM`), solo visível em fotos (`photoGroundVisibility`) e o **veredito do MDT**, que ganhou a função `isDtmReliable` no domínio (`MIN_GROUND_DENSITY` = 4 pts/m², testes primeiro): "MDT confiável" ou "MDT insuficiente" (vermelho, sem erro com 98 % e 1 retorno). **G16**: 97 % e 5 retornos dão **P_solo = 10,76 %** (e só 0,09 % do solo aparece em duas fotos).
+  - **Diagrama do dossel**, em perfil e em duas metades sobre a mesma floresta (sorteio determinístico das copas por coluna; subir a cobertura só acrescenta copas). *LiDAR*: o leque de 13 pulsos desce e deixa o 1º retorno (ciano), até 3 intermediários (violeta) e o último no solo (emerald) **só com a probabilidade de atravessar a copa fechada**, que sai do próprio domínio (`groundReturnProbability(1, n)`, 2 % por retorno extra); nos buracos o pulso chega ao solo. Embaixo, o MDS (ciano, pelos 1ºs retornos) e o MDT (emerald, só pelos retornos de solo). *Câmera RGB*: os raios param na copa; o MDS segue a copa e o "MDT fotogramétrico" é pontilhado e interpolado, só nos buracos vistos em duas fotos (fração (1 − c)²). O leque ocupa 46 % da largura de cada metade (o ângulo real de 70° seria mais largo que o quadro).
+  - **Shutter** (`ShutterPanel`, `shutterRenderer`, `rollingShutter`): sliders de v (0–25 m/s), leitura (5–60 ms), giro (0–90 °/s) e GSD (0,5–5 cm) e o interruptor "Sensor global" (que desabilita o de leitura). O **modelo é puro** (`engines/lab/rollingShutter.ts`): `sampleRollingShutter(scene, t0, readout, v)` devolve, para cada linha de um sensor virtual de 240 × 160 cuja leitura inteira dura o `t_readout`, o instante, o deslocamento horizontal da cena (pelo `rollingShutterSkewPx` do domínio, então a última linha tem exatamente o skew da leitura; 0 com v = 0 ou sensor global) e a rotação acumulada (θ = −ω·Δt); `captureImage` aplica isso pixel a pixel (transformação inversa de "cena girada e deslocada") sobre a cena analítica (prédio com janelas, poste vertical, grade de quadrados). Com giro, o poste vira uma **curva** (a rotação em torno do centro desloca mais as linhas distantes), o efeito gelatina. O desenho mostra a cena à esquerda e a captura à direita, com a **varredura ciano** descendo em câmera lenta (20×, 0,6 s para 30 ms) e uma pausa de 1,4 s, e a coluna do poste na cena como referência tracejada âmbar; o sensor global captura tudo de uma vez.
+  - **Leituras do shutter**: skew (`rollingShutterSkewPx`), **ângulo de cisalhamento** (função nova `rollingShutterShearRad` no domínio, atan(skew · GSD / altura da imagem no solo), com a imagem de 160 linhas), a altura dela no solo e a **penalidade de RMSE que o jogo aplicaria**, por `accuracyMultipliers` com φ = 0 ("sem RTK") e φ = 1 ("com RTK"), num contexto neutro em que só o rolling pesa (os tetos de 1,8 e 1,4 aparecem a 25 m/s e 60 ms). **G11**: v 8 m/s, leitura de 30 ms e GSD de 2,74 cm dão **skew de 8,76 px** (× 1,35 sem RTK e × 1,18 com RTK; ângulo de 3,13°) e o poste sai inclinado (teste: o centro dele anda o skew de uma ponta à outra, linearmente).
+  - **Equipamento**: o dossel usa o PRR e os retornos do Pod, se possuído (senão, "sem Pod LiDAR (só a aeronave)"), e a altura e a velocidade de cruzeiro da aeronave; o shutter usa o obturador da melhor câmera (rolling: a leitura dela; global ou mecânico: o interruptor ligado), a velocidade de cruzeiro e o GSD que a câmera faz na altura de trabalho (a de 20 MP a 100 m dá 2,74 cm, a G6).
+  - **Testes.** Domínio: `isDtmReliable` e `rollingShutterShearRad`. Unitários: `rollingShutter` (11: G11 pela última linha, instantes, linearidade, giro, buffers, "o poste sai inclinado" e curvo), `canopyRenderer` e `shutterRenderer` (ciclo em câmera lenta, rótulos, cores, extremos), `readings`/`labels`/`equipment`/`LabSimulation` com o dossel e o shutter. RTL: 27 testes da tela, com a G16 e a G11 pela interface. O *spy* (`domainUse`, 10 testes) cobre agora o dossel e o shutter: as funções de `@/domain/lidar`, `@/domain/photogrammetry` e `@/domain/accuracy` recebem as entradas dos sliders e, trocando o retorno delas, a tela mostra o valor trocado. E2E `lab.spec.ts` (4): o último abre as quatro abas, confere G16 e G11 pelos sliders e os pixels (ciano, violeta, emerald e âmbar) do diagrama do dossel e a varredura do shutter.
+- **Status:** ✅
 
 ---
 
@@ -1594,9 +1603,9 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-HOL-008 | Seleção de setor | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-LAB-001 | Óptica e GSD | [infographic-lab](features/infographic-lab.md) | T073 | ✅ |
 | REQ-LAB-002 | Estereoscopia e paralaxe | [infographic-lab](features/infographic-lab.md) | T012, T073 | ✅ |
-| REQ-LAB-003 | LiDAR vs. fotogrametria no dossel | [infographic-lab](features/infographic-lab.md) | T012, T074 | ☐ |
-| REQ-LAB-004 | Global vs. rolling shutter | [infographic-lab](features/infographic-lab.md) | T074 | ☐ |
-| REQ-LAB-005 | Reuso do domínio | [domain-math](design/domain-math.md), [infographic-lab](features/infographic-lab.md) | T011, T073, T074 | ☐ |
+| REQ-LAB-003 | LiDAR vs. fotogrametria no dossel | [infographic-lab](features/infographic-lab.md) | T012, T074 | ✅ |
+| REQ-LAB-004 | Global vs. rolling shutter | [infographic-lab](features/infographic-lab.md) | T074 | ✅ |
+| REQ-LAB-005 | Reuso do domínio | [domain-math](design/domain-math.md), [infographic-lab](features/infographic-lab.md) | T011, T073, T074 | ✅ |
 | REQ-PRG-001 | Saldo | [processing-results](features/processing-results.md), [progression](features/progression.md) | T019 | ✅ |
 | REQ-PRG-002 | Aeronaves e sensores por tier | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |
 | REQ-PRG-003 | Frota terrestre | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T045 | ✅ |

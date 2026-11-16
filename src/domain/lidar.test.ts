@@ -2,11 +2,13 @@ import { degToRad } from '@/lib/math';
 import {
   groundDensity,
   groundReturnProbability,
+  isDtmReliable,
   lidarDensity,
   lidarDensityWithOverlap,
   lidarRmseXY,
   lidarRmseZ,
   lidarSwathM,
+  MIN_GROUND_DENSITY,
   photoGroundVisibility,
 } from './lidar';
 
@@ -51,5 +53,26 @@ describe('LiDAR (domain-math §4)', () => {
     close(lidarRmseXY(110, 1, 1), 0.04);
     close(lidarRmseXY(110, 0.2, 1), 0.04 * 2.5);
     close(lidarRmseXY(55, 0.9, 2), (0.02 + 0.01) * 2);
+  });
+});
+
+describe('veredito do MDT (infographic-lab §5.3)', () => {
+  it('confiável a partir de 4 pts/m² de solo', () => {
+    expect(MIN_GROUND_DENSITY).toBe(4);
+    expect(isDtmReliable(4)).toBe(true);
+    expect(isDtmReliable(3.99)).toBe(false);
+    expect(isDtmReliable(0)).toBe(false);
+  });
+
+  it('com a densidade do Pod (214 pts/m²) o MDT é confiável até sob 97 % de dossel com 5 retornos', () => {
+    const d = lidarDensity(240_000, 10, 80, FOV);
+    expect(isDtmReliable(groundDensity(d, 0.97, 5))).toBe(true);
+  });
+
+  it('98 % de dossel e 1 retorno deixam ~2 % da densidade no solo: insuficiente, sem erro', () => {
+    const d = lidarDensity(50_000, 25, 300, FOV);
+    const g = groundDensity(d, 0.98, 1);
+    close(g, d * 0.02);
+    expect(isDtmReliable(g)).toBe(false);
   });
 });

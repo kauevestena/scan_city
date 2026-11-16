@@ -3,7 +3,16 @@
  * `@/domain` (`photogrammetry` e `stereo`); este módulo só monta as entradas e junta os
  * resultados. Nada aqui reescreve uma fórmula.
  */
-import { getSensor } from '@/data/catalog';
+import { getPayload, getSensor } from '@/data/catalog';
+import { accuracyMultipliers, type AccuracyContext } from '@/domain/accuracy';
+import {
+  groundDensity,
+  groundReturnProbability,
+  isDtmReliable,
+  lidarDensity,
+  lidarSwathM,
+  photoGroundVisibility,
+} from '@/domain/lidar';
 import {
   footprint,
   gsd,
@@ -11,6 +20,8 @@ import {
   pecMaxScaleDenominator,
   pixelPitchM,
   realFocalM,
+  rollingShutterShearRad,
+  rollingShutterSkewPx,
 } from '@/domain/photogrammetry';
 import {
   baseHeightClass,
@@ -21,6 +32,8 @@ import {
   photoBaseM,
   type BaseHeightClass,
 } from '@/domain/stereo';
+import { SHUTTER_ROWS } from '@/engines/lab/rollingShutter';
+import { degToRad, radToDeg } from '@/lib/math';
 import type { CameraSensor } from '@/types';
 
 // --- Óptica & GSD ---------------------------------------------------------------------------
@@ -138,5 +151,133 @@ export function stereoReadings(input: StereoInput): StereoReadings {
       focalM,
       input.sigmaPx * stereoPixelPitchM(),
     ),
+  };
+}
+
+// --- LiDAR vs. fotogrametria no dossel --------------------------------------------------------
+
+/** Entradas dos sliders do painel de dossel (o FOV é fixo, o do Pod LiDAR). */
+export interface CanopyInput {
+  /** Cobertura do dossel, em %. */
+  canopyPct: number;
+  maxReturns: number;
+  prrKHz: number;
+  heightM: number;
+  speedMs: number;
+}
+
+export interface CanopyReadings {
+  swathM: number;
+  /** Densidade de pontos por passada (pts/m²). */
+  densityPtsM2: number;
+  /** P_solo: probabilidade de um pulso chegar ao solo, com a cobertura atual. */
+  groundProbability: number;
+  /** A mesma probabilidade sob dossel fechado (c = 1): só o que atravessa as copas. */
+  closedGroundProbability: number;
+  groundDensityPtsM2: number;
+  /** Fração do solo visível em duas fotos, (1 − c)². */
+  photoVisibility: number;
+  /** Veredito: o MDT é confiável com ≥ 4 pts/m² de solo. */
+  reliable: boolean;
+}
+
+/** FOV fixo do painel: o do Pod LiDAR (70°). */
+export const LIDAR_FOV_DEG = getPayload('POD_LIDAR').fovDeg;
+
+export function lidarFovRad(): number {
+  return degToRad(LIDAR_FOV_DEG);
+}
+
+export function canopyReadings(input: CanopyInput): CanopyReadings {
+  const fov = lidarFovRad();
+  const c = input.canopyPct / 100;
+  const density = lidarDensity(input.prrKHz * 1000, input.speedMs, input.heightM, fov);
+  const ground = groundDensity(density, c, input.maxReturns);
+  return {
+    swathM: lidarSwathM(input.heightM, fov),
+    densityPtsM2: density,
+    groundProbability: groundReturnProbability(c, input.maxReturns),
+    closedGroundProbability: groundReturnProbability(1, input.maxReturns),
+    groundDensityPtsM2: ground,
+    photoVisibility: photoGroundVisibility(c),
+    reliable: isDtmReliable(ground),
+  };
+}
+
+// --- Global shutter vs. rolling shutter -------------------------------------------------------
+
+/** Entradas dos sliders do painel de shutter. */
+export interface ShutterInput {
+  speedMs: number;
+  readoutMs: number;
+  /** Taxa de giro da câmera, em °/s. */
+  spinDegS: number;
+  gsdCm: number;
+  /** Sensor global: lê todas as linhas no mesmo instante. */
+  global: boolean;
+}
+
+export interface ShutterReadings {
+  /** Cisalhamento da imagem, em px (0 no sensor global). */
+  skewPx: number;
+  shearRad: number;
+  shearDeg: number;
+  /** Altura da imagem de demonstração no solo (m). */
+  groundHeightM: number;
+  /** Multiplicador de RMSE do jogo sem RTK (φ = 0) e com RTK (φ = 1). */
+  rmseNoRtk: number;
+  rmseRtk: number;
+}
+
+/** Contexto neutro de §6.3: só o rolling shutter pesa; o resto não altera o multiplicador. */
+function shutterAccuracyContext(skewPx: number, global: boolean, phi: number): AccuracyContext {
+  return {
+    gcpCount: 5,
+    phi,
+    hullCoverage: 1,
+    collinearity: 1,
+    rollingShutter: !global,
+    meanSkewPx: skewPx,
+    rgbPhotos: true,
+    lighting: 'SUN_HIGH',
+    homogeneousTexture: false,
+    forwardOverlapPct: 80,
+    specularWater: false,
+    meanCount: 6,
+    redFraction: 0,
+    blurFraction: 0,
+    emInterference: false,
+    emImmune: false,
+    cameraPenalty: 1,
+    atlasCalibrated: false,
+    imuScore: 0,
+    mods: { rmseGlobal: 1, texturePenalty: 1, rollingShutterPenalty: 1 },
+  };
+}
+
+/** O multiplicador de RMSE do rolling shutter que o jogo aplicaria (1 quando não há). */
+function rollingMultiplier(skewPx: number, global: boolean, phi: number): number {
+  const entry = accuracyMultipliers(shutterAccuracyContext(skewPx, global, phi)).find(
+    (m) => m.key === 'rollingShutter',
+  );
+  return entry?.xy ?? 1;
+}
+
+export function shutterReadings(input: ShutterInput): ShutterReadings {
+  const gsdM = input.gsdCm / 100;
+  const skewPx = rollingShutterSkewPx(
+    input.speedMs,
+    input.global ? undefined : input.readoutMs / 1000,
+    gsdM,
+  );
+  const groundHeightM = SHUTTER_ROWS * gsdM;
+  const shearRad = rollingShutterShearRad(skewPx, gsdM, groundHeightM);
+  return {
+    skewPx,
+    shearRad,
+    shearDeg: radToDeg(shearRad),
+    groundHeightM,
+    rmseNoRtk: rollingMultiplier(skewPx, input.global, 0),
+    rmseRtk: rollingMultiplier(skewPx, input.global, 1),
   };
 }
