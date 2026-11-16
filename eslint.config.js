@@ -27,4 +27,18 @@ export default tseslint.config(
       globals: { process: 'readonly', console: 'readonly', URL: 'readonly' },
     },
   },
+  {
+    // O script de QA roda funções dentro da página (Playwright), então usa os globais do navegador.
+    files: ['scripts/qa-random.mjs'],
+    languageOptions: {
+      globals: {
+        setTimeout: 'readonly',
+        URLSearchParams: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        localStorage: 'readonly',
+      },
+    },
+  },
 );

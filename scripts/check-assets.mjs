@@ -1,8 +1,11 @@
 // REQ-NFR-006: o build não pode conter imagens, fontes ou áudios externos.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DIST = new URL('../dist', import.meta.url).pathname;
+// `fileURLToPath`, e não `.pathname`: o `.pathname` mantém `%20` e acentos codificados e, no
+// Windows, vem como `/C:/...`, então o script falharia (ou, pior, não varreria nada).
+const DIST = fileURLToPath(new URL('../dist', import.meta.url));
 const FORBIDDEN =
   /\.(png|jpe?g|gif|webp|avif|bmp|ico|svg|mp3|ogg|wav|flac|m4a|aac|mp4|webm|woff2?|ttf|otf|eot)$/i;
 

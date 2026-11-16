@@ -116,5 +116,3 @@ export function captureImage(
   }
   return out;
 }
-
-export const SHUTTER_BACKGROUND = BACKGROUND;

@@ -1,0 +1,221 @@
+# Roteiro de QA manual
+
+> O que só uma pessoa consegue verificar: **Firefox e Edge**, **controle de verdade**, **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1985 testes de unidade, 132 testes E2E no Chromium (inclusive acessibilidade, teclado e controle emulado) e um teste de entradas aleatórias (`npm run qa:random`); ver a T079 e a T080 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§8).
+
+---
+
+## 0. Preparação
+
+1. **Build de produção**, não o `npm run dev` (o servidor de desenvolvimento compila na hora e muda os tempos):
+
+   ```bash
+   npm install
+   npm run build && npm run preview     # http://localhost:4173
+   ```
+
+2. **Zerar o jogo** quando o roteiro pedir: `Esc → Novo jogo` (guarda um backup) ou, no console do navegador (F12), `localStorage.clear()` e recarregar.
+3. **Parâmetros de URL** (só valem com `debug=1`; descritos em [architecture §7](design/architecture.md)):
+
+   | Parâmetro | Para que serve aqui |
+   | :--- | :--- |
+   | `debug=1` | contador de FPS e painel **F9** (estado, transições, ações rápidas, tempo por etapa) |
+   | `skipIntro=1` | pula a carta do avô |
+   | `unlockAll=1` | todos os contratos disponíveis e todos os itens (desliga as dicas do tutorial) |
+   | `money=<n>` | saldo inicial em reais |
+   | `screen=<TELA>` | abre a tela direto: `OFFICE`, `WORLD_MAP`, `FIELD_SETUP`, `SURVEY_FLIGHT`, `PROCESSING_RESULTS`, `HOLO_TABLE_VIEW`, `INFOGRAPHIC_LAB`, `UIKIT`, `SOUNDBOARD` |
+   | `contract=<id>` | contrato das telas de campo, voo e processamento (`C00` a `C06`, `R01` a `R11`) |
+   | `autopilot=1` | o voo segue o plano sozinho (liga o tempo ×8) |
+   | `seed=<n>` | seed global (eventos e rival) |
+
+4. **Se algo falhar**, anote: a URL, os passos, o que esperava, o que viu, os erros do console (F12) e, se puder, o save (`localStorage.getItem('scan-city-save')`, depois de `Esc → Salvar agora`).
+
+---
+
+## 1. Firefox (REQ-NFR-009, [OQ-014](open-questions.md))
+
+O Firefox é o único requisito sem verificação: o Playwright não instala o Firefox no ambiente de desenvolvimento. O Tailwind v4 exige Firefox **128 ou mais novo**; anote a versão testada.
+
+**Roteiro do C00** (o mesmo do `slice.spec.ts`; leva uns 5 minutos). Abra o console (F12) antes e **não deve aparecer erro em vermelho** em nenhum passo.
+
+| # | Passo | Esperado | ☐ |
+| :-: | :--- | :--- | :-: |
+| 1 | Abra `/?debug=1&skipIntro=1&autopilot=1&seed=4` | o escritório aparece, com a barra superior (saldo, nível, XP) | ☐ |
+| 2 | Com `Tab` chegue a "Porta — sair para o mapa" e aperte `Enter` | o mapa-múndi abre; uma dica do tutorial aparece (`H` a dispensa) | ☐ |
+| 3 | `F9`, em "Teleportar para marcador" clique em `C00`, `F9` de novo; aperte `Enter` junto ao marcador | o aviso "Sítio do Avô" e depois o briefing; **Aceitar** abre o campo | ☐ |
+| 4 | Aba 1: **Sugestão automática**; aba 2: mexa no controle "Altura (H)" com as setas; aba 4: **DECOLAR** | os pontos de apoio aparecem no mapa de satélite, o plano muda e o voo começa | ☐ |
+| 5 | Espere o autopilot (×8) | o terreno rola, o HUD atualiza, o som do motor toca e aparece o diálogo "Voo concluído" | ☐ |
+| 6 | O autopilot escolhe **Levar dados ao escritório** sozinho, 1,5 s depois; ande para a direita até "Entrar na sede" e aperte `Espaço` | volta ao mapa e depois ao escritório (uma missão aguarda processamento) | ☐ |
+| 7 | **Workstation → Processar** | o pipeline anda e o relatório abre com **APROVADO** | ☐ |
+| 8 | **Enviar à Mesa do Museu** | a mesa holográfica mostra o setor "Sítio do Avô" | ☐ |
+
+**O que olhar no Firefox em particular:**
+
+- [ ] Nada fica sem estilo (cores, bordas, sombras, o brilho dos botões) e a fonte é a do sistema, sem salto de layout.
+- [ ] Os canvases (terreno do voo, mapa, mesa 3D, nuvem do relatório) ficam nítidos e sem faixas ou emendas; o minimapa do mapa-múndi é de pixels grossos, não borrado.
+- [ ] Sem rolagem horizontal ou vertical em 1280 × 720 e em 1920 × 1080.
+- [ ] O som toca depois do primeiro clique (`/?debug=1&screen=SOUNDBOARD`: um botão por efeito).
+- [ ] `Tab`, `Shift+Tab`, setas, `Enter`, `Esc` e `Backspace` fazem o que a tela diz, e o foco aparece com um anel.
+- [ ] Arrastar com o mouse orbita a mesa 3D e a nuvem do relatório; a roda dá zoom; o clique no mapa de satélite coloca um ponto.
+- [ ] Sem lentidão que atrapalhe: o voo do C01 é fluido (o requisito é só "funcionar", sem meta de FPS; anote o número da §4 se medir).
+
+| Navegador e versão | SO | Resultado | Notas |
+| :--- | :--- | :-: | :--- |
+| Firefox ___ | ___ | ☐ | |
+
+---
+
+## 2. Chrome e Edge (REQ-NFR-009)
+
+Repita o roteiro da §1 em cada um, nas versões atuais, e some o controle de verdade (§3), que o requisito pede em Chrome e Edge. O Edge é Chromium; o esperado é igual ao do Chrome.
+
+| Navegador e versão | SO | Roteiro do C00 | Controle (§3) | Notas |
+| :--- | :--- | :-: | :-: | :--- |
+| Chrome ___ | ___ | ☐ | ☐ | |
+| Edge ___ | ___ | ☐ | ☐ | |
+
+---
+
+## 3. Controle de verdade (REQ-INP-002 e REQ-INP-006)
+
+Os E2E só emulam o controle (`navigator.getGamepads`); falta um aparelho real. Teste um **Xbox** (ou compatível) e um **PS5/DualSense**, por USB e por Bluetooth se puder. O navegador só enxerga o controle **depois de um aperto de botão**.
+
+Abra `/?debug=1&skipIntro=1&unlockAll=1`, aperte um botão e confira:
+
+- [ ] `Menu` abre a pausa; em **Controles** a linha "Dispositivo ativo" mostra **Xbox** ou **PlayStation** e os botões da tabela mudam (A/B/X/Y ou ✕/○/□/△; `Menu` ou `Options`).
+- [ ] **Escritório:** o D-pad (ou o analógico esquerdo) anda entre os nove pontos; `A` abre o painel; `B` fecha e devolve o foco.
+- [ ] **Mapa:** o analógico anda sem **deriva** (solto, o avatar para); `LB` troca o veículo; `Y` troca Real e Fendas; `A` interage; `View`/`Create` dispensa a dica.
+- [ ] **Campo:** `LB`/`RB` trocam de aba; `B` volta uma aba; o D-pad e `A` operam os controles.
+- [ ] **Voo** (`/?debug=1&skipIntro=1&screen=SURVEY_FLIGHT&contract=C01`, **sem** `autopilot`): analógico esquerdo = velocidade e deriva; `RT`/`LT` sobem e descem **na proporção do aperto**; `X` tira foto; `Y` troca RGB e LiDAR (num contrato de LiDAR, como `contract=C03`); `B` pede o retorno à base; `RB` acelera o tempo; `Menu` pausa.
+- [ ] **Mesa** (`screen=HOLO_TABLE_VIEW`): analógico direito orbita; `RT`/`LT` dão zoom; `X` muda o modo; `Y` troca a dimensão; `RB` abre o painel de alas.
+- [ ] **Laboratório** (`screen=INFOGRAPHIC_LAB`): `LB`/`RB` trocam de aba; o D-pad anda entre os controles e, com um slider em foco, `←` `→` mudam o valor.
+- [ ] **Troca ao vivo:** desligar o controle no meio do voo não derruba o jogo; ao religar e apertar um botão ele volta a valer; usar o teclado devolve os botões do teclado.
+
+| Controle | Conexão | Navegador | Resultado | Notas |
+| :--- | :--- | :--- | :-: | :--- |
+| Xbox ___ | ___ | ___ | ☐ | |
+| PS5 ___ | ___ | ___ | ☐ | |
+
+---
+
+## 4. FPS com GPU (REQ-NFR-001, [OQ-013](open-questions.md))
+
+O requisito: **≥ 55 FPS** (média de 10 s) a 1280 × 720, DPR 1, qualidade **Alta**, no voo e na mesa, e **≥ 58 FPS** no mapa-múndi, num notebook de 4 núcleos com Chrome atual. A [ADR-024](decisions.md) mediu tudo em Chromium **sem GPU** (o canvas rasterizado por software, o pior caso); aqui se repete a tabela com GPU. Se der abaixo, o painel F9 diz qual etapa pesa.
+
+**Como medir**
+
+1. Janela do navegador em 1280 × 720 (ou o mais perto que der) e zoom de 100 %. Confira o DPR no console: `window.devicePixelRatio` (o requisito é **1**; numa tela com escala de 200 % o canvas tem quatro vezes mais pixels, e vale anotar o DPR e medir uma vez também em escala 100 %).
+2. `Esc → Configurações → Qualidade gráfica → Alta`.
+3. Abra a cena, **feche o painel F9** (aberto, ele liga os contadores por etapa) e cole no console:
+
+   ```js
+   (async () => {
+     await new Promise((r) => setTimeout(r, 10000)); // aquecimento
+     const stamps = [];
+     await new Promise((resolve) => {
+       requestAnimationFrame(function tick(now) {
+         stamps.push(now);
+         if (now - stamps[0] >= 10000) resolve();
+         else requestAnimationFrame(tick);
+       });
+     });
+     const secs = (stamps.at(-1) - stamps[0]) / 1000;
+     console.log(`FPS médio: ${((stamps.length - 1) / secs).toFixed(1)}`);
+   })();
+   ```
+
+   (O contador "N FPS" no canto é uma média de 1 s; serve para ver a tendência.)
+4. Com a medição feita, `F9` mostra o tempo de cada etapa em ms contra o orçamento (**voo 12 ms, mesa 10 ms**): anote as etapas que passarem de 2 ms.
+
+**Cenas** (todas em `http://localhost:4173`; a coluna da ADR é a medição sem GPU, em Alta, com vsync de 60 Hz; num monitor de 120 ou 144 Hz o número pode passar de 60)
+
+| Cena | URL e o que fazer | Meta | ADR-024 |
+| :--- | :--- | :-: | :-: |
+| Voo C01 (cidade) | `/?debug=1&skipIntro=1&autopilot=1&seed=3&screen=SURVEY_FLIGHT&contract=C01` | ≥ 55 | 60,0 |
+| Voo C03 (floresta) | o mesmo, com `contract=C03` | ≥ 55 | 58,8 |
+| Voo R04 (fada) | o mesmo, com `contract=R04` | ≥ 55 | 59,9 |
+| Mesa, Real e Multiverso | `/?debug=1&skipIntro=1&screen=HOLO_TABLE_VIEW`; `F9` → **Mapear tudo (museu)**; `F9`; meça cada modo (`1`, `2`, `3`) nas duas dimensões (`Tab`) | ≥ 55 | 58,8 a 59,9 |
+| Mapa-múndi andando | `/?debug=1&skipIntro=1&screen=WORLD_MAP`; segure `D` ou `→` e vá mudando de direção durante a medição | ≥ 58 | 60,0 |
+
+| Máquina (CPU, GPU) | Navegador | DPR | C01 | C03 | R04 | Mesa (pior de 6) | Mapa | Notas |
+| :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :--- |
+| ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | |
+
+---
+
+## 5. Sons (escuta)
+
+Os testes tocam todos os efeitos e confirmam que não há erro; **ninguém ouviu**. Abra `/?debug=1&screen=SOUNDBOARD`, **clique uma vez na página** (os navegadores só liberam o som depois do primeiro gesto) e toque um por um. As receitas estão em [audio.md](design/audio.md).
+
+| Som | Quando toca no jogo | O que se deve ouvir | ☐ |
+| :--- | :--- | :--- | :-: |
+| `SHUTTER` | foto do voo | clique seco de obturador, com um segundo "tec" mais fraco logo depois | ☐ |
+| `RTH_BEEP` | alerta de retorno à base | três bipes agudos, repetidos a cada 1,5 s enquanto o alerta durar | ☐ |
+| `PIGEON_COO` | clicar no Atlas, decolar com ele | um arrulho de duas notas, descendo, com um leve tremor | ☐ |
+| `CASH_REGISTER` | pagamento no relatório, venda | "cha" de chiado e um "ching" de três notas agudas | ☐ |
+| `CRASH` | colisão ou queda | estouro grave de ruído que escurece, com um baque | ☐ |
+| `UI_CLICK` / `UI_HOVER` | botões e foco | um clique curto; o de passar o mouse é ainda mais curto, mais agudo e bem mais baixo | ☐ |
+| `ALERT` | ser detectado pelos holofotes (fenda R07) | sirene curta alternando dois tons | ☐ |
+| `TAKEOFF` | começo do voo (com o Atlas toca o `PIGEON_COO`) | varredura de ruído e um zumbido que sobe, por 2,5 s | ☐ |
+| `RIFT_OPEN` | abrir o briefing de fenda, nova fenda detectada | acorde brilhante e vibrado, com eco curto | ☐ |
+| `LEVEL_UP` | subir de nível | arpejo de quatro notas subindo | ☐ |
+| `COLLECT` | anel (R01) e marco geodésico | "blip" que sobe depressa | ☐ |
+| `DENIED` | compra negada, ação inválida | dois toques graves e secos | ☐ |
+| `STAGE_DONE` | etapa do pipeline concluída | duas notas curtas, a segunda mais aguda | ☐ |
+
+**Loops** (um botão liga e desliga cada um; o motor tem três variantes: Multirrotor, Asa fixa e Atlas)
+
+- [ ] `MOTOR`: o multirrotor zumbe e sobe de tom com a velocidade; a asa fixa é mais grave; o Atlas **não tem motor** e bate asas em pulsos.
+- [ ] `WIND`: sopro grave, mais forte com mais vento.
+- [ ] `LIDAR_HUM`: zumbido do sensor, que liga e desliga ao trocar RGB e LiDAR no voo.
+- [ ] `PROCESSING`: ventoinha com bipes de disco irregulares, durante o pipeline.
+
+**Mistura e integração**
+
+- [ ] Nenhum efeito soa muito mais alto ou mais áspero que os outros; nada **estala** ao ligar ou desligar um loop.
+- [ ] Em jogo: o disparo da câmera, o bipe de retorno à base, o pagamento e o nível tocam na hora certa; o motor e o vento calam na pausa e ao fim do voo.
+- [ ] `Esc → Configurações`: o volume geral e o dos efeitos mudam o que se ouve, e **Mudo** silencia tudo.
+
+| Fones ou caixas | Navegador | Resultado | Notas |
+| :--- | :--- | :-: | :--- |
+| ___ | ___ | ☐ | |
+
+---
+
+## 6. Campanha jogada
+
+O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automáticos só percorrem os caminhos certos. O que interessa aqui é a **sensação**: o que um teste não mede.
+
+**Como jogar:** `/?debug=1&skipIntro=1` (sem `unlockAll`, para ver o tutorial e a progressão reais). `money=<n>` é permitido para pular a economia e `F9 → Gerar missão pendente` para pular um voo. Ordem dos sete contratos reais: **C00 → C01 → C05 → C06 → C02 → C04 → C03**. As fendas abrem junto: R01 e R02 com o C01; R07 com o C06; R08 e R11 com o C05; R09 com o C02; R03 e R05 com o C04; R04 com o C03; a R10 só com o C03 **e** cinco fendas. Concluir os sete reais mostra o final (a carta do avô e o Chapéu do Avô).
+
+**O que avaliar**
+
+- [ ] **Início:** a carta do avô, as cinco dicas do tutorial e o primeiro voo se entendem sem ajuda?
+- [ ] **Voo manual:** os controles respondem bem (velocidade, deriva, altura, foto, retorno à base); o vento, a bateria e os obstáculos pedem atenção sem frustrar?
+- [ ] **Relatório:** quando reprova, dá para entender **por quê** (GSD, sobreposição, pontos de apoio, RMSE, PEC-PCD)? As fórmulas aparecem de um jeito que ensina?
+- [ ] **Economia:** os preços da Garagem, da equipe e das habilidades contra o que os contratos pagam; a MegaMap (contraproposta e roubo de contrato); a renda do museu.
+- [ ] **Variedade:** cada contrato tem cara própria (terreno, regra especial, clima); as fendas têm o clima paródico esperado (moldura violeta no HUD, anomalias).
+- [ ] **Rejogar** um contrato concluído paga 40 %, sem souvenir.
+- [ ] **Salvar e voltar:** fechar a aba no meio da campanha e reabrir mantém tudo (o autosave é a cada troca de tela).
+- [ ] **Texto:** erros de português, termos técnicos errados, textos cortados.
+
+| Trecho jogado | Tempo | Pontos bons | Problemas |
+| :--- | :--- | :--- | :--- |
+| ___ | ___ | | |
+
+---
+
+## 7. Aparência e conforto
+
+- [ ] Em 1280 × 720 e em 1920 × 1080 nada se sobrepõe no HUD do voo, na barra superior, nos painéis e no relatório.
+- [ ] Os textos sobre os canvases (HUD, rótulos da mesa, mapa-múndi) são legíveis sobre qualquer terreno.
+- [ ] As transições entre telas e os efeitos (partículas, flash da foto) ficam bonitos e não incomodam; com `Esc → Configurações → Reduzir flashes e tremores` ligado o voo não pisca nem balança.
+- [ ] Os 18 terrenos têm cara própria e sem emendas ou buracos visíveis.
+- [ ] A mesa holográfica ganha corpo conforme os setores entram.
+
+---
+
+## 8. Fechando as pendências
+
+- **Passou tudo na §1 (e na §2 para Chrome e Edge):** em [open-questions.md](open-questions.md) preencha a **Resolução** da OQ-014 e, em [tasks.md](tasks.md), vire o REQ-NFR-009 da matriz para ✅.
+- **FPS (§4) abaixo da meta:** anote a máquina e as etapas do F9 e abra uma pergunta nova; a OQ-013 fica com a Resolução "medido em ___".
+- **Qualquer falha:** vire uma tarefa nova em [tasks.md](tasks.md) (com a spec afetada) antes de mexer no código, como em qualquer mudança (SDD, [README](README.md) §2).

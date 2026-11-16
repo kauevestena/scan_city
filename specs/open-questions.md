@@ -104,13 +104,13 @@
 ### OQ-013 — Medição de FPS no perfil de referência (com GPU)
 - **Aberta em:** 2026-11-16 por T077
 - **Contexto:** o REQ-NFR-001 fala de um notebook de 4 núcleos com Chrome atual, mas o único ambiente de medição disponível é o Chromium headless do Playwright, **sem GPU** (raster do canvas por software, na thread principal; ver [ADR-024](decisions.md)). Lá o jogo passa da meta, e com GPU o raster sai da thread principal, então a expectativa é de folga maior; mas isso é uma expectativa, não uma medição.
-- **Opções:** A) aceitar a medição sem GPU como o pior caso e seguir; B) repetir a tabela do ADR-024 num notebook real (overlay de FPS, "Mostrar FPS" em Configurações) antes do release.
+- **Opções:** A) aceitar a medição sem GPU como o pior caso e seguir; B) repetir a tabela do ADR-024 num notebook real (overlay de FPS, "Mostrar FPS" em Configurações) antes do release; o passo a passo está em [qa-manual.md](qa-manual.md) §4.
 - **Padrão provisório:** A. A tabela, o método e o painel F9 (tempo por etapa) estão no ADR-024, então a repetição em outro hardware é só rodar o mesmo roteiro.
 - **Resolução:** —
 
 ### OQ-014 — Smoke manual no Firefox
 - **Aberta em:** 2026-11-16 por T078
 - **Contexto:** o REQ-NFR-009 pede o jogo nas versões atuais de Chrome, Edge e Firefox, com "smoke E2E no Chromium + verificação manual no Firefox documentada". O ambiente das tarefas só tem o Chromium (o `playwright install firefox` é bloqueado pela rede), então o Firefox não foi aberto. O código não usa API só do Chromium (varredura na T078) e o `roundRect` do canvas, o único recurso recente, existe no Firefox desde a versão 112.
-- **Opções:** A) um humano roda o roteiro da T078 no Firefox e fecha o requisito; B) aceitar o requisito como "Chromium verificado, Firefox por construção" no release.
+- **Opções:** A) um humano roda o roteiro da T078 no Firefox (passo a passo em [qa-manual.md](qa-manual.md) §1) e fecha o requisito; B) aceitar o requisito como "Chromium verificado, Firefox por construção" no release.
 - **Padrão provisório:** A é o pedido da spec; até lá, o REQ-NFR-009 fica ☐ na matriz. **Decisão do release (T079):** o jogo sai com o requisito ☐ e a pendência listada no `README.md`, em vez de marcá-lo ✅ sem ninguém ter aberto o Firefox; o roteiro da T078 segue valendo, e quem o rodar fecha a pergunta e vira a linha da matriz.
 - **Resolução:** —

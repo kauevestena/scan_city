@@ -10,8 +10,6 @@ export const MEGAMAP_OFFSET_MIN_M = 2;
 export const MEGAMAP_OFFSET_MAX_M = 6;
 /** Coeficiente da distorção de barril (raio normalizado 0–1 até o canto). */
 export const MEGAMAP_BARREL_K = 0.28;
-/** RMSE que a MegaMap declara, m. */
-export const MEGAMAP_DECLARED_RMSE_M = 1.5;
 
 export interface MegaMapParams {
   /** Módulo do deslocamento, m, em [2, 6]. */

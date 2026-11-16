@@ -114,12 +114,6 @@ function column(i: number, j: number, n: NoiseKit): number {
   return h;
 }
 
-/** A coluna que contém `(u, v)`. */
-export const columnOf = (u: number, v: number): { i: number; j: number } => ({
-  i: Math.floor(u / CELL_M),
-  j: Math.floor(v / CELL_M),
-});
-
 /** `(u, v)` está no 1 m de borda de uma coluna que tem vizinha mais baixa desse lado? */
 function onEdge(u: number, v: number, h: number, n: NoiseKit): boolean {
   const x = u / CELL_M;
