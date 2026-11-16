@@ -1,0 +1,54 @@
+# CI e publicação no GitHub Pages (https://kauevestena.github.io/scan_city/).
+#
+# Em todo push na main e em todo pull request: instala, roda o `verify` (typecheck, lint, testes,
+# build, placeholders e termos) e confere os assets. Só o push na main (ou o disparo manual)
+# publica o `dist/`. Em Settings → Pages, a "Source" precisa ser "GitHub Actions".
+name: CI e publicação no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Uma publicação por vez, e um PR novo cancela a execução velha do mesmo PR (a da main nunca é
+# cancelada no meio da publicação).
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - run: npm run check:assets
+      - name: Empacota o site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

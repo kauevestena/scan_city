@@ -1626,6 +1626,27 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **Não feito, de propósito.** Nenhum `try/catch` em volta dos loops de jogo: uma exceção própria no `update` ou no `render` mata o loop do mesmo jeito (e o `GameLoop` segue "rodando"), mas as 31 execuções aleatórias da T080 não acharam nenhuma, e esconder o defeito seria pior do que vê-lo. Nenhum aviso de "sem som" ou "sem controle": o jogo só segue sem eles.
 - **Status:** ✅
 
+### T082 — Publicação no GitHub Pages
+- **Fase:** pós-M4 · **Depende de:** T081 · **REQs:** — (REQ-NFR-002 e REQ-NFR-006 seguem ✅)
+- **Spec:** [ADR-028](decisions.md)
+- **Passos:**
+  1. Tornar o build independente do endereço (caminhos relativos).
+  2. Escrever o workflow de CI e de publicação.
+  3. Testar o build numa subpasta, como o Pages serve.
+  4. Documentar a URL.
+- **Aceite:**
+  - [x] O build abre e roda numa subpasta (`/scan_city/`), sem 404, no Chromium e no Firefox.
+  - [x] O workflow roda o `verify` e o `check:assets` em push e em pull request, e só o push na `main` publica.
+- **Verificação:** `npm run build` e o `dist/` servido numa subpasta · o workflow no GitHub (a execução da `main` é conferida na T083).
+- **Arquivos (efetivos):** \+ `.github/workflows/pages.yml`; ~ `vite.config.ts`, `src/engines/raster/products.test.ts`, `README.md`, `specs/{decisions,qa-manual,tasks}.md`.
+- **Notas de implementação:**
+  - **Pedido e configuração.** O usuário ativou o GitHub Pages no repositório com a *Source* "GitHub Actions" e pediu a publicação da versão jogável. O repositório não tinha CI nem publicação, e o `dist/index.html` apontava para `/assets/...` (absoluto), que dá 404 em `https://kauevestena.github.io/scan_city/`.
+  - **Base relativa** ([ADR-028](decisions.md)). `base: './'` no `vite.config.ts`: o `index.html` do build passa a apontar para `./assets/...`. Testado com o build servido em `/scan_city` (sem a barra final, que o servidor redireciona) no Chromium e no Firefox: os dois assets respondem 200 de `/scan_city/assets/`, o jogo abre no escritório, anda até o mapa, grava o save e não dá nenhum erro. O servidor de desenvolvimento e o `preview` seguem iguais (o `dev` responde 200 em `/` e em `/src/main.tsx`).
+  - **Workflow** (`.github/workflows/pages.yml`). Em todo push na `main`, em todo pull request e no disparo manual: `actions/checkout`, `actions/setup-node` (Node 22, com cache do npm), `npm ci`, `npm run verify` e `npm run check:assets`. Só o push na `main` (e o disparo manual) empacota o `dist/` (`actions/upload-pages-artifact`) e publica (`actions/deploy-pages`, com `pages: write` e `id-token: write` só nesse job; o resto roda com `contents: read`). Um pull request novo cancela a execução velha dele; a da `main` nunca é cancelada no meio. Como o `verify` é o mesmo do commit, o pull request ganha o CI que faltava. O E2E (≈ 16 min) fica fora do caminho da publicação.
+  - **Um teste de relógio no caminho da publicação.** O `products.test` ("nenhuma tarefa passa de metade da fatia", 4 ms por tarefa) é o único do `verify` que mede tempo de verdade com folga apertada; numa máquina compartilhada e mais lenta ele poderia barrar uma publicação, então o teto de 8 ms que já valia sob cobertura vale também com `CI` definida. Os outros testes de tempo (`terrain` 200 ms para 100 mil chamadas, `FieldSetupScreen` 16 ms para recalcular o plano, `RiftWarp`) têm folga larga.
+  - **O que a pessoa precisa saber.** O site fica em `https://kauevestena.github.io/scan_city/` e aceita os mesmos parâmetros de URL do `npm run preview`; o `localStorage` é da origem `kauevestena.github.io`. O QA manual passa a poder rodar nessa URL, sem instalar nada.
+- **Status:** ✅
+
 
 ---
 
