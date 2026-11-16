@@ -38,6 +38,34 @@ beforeEach(() => {
 });
 afterEach(() => uninstall());
 
+describe('Gamepad API indisponível ou bloqueada', () => {
+  it('com `getGamepads` lançando (Permissions Policy), o poll não lança e o teclado segue valendo', () => {
+    Object.defineProperty(navigator, 'getGamepads', {
+      value: () => {
+        throw new DOMException('Gamepad API bloqueada', 'SecurityError');
+      },
+      configurable: true,
+    });
+    uninstall = () =>
+      Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true });
+    input.setContext('OVERWORLD');
+    key('KeyD');
+    expect(poll).not.toThrow();
+    expect(input.axis('MOVE_X')).toBe(1);
+    expect(input.activeDevice).toBe('KEYBOARD');
+  });
+
+  it('sem `getGamepads` (contexto inseguro), o poll também segue', () => {
+    Object.defineProperty(navigator, 'getGamepads', { value: undefined, configurable: true });
+    uninstall = () =>
+      Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true });
+    input.setContext('OVERWORLD');
+    key('KeyA');
+    expect(poll).not.toThrow();
+    expect(input.axis('MOVE_X')).toBe(-1);
+  });
+});
+
 describe('teclado', () => {
   it('mapeia teclas para eixos e botões (REQ-INP-001)', () => {
     input.setContext('OVERWORLD');

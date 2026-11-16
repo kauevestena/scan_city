@@ -350,7 +350,13 @@ export class InputManager {
   }
 
   private readGamepads(): void {
-    const list = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    let list: ArrayLike<Gamepad | null> | null = null;
+    try {
+      list = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : null;
+    } catch {
+      // A Gamepad API lança `SecurityError` quando a Permissions Policy a bloqueia (jogo dentro de
+      // um iframe de outra origem). Sem controle, teclado e mouse seguem valendo, e o loop não morre.
+    }
     const pads = Array.from(list ?? []).filter((p): p is Gamepad => p !== null && p.connected);
 
     const down = new Set<number>();

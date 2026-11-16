@@ -8,6 +8,7 @@ import {
   backupSave,
   loadSave,
   loadSettings,
+  removeSave,
   SAVE_KEY,
   writeSave,
   writeSettings,
@@ -43,7 +44,7 @@ const bufferedStorage: PersistStorage<SaveGame> = {
   },
   removeItem: () => {
     pendingSave = null;
-    localStorage.removeItem(SAVE_KEY);
+    removeSave();
   },
 };
 

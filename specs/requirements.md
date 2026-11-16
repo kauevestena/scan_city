@@ -47,7 +47,9 @@
 - a cada transição de tela;
 - a cada 30 s de jogo não pausado;
 - ao fechar a aba (`beforeunload`).
-- *Aceite:* recarregar a página restaura dinheiro, inventário, contratos, museu e posição no mapa.
+
+Se o navegador recusar o armazenamento (`localStorage` bloqueado pelos cookies ou por um iframe, cheio ou com erro), então o sistema deve abrir um jogo novo, seguir jogando sem salvar e avisar o jogador com um toast, sem lançar exceção ([ADR-027](decisions.md)).
+- *Aceite:* recarregar a página restaura dinheiro, inventário, contratos, museu e posição no mapa; com o `localStorage` lançando exceção, o jogo abre no escritório, joga e mostra "Não foi possível salvar".
 
 **REQ-CORE-005: Migração e corrupção de save.** Quando um save com `version` menor que a atual for carregado, o sistema deve aplicar as migrações em sequência. Se o save for inválido (JSON quebrado ou schema inválido), então o sistema deve:
 - copiar o conteúdo para `scan-city-save-backup`;
@@ -81,7 +83,9 @@
 - atualizar a lista de controles;
 - consultar `navigator.getGamepads()` a cada frame;
 - exibir um toast "Controle conectado: Xbox/PlayStation/Genérico".
-- *Aceite:* teste com gamepad mockado.
+
+Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permissions Policy), então o sistema deve seguir só com teclado e mouse, sem exceção e sem parar o loop de jogo ([ADR-027](decisions.md)).
+- *Aceite:* teste com gamepad mockado; teste com `getGamepads` lançando `SecurityError`.
 
 **REQ-INP-003: Mapeamento padrão.** O sistema deve mapear os botões e eixos do layout `standard` da Gamepad API conforme [input §2](design/input.md), equivalente nos controles Xbox e PS5.
 - *Aceite:* uma tabela de testes cobre cada ação nos dois perfis.
@@ -102,8 +106,8 @@
 
 ## AUD — Áudio procedural
 
-**REQ-AUD-001: Inicialização preguiçosa.** O sistema deve criar o `AudioContext` apenas após o primeiro gesto do usuário (clique, tecla ou botão do gamepad).
-- *Aceite:* um teste verifica que nenhum `AudioContext` existe antes do gesto.
+**REQ-AUD-001: Inicialização preguiçosa.** O sistema deve criar o `AudioContext` apenas após o primeiro gesto do usuário (clique, tecla ou botão do gamepad). Se o navegador não puder criá-lo (sem dispositivo de áudio, API bloqueada), então o jogo segue mudo, sem exceção e sem tentar de novo a cada gesto ([ADR-027](decisions.md)).
+- *Aceite:* um teste verifica que nenhum `AudioContext` existe antes do gesto; outro, que um `AudioContext` que lança deixa o jogo mudo e sem erro.
 
 **REQ-AUD-002: Catálogo de efeitos.** O sistema deve sintetizar sem arquivos externos os efeitos de [audio §3](design/audio.md):
 - obturador, zumbido LiDAR, bip RTH, arrulho de Atlas, caixa registradora;

@@ -56,6 +56,7 @@ O Firefox é o único requisito sem verificação: o Playwright não instala o F
 - [ ] O som toca depois do primeiro clique (`/?debug=1&screen=SOUNDBOARD`: um botão por efeito).
 - [ ] `Tab`, `Shift+Tab`, setas, `Enter`, `Esc` e `Backspace` fazem o que a tela diz, e o foco aparece com um anel.
 - [ ] Arrastar com o mouse orbita a mesa 3D e a nuvem do relatório; a roda dá zoom; o clique no mapa de satélite coloca um ponto.
+- [ ] **Privacidade rígida** (opcional): com "Bloquear todos os cookies" (ou o armazenamento do site desligado) o jogo ainda abre no escritório e joga; na primeira troca de tela aparece "Não foi possível salvar". Sem salvar, é o esperado ([ADR-027](decisions.md)).
 - [ ] Sem lentidão que atrapalhe: o voo do C01 é fluido (o requisito é só "funcionar", sem meta de FPS; anote o número da §4 se medir).
 
 | Navegador e versão | SO | Resultado | Notas |
