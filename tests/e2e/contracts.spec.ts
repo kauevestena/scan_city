@@ -6,8 +6,8 @@ import { expect, test } from '@playwright/test';
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
  * `photos` é o total do plano de referência (`null` nos voos de LiDAR); `pec` diz se o relatório
- * mostra a classe PEC-PCD; `rift` marca as fendas, cujo setor ainda não aparece na mesa
- * holográfica (a ala do Multiverso chega com a Mesa completa, T072). O autopilot cuida de várias
+ * mostra a classe PEC-PCD. Ao enviar ao museu, a mesa abre na ala do contrato (a Real, ou o
+ * anel do Multiverso para as fendas) com o setor focado. O autopilot cuida de várias
  * surtidas: o C05 gasta 2 baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só
  * aparece ao fim).
  */
@@ -18,7 +18,6 @@ interface Entry {
   photos: number | null;
   pec: boolean;
   souvenir: string;
-  rift?: boolean;
 }
 
 const CONTRACTS: readonly Entry[] = [
@@ -77,7 +76,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 208,
     pec: true,
     souvenir: 'Anel Dourado',
-    rift: true,
   },
   {
     id: 'R02',
@@ -86,7 +84,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 105,
     pec: true,
     souvenir: 'Cano Verde em Miniatura',
-    rift: true,
   },
   {
     id: 'R08',
@@ -95,7 +92,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 330,
     pec: true,
     souvenir: 'BMX em Miniatura',
-    rift: true,
   },
   {
     id: 'R11',
@@ -104,7 +100,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 279,
     pec: false,
     souvenir: 'Pistola de Tinta Marcadora',
-    rift: true,
   },
   {
     id: 'R06',
@@ -113,7 +108,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 160,
     pec: false,
     souvenir: 'Espada-Teodolito em Miniatura',
-    rift: true,
   },
   {
     id: 'R07',
@@ -122,7 +116,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 78,
     pec: false,
     souvenir: 'Caixa de Papelão',
-    rift: true,
   },
   {
     id: 'R09',
@@ -131,7 +124,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 333,
     pec: false,
     souvenir: 'Boné Virado para Trás',
-    rift: true,
   },
   {
     id: 'R03',
@@ -140,7 +132,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 160,
     pec: false,
     souvenir: 'Esfera Laranja de 4 Estrelas',
-    rift: true,
   },
   {
     id: 'R05',
@@ -149,7 +140,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: 184,
     pec: false,
     souvenir: 'Bloco de Minério Cúbico',
-    rift: true,
   },
   {
     id: 'R04',
@@ -158,7 +148,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: null,
     pec: false,
     souvenir: 'Fragmento do Triângulo Geodésico',
-    rift: true,
   },
   {
     id: 'R10',
@@ -167,7 +156,6 @@ const CONTRACTS: readonly Entry[] = [
     photos: null,
     pec: false,
     souvenir: 'Escotilha de Exaustão (miniatura)',
-    rift: true,
   },
 ];
 
@@ -216,7 +204,7 @@ for (const c of CONTRACTS) {
 
     await page.getByTestId('send-museum').click();
     await expect(page.getByTestId('holo-screen')).toBeVisible();
-    if (!c.rift) await expect(page.getByTestId('sector-card')).toContainText(c.title);
+    await expect(page.getByTestId('sector-card')).toContainText(c.title);
     await expect(page.getByTestId('top-bar')).not.toHaveText(money ?? '');
   });
 }

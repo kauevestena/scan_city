@@ -7,6 +7,11 @@ import { quantizedColor } from '@/engines/flight/terrainRenderer';
 import type { Mat4 } from './mat4';
 import { cross, normalize, sub, type Vec3 } from './vec3';
 
+/** Passos de profundidade por unidade e faixa de índices da chave empacotada (ver `render`). */
+const DEPTH_STEPS = 4096;
+const INDEX_RANGE = 1 << 20;
+const SEAM_PX = 0.45;
+
 export interface Mesh {
   /** xyz por vértice. */
   positions: Float32Array;
@@ -25,6 +30,8 @@ export interface MeshInstance {
   /** Escala de Y em torno de `yBase` (animação de esculpir). */
   yScale?: number;
   yBase?: number;
+  /** Deslocamento vertical somado depois da escala (oscilação dos dioramas, pedestal). */
+  yOffset?: number;
   alpha?: number;
   /**
    * Fundo: desenhado antes de tudo, fora da ordenação. Polígonos grandes (o tampo da mesa)
@@ -42,12 +49,20 @@ export interface LineSet {
   width: number;
   /** Traço largo e fraco por baixo (NEON). */
   glow?: string;
+  /** Escala de Y em torno de `yBase` (animação de esculpir) e deslocamento vertical (mundo). */
+  yScale?: number;
+  yBase?: number;
+  yOffset?: number;
 }
 
 export interface PointSet {
   positions: Float32Array;
   color: string;
   size: number;
+  /** Escala de Y em torno de `yBase` (animação de esculpir) e deslocamento vertical (mundo). */
+  yScale?: number;
+  yBase?: number;
+  yOffset?: number;
 }
 
 /** Monta um mesh calculando a normal de cada quad. */
@@ -88,8 +103,10 @@ export class Soft3DRenderer {
   private sx = new Float32Array(0);
   private sy = new Float32Array(0);
   private sw = new Float32Array(0);
-  private keys = new Float32Array(0);
-  private order = new Uint32Array(0);
+  /** Chave de ordenação e índice do quad empacotados num único double (ver `render`). */
+  private packed = new Float64Array(0);
+  /** Quads de fundo, na ordem em que foram coletados. */
+  private background = new Uint32Array(0);
   private refs = new Uint32Array(0);
 
   private ensure(vertices: number, quads: number): void {
@@ -98,9 +115,9 @@ export class Soft3DRenderer {
       this.sy = new Float32Array(vertices);
       this.sw = new Float32Array(vertices);
     }
-    if (this.keys.length < quads) {
-      this.keys = new Float32Array(quads);
-      this.order = new Uint32Array(quads);
+    if (this.refs.length < quads * 2) {
+      this.packed = new Float64Array(quads);
+      this.background = new Uint32Array(quads);
       this.refs = new Uint32Array(quads * 2);
     }
   }
@@ -114,10 +131,11 @@ export class Soft3DRenderer {
     offset: number,
     yScale = 1,
     yBase = 0,
+    yOffset = 0,
   ): void {
     for (let v = 0; v < positions.length / 3; v++) {
       const x = positions[v * 3] as number;
-      const y = yBase + ((positions[v * 3 + 1] as number) - yBase) * yScale;
+      const y = yOffset + yBase + ((positions[v * 3 + 1] as number) - yBase) * yScale;
       const z = positions[v * 3 + 2] as number;
       const cx =
         (m[0] as number) * x + (m[4] as number) * y + (m[8] as number) * z + (m[12] as number);
@@ -149,12 +167,24 @@ export class Soft3DRenderer {
     this.ensure(nVerts, nQuads);
     let vOff = 0;
     let count = 0;
+    let sorted = 0;
+    let bgCount = 0;
     let culled = 0;
     const offsets: number[] = [];
     meshes.forEach((inst, mi) => {
       offsets.push(vOff);
-      this.project(m, inst.mesh.positions, width, height, vOff, inst.yScale ?? 1, inst.yBase ?? 0);
+      this.project(
+        m,
+        inst.mesh.positions,
+        width,
+        height,
+        vOff,
+        inst.yScale ?? 1,
+        inst.yBase ?? 0,
+        inst.yOffset ?? 0,
+      );
       const quads = inst.mesh.quads;
+      const isBackground = inst.background === true;
       for (let q = 0; q < quads.length / 4; q++) {
         const a = vOff + (quads[q * 4] as number);
         const b = vOff + (quads[q * 4 + 1] as number);
@@ -178,29 +208,42 @@ export class Soft3DRenderer {
           culled++;
           continue;
         }
-        this.keys[count] = (wa + wb + wc + wd) / 4;
         this.refs[count * 2] = mi;
         this.refs[count * 2 + 1] = q;
-        this.order[count] = count;
+        if (isBackground) {
+          this.background[bgCount++] = count;
+        } else {
+          // Chave (profundidade média, em 1/4096) · 2²⁰ + índice: um `Float64Array.sort()` nativo,
+          // sem comparador, ordena pela profundidade e desempata pela ordem de coleta.
+          const depth = Math.round(((wa + wb + wc + wd) / 4) * DEPTH_STEPS);
+          this.packed[sorted++] = depth * INDEX_RANGE + count;
+        }
         count++;
       }
       vOff += inst.mesh.positions.length / 3;
     });
 
-    const keys = this.keys;
-    const refs = this.refs;
-    const isBackground = (idx: number) => meshes[refs[idx * 2] as number]?.background === true;
-    // Fundo primeiro (na ordem dada); o resto, de longe para perto.
-    const order = this.order.subarray(0, count).sort((i, j) => {
-      const bi = isBackground(i);
-      const bj = isBackground(j);
-      if (bi !== bj) return bi ? -1 : 1;
-      return (keys[j] as number) - (keys[i] as number);
-    });
+    // Fundo primeiro (na ordem dada); o resto, de longe para perto (o fim do vetor ordenado).
+    const far = this.packed.subarray(0, sorted).sort();
     const ambient = opts.ambient ?? 0.45;
     const diffuse = opts.diffuse ?? 0.6;
     const [lx, ly, lz] = opts.light;
-    for (const idx of order) {
+    // Quads seguidos da mesma cor (opacos) viram um só caminho, com um `fill` e um `stroke`: a
+    // ordem de pintura não muda e o custo por quad cai (o terreno é cheio de runs de uma cor).
+    ctx.lineWidth = 0.6;
+    let runColor = '';
+    let runOpen = false;
+    let currentAlpha = -1;
+    const flush = () => {
+      if (!runOpen) return;
+      ctx.fill();
+      runOpen = false;
+    };
+    for (let n = 0; n < count; n++) {
+      const idx =
+        n < bgCount
+          ? (this.background[n] as number)
+          : (far[sorted - 1 - (n - bgCount)] as number) % INDEX_RANGE;
       const mi = this.refs[idx * 2] as number;
       const q = this.refs[idx * 2 + 1] as number;
       const inst = meshes[mi] as MeshInstance;
@@ -208,15 +251,15 @@ export class Soft3DRenderer {
       const off = offsets[mi] as number;
       let k = 1;
       if (!mesh.unlit) {
-        const n = mesh.normals;
+        const nm = mesh.normals;
         k =
           ambient +
           diffuse *
             Math.max(
               0,
-              (n[q * 3] as number) * lx +
-                (n[q * 3 + 1] as number) * ly +
-                (n[q * 3 + 2] as number) * lz,
+              (nm[q * 3] as number) * lx +
+                (nm[q * 3 + 1] as number) * ly +
+                (nm[q * 3 + 2] as number) * lz,
             );
       }
       const color = quantizedColor(
@@ -224,25 +267,61 @@ export class Soft3DRenderer {
         (mesh.colors[q * 3 + 1] as number) * k,
         (mesh.colors[q * 3 + 2] as number) * k,
       );
-      ctx.globalAlpha = inst.alpha ?? 1;
-      ctx.fillStyle = color;
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      for (let c = 0; c < 4; c++) {
-        const v = off + (mesh.quads[q * 4 + c] as number);
-        if (c === 0) ctx.moveTo(this.sx[v] as number, this.sy[v] as number);
-        else ctx.lineTo(this.sx[v] as number, this.sy[v] as number);
+      const alpha = inst.alpha ?? 1;
+      // Translúcido: cada quad mistura sozinho (num caminho único, a sobreposição não somaria).
+      const solo = alpha !== 1;
+      if (solo || alpha !== currentAlpha) flush();
+      if (alpha !== currentAlpha) {
+        ctx.globalAlpha = alpha;
+        currentAlpha = alpha;
       }
+      if (solo || color !== runColor) {
+        flush();
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        runColor = color;
+      }
+      if (!runOpen) {
+        ctx.beginPath();
+        runOpen = true;
+      }
+      const v0 = off + (mesh.quads[q * 4] as number);
+      const v1 = off + (mesh.quads[q * 4 + 1] as number);
+      const v2 = off + (mesh.quads[q * 4 + 2] as number);
+      const v3 = off + (mesh.quads[q * 4 + 3] as number);
+      const x0 = this.sx[v0] as number;
+      const y0 = this.sy[v0] as number;
+      const x1 = this.sx[v1] as number;
+      const y1 = this.sy[v1] as number;
+      const x2 = this.sx[v2] as number;
+      const y2 = this.sy[v2] as number;
+      const x3 = this.sx[v3] as number;
+      const y3 = this.sy[v3] as number;
+      const mx = (x0 + x1 + x2 + x3) / 4;
+      const my = (y0 + y1 + y2 + y3) / 4;
+      const grow = (v: number, c: number) => v + (v > c ? SEAM_PX : -SEAM_PX);
+      ctx.moveTo(grow(x0, mx), grow(y0, my));
+      ctx.lineTo(grow(x1, mx), grow(y1, my));
+      ctx.lineTo(grow(x2, mx), grow(y2, my));
+      ctx.lineTo(grow(x3, mx), grow(y3, my));
       ctx.closePath();
-      ctx.fill();
-      ctx.lineWidth = 0.6;
-      ctx.stroke();
+      if (solo) flush();
     }
+    flush();
     ctx.globalAlpha = 1;
 
     for (const set of lines) {
       this.ensure(set.positions.length / 3, 0);
-      this.project(m, set.positions, width, height, 0);
+      this.project(
+        m,
+        set.positions,
+        width,
+        height,
+        0,
+        set.yScale ?? 1,
+        set.yBase ?? 0,
+        set.yOffset ?? 0,
+      );
       const strokes: Array<[string, number]> = set.glow
         ? [
             [set.glow, set.width * 3],
@@ -265,7 +344,16 @@ export class Soft3DRenderer {
     }
     for (const set of points) {
       this.ensure(set.positions.length / 3, 0);
-      this.project(m, set.positions, width, height, 0);
+      this.project(
+        m,
+        set.positions,
+        width,
+        height,
+        0,
+        set.yScale ?? 1,
+        set.yBase ?? 0,
+        set.yOffset ?? 0,
+      );
       ctx.fillStyle = set.color;
       for (let v = 0; v < set.positions.length / 3; v++) {
         if ((this.sw[v] as number) <= 1e-6) continue;

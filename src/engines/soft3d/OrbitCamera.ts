@@ -34,8 +34,15 @@ export class OrbitCamera {
   private readonly proj = mat4();
   readonly viewProj = mat4();
 
-  constructor(readonly radius: number) {
+  constructor(public radius: number) {
     this.distance = 1.8 * radius;
+  }
+
+  /** Muda o raio da mesa (troca de dimensão): a distância acompanha, presa aos novos limites. */
+  setRadius(radius: number): void {
+    this.distance = clamp((this.distance / this.radius) * radius, 0.5 * radius, 3 * radius);
+    this.radius = radius;
+    this.fly = null;
   }
 
   get minDistance(): number {

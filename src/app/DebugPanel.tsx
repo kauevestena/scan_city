@@ -1,11 +1,16 @@
-import { ArrowRight, Banknote, Bug, Inbox, MapPin } from 'lucide-react';
+import { ArrowRight, Banknote, Bug, Inbox, Landmark, MapPin } from 'lucide-react';
 import { formatBRL } from '@/lib/format';
 import { transitionsFrom } from '@/state/machine';
 import { useGameStore } from '@/state/store';
 import { Button, Panel } from '@/ui';
 import { activeDimension, markerViews } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
-import { createDebugMission, DEBUG_CONTRACT_ID, prepareDebugTransition } from './debugFixtures';
+import {
+  createDebugMission,
+  DEBUG_CONTRACT_ID,
+  mapAllSectors,
+  prepareDebugTransition,
+} from './debugFixtures';
 import { getDebugFlags } from './debugFlags';
 
 const GRANT_CENTS = 1_000_000;
@@ -89,6 +94,14 @@ export function DebugPanel() {
               }
             >
               Gerar missão pendente
+            </Button>
+            <Button
+              size="sm"
+              icon={Landmark}
+              data-testid="debug-map-all"
+              onClick={() => mapAllSectors()}
+            >
+              Mapear tudo (museu)
             </Button>
           </div>
         </div>

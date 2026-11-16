@@ -201,6 +201,46 @@ function debugSector(contractId: string): MuseumSector {
 type Store = Pick<typeof useGameStore, 'getState' | 'setState'>;
 
 /**
+ * "Mapear tudo" (F9, T072): um setor do museu para cada contrato do catálogo (os 7 reais e as 11
+ * fendas), com a melhor missão (as linhas do plano de referência) e a aeronave dela, para as
+ * miniaturas da mesa. Só o museu muda: status e bloqueios dos contratos ficam como estão.
+ */
+export function mapAllSectors(store: Store = useGameStore): void {
+  const reference = new Map(
+    CONTRACTS.map((c) => [
+      c.id,
+      {
+        lines: createDebugMission(c.id, false).plan.lines.map((l) => ({
+          start: l.start,
+          end: l.end,
+        })),
+        aircraftId: c.referencePlan.aircraftId,
+      },
+    ]),
+  );
+  store.setState((s) => ({
+    museum: {
+      ...s.museum,
+      sectors: {
+        ...Object.fromEntries(CONTRACTS.map((c) => [c.id, debugSector(c.id)])),
+        ...s.museum.sectors,
+      },
+    },
+    contracts: Object.fromEntries(
+      Object.entries(s.contracts).map(([id, progress]) => {
+        const ref = reference.get(id);
+        return [
+          id,
+          ref
+            ? { ...progress, bestMissionLines: ref.lines, bestAircraftId: ref.aircraftId }
+            : progress,
+        ];
+      }),
+    ),
+  }));
+}
+
+/**
  * Contrato do catálogo nos fluxos de depuração: libera o contrato bloqueado e dá ao jogador o
  * equipamento do plano de referência (aeronave, câmera, lente e, numa aeronave RTK, o kit GNSS
  * que vem no combo), como se ele o tivesse comprado. Assim o relatório avalia o que o plano
