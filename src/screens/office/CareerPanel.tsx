@@ -185,7 +185,7 @@ function ProfileTab() {
 export function CareerPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<CareerTab>('SKILLS');
-  useFocusNavigation(ref, { onBack: onClose });
+  useFocusNavigation(ref, { onBack: onClose, autoFocus: true });
   return (
     <div
       ref={ref}

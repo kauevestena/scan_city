@@ -1499,17 +1499,49 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Status:** ✅
 
 ### T078 — Auditoria de gamepad e acessibilidade
-- **Fase:** F9 · **Depende de:** T077 · **REQs:** REQ-INP-006, REQ-NFR-007, REQ-NFR-009
+- **Fase:** F9 · **Depende de:** T077 · **REQs:** REQ-INP-006, REQ-NFR-007, REQ-NFR-009 (*parc.*: Firefox)
 - **Passos:**
   1. Percorrer **todas** as telas, modais e painéis só com o gamepad (real ou emulado) e só com o teclado.
   2. Corrigir as lacunas de foco.
   3. Verificar o contraste.
   4. Smoke test no Firefox (manual) documentado.
 - **Aceite:**
-  - [ ] Checklist de auditoria (anexada a esta tarefa ao concluir) com 100 % dos itens OK.
-  - [ ] E2E `keyboard-only.spec.ts` cobrindo o slice inteiro sem mouse.
+  - [x] Checklist de auditoria (abaixo) com 100 % dos itens automatizáveis OK; o smoke manual no Firefox está documentado, e a execução dele ficou na [OQ-014](open-questions.md).
+  - [x] E2E `keyboard-only.spec.ts` cobrindo o slice inteiro sem mouse.
 - **Verificação:** `npx playwright test tests/e2e/keyboard-only.spec.ts` · manual: checklist de auditoria.
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `tests/e2e/{keyboard-only,keyboard,focus-audit,gamepad,contrast}.spec.ts|ts`; ~ `src/input/{actions,bindings,glyphs,useFocusNavigation}.ts`, `src/ui/{Modal,Tabs,index}.ts(x)`, `src/screens/{common/TutorialHint,holo/HoloTableScreen,field/{FieldSetupScreen,SatelliteView},processing/{ProcessingResultsScreen,PointCloudView,Pipeline},office/*Panel,office/OfficeScreen,flight/{SurveyFlightScreen,FlightHud}}.tsx`, `src/engines/flight/{FlightEngine,hudPublisher}.ts`, `src/data/strings.ts`, `specs/{design/input,features/holo-table,decisions,open-questions}.md` e os testes de cada um
+- **Notas de implementação:**
+  - **Método** ([ADR-025](decisions.md)). Em vez de só percorrer as telas à mão, a auditoria virou **testes**: `focus-audit.spec.ts` varre, em 23 estados (as 7 telas, 6 painéis do escritório, o menu de pausa com configurações e controles, a confirmação de novo jogo, a intro, o briefing, o abandono do campo e do voo, o final da campanha, as quatro abas do campo e do laboratório, o painel de alas e as cinco abas do relatório), todo controle visível e confere **nome acessível, alcance por Tab (ou por grupo de abas) e anel de foco** com o teclado como última entrada; nos modais, também que o **foco entra, não escapa por Tab/Shift+Tab** e o Esc fecha devolvendo o foco. Um teste confere que a própria varredura acusa um botão sem nome, outro fora do Tab e outro sem anel. `gamepad.spec.ts` (6) emula um Xbox por `navigator.getGamepads` e `keyboard-only.spec.ts` (5) joga sem tocar em elemento nenhum (o foco só chega por `Tab`, setas e `Enter`).
+  - **Lacunas achadas e corrigidas.** (1) **Mapa, mesa e voo**: o `Tab` e as setas são do jogo, então os botões do DOM dessas telas (a dica "Entendi", o painel de alas) eram inalcançáveis: nova ação `DISMISS_HINT` (`H`; `View` no controle) dispensa a dica do tutorial; e todo botão do DOM tem uma tecla equivalente (documentado em [input §2](design/input.md)). (2) **Painel de alas da mesa** não tinha caminho de teclado (as setas orbitavam, o `Tab` troca a dimensão): novo contexto `HOLO_PANEL`, em que as setas, o Enter e o Esc navegam pelo painel, o `Tab` fica livre, `W`/`RB` fecham e o analógico direito orbita; o foco entra no painel ao abrir. (3) **Abas**: as setas mudavam a seleção, mas o foco ficava na aba antiga (o `Tabs` agora leva o foco junto e aceita Home/End); o campo e o relatório não tinham **Q/E nem LB/RB** (o D-pad não alcança as abas inativas), e o relatório não tinha navegação por foco nenhuma (D-pad morto): passaram a ter. (4) **Painéis do escritório** (6) não recebiam o foco ao abrir: `useFocusNavigation({ autoFocus })` o leva para dentro e o devolve ao fechar, sem atropelar quem já focou outro controle. (5) **Final da campanha**: o foco ia para a Porta de trás do modal (o Enter a ativaria): a sala não rouba mais o foco enquanto o final está aberto, e o **`Modal` ganhou uma guarda** (só a do modal do topo): se o foco sai do modal, volta; empilhados, vale o de cima. (6) **Só mouse**: o mapa de satélite do campo (colocar, mover, apagar pontos) e a nuvem 3D do relatório. O mapa ganhou uma **mira no centro** com o foco: WASD move a vista debaixo dela, `+` e `−` dão zoom (também pelos gatilhos), Enter ou Espaço coloca o ponto da ferramenta (G, C ou X) ou, com a Borracha, remove o que estiver sob a mira (mover um ponto é apagar e pôr de novo); a nuvem recebe o foco e as setas orbitam. (7) Separadores `·` e textos de apoio em `text-slate-500` (3,9 : 1) subiram para `slate-400`; os ícones de estado inativo (estrela, coração vazio, cadeado) ficam em `slate-500`, que passa de 3 : 1.
+  - **Reduzir flashes** (REQ-NFR-007, E2E de aceite). O HUD publica `flashes` (quantos flashes do obturador foram mostrados) e a tela do voo o expõe em `data-flashes`: com a opção desligada o autopilot passa de 6 flashes em 6 fotos; com ela ligada, as fotos saem e `data-flashes` fica em `0` (`flight.spec.ts`; no motor, dois testes com `reduceFlashes` verdadeiro e falso). Também respeitam a opção, já desde antes: tremor de tela, faíscas das criaturas elétricas, piscada da invulnerabilidade e, agora, as transições de fenda (T076).
+  - **Contraste AA** (`contrast.spec.ts`, 13 testes). A varredura percorre o DOM de cada tela, calcula a cor do texto e a do fundo efetivo (fundos translúcidos se compõem até um opaco; as cores `oklch` do Tailwind v4 são convertidas por um canvas) e exige 4,5 : 1 (3 : 1 para texto grande). Cobre as 6 telas, o menu de pausa, os 6 painéis do escritório, a garagem, a carreira e as relíquias aba por aba, o campo e o laboratório aba por aba, o painel de alas com setores mapeados e em névoa, o briefing, a dica do tutorial, a esteira e as 5 abas do relatório. Isenções, pela WCAG: texto em canvas (os tokens são conferidos à parte em `tokens.test.ts`: todos os de texto passam de 4,5 : 1 sobre os dois fundos), controles desabilitados e marcas (os emblemas, `role="img"`). Achados: os separadores `·` do HUD do voo (4,2 : 1) e a nota da regra prática do laboratório (3,9 : 1), mais os mesmos tons em outros 6 lugares.
+  - **Navegadores** (REQ-NFR-009). O E2E roda no Chromium. O **Firefox não está disponível neste ambiente** (o `playwright install firefox` é bloqueado pela rede), então o smoke manual ficou **documentado e não executado**: abrir `npm run build && npm run preview`, no Firefox atual percorrer o roteiro do `keyboard-only.spec.ts` (escritório → mapa → campo → voo → processamento → museu), conferir o som (um clique libera o áudio), o controle (a Gamepad API existe no Firefox, mas o mapeamento `standard` depende do sistema) e o foco visível. Nenhuma API só do Chromium é usada (varredura do código; o `roundRect` do canvas existe no Firefox desde a 112). Por isso o REQ-NFR-009 continua ☐ na matriz até alguém rodar o roteiro ([OQ-014](open-questions.md)).
+  - **Fora do escopo desta tarefa.** O `Tab` continua sendo `TOGGLE_DIMENSION` e `TOGGLE_SENSOR` no mapa, na mesa e no voo (a spec); a seleção de setor da mesa fica com o painel de alas (teclado) e o analógico (controle); o RTH do voo é um aviso do HUD confirmado por `R`/`B`, não um modal (não pede foco).
+  - **Testes.** Unitários: `bindings` (`DISMISS_HINT`, sem tecla repetida em dois botões do mesmo contexto, `HOLO_PANEL`), `TutorialHint` (H, pausa), `HoloTableScreen` (painel de alas só com o teclado: 4), `useFocusNavigation` (`autoFocus`: 4), `Modal` (guarda de foco, empilhados), `OfficeScreen` (foco do final), `Tabs` (foco junto com a seleção, Home/End), campo (Q/E, LB/RB, mira: 5), relatório (abas e D-pad), nuvem 3D (setas), `FlightEngine` (`flashes`), `tokens` (contraste). E2E: `keyboard-only` (5: o slice inteiro, a mesa, o campo com a mira, a nuvem e o voo manual), `focus-audit` (24 testes: os 23 estados e a conferência da própria varredura), `gamepad` (6), `contrast` (13) e 2 em `flight.spec.ts`.
+  - **Checklist de auditoria.** ✅ = coberto por teste que passa; todos os itens abaixo estão ✅, exceto o último.
+
+| Superfície | Só teclado | Só controle | Foco visível | Esc / B | Teste |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| Escritório (9 hotspots) | ✅ Tab, setas, Enter | ✅ D-pad, A | ✅ | pausa (M) | `office`, `focus-audit`, `gamepad` |
+| Painéis do escritório (6) | ✅ foco entra ao abrir | ✅ D-pad, A | ✅ | ✅ devolve o foco | `focus-audit` |
+| Mapa-múndi | ✅ setas, Enter, `Tab`, `V`, `H` | ✅ analógico, A, Y, LB, View | n/a (cada botão tem tecla) | ✅ pausa | `keyboard-only`, `gamepad`, `focus-audit` |
+| Briefing | ✅ Tab preso | ✅ D-pad, A | ✅ | ✅ | `focus-audit`, `gamepad` |
+| Pausa, configurações, controles | ✅ | ✅ Menu, D-pad, A, B | ✅ | ✅ | `focus-audit`, `gamepad` |
+| Confirmações (novo jogo, abandonar campo e voo) | ✅ foco preso | ✅ D-pad, B | ✅ | ✅ devolve o foco | `focus-audit`, `gamepad` |
+| Intro e final da campanha | ✅ foco preso | — (sem escolha) | ✅ | não dispensáveis | `focus-audit` |
+| Planejamento de campo (4 abas) | ✅ Tab, Q/E, mira no mapa | ✅ LB/RB, D-pad, B | ✅ | ✅ volta uma aba | `keyboard-only`, `focus-audit`, `gamepad` |
+| Voo | ✅ Espaço, WASD, Q/E, `Tab`, R, T | ✅ botões do controle | n/a (HUD sem controles) | ✅ pausa | `keyboard-only` (manual), `flight` |
+| Pós-voo | ✅ foco entra, Tab, Enter | ✅ D-pad, A | ✅ | — | `keyboard-only` |
+| Processamento e relatório (5 abas) | ✅ Tab, Q/E, setas | ✅ LB/RB, D-pad | ✅ | — | `keyboard-only`, `focus-audit` |
+| Nuvem 3D do relatório | ✅ foco + setas orbitam, `+` `−` | ✅ analógico dir., gatilhos | ✅ | — | `keyboard-only`, `ProductViewer` |
+| Mesa holográfica | ✅ `W`, `1 2 3`, `Tab`, painel por setas | ✅ RB, D-pad, A, analógicos | ✅ | ✅ Esc volta ao escritório | `keyboard-only`, `gamepad`, `focus-audit` |
+| Painel de alas | ✅ foco entra, setas, Enter | ✅ D-pad, A, RB fecha | ✅ | ✅ | `keyboard-only`, `gamepad`, `focus-audit` |
+| Laboratório (4 abas, sliders) | ✅ Tab, Q/E, setas | ✅ LB/RB, D-pad | ✅ | ✅ | `lab`, `focus-audit` |
+| Dica do tutorial | ✅ `H` | ✅ `View` | ✅ | — | `keyboard-only`, `gamepad`, `TutorialHint` |
+| Contraste AA dos textos do DOM | — | — | — | — | `contrast` (13), `tokens` |
+| Reduzir flashes e tremores | — | — | — | — | `flight` (flash), `FlightEngine` |
+| Firefox atual (smoke manual) | roteiro escrito | roteiro escrito | — | — | **pendente**: [OQ-014](open-questions.md) |
+- **Status:** ✅
 
 ### T079 — Regressão final e release
 - **Fase:** F9 · **Depende de:** T078 · **REQs:** REQ-NFR-005, REQ-NFR-006, REQ-CNT-006, REQ-NFR-002, REQ-NFR-003
@@ -1549,7 +1581,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
 | REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
-| REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ☐ |
+| REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
@@ -1663,6 +1695,6 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ☐ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ☐ |
-| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ☐ |
+| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078 | ☐ |

@@ -45,6 +45,7 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     qEstPct: 60,
     photos: 43,
     photosPlanned: 96,
+    flashes: 43,
     blurPx: 0.2,
     alerts: [makeAlert('OVERLAP', 58), makeAlert('OUT_OF_LANE')],
     minimap: {

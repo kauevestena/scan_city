@@ -96,7 +96,7 @@ function EmblemEditor() {
               if (validInitials(next)) commit({ initials: next });
             }}
           />
-          <span id="initials-hint" className={valid ? 'text-slate-500' : 'text-rose-400'}>
+          <span id="initials-hint" className={valid ? 'text-slate-400' : 'text-rose-400'}>
             {V.initialsHint}
           </span>
         </label>

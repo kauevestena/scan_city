@@ -164,3 +164,67 @@ describe('useFocusNavigation', () => {
     expect(slider).toHaveAttribute('aria-valuenow', '199');
   });
 });
+
+describe('useFocusNavigation — autoFocus (painéis abertos pelo jogador)', () => {
+  function Panel({ active = true, initialFocus }: { active?: boolean; initialFocus?: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useFocusNavigation(ref, { autoFocus: true, active, ...(initialFocus ? { initialFocus } : {}) });
+    return (
+      <div ref={ref} data-testid="panel">
+        <Button data-focus-id="a">Primeiro</Button>
+        <Button data-focus-id="b">Segundo</Button>
+      </div>
+    );
+  }
+  function Host({ initialFocus }: { initialFocus?: string }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <Button onClick={() => setOpen((o) => !o)}>Abrir</Button>
+        <Button>Outro</Button>
+        {open && <Panel {...(initialFocus ? { initialFocus } : {})} />}
+      </>
+    );
+  }
+
+  it('o foco entra no painel ao montar (no primeiro controle ou no initialFocus) e volta ao fechar', () => {
+    render(<Host initialFocus="b" />);
+    const opener = btn('Abrir');
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByTestId('panel')).toBeInTheDocument();
+    expect(btn('Segundo')).toHaveFocus();
+    // Fecha com o foco dentro: ele volta a quem abriu.
+    fireEvent.click(opener);
+    expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('sem initialFocus, o primeiro controle ganha o foco', () => {
+    render(<Host />);
+    btn('Abrir').focus();
+    fireEvent.click(btn('Abrir'));
+    expect(btn('Primeiro')).toHaveFocus();
+  });
+
+  it('quem fecha o painel e já focou outro controle não é atropelado', () => {
+    render(<Host />);
+    const opener = btn('Abrir');
+    opener.focus();
+    fireEvent.click(opener);
+    expect(btn('Primeiro')).toHaveFocus();
+    btn('Outro').focus();
+    fireEvent.click(opener);
+    expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
+    expect(btn('Outro')).toHaveFocus();
+  });
+
+  it('desativar e reativar a camada (uma confirmação que fecha) não rouba o foco de volta', () => {
+    const { rerender } = render(<Panel active />);
+    expect(btn('Primeiro')).toHaveFocus();
+    btn('Segundo').focus();
+    rerender(<Panel active={false} />);
+    rerender(<Panel active />);
+    expect(btn('Segundo')).toHaveFocus();
+  });
+});

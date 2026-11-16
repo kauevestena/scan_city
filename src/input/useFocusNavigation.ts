@@ -17,6 +17,12 @@ export interface FocusNavigationOptions {
   context?: InputContext;
   /** Permite desligar a camada sem desmontar (ex.: modal fechado). */
   active?: boolean;
+  /**
+   * Ao montar, o foco entra no container (no `initialFocus` ou no primeiro controle) e, ao
+   * desmontar, volta a quem o tinha: para painéis que o jogador abre e fecha (REQ-NFR-007). Só
+   * vale na montagem, então reativar a camada (uma confirmação que fecha) não rouba o foco.
+   */
+  autoFocus?: boolean;
 }
 
 export const FOCUSABLE_SELECTOR =
@@ -60,7 +66,25 @@ export function useFocusNavigation(
     optionsRef.current = options;
   });
 
-  const { modal = false, context = 'UI', active = true } = options;
+  const { modal = false, context = 'UI', active = true, autoFocus = false } = options;
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const container = containerRef.current;
+    if (container && !container.contains(document.activeElement)) {
+      focusInitial(container, optionsRef.current.initialFocus);
+    }
+    return () => {
+      // Só devolve o foco se ele ficou solto (o painel saiu do DOM com o foco dentro): quem fecha o
+      // painel e já focou outro controle, como o hotspot da sala, não é atropelado.
+      const active = document.activeElement;
+      const loose = active === null || active === document.body || container?.contains(active);
+      if (loose && previous && previous !== document.body && previous.isConnected) {
+        previous.focus();
+      }
+    };
+  }, [autoFocus, containerRef]);
 
   useEffect(() => {
     if (!active) return;

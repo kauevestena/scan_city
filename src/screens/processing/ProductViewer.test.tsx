@@ -309,6 +309,51 @@ describe('Nuvem / TIN (T042)', () => {
     expect(camera.distance).toBeCloseTo(camera.maxDistance, 6);
   }, 30_000);
 
+  it('teclado: o quadro da nuvem recebe o foco e as setas orbitam, sem mover o foco (REQ-NFR-007)', async () => {
+    const { mission, report } = fixture();
+    const cameraRef: { current: OrbitCamera | null } = { current: null };
+    render(
+      <ProductViewer
+        report={report}
+        mission={lidarOf(mission, 90)}
+        sliceBudgetMs={50}
+        cloudCameraRef={cameraRef}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Nuvem / TIN' }));
+    await cloudReady();
+    await act(async () => undefined);
+    const canvas = screen.getByTestId('cloud-canvas');
+    const camera = cameraRef.current as OrbitCamera;
+    expect(canvas).toHaveAttribute('tabindex', '0');
+    canvas.focus();
+    expect(canvas).toHaveFocus();
+    const { yaw, pitch } = camera;
+    const left = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      canvas.dispatchEvent(left);
+    });
+    expect(left.defaultPrevented).toBe(true);
+    expect(camera.yaw).toBeGreaterThan(yaw);
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+    expect(camera.yaw).toBeLessThan(yaw);
+    fireEvent.keyDown(canvas, { key: 'ArrowUp' });
+    expect(camera.pitch).not.toBe(pitch);
+    // O foco continua no quadro: a seta não foi para a navegação de foco da tela.
+    expect(canvas).toHaveFocus();
+    // Outras teclas passam sem ser consumidas.
+    const other = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    act(() => {
+      canvas.dispatchEvent(other);
+    });
+    expect(other.defaultPrevented).toBe(false);
+  }, 30_000);
+
   it('gamepad: o analógico direito orbita e os gatilhos dão zoom', async () => {
     const { mission, report } = fixture();
     const cameraRef: { current: OrbitCamera | null } = { current: null };

@@ -305,6 +305,31 @@ describe('FlightEngine — colisão, dano e queda (§5.11)', () => {
   });
 });
 
+describe('FlightEngine — Reduzir flashes e tremores (REQ-NFR-007)', () => {
+  /** Voa até haver disparos e devolve o último HUD publicado. */
+  function flyUntilShots(reduce: boolean) {
+    const { e, huds, shutters } = engine({ reduceFlashes: () => reduce });
+    for (let t = 0; t < 40 && shutters() < 6; t += 1 / 60) e.update(1 / 60);
+    // `flashes` vai no snapshot; o `render` o publica (sem superfície, só o HUD).
+    e.render();
+    return { hud: huds.at(-1), shutters: shutters() };
+  }
+
+  it('por padrão cada disparo acende o flash do obturador', () => {
+    const { hud, shutters } = flyUntilShots(false);
+    expect(shutters).toBeGreaterThanOrEqual(6);
+    expect(hud?.photos).toBeGreaterThanOrEqual(6);
+    expect(hud?.flashes).toBe(shutters);
+  });
+
+  it('com a opção ligada os disparos seguem, mas nenhum flash é mostrado', () => {
+    const { hud, shutters } = flyUntilShots(true);
+    expect(shutters).toBeGreaterThanOrEqual(6);
+    expect(hud?.photos).toBeGreaterThanOrEqual(6);
+    expect(hud?.flashes).toBe(0);
+  });
+});
+
 describe('FlightEngine — contador de tempo por etapa (survey-flight §5.18)', () => {
   afterEach(() => setPerfEnabled(false));
 

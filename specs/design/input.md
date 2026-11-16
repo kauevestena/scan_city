@@ -14,6 +14,7 @@ export type ButtonAction =
   | 'INTERACT' | 'FIRE' | 'TOGGLE_SENSOR' | 'RTH' | 'PAUSE'
   | 'TOGGLE_DIMENSION' | 'CYCLE_VEHICLE' | 'TIME_WARP'
   | 'UI_UP' | 'UI_DOWN' | 'UI_LEFT' | 'UI_RIGHT' | 'UI_CONFIRM' | 'UI_BACK' | 'UI_TAB_PREV' | 'UI_TAB_NEXT'
+  | 'DISMISS_HINT'
   | 'MODE_1' | 'MODE_2' | 'MODE_3';
 ```
 
@@ -49,6 +50,7 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 | `UI_CONFIRM` | Confirmar | `Enter` / `Espaço` / clique | `A` (0) | `✕` (0) |
 | `UI_BACK` | Voltar / fechar | `Esc` / `Backspace` | `B` (1) | `○` (1) |
 | `UI_TAB_PREV/NEXT` | Trocar aba | `Q` / `E` (só em painéis com abas) | `LB`/`RB` (4/5) | `L1`/`R1` |
+| `DISMISS_HINT` **[ADIÇÃO]** | Dispensar a dica do tutorial (mapa, campo, voo, relatório) | `H` | `View` (8) | `Create` (8) |
 
 **Resolução de conflitos por contexto.** O `InputManager` recebe um `InputContext` ativo:
 - `'OVERWORLD'`
@@ -56,7 +58,10 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 - `'FIELD'`
 - `'UI'` (há um modal/painel aberto)
 - `'HOLO'`
+- `'HOLO_PANEL'` (a mesa com o painel de alas aberto: as setas navegam pelos botões do painel em vez de orbitar, o `Tab` fica livre para o foco nativo, `W`/`RB` fecham e o analógico direito segue orbitando)
 - `'MINIGAME'`
+
+Nos contextos de jogo (`OVERWORLD`, `FLIGHT`, `HOLO`) o `Tab` e as setas têm outro uso, então os botões do DOM dessas telas (a barra superior, as abas, "Entendi" da dica) não são alcançáveis pelo foco: cada um tem uma tecla equivalente (`M`/`Esc` pausa, `Tab` troca a dimensão, `1 2 3` os modos, `W` o painel de alas, `H` a dica). Nada fica só no mouse (REQ-NFR-007).
 
 Cada contexto lê somente as ações pertinentes. Por exemplo, no voo `Tab` é `TOGGLE_SENSOR`, e no mapa `Tab` é `TOGGLE_DIMENSION`. Quando um modal está aberto, o contexto vira `'UI'`, e o jogo por trás não recebe input.
 

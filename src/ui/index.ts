@@ -10,7 +10,7 @@ export { Panel, type PanelProps, type PanelVariant } from './Panel';
 export { ProgressBar, type ProgressBarProps } from './ProgressBar';
 export { Slider, type SliderProps } from './Slider';
 export { Stat, type StatProps } from './Stat';
-export { Tabs, type TabDef, type TabsProps } from './Tabs';
+export { nextEnabledTab, Tabs, type TabDef, type TabsProps } from './Tabs';
 export { Toast, type ToastData, type ToastProps, type ToastType } from './Toast';
 export { ToastHost } from './ToastHost';
 export { Tooltip, type TooltipProps } from './Tooltip';

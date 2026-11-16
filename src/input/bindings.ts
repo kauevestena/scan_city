@@ -68,6 +68,13 @@ const UI_COMMON: ContextBindings['buttons'] = {
   UI_TAB_NEXT: { keys: ['KeyE'], pad: [PAD.RB] },
 };
 
+/**
+ * Dispensa a dica do tutorial na tela: o `Tab` (dimensão, sensor) e as setas (movimento, órbita)
+ * estão ocupados nas telas de jogo, então o botão "Entendi" não seria alcançável pelo foco.
+ * `Select`/`View` do gamepad não tem outro uso.
+ */
+const HINT: ButtonBinding = { keys: ['KeyH'], pad: [PAD.VIEW] };
+
 /** `Esc` pausa direto nos contextos sem `UI_BACK`; nos demais, pausa se nada voltar. */
 const PAUSE_DIRECT: ButtonBinding = { keys: ['Escape', 'KeyM'], pad: [PAD.MENU] };
 const PAUSE_M: ButtonBinding = { keys: ['KeyM'], pad: [PAD.MENU] };
@@ -79,6 +86,7 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       INTERACT: { keys: ['Space', ...ENTER], pad: [PAD.A] },
       TOGGLE_DIMENSION: { keys: ['Tab'], pad: [PAD.Y] },
       CYCLE_VEHICLE: { keys: ['KeyV'], pad: [PAD.LB] },
+      DISMISS_HINT: HINT,
       PAUSE: PAUSE_DIRECT,
     },
     axes: MOVE_WASD_ARROWS,
@@ -89,6 +97,7 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       TOGGLE_SENSOR: { keys: ['Digit1', 'Digit2', 'Tab'], pad: [PAD.Y] },
       RTH: { keys: ['KeyR'], pad: [PAD.B] },
       TIME_WARP: { keys: ['KeyT'], pad: [PAD.RB] },
+      DISMISS_HINT: HINT,
       PAUSE: PAUSE_DIRECT,
     },
     axes: {
@@ -106,6 +115,7 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       UI_LEFT: { keys: ['ArrowLeft'], pad: [PAD.DPAD_LEFT] },
       UI_RIGHT: { keys: ['ArrowRight'], pad: [PAD.DPAD_RIGHT] },
       ...UI_COMMON,
+      DISMISS_HINT: HINT,
       PAUSE: PAUSE_M,
     },
     axes: {
@@ -115,7 +125,7 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
     },
   },
   UI: {
-    buttons: { ...UI_NAV, ...UI_COMMON, PAUSE: PAUSE_M },
+    buttons: { ...UI_NAV, ...UI_COMMON, DISMISS_HINT: HINT, PAUSE: PAUSE_M },
     // Só o analógico direito e o zoom: o visualizador de nuvem 3D do relatório orbita com eles.
     // As setas seguem na navegação de foco.
     axes: {
@@ -145,6 +155,23 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
     axes: {
       LOOK_X: { keysNeg: ['ArrowLeft'], keysPos: ['ArrowRight'], stick: { axis: 2 } },
       LOOK_Y: { keysNeg: ['ArrowDown'], keysPos: ['ArrowUp'], stick: { axis: 3, invert: true } },
+      ZOOM,
+    },
+  },
+  // Painel de alas aberto (holo-table §5.6): as setas, o Enter e o Esc navegam pelos botões dele
+  // (o teclado não tinha outro caminho até o painel), `W` e `RB` fecham, e o analógico direito
+  // segue orbitando. Sem `Tab` ligado, ele anda pelo foco nativo.
+  HOLO_PANEL: {
+    buttons: {
+      ...UI_NAV,
+      UI_CONFIRM: { keys: [...ENTER, 'Space'], pad: [PAD.A] },
+      UI_BACK: { keys: ['Escape', 'Backspace'], pad: [PAD.B] },
+      UI_TAB_NEXT: { keys: ['KeyW'], pad: [PAD.RB] },
+      PAUSE: PAUSE_M,
+    },
+    axes: {
+      LOOK_X: { stick: { axis: 2 } },
+      LOOK_Y: { stick: { axis: 3, invert: true } },
       ZOOM,
     },
   },

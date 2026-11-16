@@ -19,12 +19,14 @@ export type ButtonAction =
   | 'UI_BACK'
   | 'UI_TAB_PREV'
   | 'UI_TAB_NEXT'
+  | 'DISMISS_HINT'
   | 'MODE_1'
   | 'MODE_2'
   | 'MODE_3';
 
 /** Contexto ativo: cada um lê só as ações pertinentes (input §2). */
-export type InputContext = 'OVERWORLD' | 'FLIGHT' | 'FIELD' | 'UI' | 'HOLO' | 'MINIGAME';
+export type InputContext =
+  'OVERWORLD' | 'FLIGHT' | 'FIELD' | 'UI' | 'HOLO' | 'HOLO_PANEL' | 'MINIGAME';
 
 export type PadFamily = 'XBOX' | 'PLAYSTATION' | 'GENERIC';
 export type InputDevice = 'KEYBOARD' | PadFamily;

@@ -98,10 +98,11 @@ buildHoloScene(dimension, museumState, contracts, quality): HoloScene
 | :--- | :--- | :--- |
 | Orbitar | arrastar com o botão esquerdo / setas | analógico direito (`LOOK_X/Y`) |
 | Zoom | roda / `+` `−` | `RT`/`LT` (`ZOOM`) |
-| Selecionar setor | clique | analógico esquerdo move o foco entre setores (navegação espacial pelos centros projetados) + `INTERACT` |
+| Selecionar setor | clique, ou pelo painel de alas (teclado) | analógico esquerdo move o foco entre setores (navegação espacial pelos centros projetados) + `INTERACT` |
 | Modo | `1` `2` `3` | `FIRE` (cíclico) |
 | Dimensão | `Tab` | `Y`/`△` (`TOGGLE_DIMENSION`) |
-| Painel de alas | `W` | `UI_TAB_NEXT` |
+| Painel de alas | `W` (abre e fecha; o foco entra no painel) | `UI_TAB_NEXT` (`RB`) |
+| No painel aberto | setas (ou `Tab`) andam pelos botões, `Enter` foca o setor ou ativa a ★ | D-pad e analógico esq. andam, `A` ativa |
 | Voltar | `Esc`/`Backspace` | `B`/`○` |
 
 ### 5.7 Performance

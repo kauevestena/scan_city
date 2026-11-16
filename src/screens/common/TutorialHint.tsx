@@ -1,7 +1,9 @@
 import { Lightbulb, X } from 'lucide-react';
+import { useEffect } from 'react';
 import { STRINGS } from '@/data/strings';
 import type { ButtonAction } from '@/input/actions';
 import { InputGlyph } from '@/input/InputGlyph';
+import { InputManager } from '@/input/InputManager';
 import { useGameStore } from '@/state/store';
 import { cx, FOCUS_RING } from '@/ui';
 
@@ -16,12 +18,23 @@ export function completeTutorialStep(step: number): void {
 
 /**
  * Dica do tutorial dirigido (contracts-real, C00): contextual e não bloqueante. Aparece
- * só na etapa corrente; "Entendi" (ou a ação da dica) avança `flags.tutorialStep`.
+ * só na etapa corrente; "Entendi" (ou a ação da dica) avança `flags.tutorialStep`. O botão
+ * não é alcançável pelo foco nas telas de jogo (o `Tab` e as setas têm outro uso), então a
+ * ação `DISMISS_HINT` (`H`, `View` no gamepad) faz o mesmo (REQ-NFR-007, REQ-INP-006).
  */
 export function TutorialHint({ step, className }: { step: number; className?: string }) {
   const current = useGameStore((s) => s.flags.tutorialStep);
   const hint = T.steps[step];
-  if (current !== step || !hint) return null;
+  const shown = current === step && hint !== undefined;
+  useEffect(() => {
+    if (!shown) return;
+    return InputManager.get().onAction((e) => {
+      if (e.action === 'DISMISS_HINT' && !useGameStore.getState().session.paused) {
+        completeTutorialStep(step);
+      }
+    });
+  }, [shown, step]);
+  if (!shown || !hint) return null;
   return (
     <div
       role="note"
@@ -39,6 +52,7 @@ export function TutorialHint({ step, className }: { step: number; className?: st
         {hint.action && <InputGlyph action={hint.action as ButtonAction} />}
         {hint.after}
       </span>
+      <InputGlyph action="DISMISS_HINT" />
       <button
         type="button"
         aria-label={T.dismiss}

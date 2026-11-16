@@ -88,6 +88,7 @@ const GLYPH_ACTIONS: Array<[GlyphAction, string]> = [
   ['UI_CONFIRM', 'Confirmar'],
   ['UI_BACK', 'Voltar'],
   ['UI_TAB_NEXT', 'Próxima aba'],
+  ['DISMISS_HINT', 'Dispensar a dica'],
 ];
 
 type DeviceChoice = 'AUTO' | Exclude<InputDevice, 'GENERIC'>;

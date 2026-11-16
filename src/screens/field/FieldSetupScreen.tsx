@@ -6,7 +6,7 @@ import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { useInputContext } from '@/input/useInputContext';
 import { useGameStore } from '@/state/store';
 import type { MissionData } from '@/types';
-import { Button, ConfirmDialog, Tabs, type TabDef } from '@/ui';
+import { Button, ConfirmDialog, nextEnabledTab, Tabs, type TabDef } from '@/ui';
 import { CalibrationTab } from './CalibrationTab';
 import { ChecklistTab } from './ChecklistTab';
 import { movePoint, placePoint, removePoint, type PointTool } from './fieldModel';
@@ -75,6 +75,9 @@ function FieldSetup({ mission }: { mission: MissionData }) {
       if (i <= 0) setConfirmCancel(true);
       else setTab(TAB_ORDER[i - 1] as FieldTab);
     },
+    // Q/E e LB/RB trocam de aba (como no laboratório): o D-pad não alcança as abas inativas.
+    onTabPrev: () => setTab((t) => nextEnabledTab(TABS, t, -1)),
+    onTabNext: () => setTab((t) => nextEnabledTab(TABS, t, 1)),
   });
 
   useEffect(() => {

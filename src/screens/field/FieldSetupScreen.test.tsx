@@ -5,6 +5,9 @@ import { isAccessible } from '@/domain/accessibility';
 import { buildFlightPlan, validatePlan } from '@/domain/flightPlanner';
 import { estimateFromPlan, predictRequirements } from '@/domain/requirements';
 import { initialView, toScreen, viewTransform } from '@/engines/field/satellite';
+import { PAD } from '@/input/gamepad';
+import { InputManager } from '@/input/InputManager';
+import { createPad, installGamepads, setButton, XBOX_ID } from '@/test/fakeGamepad';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import type { GroundPoint } from '@/types';
@@ -62,6 +65,95 @@ function clickMap(u: number, v: number) {
 }
 
 const tab = (name: RegExp) => fireEvent.click(screen.getByRole('tab', { name }));
+
+describe('FieldSetupScreen — abas pelo teclado e pelo gamepad (REQ-INP-006)', () => {
+  const selected = () =>
+    screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')?.textContent;
+
+  it('Q e E trocam de aba, com volta nas pontas', () => {
+    render(<FieldSetupScreen />);
+    expect(selected()).toBe('1 · Pontos de apoio');
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    expect(selected()).toBe('2 · Plano de voo');
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    expect(selected()).toBe('4 · Checklist');
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    expect(selected()).toBe('1 · Pontos de apoio');
+    fireEvent.keyDown(window, { code: 'KeyQ', key: 'q' });
+    expect(selected()).toBe('4 · Checklist');
+  });
+
+  it('LB e RB do controle fazem o mesmo (o D-pad não alcança as abas inativas)', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      render(<FieldSetupScreen />);
+      setButton(pad, PAD.RB, true);
+      act(() => InputManager.get().poll(1));
+      expect(selected()).toBe('2 · Plano de voo');
+      setButton(pad, PAD.RB, false);
+      act(() => InputManager.get().poll(2));
+      setButton(pad, PAD.LB, true);
+      act(() => InputManager.get().poll(3));
+      expect(selected()).toBe('1 · Pontos de apoio');
+    } finally {
+      uninstall();
+    }
+  });
+});
+
+describe('FieldSetupScreen — mira do teclado no mapa (REQ-NFR-007)', () => {
+  const enter = (canvas: HTMLElement) => fireEvent.keyDown(canvas, { key: 'Enter', code: 'Enter' });
+
+  it('com o foco no mapa aparece a mira, e o Enter coloca um ponto no centro; a Borracha o remove', () => {
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    expect(canvas).toHaveAttribute('tabindex', '0');
+    expect(screen.queryByTestId('satellite-crosshair')).not.toBeInTheDocument();
+    act(() => canvas.focus());
+    expect(screen.getByTestId('satellite-crosshair')).toBeInTheDocument();
+    enter(canvas);
+    const placed = get().mission.active?.groundPoints ?? [];
+    expect(placed.map((p) => p.id)).toEqual(['GCP-01']);
+    // O ponto fica no centro da vista (a vista inicial é centrada na AOI).
+    expect(placed[0]?.u).toBeCloseTo(C00.aoi.lengthM / 2, 3);
+    expect(placed[0]?.v).toBeCloseTo(C00.aoi.widthM / 2, 3);
+    // Outro Enter sobre o mesmo ponto não coloca um segundo por cima.
+    enter(canvas);
+    expect(get().mission.active?.groundPoints).toHaveLength(1);
+    // A Borracha (tecla X) com o ponto sob a mira o remove.
+    fireEvent.keyDown(window, { code: 'KeyX', key: 'x' });
+    enter(canvas);
+    expect(get().mission.active?.groundPoints).toEqual([]);
+    act(() => canvas.blur());
+    expect(screen.queryByTestId('satellite-crosshair')).not.toBeInTheDocument();
+  });
+
+  it('o CP (tecla C) entra pelo teclado como CP, e o Espaço faz o mesmo que o Enter', () => {
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    act(() => canvas.focus());
+    fireEvent.keyDown(window, { code: 'KeyC', key: 'c' });
+    fireEvent.keyDown(canvas, { key: ' ', code: 'Space' });
+    expect(get().mission.active?.groundPoints.map((p) => p.id)).toEqual(['CP-01']);
+  });
+
+  it('a mira recusada pelo terreno mostra o motivo, como o clique', () => {
+    // Um ponto fora do alcance a pé: leva a vista para longe da via com o teclado de pan.
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    act(() => canvas.focus());
+    // O limite do instrumento (8 pontos) vale também pelo teclado.
+    act(() =>
+      get().setGroundPoints(
+        Array.from({ length: 8 }, (_, i) => gcp(`GCP-0${i + 1}`, 20 + i * 25, 100)),
+      ),
+    );
+    enter(canvas);
+    expect(screen.getByTestId('satellite-refusal')).toHaveTextContent('Limite do instrumento (8)');
+  });
+});
 
 describe('FieldSetupScreen', () => {
   it('cabeçalho com o contrato e as quatro abas', () => {

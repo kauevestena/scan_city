@@ -13,7 +13,7 @@ const T = STRINGS.office.team;
 export function StaffPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const staff = useGameStore((s) => s.staff);
-  useFocusNavigation(ref, { onBack: onClose });
+  useFocusNavigation(ref, { onBack: onClose, autoFocus: true });
   return (
     <div
       ref={ref}

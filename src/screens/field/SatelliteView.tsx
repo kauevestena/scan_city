@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
   type WheelEvent,
@@ -59,6 +60,9 @@ interface Drag {
 /**
  * Canvas satélite (field-setup §5.1): clique coloca, arrasta move ou remove (Borracha);
  * a roda faz zoom (1×–4×) e o botão direito ou do meio arrasta a vista; WASD também move.
+ * Sem mouse (REQ-NFR-007): com o foco no canvas aparece uma mira no centro; WASD move a vista
+ * debaixo dela, `+` e `−` dão zoom e Enter (ou Espaço) coloca o ponto da ferramenta na mira ou,
+ * com a Borracha, remove o ponto que estiver sob ela.
  */
 export function SatelliteView(props: SatelliteViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,6 +73,7 @@ export function SatelliteView(props: SatelliteViewProps) {
   const previewRef = useRef<{ id: string; u: number; v: number } | null>(null);
   const flashRef = useRef<{ u: number; v: number; until: number } | null>(null);
   const [cursor, setCursor] = useState<{ u: number; v: number; z: number } | null>(null);
+  const [focused, setFocused] = useState(false);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const hoverRef = useRef<string | null>(null);
   const [refusal, setRefusal] = useState<{ text: string; x: number; y: number; id: number } | null>(
@@ -103,6 +108,19 @@ export function SatelliteView(props: SatelliteViewProps) {
             surface.height,
             -dx * PAN_SPEED_PX * dt,
             -dy * PAN_SPEED_PX * dt,
+          );
+        }
+        // `+`/`−` e os gatilhos dão zoom em torno do centro da tela (a mira do teclado).
+        const zoom = input.axis('ZOOM');
+        if (zoom !== 0) {
+          viewRef.current = zoomAt(
+            viewRef.current,
+            renderer.terrain,
+            surface.width,
+            surface.height,
+            surface.width / 2,
+            surface.height / 2,
+            2 ** (zoom * dt),
           );
         }
       },
@@ -210,6 +228,28 @@ export function SatelliteView(props: SatelliteViewProps) {
     if (reason) refuse(reason, x, y, u, v);
   };
 
+  /** Enter/Espaço com o foco no mapa: age na mira, no centro da tela (REQ-NFR-007). */
+  const onKeyDown = (e: KeyboardEvent<HTMLCanvasElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!surface || e.repeat) return;
+    const x = surface.width / 2;
+    const y = surface.height / 2;
+    const { u, v } = world(x, y);
+    const picked = pickPoint(props.points, u, v, pickRadius());
+    const tool = props.tool;
+    if (tool === 'ERASER') {
+      if (picked) props.onRemove(picked.id);
+      return;
+    }
+    if (picked) return;
+    if (tool === 'GCP' || tool === 'CP') {
+      const reason = props.onPlace(u, v);
+      if (reason) refuse(reason, x, y, u, v);
+    }
+  };
+
   const onWheel = (e: WheelEvent<HTMLCanvasElement>) => {
     if (!surface) return;
     const { x, y } = local(e);
@@ -228,10 +268,15 @@ export function SatelliteView(props: SatelliteViewProps) {
     <div className="relative h-full w-full overflow-hidden" data-testid="satellite-host">
       <canvas
         ref={canvasRef}
-        className="block h-full w-full touch-none"
+        className="block h-full w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset"
         data-testid="satellite-canvas"
-        role="img"
+        role="application"
+        tabIndex={0}
         aria-label={STRINGS.field.canvasLabel}
+        aria-description={STRINGS.field.canvasHint}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -239,6 +284,14 @@ export function SatelliteView(props: SatelliteViewProps) {
         onWheel={onWheel}
         onContextMenu={(e: MouseEvent) => e.preventDefault()}
       />
+      {focused && (
+        <span
+          aria-hidden
+          title={STRINGS.field.crosshair}
+          data-testid="satellite-crosshair"
+          className="pointer-events-none absolute top-1/2 left-1/2 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300 before:absolute before:top-1/2 before:left-1/2 before:h-px before:w-5 before:-translate-x-1/2 before:bg-amber-300 after:absolute after:top-1/2 after:left-1/2 after:h-5 after:w-px after:-translate-y-1/2 after:bg-amber-300"
+        />
+      )}
       {cursor && (
         <span
           className="pointer-events-none absolute bottom-2 right-2 rounded bg-slate-950/80 px-2 py-1 font-mono text-xs text-slate-200 tabular-nums"

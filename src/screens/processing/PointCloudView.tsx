@@ -15,6 +15,8 @@ const C = STRINGS.processing.products.cloud;
 const ORBIT_SPEED = 1.5;
 const DRAG_YAW = 0.008;
 const DRAG_PITCH = 0.006;
+/** Passo de cada tecla de seta (rad): com o foco no quadro, as setas orbitam (repetem ao segurar). */
+export const KEY_ORBIT_STEP = 0.12;
 
 export interface PointCloudViewProps {
   scene: CloudScene;
@@ -72,11 +74,24 @@ export function PointCloudView({ scene, tin, cameraRef }: PointCloudViewProps) {
     >
       <canvas
         ref={canvasRef}
-        role="img"
+        role="application"
+        tabIndex={0}
         aria-label={C.canvasLabel}
+        aria-description={C.controls}
         title={C.controls}
-        className="block h-full w-full cursor-grab touch-none active:cursor-grabbing"
+        className="block h-full w-full cursor-grab touch-none outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 active:cursor-grabbing"
         data-testid="cloud-canvas"
+        onKeyDown={(e) => {
+          // Teclado: as setas orbitam e o foco não anda (a navegação de foco fica de fora).
+          const step = KEY_ORBIT_STEP;
+          if (e.key === 'ArrowLeft') camera.orbit(step, 0);
+          else if (e.key === 'ArrowRight') camera.orbit(-step, 0);
+          else if (e.key === 'ArrowUp') camera.orbit(0, step * 0.6);
+          else if (e.key === 'ArrowDown') camera.orbit(0, -step * 0.6);
+          else return;
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture?.(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY };

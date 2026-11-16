@@ -41,12 +41,25 @@ export function Tabs<T extends string = string>({
   ariaLabel,
 }: TabsProps<T>) {
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const enabled = tabs.filter((t) => !t.disabled);
+    let next: T | undefined;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      next = nextEnabledTab(tabs, value, e.key === 'ArrowRight' ? 1 : -1);
+    } else if (e.key === 'Home') {
+      next = enabled[0]?.id;
+    } else if (e.key === 'End') {
+      next = enabled[enabled.length - 1]?.id;
+    } else {
+      return;
+    }
     e.preventDefault();
     // As setas trocam de aba aqui; não devem mover o foco pela navegação espacial.
     e.stopPropagation();
-    const next = nextEnabledTab(tabs, value, e.key === 'ArrowRight' ? 1 : -1);
-    if (next !== value) onChange(next);
+    if (next === undefined || next === value) return;
+    onChange(next);
+    // O foco acompanha a aba escolhida (padrão ARIA de abas com tabindex móvel): o leitor de tela
+    // e a próxima seta partem dela. Focar um botão com tabindex -1 por código é permitido.
+    e.currentTarget.querySelector<HTMLElement>(`[data-tab-id="${next}"]`)?.focus();
   };
 
   return (
@@ -64,6 +77,7 @@ export function Tabs<T extends string = string>({
             type="button"
             role="tab"
             data-focusable
+            data-tab-id={tab.id}
             aria-selected={selected}
             aria-disabled={tab.disabled || undefined}
             tabIndex={selected ? 0 : -1}

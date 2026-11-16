@@ -68,7 +68,7 @@ export function CanopyPanel({ value, onChange, onUseEquipment, equipmentNote }: 
           value={value.speedMs}
           onChange={(speedMs) => set({ speedMs })}
         />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {L.fov}: {LIDAR_FOV_DEG}°
         </p>
         <Button size="sm" icon={Wrench} onClick={onUseEquipment} data-testid="use-equipment">
@@ -116,7 +116,7 @@ export function CanopyPanel({ value, onChange, onUseEquipment, equipmentNote }: 
             tone={readings.reliable ? 'ok' : 'danger'}
           />
         </dl>
-        <p className="text-xs text-slate-500">{L.verdictNote}</p>
+        <p className="text-xs text-slate-400">{L.verdictNote}</p>
       </Section>
       <Section title={STRINGS.lab.formulas}>
         <Formulas lines={formulas} />
