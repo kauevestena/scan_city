@@ -48,7 +48,7 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<string | null>(
     () => slots.find((s) => s.state === 'OBTAINED')?.souvenir.id ?? null,
   );
-  useFocusNavigation(ref, { onBack: onClose });
+  useFocusNavigation(ref, { onBack: onClose, autoFocus: true });
   const current = slots.find((s) => s.souvenir.id === selected);
 
   return (
@@ -89,7 +89,7 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
                 className={cx(
                   'flex aspect-square w-full items-center justify-center rounded-md border bg-slate-800',
                   selected === slot.souvenir.id ? 'border-cyan-400' : 'border-slate-700',
-                  slot.state !== 'OBTAINED' && 'text-slate-600',
+                  slot.state !== 'OBTAINED' && 'text-slate-500',
                   FOCUS_RING,
                 )}
                 // A cor do souvenir vem dos dados (catalog §11).

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Camera } from 'lucide-react';
 import { Button } from './Button';
@@ -98,6 +99,32 @@ describe('Tabs', () => {
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(nextEnabledTab(tabs, 'c', 1)).toBe('a');
     expect(nextEnabledTab([{ id: 'x', label: 'X' }], 'x', 1)).toBe('x');
+  });
+
+  it('a seta leva o foco junto com a seleção (abas com tabindex móvel); Home e End vão às pontas', () => {
+    function Controlled() {
+      const [value, setValue] = useState<'a' | 'b' | 'c'>('a');
+      return <Tabs tabs={tabs} value={value} onChange={setValue} />;
+    }
+    render(<Controlled />);
+    const [a, , c] = [
+      screen.getByRole('tab', { name: 'Pontos' }),
+      screen.getByRole('tab', { name: 'Calibração' }),
+      screen.getByRole('tab', { name: 'Plano' }),
+    ];
+    a.focus();
+    fireEvent.keyDown(a, { key: 'ArrowRight' });
+    // A desabilitada é pulada: a seleção e o foco vão à "Plano".
+    expect(c).toHaveAttribute('aria-selected', 'true');
+    expect(c).toHaveFocus();
+    expect(c).toHaveAttribute('tabindex', '0');
+    expect(a).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(c, { key: 'Home' });
+    expect(a).toHaveAttribute('aria-selected', 'true');
+    expect(a).toHaveFocus();
+    fireEvent.keyDown(a, { key: 'End' });
+    expect(c).toHaveAttribute('aria-selected', 'true');
+    expect(c).toHaveFocus();
   });
 
   it('aba desabilitada mostra o motivo no hover', () => {

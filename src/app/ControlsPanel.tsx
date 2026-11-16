@@ -23,6 +23,7 @@ const ROWS: readonly Row[] = [
   'UI_BACK',
   'UI_TAB_PREV',
   'UI_TAB_NEXT',
+  'DISMISS_HINT',
   'PAUSE',
 ];
 

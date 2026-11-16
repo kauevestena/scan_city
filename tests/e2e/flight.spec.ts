@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 test('C00 com autopilot (×8): voa as linhas, mostra o pós-voo e leva os dados ao mapa', async ({
   page,
@@ -60,4 +60,46 @@ test('o painel F9 mostra o tempo por etapa do voo, dentro do orçamento de 12 ms
   // Fechar o painel desliga a medição: o contador para de ganhar quadros.
   await page.keyboard.press('F9');
   await expect(perf).toBeHidden();
+});
+
+/** Fotos tiradas até agora, pelo HUD ("38 / 190"). */
+const photos = async (page: Page) =>
+  Number(
+    ((await page.getByTestId('hud-photos').textContent()) ?? '').split('/')[0]?.replace(/\D/g, ''),
+  );
+
+test.describe('flash do obturador (REQ-NFR-007)', () => {
+  const OPEN = '/?debug=1&skipIntro=1&autopilot=1&screen=SURVEY_FLIGHT';
+
+  test('por padrão o obturador pisca a cada foto', async ({ page }) => {
+    await page.goto(OPEN);
+    await expect(page.getByTestId('survey-flight-screen')).toBeVisible();
+    await expect.poll(() => photos(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(6);
+    const flashes = Number(
+      await page.getByTestId('survey-flight-screen').getAttribute('data-flashes'),
+    );
+    expect(flashes).toBeGreaterThanOrEqual(6);
+  });
+
+  test('com "Reduzir flashes e tremores" ligado, as fotos saem e nenhum flash é desenhado', async ({
+    page,
+  }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'scan-city-settings',
+        JSON.stringify({
+          masterVolume: 0.8,
+          sfxVolume: 1,
+          muted: true,
+          quality: 'LOW',
+          reduceFlashes: true,
+          showFps: false,
+        }),
+      ),
+    );
+    await page.goto(OPEN);
+    await expect(page.getByTestId('survey-flight-screen')).toBeVisible();
+    await expect.poll(() => photos(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(6);
+    await expect(page.getByTestId('survey-flight-screen')).toHaveAttribute('data-flashes', '0');
+  });
 });

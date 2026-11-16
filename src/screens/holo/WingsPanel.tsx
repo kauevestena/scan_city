@@ -84,7 +84,7 @@ export const WingsPanel = forwardRef<HTMLElement, WingsPanelProps>(function Wing
                       <li
                         key={contract.id}
                         data-testid={`wing-row-${contract.id}`}
-                        className="pl-1 text-slate-500"
+                        className="pl-1 text-slate-400"
                       >
                         <span aria-hidden>░ </span>
                         {H.sectorNotMapped(title)}

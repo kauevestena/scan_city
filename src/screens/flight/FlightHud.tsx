@@ -107,9 +107,9 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-4 rounded-lg bg-slate-950/70 px-3 py-2 text-sm text-slate-200">
           <span>{snap.aircraftName}</span>
-          <span className="text-slate-500">·</span>
+          <span className="text-slate-400">·</span>
           <span>{snap.sensorName}</span>
-          <span className="text-slate-500">·</span>
+          <span className="text-slate-400">·</span>
           <span data-testid="hud-rtk">{T.rtk(snap.rtk)}</span>
           {snap.timeScale > 1 && (
             <span className="font-mono font-bold text-amber-400" data-testid="hud-warp">
@@ -159,7 +159,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
                 key={i}
                 size={14}
                 aria-hidden
-                className={i < snap.hull ? 'fill-rose-500 text-rose-500' : 'text-slate-600'}
+                className={i < snap.hull ? 'fill-rose-500 text-rose-500' : 'text-slate-500'}
               />
             ))}
           </span>

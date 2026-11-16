@@ -16,7 +16,7 @@ import {
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
 import { InputManager, type ActionEvent } from '@/input/InputManager';
-import { useFocusNavigation } from '@/input/useFocusNavigation';
+import { FOCUSABLE_SELECTOR, useFocusNavigation } from '@/input/useFocusNavigation';
 import { useInputContext } from '@/input/useInputContext';
 import { useGameStore } from '@/state/store';
 import type { Contract } from '@/types';
@@ -205,15 +205,23 @@ export function HoloTableScreen() {
     [engine],
   );
 
-  // Com o painel aberto, o analógico e o D-pad navegam pelos botões dele.
+  // Com o painel aberto, as setas e o D-pad (e o analógico esquerdo) navegam pelos botões dele,
+  // e `W`/`RB` o fecham: o contexto `HOLO_PANEL` liga as setas à navegação em vez da órbita.
   const mainRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   useFocusNavigation(panelRef, {
-    context: 'HOLO',
+    context: 'HOLO_PANEL',
     active: panelOpen,
     onBack: goBack,
     onTabNext: () => setPanelOpen(false),
   });
+  // Ao abrir o painel, o foco entra nele (o primeiro botão): o teclado segue dali com as setas.
+  useEffect(() => {
+    if (!panelOpen) return;
+    panelRef.current
+      ?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+      ?.focus({ preventScroll: true });
+  }, [panelOpen]);
 
   useGameLoop(() => {
     if (!surface) return null;

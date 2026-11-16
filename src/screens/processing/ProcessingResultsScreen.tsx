@@ -9,12 +9,13 @@ import { CATALOG, getAircraft, getHardware, getVehicle } from '@/data/catalog';
 import { drawPipelineStage, cloudSamples, type PipelineAssets } from '@/engines/raster/pipelineViz';
 import { rasterCanvas } from '@/engines/raster/orthoPreview';
 import { useGameLoop } from '@/engines/useGameLoop';
+import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { useInputContext } from '@/input/useInputContext';
 import { formatNumber } from '@/lib/format';
 import { hashString, mulberry32 } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
 import type { MissionData, QualityReport } from '@/types';
-import { Button, Tabs, type TabDef } from '@/ui';
+import { Button, nextEnabledTab, Tabs, type TabDef } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { evaluateForState, findMissionToProcess } from './evaluate';
 import { Pipeline } from './Pipeline';
@@ -110,7 +111,18 @@ function Processing({ job }: { job: Job }) {
     report.critical &&
     !mission.isReplay;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const done = progress.done;
+  const changeTab = (next: ReportTab) => {
+    setTab(next);
+    if (next === 'COVERAGE') completeTutorialStep(4);
+  };
+  // Com o relatório na tela, as setas e o D-pad andam pelos controles e Q/E (LB/RB) trocam de aba.
+  useFocusNavigation(mainRef, {
+    active: done,
+    onTabPrev: () => changeTab(nextEnabledTab(TABS, tab, -1)),
+    onTabNext: () => changeTab(nextEnabledTab(TABS, tab, 1)),
+  });
 
   const assets = useMemo<PipelineAssets>(() => {
     const terrain = createTerrain(contract);
@@ -200,6 +212,7 @@ function Processing({ job }: { job: Job }) {
 
   return (
     <main
+      ref={mainRef}
       data-testid="processing-screen"
       aria-label={P.title}
       className="flex h-full w-full flex-col overflow-y-auto bg-slate-950 p-6"
@@ -211,15 +224,7 @@ function Processing({ job }: { job: Job }) {
       {!done && <Pipeline progress={progress} stages={stages} canvasRef={canvasRef} />}
       {done && (
         <div className="flex flex-col gap-5" data-testid="report">
-          <Tabs
-            tabs={TABS}
-            value={tab}
-            onChange={(next) => {
-              setTab(next);
-              if (next === 'COVERAGE') completeTutorialStep(4);
-            }}
-            ariaLabel={P.title}
-          />
+          <Tabs tabs={TABS} value={tab} onChange={changeTab} ariaLabel={P.title} />
           <TutorialHint step={4} className="w-fit" />
           {tab === 'SUMMARY' && <ReportSummary report={report} mission={mission} />}
           {tab === 'ACCURACY' && <ReportAccuracy report={report} mission={mission} />}

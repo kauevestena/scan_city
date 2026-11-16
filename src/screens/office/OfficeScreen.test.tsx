@@ -197,6 +197,19 @@ describe('OfficeScreen — final da campanha (REQ-CNT-008)', () => {
     ).toHaveLength(1);
   });
 
+  it('o foco fica no modal do final (a Porta de trás não o rouba) e vai à Porta quando ele termina', () => {
+    get().setFlags({ introSeen: true });
+    finishCampaign();
+    render(<OfficeScreen />);
+    const dialog = screen.getByRole('dialog', { name: 'Museu da Terra' });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).not.toHaveFocus();
+    const next = within(dialog).getByRole('button', { name: 'Avançar diálogo' });
+    for (let i = 0; i < FINALE_LINES.length * 2; i++) fireEvent.click(next);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Porta — sair para o mapa' })).toHaveFocus();
+  });
+
   it('com 6 dos 7 contratos reais, ou com as fendas só, não há final', () => {
     get().setFlags({ introSeen: true });
     finishCampaign(REAL.filter((id) => id !== 'C03'));

@@ -89,6 +89,8 @@ export interface FlightHudSnapshot {
   qEstPct: number;
   photos: number;
   photosPlanned: number;
+  /** Flashes do obturador mostrados na tela (0 com "Reduzir flashes e tremores", REQ-NFR-007). */
+  flashes: number;
   blurPx: number;
   lidarDensity?: number;
   groundDensity?: number;

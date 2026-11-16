@@ -100,9 +100,10 @@ export function OfficeScreen() {
 
   useFocusNavigation(areaRef, { active: introSeen && panel === null && !finale });
 
-  // Ao entrar: avisa missões pendentes e foca a Porta (ou a Workstation, se houver fila).
+  // Ao entrar: avisa missões pendentes e foca a Porta (ou a Workstation, se houver fila). Com o
+  // final aberto, o foco é do modal (a Porta de trás ativaria com o Enter); ele vem depois.
   useEffect(() => {
-    if (!introSeen) return;
+    if (!introSeen || finale) return;
     const pending = useGameStore.getState().mission.pending.length;
     if (pending > 0) {
       useGameStore
@@ -111,7 +112,7 @@ export function OfficeScreen() {
     }
     const target = pending > 0 ? 'WORKSTATION' : 'DOOR';
     areaRef.current?.querySelector<HTMLElement>(`[data-hotspot="${target}"]`)?.focus();
-  }, [introSeen]);
+  }, [introSeen, finale]);
 
   useEffect(() => {
     if (!doorHint) return;

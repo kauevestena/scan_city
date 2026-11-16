@@ -260,6 +260,8 @@ export class FlightEngine implements Simulation {
   readonly completedLines = new Set<number>();
   private footprints: FootprintFx[] = [];
   private flashUntil = -1;
+  /** Flashes do obturador já mostrados (o HUD o publica para o teste de acessibilidade). */
+  private flashes = 0;
   private crossWind = 0;
   private headWind = 0;
   private readonly windNoise = valueNoise2D(0x51d);
@@ -430,7 +432,10 @@ export class FlightEngine implements Simulation {
           : base,
       bornS: this.sortieT,
     });
-    if (!this.opts.reduceFlashes()) this.flashUntil = this.sortieT + FLASH_S;
+    if (!this.opts.reduceFlashes()) {
+      this.flashUntil = this.sortieT + FLASH_S;
+      this.flashes++;
+    }
     this.opts.onShutter?.();
   }
 
@@ -985,6 +990,7 @@ export class FlightEngine implements Simulation {
       qEstPct: plan.params.sideOverlapPct,
       photos: this.opts.shotOffset + this.shots.length,
       photosPlanned: plan.stats.totalPhotos,
+      flashes: this.flashes,
       blurPx: this.lastBlur,
       alerts: this.alerts(),
       minimap: {

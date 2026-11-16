@@ -149,7 +149,7 @@ export function OpticsPanel({ value, onChange, onUseEquipment, equipmentNote }: 
             testId="reading-scale"
           />
         </dl>
-        <p className="text-xs text-slate-500">{L.scaleNote}</p>
+        <p className="text-xs text-slate-400">{L.scaleNote}</p>
       </Section>
       <Section title={STRINGS.lab.formulas}>
         <Formulas lines={formulas} />

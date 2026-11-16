@@ -7,7 +7,7 @@ import {
   XBOX_ID,
   type FakePad,
 } from '@/test/fakeGamepad';
-import { BINDINGS } from './bindings';
+import { BINDINGS, buttonActionsForKey, isAxisKey } from './bindings';
 import { PAD } from './gamepad';
 import {
   InputManager,
@@ -530,6 +530,53 @@ describe('tabela de bindings', () => {
     for (const ctx of Object.keys(BINDINGS) as Array<keyof typeof BINDINGS>) {
       expect(BINDINGS[ctx].buttons.PAUSE?.pad, ctx).toContain(PAD.MENU);
     }
+  });
+
+  it('as telas com dica do tutorial ligam DISMISS_HINT ao H e ao View do controle', () => {
+    for (const ctx of ['OVERWORLD', 'FLIGHT', 'FIELD', 'UI'] as const) {
+      expect(BINDINGS[ctx].buttons.DISMISS_HINT, ctx).toEqual({ keys: ['KeyH'], pad: [PAD.VIEW] });
+    }
+    // O H não é de nenhum outro botão nem eixo desses contextos.
+    for (const ctx of ['OVERWORLD', 'FLIGHT', 'FIELD', 'UI'] as const) {
+      expect(buttonActionsForKey(ctx, 'KeyH'), ctx).toEqual(['DISMISS_HINT']);
+      expect(isAxisKey(ctx, 'KeyH'), ctx).toBe(false);
+    }
+  });
+
+  it('nenhuma tecla vale duas ações de botão no mesmo contexto', () => {
+    for (const ctx of Object.keys(BINDINGS) as Array<keyof typeof BINDINGS>) {
+      const seen = new Map<string, string>();
+      for (const [action, binding] of Object.entries(BINDINGS[ctx].buttons)) {
+        for (const code of binding?.keys ?? []) {
+          expect(
+            seen.get(code),
+            `${ctx}: ${code} em ${seen.get(code)} e ${action}`,
+          ).toBeUndefined();
+          seen.set(code, action);
+        }
+      }
+    }
+  });
+
+  it('HOLO_PANEL (painel de alas aberto): setas, Enter e Esc navegam; W fecha; sem Tab nem órbita por teclado', () => {
+    const b = BINDINGS.HOLO_PANEL;
+    expect(b.buttons.UI_UP?.keys).toEqual(['ArrowUp']);
+    expect(b.buttons.UI_DOWN?.keys).toEqual(['ArrowDown']);
+    expect(b.buttons.UI_LEFT?.keys).toEqual(['ArrowLeft']);
+    expect(b.buttons.UI_RIGHT?.keys).toEqual(['ArrowRight']);
+    expect(b.buttons.UI_CONFIRM?.keys).toContain('Enter');
+    expect(b.buttons.UI_BACK?.keys).toContain('Escape');
+    expect(b.buttons.UI_TAB_NEXT).toEqual({ keys: ['KeyW'], pad: [PAD.RB] });
+    // O Tab fica livre para o foco nativo; as setas navegam, então não orbitam.
+    expect(buttonActionsForKey('HOLO_PANEL', 'Tab')).toEqual([]);
+    expect(isAxisKey('HOLO_PANEL', 'Tab')).toBe(false);
+    expect(isAxisKey('HOLO_PANEL', 'ArrowLeft')).toBe(false);
+    // O analógico direito segue orbitando e os gatilhos dão zoom.
+    expect(b.axes.LOOK_X?.stick).toEqual({ axis: 2 });
+    expect(b.axes.ZOOM?.triggerPos).toBe(PAD.RT);
+    // Na mesa, sem o painel, o Tab troca de dimensão e as setas orbitam (o contexto não mudou).
+    expect(buttonActionsForKey('HOLO', 'Tab')).toEqual(['TOGGLE_DIMENSION']);
+    expect(isAxisKey('HOLO', 'ArrowLeft')).toBe(true);
   });
 
   it('contexto UI: o analógico direito e o zoom valem (nuvem 3D do relatório); as setas não', () => {

@@ -23,7 +23,7 @@ export function WorkstationPanel({ onClose }: { onClose: () => void }) {
   const pending = useGameStore((s) => s.mission.pending);
   const hardwareId = useGameStore((s) => s.inventory.hardware);
   const staff = useGameStore((s) => s.staff);
-  useFocusNavigation(ref, { onBack: onClose, initialFocus: 'process-0' });
+  useFocusNavigation(ref, { onBack: onClose, initialFocus: 'process-0', autoFocus: true });
   const hardware =
     HARDWARE.find((h) => h.id === hardwareId) ?? (HARDWARE[0] as (typeof HARDWARE)[number]);
   const speed = processingSpeed(hardware, staff, STAFF, false);

@@ -78,7 +78,7 @@ export function ShopItemCard({
         <div className="flex items-baseline gap-2" data-testid={`price-${item.id}`}>
           <MoneyText cents={price} className="text-base" />
           {discounted && (
-            <span className="font-mono text-xs text-slate-500 line-through">
+            <span className="font-mono text-xs text-slate-400 line-through">
               {G.discount(formatBRL(item.priceBRL))}
             </span>
           )}

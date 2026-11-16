@@ -33,7 +33,7 @@ export function PerchPanel({ onClose }: { onClose: () => void }) {
   const contracts = useGameStore((s) => s.contracts);
   const inventory = useGameStore((s) => s.inventory);
   const shopPriceMod = useGameStore((s) => selectModifiers(s).shopPrice);
-  useFocusNavigation(ref, { onBack: onClose, active: pending === null });
+  useFocusNavigation(ref, { onBack: onClose, active: pending === null, autoFocus: true });
 
   // A calibração leva 2 s, com a barra avançando a cada 100 ms; ao fim, vale por 3 voos.
   const [calProgress, setCalProgress] = useState(0);

@@ -45,6 +45,54 @@ describe('Modal', () => {
     expect(opener).toHaveFocus();
   });
 
+  it('o foco não fica fora do modal: o que o leva para fora (ou para o corpo, com Tab) o traz de volta', () => {
+    render(
+      <>
+        <button type="button">Fundo</button>
+        <Harness />
+      </>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }));
+    const dialog = screen.getByRole('dialog', { name: 'Briefing' });
+    expect(screen.getByRole('button', { name: 'Recusar' })).toHaveFocus();
+    // Um controle de trás que se foca sozinho volta ao primeiro controle do modal.
+    screen.getByRole('button', { name: 'Fundo' }).focus();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole('button', { name: 'Recusar' })).toHaveFocus();
+  });
+
+  it('com modais empilhados só o do topo segura o foco; ao fechar o de cima, o de baixo volta a valer', () => {
+    function Stack() {
+      const [outer, setOuter] = useState(true);
+      const [inner, setInner] = useState(false);
+      return (
+        <>
+          <button type="button">Fundo</button>
+          <Modal open={outer} title="Externo" onClose={() => setOuter(false)}>
+            <Button onClick={() => setInner(true)}>Confirmar…</Button>
+          </Modal>
+          <Modal open={inner} title="Interno" onClose={() => setInner(false)}>
+            <Button onClick={() => setInner(false)}>Sim</Button>
+          </Modal>
+        </>
+      );
+    }
+    render(<Stack />);
+    const outer = screen.getByRole('dialog', { name: 'Externo' });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar…' }));
+    const inner = screen.getByRole('dialog', { name: 'Interno' });
+    expect(screen.getByRole('button', { name: 'Sim' })).toHaveFocus();
+    // Fora de tudo: o foco volta ao do topo, não ao externo.
+    screen.getByRole('button', { name: 'Fundo' }).focus();
+    expect(inner).toContainElement(document.activeElement as HTMLElement);
+    // O interno fecha: o foco volta a quem o abriu, dentro do externo.
+    fireEvent.click(screen.getByRole('button', { name: 'Sim' }));
+    expect(screen.queryByRole('dialog', { name: 'Interno' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar…' })).toHaveFocus();
+    screen.getByRole('button', { name: 'Fundo' }).focus();
+    expect(outer).toContainElement(document.activeElement as HTMLElement);
+  });
+
   it('Esc e clique fora não fecham quando não dismissable', () => {
     render(<Harness dismissable={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir' }));

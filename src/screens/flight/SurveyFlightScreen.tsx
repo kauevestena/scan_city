@@ -209,6 +209,7 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
   return (
     <main
       data-testid="survey-flight-screen"
+      data-flashes={hud?.flashes ?? 0}
       aria-label={STRINGS.flight.title}
       className="relative h-full w-full overflow-hidden bg-slate-950"
     >

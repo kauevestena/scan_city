@@ -49,7 +49,7 @@ export function Pipeline({
                 <span
                   className={cx(
                     'w-5 text-center',
-                    done ? 'text-emerald-400' : current ? 'text-cyan-300' : 'text-slate-600',
+                    done ? 'text-emerald-400' : current ? 'text-cyan-300' : 'text-slate-400',
                   )}
                 >
                   {done ? (
@@ -63,7 +63,7 @@ export function Pipeline({
                 <span
                   className={cx(
                     'w-72 text-sm',
-                    done || current ? 'text-slate-100' : 'text-slate-500',
+                    done || current ? 'text-slate-100' : 'text-slate-400',
                   )}
                 >
                   {st.index + 1} {name}

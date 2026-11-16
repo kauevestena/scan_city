@@ -1,5 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { C00 } from '@/data/contracts';
+import { PAD } from '@/input/gamepad';
+import { InputManager } from '@/input/InputManager';
+import { createPad, installGamepads, setButton, XBOX_ID } from '@/test/fakeGamepad';
 import { createCoverageGrid } from '@/domain/coverage';
 import { syntheticMission } from '@/test/fixtures/syntheticMission';
 import { resetGameStore } from '@/test/resetStore';
@@ -130,6 +133,46 @@ describe('ProcessingResultsScreen', () => {
     fireEvent.click(screen.getByTestId('send-museum'));
     expect(get().session.screen).toBe('HOLO_TABLE_VIEW');
     expect(get().session.payload).toEqual({ focusSectorId: 'C00' });
+  }, 15000);
+
+  it('o relatório se navega só com o teclado e com o controle: Q/E e LB/RB trocam de aba, as setas andam pelos controles (REQ-INP-006)', async () => {
+    fastHardware();
+    queue();
+    render(<ProcessingResultsScreen />);
+    await waitFor(() => expect(screen.getByTestId('report')).toBeInTheDocument(), {
+      timeout: 8000,
+    });
+    const selected = () =>
+      screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')
+        ?.textContent;
+    expect(selected()).toBe('Resumo');
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    expect(selected()).toBe('Acurácia');
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+    expect(selected()).toBe('Cobertura');
+    fireEvent.keyDown(window, { code: 'KeyQ', key: 'q' });
+    expect(selected()).toBe('Acurácia');
+    // O controle: RB avança, LB volta.
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      setButton(pad, PAD.RB, true);
+      act(() => InputManager.get().poll(1));
+      expect(selected()).toBe('Cobertura');
+      setButton(pad, PAD.RB, false);
+      act(() => InputManager.get().poll(2));
+      setButton(pad, PAD.LB, true);
+      act(() => InputManager.get().poll(3));
+      expect(selected()).toBe('Acurácia');
+      setButton(pad, PAD.LB, false);
+      act(() => InputManager.get().poll(4));
+      // Sem foco, o D-pad (UI_DOWN) foca o primeiro controle do relatório.
+      setButton(pad, PAD.DPAD_DOWN, true);
+      act(() => InputManager.get().poll(5));
+      expect(screen.getByTestId('report')).toContainElement(document.activeElement as HTMLElement);
+    } finally {
+      uninstall();
+    }
   }, 15000);
 
   it('aba Produtos: "Ver produtos" abre o visualizador; NDVI vem desabilitado no C00', async () => {

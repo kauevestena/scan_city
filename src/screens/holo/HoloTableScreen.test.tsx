@@ -203,6 +203,86 @@ describe('HoloTableScreen — modos e dimensão (REQ-HOL-005, REQ-HOL-006)', () 
   });
 });
 
+/** Empilha os botões do painel numa coluna (jsdom não faz layout, e a navegação é espacial). */
+function stackPanelButtons(): HTMLElement[] {
+  const panel = screen.getByTestId('wings-panel');
+  const items = Array.from(panel.querySelectorAll<HTMLElement>('[data-focusable]'));
+  items.forEach((el, i) => {
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: i * 40,
+        width: 200,
+        height: 32,
+        right: 200,
+        bottom: i * 40 + 32,
+      }) as DOMRect;
+  });
+  return items;
+}
+
+describe('HoloTableScreen — painel de alas só com o teclado (REQ-INP-006, REQ-NFR-007)', () => {
+  it('W abre o painel e leva o foco para dentro dele', () => {
+    mapC00();
+    open();
+    key('KeyW', 'w');
+    expect(screen.getByTestId('wings-panel')).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+  });
+
+  it('as setas andam pelos botões do painel (e não orbitam a câmera); Enter foca o setor', () => {
+    mapC00();
+    mapRift('R01');
+    open();
+    key('KeyW', 'w');
+    const items = stackPanelButtons();
+    expect(items.length).toBeGreaterThan(3);
+    items[0]?.focus();
+    const down = () =>
+      fireEvent.keyDown(document.activeElement ?? window, { key: 'ArrowDown', code: 'ArrowDown' });
+    down();
+    expect(items[1]).toHaveFocus();
+    down();
+    expect(items[2]).toHaveFocus();
+    fireEvent.keyDown(document.activeElement ?? window, { key: 'ArrowUp', code: 'ArrowUp' });
+    expect(items[1]).toHaveFocus();
+    // O botão do setor C00 ("Sítio do Avô") é alcançável e o Enter nativo o ativa.
+    const c00 = within(screen.getByTestId('wing-row-C00')).getByRole('button', {
+      name: 'C00 Sítio do Avô',
+    });
+    c00.focus();
+    fireEvent.click(c00);
+    expect(screen.getByTestId('sector-card')).toHaveTextContent('Sítio do Avô');
+  });
+
+  it('W fecha o painel com o foco dentro dele; Esc continua voltando ao escritório', () => {
+    open();
+    key('KeyW', 'w');
+    expect(screen.getByTestId('wings-panel')).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? window, { key: 'w', code: 'KeyW' });
+    expect(screen.queryByTestId('wings-panel')).not.toBeInTheDocument();
+    key('KeyW', 'w');
+    fireEvent.keyDown(document.activeElement ?? window, { key: 'Escape', code: 'Escape' });
+    expect(get().session.screen).toBe('OFFICE');
+  });
+
+  it('o Tab com o painel aberto não troca de dimensão: fica para o foco nativo', () => {
+    useGameStore.setState((s) => ({ world: { ...s.world, discoveredRifts: ['R01'] } }));
+    mapRift('R01');
+    open();
+    key('KeyW', 'w');
+    const holo = screen.getByTestId('holo-screen');
+    expect(holo).toHaveAttribute('data-dimension', 'REAL');
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', cancelable: true });
+    act(() => {
+      (document.activeElement ?? window).dispatchEvent(tab);
+    });
+    expect(tab.defaultPrevented).toBe(false);
+    expect(holo).toHaveAttribute('data-dimension', 'REAL');
+  });
+});
+
 describe('HoloTableScreen — painel de alas (REQ-HOL-007)', () => {
   it('W abre e fecha o painel; o botão e o X também', () => {
     open();

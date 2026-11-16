@@ -415,6 +415,9 @@ export const STRINGS = {
     backToMap: 'Voltar ao mapa',
     cursor: (u: string, v: string, z: string) => `u ${u} m · v ${v} m · z ${z} m`,
     canvasLabel: 'Vista de satélite da área do levantamento',
+    canvasHint:
+      'Com o foco no mapa: WASD move a vista, + e − dão zoom, Enter coloca um ponto na mira ou, com a Borracha, remove o ponto sob ela.',
+    crosshair: 'Mira do teclado',
     tools: { GCP: 'GCP', CP: 'CP', ERASER: 'Borracha' },
     toolsLabel: 'Ferramenta',
     instrument: 'Instrumento',
@@ -683,7 +686,7 @@ export const STRINGS = {
         photoColors: 'Cores da ortofoto',
         returns: { FIRST: '1º retorno', INTERMEDIATE: 'Intermediário', GROUND: 'Solo' },
         controls:
-          'Arraste para orbitar, role para dar zoom (analógico direito e gatilhos no controle)',
+          'Arraste para orbitar, role para dar zoom (setas e + − com o foco no quadro; analógico direito e gatilhos no controle)',
       },
     },
     approved: 'APROVADO',
@@ -1081,6 +1084,7 @@ export const STRINGS = {
       UI_BACK: 'Voltar',
       UI_TAB_PREV: 'Aba anterior',
       UI_TAB_NEXT: 'Próxima aba',
+      DISMISS_HINT: 'Dispensar a dica',
       PAUSE: 'Pausar',
     },
   },

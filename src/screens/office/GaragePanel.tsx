@@ -36,7 +36,7 @@ export function GaragePanel({ onClose }: { onClose: () => void }) {
   const shopPriceMod = useGameStore((s) => selectModifiers(s).shopPrice);
   const money = player.money;
   const unlock = unlockStateFrom({ contracts, player, inventory });
-  useFocusNavigation(ref, { onBack: onClose, active: pending === null });
+  useFocusNavigation(ref, { onBack: onClose, active: pending === null, autoFocus: true });
 
   const ctx = { money, inventory, unlock, shopPriceMod };
   const request = (item: ShopItem) => {
