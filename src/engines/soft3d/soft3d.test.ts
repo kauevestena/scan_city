@@ -56,6 +56,19 @@ describe('OrbitCamera (REQ-HOL-001)', () => {
     expect(cam.yaw).toBeGreaterThan(6);
   });
 
+  it('setRadius: a distância acompanha o novo raio e os limites seguem o raio', () => {
+    const cam = new OrbitCamera(2);
+    cam.distance = 4;
+    cam.flyTo([1, 0, 1], 1);
+    cam.setRadius(4);
+    expect(cam.radius).toBe(4);
+    expect(cam.distance).toBe(8);
+    expect(cam.flying).toBe(false);
+    expect([cam.minDistance, cam.maxDistance]).toEqual([2, 12]);
+    cam.setRadius(0.5);
+    expect(cam.distance).toBe(1);
+  });
+
   it('inércia de 0,9 por quadro e fly-to com ease-in-out', () => {
     const cam = new OrbitCamera(2);
     cam.orbit(0.1, 0);
@@ -148,6 +161,154 @@ describe('Renderer e picking', () => {
     expect(fills).toHaveLength(2);
     expect(fills[0]).toBe('#040404');
     spy.mockRestore();
+  });
+
+  it('ordena de longe para perto (chave empacotada) e reaproveita o estilo entre quads iguais', () => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const r = new Soft3DRenderer();
+    const cam = new OrbitCamera(1);
+    cam.target = [0.5, 0, 0.5];
+    cam.pitch = 1.2;
+    // Dois quads sobrepostos na tela: o de cima (y = 0,5) está mais perto da câmera.
+    const quad = (y: number, rgb: [number, number, number]) =>
+      buildMesh(
+        new Float32Array([0, y, 0, 0, y, 1, 1, y, 1, 1, y, 0]),
+        new Uint32Array([0, 1, 2, 3]),
+        new Uint8Array(rgb),
+        true,
+      );
+    const near = quad(0.5, [0, 200, 0]);
+    const far = quad(0, [200, 0, 0]);
+    const fills: string[] = [];
+    const spy = vi.spyOn(ctx, 'fill').mockImplementation(() => {
+      fills.push(String(ctx.fillStyle));
+    });
+    // A ordem dada não importa: o perto sempre sai por último.
+    r.render(ctx, 400, 300, cam.matrix(4 / 3), [{ mesh: near }, { mesh: far }]);
+    expect(fills).toHaveLength(2);
+    expect(fills[0]).toBe('#c80000');
+    expect(fills[1]).toBe('#00c800');
+    spy.mockRestore();
+
+    // Quatro quads da mesma cor: o `fillStyle` é atribuído uma só vez.
+    const sets: string[] = [];
+    Object.defineProperty(ctx, 'fillStyle', {
+      set: (v: string) => sets.push(String(v)),
+      get: () => '',
+      configurable: true,
+    });
+    const same = [0, 0.1, 0.2, 0.3].map((y) => ({ mesh: quad(y, [10, 20, 30]) }));
+    expect(r.render(ctx, 400, 300, cam.matrix(4 / 3), same).quadsDrawn).toBe(4);
+    expect(sets).toHaveLength(1);
+  });
+
+  it('quads opacos seguidos da mesma cor viram um só fill, sem stroke; translúcidos misturam um a um', () => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const r = new Soft3DRenderer();
+    const cam = new OrbitCamera(1);
+    cam.target = [0.5, 0, 0.5];
+    cam.pitch = 1.2;
+    const quad = (y: number, rgb: [number, number, number]) =>
+      buildMesh(
+        new Float32Array([0, y, 0, 0, y, 1, 1, y, 1, 1, y, 0]),
+        new Uint32Array([0, 1, 2, 3]),
+        new Uint8Array(rgb),
+        true,
+      );
+    const fill = vi.spyOn(ctx, 'fill');
+    const stroke = vi.spyOn(ctx, 'stroke');
+    const same = [0, 0.1, 0.2].map((y) => ({ mesh: quad(y, [10, 20, 30]) }));
+    r.render(ctx, 400, 300, cam.matrix(4 / 3), same);
+    expect(fill).toHaveBeenCalledTimes(1);
+    // Sem traço: a costura entre vizinhos some com o quad levemente inflado.
+    expect(stroke).not.toHaveBeenCalled();
+
+    // Duas cores intercaladas em profundidade: um fill por troca de cor.
+    fill.mockClear();
+    const mixed = [
+      { mesh: quad(0, [200, 0, 0]) },
+      { mesh: quad(0.1, [0, 200, 0]) },
+      { mesh: quad(0.2, [200, 0, 0]) },
+    ];
+    r.render(ctx, 400, 300, cam.matrix(4 / 3), mixed);
+    expect(fill).toHaveBeenCalledTimes(3);
+
+    // Translúcidos: numa só passada a sobreposição não somaria, então cada quad mistura sozinho.
+    fill.mockClear();
+    const glass = [0, 0.1, 0.2].map((y) => ({ mesh: quad(y, [10, 20, 30]), alpha: 0.5 }));
+    r.render(ctx, 400, 300, cam.matrix(4 / 3), glass);
+    expect(fill).toHaveBeenCalledTimes(3);
+    expect(ctx.globalAlpha).toBe(1);
+  });
+
+  it('o quad desenhado é um pouco maior que o projetado (cobre as costuras)', () => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const r = new Soft3DRenderer();
+    const cam = new OrbitCamera(1);
+    cam.target = [0.5, 0, 0.5];
+    cam.pitch = 1.5;
+    const m = cam.matrix(4 / 3);
+    const corners = [
+      projectPoint(m, 0, 0, 0, 400, 300),
+      projectPoint(m, 0, 0, 1, 400, 300),
+      projectPoint(m, 1, 0, 1, 400, 300),
+      projectPoint(m, 1, 0, 0, 400, 300),
+    ];
+    const move = vi.spyOn(ctx, 'moveTo');
+    r.render(ctx, 400, 300, m, [{ mesh: top }]);
+    const [x, y] = move.mock.calls[0] as [number, number];
+    const first = corners[0];
+    // Empurrado para fora (o centro do quad fica no meio), por menos de 1 px.
+    const cx = corners.reduce((a, c) => a + c.x, 0) / 4;
+    const cy = corners.reduce((a, c) => a + c.y, 0) / 4;
+    expect(Math.hypot(x - cx, y - cy)).toBeGreaterThan(
+      Math.hypot((first?.x ?? 0) - cx, (first?.y ?? 0) - cy),
+    );
+    expect(Math.hypot(x - (first?.x ?? 0), y - (first?.y ?? 0))).toBeLessThan(1);
+  });
+
+  it('yOffset desloca malha, linhas e pontos na vertical', () => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const r = new Soft3DRenderer();
+    const cam = new OrbitCamera(1);
+    cam.target = [0.5, 0, 0.5];
+    cam.pitch = 1.2;
+    const m = cam.matrix(4 / 3);
+    const firstMove = (offset: number) => {
+      const move = vi.spyOn(ctx, 'moveTo');
+      const rect = vi.spyOn(ctx, 'fillRect');
+      r.render(
+        ctx,
+        400,
+        300,
+        m,
+        [{ mesh: top, yOffset: offset }],
+        [
+          {
+            positions: new Float32Array([0, 0, 0, 1, 0, 1]),
+            segments: new Uint32Array([0, 1]),
+            color: '#fff',
+            width: 1,
+            yOffset: offset,
+          },
+        ],
+        [{ positions: new Float32Array([0.5, 0, 0.5]), color: '#fff', size: 2, yOffset: offset }],
+      );
+      const out = {
+        quadY: (move.mock.calls[0] as number[])[1] as number,
+        lineY: (move.mock.calls[1] as number[])[1] as number,
+        pointY: (rect.mock.calls[0] as number[])[1] as number,
+      };
+      move.mockRestore();
+      rect.mockRestore();
+      return out;
+    };
+    const base = firstMove(0);
+    const up = firstMove(0.4);
+    // Visto de cima, subir no mundo leva o ponto para o topo da tela (y menor).
+    expect(up.quadY).toBeLessThan(base.quadY);
+    expect(up.lineY).toBeLessThan(base.lineY);
+    expect(up.pointY).toBeLessThan(base.pointY);
   });
 
   it('pickSector: o topo sob o cursor; o mais próximo quando sobrepostos', () => {

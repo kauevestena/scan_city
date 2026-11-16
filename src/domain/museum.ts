@@ -21,6 +21,27 @@ export function museumIncomePerMin(
   );
 }
 
+/**
+ * Renda por minuto (centavos) de uma ala (holo-table §5.5): só os setores cuja ala é `wing`, com o
+ * destaque (×2) no setor destacado da própria ala. A soma das alas é a renda total do museu.
+ */
+export function wingIncomePerMin(
+  sectors: Readonly<Record<string, MuseumSector>>,
+  featured: Partial<Record<Dimension, string>>,
+  wing: Dimension,
+  wingOf: (contractId: string) => Dimension | undefined,
+  visitorsMod = 1,
+): number {
+  const highlighted = featured[wing];
+  return Object.values(sectors).reduce(
+    (sum, s) =>
+      wingOf(s.contractId) === wing
+        ? sum + s.incomePerMinBRL * (s.contractId === highlighted ? 2 : 1) * visitorsMod
+        : sum,
+    0,
+  );
+}
+
 /** Visitantes por hora: renda (R$/min) · 6. */
 export function visitorsPerHour(incomePerMinCents: number): number {
   return (incomePerMinCents / 100) * 6;

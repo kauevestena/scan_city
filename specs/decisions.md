@@ -148,3 +148,14 @@
   - Os detalhes estão em input §3.1 e §3.2.
 - **Consequências:** os 6 IDs reais de controles são classificados corretamente. O mesmo `Esc` fecha modais e pausa a partir das telas. Enter não ativa um botão duas vezes.
 - **Status:** Aceita · 2026-11-14
+
+### ADR-023 — Desempenho do `soft3d` e da Mesa: ordenação empacotada, sem traço por quad, anel em resolução menor
+- **Contexto:** em T072, com os 18 setores mapeados, a Mesa Holográfica rodava a 35–46 FPS num Chromium sem GPU (1280 × 720, HIGH), contra a meta de ≥ 55 FPS. A medição por fase mostrou que a coleta (projeção e descarte) custa ~0,5 ms e a ordenação ~0,8 ms, mas o **desenho** custava até 25,7 ms por quadro no anel do Multiverso. Além disso, o [holo-table §5.7](features/holo-table.md) pede "FPS médio < 50 por 3 s" sem dizer onde medir, e o `GameLoop` divide cada quadro em sub-passos de `update` de até 1/60 s.
+- **Decisão:**
+  - a ordenação por profundidade usa uma **chave empacotada** (profundidade média em 1/4096 · 2²⁰ + índice do quad) num `Float64Array.sort()` nativo, sem comparador; os quads de fundo ficam fora da ordenação;
+  - quads **opacos** seguidos da mesma cor viram um só caminho (um `fill`); os translúcidos continuam um a um;
+  - o `stroke` por quad, que escondia as costuras entre vizinhos, **sai**: cada quad é inflado em 0,45 px a partir do centro, e o quad seguinte da ordem de pintura cobre a costura (de 25,7 ms para 8,1 ms no desenho do anel);
+  - os dioramas do anel usam **uma resolução abaixo** da grade Real (24, 16 e 12 em vez de 32, 24 e 16);
+  - o governor de qualidade mede o FPS no **`render`** (o relógio real entre desenhos), não no `update`.
+- **Consequências:** com os 18 setores a mesa fica entre 52,8 e 60,3 FPS no mesmo ambiente (REQ-NFR-001, parcial; a tabela completa vem na T077). O traço inflado sobrepõe vizinhos em menos de 1 px (imperceptível no sombreamento *flat*). Os dioramas ficam um pouco mais facetados do que os setores Reais, mas ocupam uma fração da tela e a queda automática de qualidade continua cortando um nível por vez. Quem desenhar translúcidos em `soft3d` deve usar `MeshInstance.alpha` (o caminho dos opacos não os mistura).
+- **Status:** Aceita · 2026-11-16

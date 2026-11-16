@@ -108,6 +108,7 @@ buildHoloScene(dimension, museumState, contracts, quality): HoloScene
 - **Orçamento:** ≤ 10 ms/frame em Alta.
 - **Cache:** a geometria dos setores (vértices em espaço de mundo) é construída uma vez por modo e dimensão. Por frame, só se transformam e projetam os vértices e se ordenam os quads (cerca de 7 × 32² ≈ 7.200 quads + prédios).
 - Se o FPS médio cair abaixo de 50 por 3 s, a qualidade da mesa (não a global) cai um nível automaticamente, com toast.
+- A medição do FPS é feita no `render` (o relógio real entre desenhos), não no `update`, e o anel do Multiverso usa uma resolução abaixo da grade Real (24, 16 e 12). Ver [ADR-023](../decisions.md).
 
 ## 6. Integração
 - **Store:** `museum`, `contracts` (status, `bestMissionLines`, `bestAircraftId`), `settings.quality`.

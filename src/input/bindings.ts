@@ -131,6 +131,13 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       MODE_1: { keys: ['Digit1'], pad: [] },
       MODE_2: { keys: ['Digit2'], pad: [] },
       MODE_3: { keys: ['Digit3'], pad: [] },
+      // Painel de alas: `W` (holo-table §5.6). As setas orbitam; a seleção de setor e a
+      // navegação do painel ficam no analógico esquerdo e no D-pad.
+      UI_TAB_NEXT: { keys: ['KeyW'], pad: [PAD.RB] },
+      UI_UP: { keys: [], pad: [PAD.DPAD_UP, STICK_DIR.UP] },
+      UI_DOWN: { keys: [], pad: [PAD.DPAD_DOWN, STICK_DIR.DOWN] },
+      UI_LEFT: { keys: [], pad: [PAD.DPAD_LEFT, STICK_DIR.LEFT] },
+      UI_RIGHT: { keys: [], pad: [PAD.DPAD_RIGHT, STICK_DIR.RIGHT] },
       UI_CONFIRM: { keys: ENTER, pad: [PAD.A] },
       UI_BACK: { keys: ['Escape', 'Backspace'], pad: [PAD.B] },
       PAUSE: PAUSE_M,

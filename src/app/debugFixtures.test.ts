@@ -1,12 +1,12 @@
 import { CATALOG, getVehicle } from '@/data/catalog';
-import { C01 } from '@/data/contracts';
+import { C01, CONTRACTS } from '@/data/contracts';
 import { isAccessible } from '@/domain/accessibility';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { referenceParams } from '@/domain/referencePlan';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import { applyDebugFlags, createDebugMission } from './debugFixtures';
+import { applyDebugFlags, createDebugMission, mapAllSectors } from './debugFixtures';
 import { parseDebugFlags } from './debugFlags';
 
 const get = () => useGameStore.getState();
@@ -121,4 +121,42 @@ describe('equipamento do plano de referência nos fluxos de depuração', () => 
     applyDebugFlags(parseDebugFlags('?debug=1&screen=SURVEY_FLIGHT'));
     expect(get().inventory).toEqual(before);
   });
+});
+
+describe('mapAllSectors (F9 "Mapear tudo", T072)', () => {
+  beforeEach(() => resetGameStore());
+
+  it('mapeia os 18 contratos, com a melhor missão e a aeronave de referência', () => {
+    const before = get().contracts;
+    mapAllSectors(useGameStore);
+    expect(Object.keys(get().museum.sectors).sort()).toEqual(CONTRACTS.map((c) => c.id).sort());
+    expect(CONTRACTS).toHaveLength(18);
+    for (const c of CONTRACTS) {
+      const progress = get().contracts[c.id];
+      expect(progress?.bestAircraftId).toBe(c.referencePlan.aircraftId);
+      expect(progress?.bestMissionLines?.length).toBe(c.referencePlan.expected.nLines);
+      // Só o museu muda: status e bloqueios dos contratos ficam como estavam.
+      expect(progress?.status).toBe(before[c.id]?.status);
+    }
+  }, 60_000);
+
+  it('preserva um setor já mapeado (nota e renda)', () => {
+    useGameStore.setState((s) => ({
+      museum: {
+        ...s.museum,
+        sectors: {
+          C01: {
+            contractId: 'C01',
+            qualityScore: 0.95,
+            mappedAt: 7,
+            incomePerMinBRL: 3800,
+            className: 'A',
+          },
+        },
+      },
+    }));
+    mapAllSectors(useGameStore);
+    expect(get().museum.sectors.C01).toMatchObject({ qualityScore: 0.95, incomePerMinBRL: 3800 });
+    expect(Object.keys(get().museum.sectors)).toHaveLength(18);
+  }, 60_000);
 });

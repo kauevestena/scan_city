@@ -17,10 +17,12 @@ export class HoloPreview {
     this.camera = new OrbitCamera(scene.radius);
     this.camera.pitch = (35 * Math.PI) / 180;
     this.camera.distance = 2.4 * scene.radius;
-    this.meshes = [{ mesh: scene.table, background: true }, { mesh: scene.ocean.mesh }];
+    this.meshes = [{ mesh: scene.table, background: true }];
+    if (scene.ocean && scene.ocean.mesh.quads.length > 0)
+      this.meshes.push({ mesh: scene.ocean.mesh });
     this.lines = [scene.rim];
     for (const s of scene.sectors) {
-      this.meshes.push({ mesh: s.mesh });
+      if (s.mesh.quads.length > 0) this.meshes.push({ mesh: s.mesh });
       if (s.buildings && s.buildings.quads.length > 0) this.meshes.push({ mesh: s.buildings });
       if (s.wire) this.lines.push(s.wire);
     }
