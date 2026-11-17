@@ -25,6 +25,8 @@ describe('predictRequirements', () => {
     expect(results.find((r) => r.id === 'C00-gsd')?.valueText.replace(/\s/g, ' ')).toBe('2,52 cm');
     expect(results.find((r) => r.id === 'C00-cov')?.valueText).toBe('—');
     expect(results.find((r) => r.id === 'C00-pec')?.valueText).toMatch(/^Classe A/);
+    // A execução do voo só se mede voando: na previsão é informativa.
+    expect(results.at(-1)).toMatchObject({ id: 'C00-exec', pass: true, valueText: '—' });
   });
 
   it('C05 com DRONE_T1 e H = 55 m: GSD previsto 1,508 cm passa do máximo de 1,5 cm', () => {

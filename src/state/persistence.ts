@@ -80,6 +80,17 @@ function validMuseum(v: unknown): boolean {
   );
 }
 
+function validLinePass(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    nums(v, ['lineIndex', 'pass', 'sortie']) &&
+    isBool(v.complete) &&
+    Array.isArray(v.counts) &&
+    v.counts.length === 4 &&
+    v.counts.every(isNum)
+  );
+}
+
 function validMission(v: unknown): boolean {
   if (!isObj(v)) return false;
   const { plan, events } = v;
@@ -98,6 +109,9 @@ function validMission(v: unknown): boolean {
     isBool(v.atlasCalibrated) &&
     Array.isArray(v.sorties) &&
     Array.isArray(v.completedLines) &&
+    // Campo novo e opcional (execução do voo): os saves anteriores não o têm.
+    (v.linePasses === undefined ||
+      (Array.isArray(v.linePasses) && v.linePasses.every(validLinePass))) &&
     Array.isArray(v.shots) &&
     isObj(events) &&
     isStr(v.status)

@@ -19,6 +19,7 @@ import {
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
+import { executionRequirement } from './common';
 
 registerIcons({
   Backpack,
@@ -86,6 +87,7 @@ export const R01: Contract = {
       severity: 'MAJOR',
       check: { type: 'ACCURACY_PEC', cls: 'B', scaleDenominator: 1000 },
     },
+    executionRequirement('R01'),
   ],
   // O Atlas é imune à interferência e voa mais devagar, mas dá conta da pista.
   recommended: {
@@ -190,6 +192,7 @@ export const R02: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 2 },
     },
+    executionRequirement('R02'),
   ],
   recommended: {
     aircraft: ['DRONE_T1', 'ATLAS'],
@@ -308,6 +311,7 @@ export const R08: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 3 },
     },
+    executionRequirement('R08'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -417,6 +421,7 @@ export const R11: Contract = {
       severity: 'MAJOR',
       check: { type: 'MIN_GCP', value: 5 },
     },
+    executionRequirement('R11'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -518,6 +523,7 @@ export const R03: Contract = {
       severity: 'MAJOR',
       check: { type: 'MIN_GCP', value: 5 },
     },
+    executionRequirement('R03'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -617,6 +623,7 @@ export const R04: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_LIDAR_DENSITY', value: 120 },
     },
+    executionRequirement('R04'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -722,6 +729,7 @@ export const R05: Contract = {
       severity: 'MAJOR',
       check: { type: 'MIN_GCP', value: 5 },
     },
+    executionRequirement('R05'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -835,6 +843,7 @@ export const R06: Contract = {
       severity: 'MINOR',
       check: { type: 'MAX_GSD_CM', value: 14 },
     },
+    executionRequirement('R06'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -927,6 +936,7 @@ export const R07: Contract = {
       severity: 'MINOR',
       check: { type: 'MAX_GSD_CM', value: 3 },
     },
+    executionRequirement('R07'),
   ],
   // O Atlas é imune e discreto (a detecção leva 3 s); o T2 voa mais rápido, mas drena 2× na nevasca.
   recommended: {
@@ -1022,6 +1032,7 @@ export const R09: Contract = {
       severity: 'MAJOR',
       check: { type: 'MIN_FORWARD_OVERLAP', value: 80 },
     },
+    executionRequirement('R09'),
   ],
   recommended: {
     aircraft: ['DRONE_T2', 'VTOL_T3'],
@@ -1108,6 +1119,7 @@ export const R10: Contract = {
       severity: 'CRITICAL',
       check: { type: 'FEATURE_CAPTURED', featureId: 'EXHAUST_PORT' },
     },
+    executionRequirement('R10'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],

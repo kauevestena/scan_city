@@ -53,6 +53,7 @@ export const STRINGS = {
       em: 'Interferência eletromagnética',
       camera: 'Qualidade da câmera',
       cameraCalibrated: 'Câmera do Atlas (calibrada)',
+      execution: 'Execução do voo',
       imu: 'Calibração da IMU',
       skills: 'Habilidades de engenharia',
     },
@@ -693,6 +694,19 @@ export const STRINGS = {
     rejected: 'REPROVADO',
     score: (n: number) => `Score ${n}`,
     classAchieved: (cls: string) => `Classe ${cls}`,
+    execution: {
+      title: 'Execução do voo',
+      summary: (letter: string, pct: number) => `${letter} · ${pct} %`,
+      counts: (c: readonly [number, number, number, number]) =>
+        [
+          `${c[0]} ${c[0] === 1 ? 'perfeita' : 'perfeitas'}`,
+          `${c[1]} ${c[1] === 1 ? 'boa' : 'boas'}`,
+          `${c[2]} ${c[2] === 1 ? 'fraca' : 'fracas'}`,
+          `${c[3]} ${c[3] === 1 ? 'rejeitada' : 'rejeitadas'}`,
+        ].join(' · '),
+      note: 'A nota da missão é a nota técnica × (0,4 + 0,6 × execução).',
+      pilotBonus: (bonus: string) => `inclui +${bonus} de pilotagem`,
+    },
     requirements: 'Requisitos',
     sheet: 'Ficha técnica',
     sheetRows: {
@@ -703,7 +717,7 @@ export const STRINGS = {
       gsd: 'GSD efetivo',
       p: 'p real (mediana)',
       q: 'q estimado',
-      photos: 'Fotos (válidas / borradas / água / névoa)',
+      photos: 'Fotos (válidas / rejeitadas / borradas / água / névoa)',
       pulses: 'Pulsos LiDAR',
       sorties: 'Surtidas',
       collisions: 'Colisões',
@@ -748,7 +762,7 @@ export const STRINGS = {
       water: 'Água (excluída)',
     },
     showCenters: 'Mostrar centros das fotos',
-    cellTooltip: (n: number) => `${n} fotos na célula`,
+    cellTooltip: (n: string) => `${n} fotos na célula`,
     coverageLabel: 'Mapa de calor da cobertura',
     paymentRows: {
       base: 'Valor-base',

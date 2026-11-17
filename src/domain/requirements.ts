@@ -274,6 +274,7 @@ export function predictRequirements(
       case 'MAX_BLUR_FRACTION':
         return result(req, stats.blurPx <= 1, `${formatNumber(stats.blurPx, 2)} px`);
       // Só verificáveis com dados: aparecem como informativos.
+      case 'MIN_EXECUTION':
       case 'MIN_COVERAGE_GREEN':
       case 'MAX_VOLUME_ERROR_PCT':
       case 'NOT_DETECTED':
@@ -303,6 +304,8 @@ export interface MissionMeasures {
   volumeErrorPct?: number;
   detected: boolean;
   featuresCaptured: readonly string[];
+  /** Execução `E` do voo (§10.3), 0..1. */
+  execution: number;
 }
 
 export function evaluateRequirements(
@@ -340,6 +343,12 @@ export function evaluateRequirements(
           req,
           measures.coverageGreen >= c.value,
           pctVs(measures.coverageGreen * 100, c.value * 100),
+        );
+      case 'MIN_EXECUTION':
+        return result(
+          req,
+          measures.execution >= c.value,
+          pctVs(measures.execution * 100, c.value * 100),
         );
       case 'SENSOR_KIND':
         return result(

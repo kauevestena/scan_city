@@ -162,6 +162,48 @@ describe('migrateSave', () => {
   });
 });
 
+describe('missão com dados de execução do voo (campos opcionais, sem migração)', () => {
+  const mission = createDebugMission('C00', true);
+  const pass = { lineIndex: 0, pass: 0, sortie: 0, counts: [10, 3, 1, 1], complete: true };
+
+  it('o save anterior (sem `linePasses` nem `grade`) continua válido na versão 1', () => {
+    expect(mission.linePasses).toBeUndefined();
+    expect(mission.shots.every((s) => s.grade === undefined)).toBe(true);
+    const save: SaveGame = { ...fresh(), pendingMissions: [mission] };
+    expect(save.version).toBe(1);
+    expect(validateSave(save)).toBe(true);
+  });
+
+  it('com passadas e notas: válido e idêntico depois de gravar e ler', () => {
+    const graded = {
+      ...mission,
+      linePasses: [pass, { ...pass, lineIndex: 1, pass: 1, complete: false }],
+      shots: mission.shots.map((s, i) => (i % 2 === 0 ? { ...s, grade: 'WEAK' as const } : s)),
+    } as SaveGame['pendingMissions'][number];
+    const save: SaveGame = { ...fresh(), pendingMissions: [graded] };
+    expect(validateSave(save)).toBe(true);
+    expect(writeSave(save)).toBe(true);
+    expect(loadSave()).toEqual({ status: 'OK', save, migratedFrom: null });
+  });
+
+  it('passada malformada invalida o save', () => {
+    const bad: unknown[] = [
+      {},
+      [{ lineIndex: 0 }],
+      [{ ...pass, counts: [1, 2, 3] }],
+      [{ ...pass, counts: [1, 2, 3, 'x'] }],
+      [{ ...pass, complete: 'sim' }],
+      [{ ...pass, sortie: undefined }],
+    ];
+    for (const linePasses of bad) {
+      expect(
+        validateSave({ ...fresh(), pendingMissions: [{ ...mission, linePasses }] }),
+        JSON.stringify(linePasses),
+      ).toBe(false);
+    }
+  });
+});
+
 describe('loadSave', () => {
   it('sem save, o resultado é EMPTY', () => {
     expect(loadSave()).toEqual({ status: 'EMPTY' });

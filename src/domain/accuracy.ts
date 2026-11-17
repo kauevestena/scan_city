@@ -19,6 +19,7 @@ import type {
   Shot,
   SpecialRuleId,
 } from '@/types';
+import { executionMultiplier } from './execution';
 import { collinearityIndex, hullCoverage } from './geometry';
 import { lidarRmseXY, lidarRmseZ } from './lidar';
 import { gsd } from './photogrammetry';
@@ -93,6 +94,8 @@ export interface AccuracyContext {
   cameraPenalty: number;
   atlasCalibrated: boolean;
   imuScore: number;
+  /** Execução `E` do voo (§10.3), 0..1. Ausente vale 1. */
+  execution?: number;
   mods: { rmseGlobal: number; texturePenalty: number; rollingShutterPenalty: number };
 }
 
@@ -157,6 +160,7 @@ export function accuracyMultipliers(ctx: AccuracyContext): Multiplier[] {
   const q = ctx.atlasCalibrated ? 1 + (ctx.cameraPenalty - 1) * 0.5 : ctx.cameraPenalty;
   add('camera', ctx.atlasCalibrated ? L.cameraCalibrated : L.camera, q);
 
+  add('execution', L.execution, executionMultiplier(ctx.execution ?? 1));
   add('imu', L.imu, 1 - 0.08 * ctx.imuScore, 1 - 0.12 * ctx.imuScore);
   add('skills', L.skills, ctx.mods.rmseGlobal);
   return out;
@@ -281,6 +285,8 @@ export interface PhotoAccuracyInput {
   emImmune: boolean;
   atlasCalibrated: boolean;
   imuScore: number;
+  /** Execução `E` do voo; ausente (previsão a partir do plano) vale 1. */
+  execution?: number;
   mods: ModifierSet;
 }
 
@@ -307,6 +313,7 @@ export function photoAccuracyContext(i: PhotoAccuracyInput): AccuracyContext {
     cameraPenalty: i.camera.qualityPenalty,
     atlasCalibrated: i.atlasCalibrated,
     imuScore: i.imuScore,
+    ...(i.execution !== undefined ? { execution: i.execution } : {}),
     mods: {
       rmseGlobal: i.mods.rmseGlobal,
       texturePenalty: i.mods.texturePenalty,
@@ -327,7 +334,7 @@ export function photoModel(input: PhotoAccuracyInput): {
 /** EM ativo e aeronave não imune: fator 1,2 também no LiDAR (§6.7). */
 export const EM_FACTOR = RULE_PARAMS.em.rmseFactor;
 
-/** §6.7 — Modelo LiDAR: ruído de §4.3 com EM e habilidades. */
+/** §6.7 — Modelo LiDAR: ruído de §4.3 com EM, execução do voo e habilidades. */
 export function lidarModel(
   rangeAccuracyM: number,
   aglM: number,
@@ -335,17 +342,23 @@ export function lidarModel(
   imuScore: number,
   mods: Pick<ModifierSet, 'lidarNoise' | 'rmseGlobal'>,
   emActive: boolean,
+  execution = 1,
 ): { model: AxisPair; multipliers: Multiplier[] } {
   const em = emActive ? EM_FACTOR : 1;
+  const exec = executionMultiplier(execution);
   const multipliers: Multiplier[] = [];
   if (emActive) multipliers.push({ key: 'em', label: L.em, xy: em, z: em });
+  if (exec !== 1) multipliers.push({ key: 'execution', label: L.execution, xy: exec, z: exec });
   if (mods.rmseGlobal !== 1) {
     multipliers.push({ key: 'skills', label: L.skills, xy: mods.rmseGlobal, z: mods.rmseGlobal });
   }
   return {
     model: {
-      xy: lidarRmseXY(aglM, phi, em) * mods.rmseGlobal,
-      z: lidarRmseZ(rangeAccuracyM, aglM, imuScore, mods.lidarNoise, phi, em) * mods.rmseGlobal,
+      xy: lidarRmseXY(aglM, phi, em) * exec * mods.rmseGlobal,
+      z:
+        lidarRmseZ(rangeAccuracyM, aglM, imuScore, mods.lidarNoise, phi, em) *
+        exec *
+        mods.rmseGlobal,
     },
     multipliers,
   };

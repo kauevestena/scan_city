@@ -2,14 +2,20 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { getContract } from '@/data/contracts';
 import { STRINGS } from '@/data/strings';
 import { rasterCanvas } from '@/engines/raster/orthoPreview';
-import { formatPct } from '@/lib/format';
-import type { MissionData, QualityReport } from '@/types';
+import { formatNumber, formatPct } from '@/lib/format';
+import type { MissionData, QualityReport, Shot } from '@/types';
 import { COLORS, withAlpha } from '@/ui/tokens';
 import { cx, FOCUS_RING } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 
 const P = STRINGS.processing;
 const CANVAS_W = 640;
+
+/** Cor do centro da foto: rejeitada ou borrada em vermelho, fraca em âmbar (§5.6). */
+export function centerColor(shot: Pick<Shot, 'blurred' | 'grade'>): string {
+  if (shot.blurred || shot.grade === 'REJECTED') return COLORS.danger;
+  return shot.grade === 'WEAK' ? COLORS.warn : COLORS.text;
+}
 
 /** Cor da célula pelo número de fotos (§5.6). */
 export function cellColor(count: number): string {
@@ -58,7 +64,7 @@ export function ReportCoverage({
     }
     if (centers) {
       for (const s of mission.shots) {
-        ctx.fillStyle = s.blurred ? COLORS.danger : COLORS.text;
+        ctx.fillStyle = centerColor(s);
         ctx.beginPath();
         ctx.arc((s.u / aoi.lengthM) * CANVAS_W, (s.v / aoi.widthM) * height, 2.5, 0, Math.PI * 2);
         ctx.fill();
@@ -103,7 +109,9 @@ export function ReportCoverage({
             style={{ left: hover.x + 12, top: hover.y + 12 }}
             data-testid="coverage-tooltip"
           >
-            {P.cellTooltip(hover.count)}
+            {P.cellTooltip(
+              Number.isInteger(hover.count) ? String(hover.count) : formatNumber(hover.count, 1),
+            )}
           </span>
         )}
       </div>

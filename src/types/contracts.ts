@@ -58,6 +58,8 @@ export type RequirementCheck =
   | { type: 'MIN_SIDE_OVERLAP'; value: number }
   /** Fração 0..1 das células da AOI (exclui água se SPECULAR_WATER). */
   | { type: 'MIN_COVERAGE_GREEN'; value: number }
+  /** Execução mínima do voo, 0..1 (domain-math §10.3). Todo contrato tem. */
+  | { type: 'MIN_EXECUTION'; value: number }
   | { type: 'SENSOR_KIND'; value: SensorKind }
   | { type: 'MIN_AIRCRAFT_TIER'; value: number }
   | { type: 'AIRCRAFT_KIND'; value: AircraftKind }

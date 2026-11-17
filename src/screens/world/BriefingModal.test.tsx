@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 describe('BriefingModal', () => {
-  it('disponível: cliente, diálogo, 6 requisitos, condições, equipamento, recompensa; Aceitar leva ao campo', () => {
+  it('disponível: cliente, diálogo, 6 requisitos da ficha (mais o de execução), condições, equipamento, recompensa; Aceitar leva ao campo', () => {
     const { dialog } = open();
     const d = within(dialog);
     // Nome no cabeçalho do cliente e na caixa de diálogo.
@@ -66,7 +66,7 @@ describe('BriefingModal', () => {
     expect(d.getByRole('button', { name: 'Avançar diálogo' })).toHaveFocus();
     expect(d.getByText(/Levantamento planialtimétrico/)).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(6);
+    expect(reqs).toHaveLength(7);
     expect(reqs[0]).toHaveTextContent('Cobertura verde ≥ 70 %');
     expect(d.getByText('160 × 240 m')).toBeInTheDocument();
     expect(d.getByText('Sol alto, Nublado')).toBeInTheDocument();

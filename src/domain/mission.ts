@@ -43,6 +43,14 @@ import {
   summarizeCoverage,
   type ShotRules,
 } from './coverage';
+import { plannedSamples } from './corridor';
+import {
+  bestCounts,
+  executionFactor,
+  gradeLetter,
+  missionExecution,
+  pilotBonus,
+} from './execution';
 import { capturedFeatures } from './features';
 import { median } from './stats';
 import { pixelPitchM, realForwardOverlap, realSideOverlap } from './photogrammetry';
@@ -94,12 +102,13 @@ export interface MissionDeps {
   computeRewards(input: RewardInput): { xp: number; reputationDelta: number };
 }
 
-/** §12.1 — Fator de qualidade Q. */
+/** §12.1 — Fator de qualidade Q. `pilot` é o bônus de pilotagem (0, 0,05 ou 0,10). */
 export function qualityFactor(
   score: number,
   critical: boolean,
   requirements: readonly RequirementResult[],
   betterClass: boolean,
+  pilot = 0,
 ): number {
   if (critical) return 0.1;
   let q = 0.6 + 0.4 * score;
@@ -108,7 +117,7 @@ export function qualityFactor(
     if (r.severity === 'MAJOR') q *= 0.85;
     else if (r.severity === 'MINOR') q *= 0.95;
   }
-  return q + (betterClass ? 0.1 : 0);
+  return q + (betterClass ? 0.1 : 0) + pilot;
 }
 
 // --- Score (§10.1) ---------------------------------------------------------------------
@@ -263,6 +272,10 @@ export function evaluateMission(
   const effects = resolveRuleEffects(rules);
   const lidarMission = requiresLidar(contract);
 
+  // Execução do voo (§10.3). Sem `linePasses` (save antigo ou missão sintética) vale 1.
+  const plannedPerLine = plan.lines.map((l) => plannedSamples(l, plan.stats.baseM));
+  const execution = missionExecution(mission.linePasses, plannedPerLine);
+
   // Cobertura (água sempre excluída, OQ-007).
   const shotRules: ShotRules = {
     sensorKind: camera.kind,
@@ -311,6 +324,7 @@ export function evaluateMission(
           imuScore,
           ctx.modifiers,
           effects.flight.emInterference !== null && !aircraft.emImmune,
+          execution,
         )
       : photoModel({
           gsdEffM: gsdEff ?? 0,
@@ -328,6 +342,7 @@ export function evaluateMission(
           emImmune: aircraft.emImmune,
           atlasCalibrated: mission.atlasCalibrated,
           imuScore,
+          execution,
           mods: ctx.modifiers,
         });
   const equipment = ctx.catalog.fieldEquipment.find((f) => f.id === mission.fieldEquipmentId);
@@ -412,6 +427,7 @@ export function evaluateMission(
     recordedKinds,
     detected: mission.events.detected,
     featuresCaptured,
+    execution,
     ...(lidar ? { lidar } : {}),
     ...(volume ? { volumeErrorPct: volume.errorPct } : {}),
   };
@@ -445,7 +461,9 @@ export function evaluateMission(
           : Math.min(...gsdReqs.map((req) => toleranceScore(req, gsdEff))),
     clean: clamp(1 - 0.25 * mission.events.collisions - 0.5 * blurFraction, 0, 1),
   };
-  const score = critical ? 0 : qualityScore(parts);
+  // A nota técnica vezes o fator da execução do voo (1 quando não há dado de execução).
+  const score = critical ? 0 : qualityScore(parts) * executionFactor(execution);
+  const pilot = mission.linePasses ? pilotBonus(execution) : 0;
 
   // Pagamento e recompensas.
   const betterClass =
@@ -459,7 +477,7 @@ export function evaluateMission(
   const basePayment = ctx.deps.computePayment({
     baseBRL: contract.basePaymentBRL,
     isReplay: mission.isReplay,
-    qualityFactor: qualityFactor(score, critical, requirements, betterClass),
+    qualityFactor: qualityFactor(score, critical, requirements, betterClass, pilot),
     rivalFactor: mission.rivalAdjustment,
     contractPaymentMod: ctx.modifiers.contractPayment,
     staff: ctx.staff,
@@ -512,6 +530,14 @@ export function evaluateMission(
   if (pec) report.pec = pec;
   if (asprs) report.asprs = asprs;
   if (lidar) report.lidarStats = lidar;
+  if (mission.linePasses) {
+    report.execution = {
+      score: execution,
+      letter: gradeLetter(execution),
+      counts: bestCounts(mission.linePasses, plannedPerLine),
+      pilotBonus: critical ? 0 : pilot,
+    };
+  }
   if (volume) report.volume = volume;
   if (!critical && !mission.isReplay && ctx.firstApproval)
     report.souvenirAwarded = contract.souvenirId;

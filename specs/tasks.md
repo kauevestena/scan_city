@@ -1759,12 +1759,22 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   5. Relatório: execução no Resumo, centros das fotos por nota na Cobertura, bônus no Pagamento.
   6. Validação do save aceita missão com e sem os campos novos.
 - **Aceite:**
-  - [ ] G31 passa; missão sem `linePasses` tem a nota de antes (todos os testes anteriores seguem verdes sem mudar valor).
-  - [ ] Execução 0,65: multiplicador ×1,175 no RMSE, nota × 0,79 e nenhum bônus; execução 0,92: bônus de +0,10 em `Q`.
-  - [ ] Execução abaixo do valor do contrato: requisito crítico falha e a missão é reprovada.
-  - [ ] Um save anterior a esta tarefa carrega sem migração e sem perder a missão pendente.
+  - [x] G31 passa; missão sem `linePasses` tem a nota de antes (todos os testes anteriores seguem verdes sem mudar valor).
+  - [x] Execução 0,65: multiplicador ×1,175 no RMSE, nota × 0,79 e nenhum bônus; execução 0,92: bônus de +0,10 em `Q`.
+  - [x] Execução abaixo do valor do contrato: requisito crítico falha e a missão é reprovada.
+  - [x] Um save anterior a esta tarefa carrega sem migração e sem perder a missão pendente.
 - **Verificação:** `npx vitest run src/domain src/data src/state src/screens/processing`
-- **Status:** ☐
+- **Arquivos (efetivos):** ~ `src/types/{mission,contracts,report}.ts`; ~ `src/domain/{coverage,accuracy,mission,requirements}.ts` e os testes de cada um; \+ `src/data/contracts/common.ts`; ~ `src/data/contracts/{real,rifts}.ts` e os testes `real`, `rifts` e `schema`; ~ `src/data/strings.ts`, `src/state/persistence.ts` e teste; ~ `src/screens/processing/{ReportSummary,ReportCoverage,ReportPayment}.tsx` e `processing.test.tsx`; ~ os testes de tela que contam a lista de requisitos (`FieldSetupScreen`, `BriefingModal`, `BriefingModal.real`) e os E2E `field.spec.ts` e `world.spec.ts`.
+- **Notas de implementação:**
+  - **Dados.** `Shot.grade` e `MissionData.linePasses` são opcionais; `QualityReport.execution` só existe em missão com `linePasses`. A validação do save aceita a missão com e sem os campos novos e recusa passada malformada; o save segue na versão 1, sem migração.
+  - **Cobertura.** `accumulateShot` recebe um peso, `shotWeight` devolve 0,5 para a foto Fraca e 1 para a foto sem nota, e `isShotValid` recusa a Rejeitada. Como `capturedFeatures`, o GSD efetivo e a esteira usam `isShotValid`, a foto rejeitada sai de tudo isso de uma vez. As contagens da grade ficam fracionárias: a dica da célula mostra uma casa decimal quando precisa.
+  - **Acurácia.** `execution` é um campo opcional do contexto (ausente vale 1, então a previsão a partir do plano e o infográfico do laboratório não mudam). No modelo LiDAR entra entre a interferência e as habilidades.
+  - **Nota e pagamento.** `evaluateMission` calcula `E` com `missionExecution(mission.linePasses, amostras planejadas por linha)`, multiplica a nota técnica por `0,4 + 0,6·E` e passa o bônus de pilotagem a `qualityFactor` (quinto parâmetro, somado no fim como o da classe; nada em reprovação crítica). O relatório traz `execution` com a letra, a contagem das melhores passadas e a parcela do bônus.
+  - **`MIN_EXECUTION` nos 18 contratos.** `executionRequirement(id, valor)` (`data/contracts/common.ts`) monta o requisito comum, sempre o último da lista: 0,4 no C00 e 0,5 nos outros. Na previsão (briefing e checklist do campo) aparece como informativo ("—"), como a cobertura. Os testes das fichas passaram a comparar a lista sem o último item, e um teste novo confere o requisito comum em todos os contratos.
+  - **Relatório.** Resumo: bloco "Execução do voo" com a letra, o percentual, a contagem por nota e a regra da nota; a ficha técnica ganhou as fotos rejeitadas ("válidas / rejeitadas / borradas / água / névoa"). Cobertura: os centros das fotos rejeitadas ficam em vermelho e os das fracas em âmbar. Pagamento: o fator de qualidade mostra "(inclui +0,10 de pilotagem)" quando há bônus.
+  - **Nada do que existia muda de valor.** As missões sintéticas dos testes não têm `linePasses`, então `E = 1`: os 1.996 testes anteriores seguem verdes sem tocar em nenhum número, fora as contagens de itens da lista de requisitos (um a mais por contrato).
+  - **Testes novos** (23): cobertura com peso e classes fracionárias (3); multiplicador `execution` nas fotos e no LiDAR (3); avaliação com execução 0,65, 0,84, 0,92, 1, abaixo do mínimo, no limite e com linhas sem passada (7); `MIN_EXECUTION` na previsão e entre os tipos avaliados; o requisito comum nos 18 contratos; save com e sem os campos e com passada malformada (3); Resumo, ficha técnica, centros e linha do pagamento (6).
+- **Status:** ✅
 
 ### T088 — Motor de voo: rajadas, corredor, notas, revoo e autopilot
 - **Fase:** F10 · **Depende de:** T087 · **REQs:** REQ-FLT-013 (*parc.*), REQ-FLT-025 (*parc.*), REQ-FLT-026, REQ-FLT-027, REQ-FLT-028
@@ -1957,7 +1967,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ✅ |
-| REQ-PRC-014 | Execução do voo na avaliação | [domain-math](design/domain-math.md), [data-model](design/data-model.md), [processing-results](features/processing-results.md), [contracts-real](content/contracts-real.md) | T087 | ☐ |
+| REQ-PRC-014 | Execução do voo na avaliação | [domain-math](design/domain-math.md), [data-model](design/data-model.md), [processing-results](features/processing-results.md), [contracts-real](content/contracts-real.md) | T087 | ✅ |
 | REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-003 | Setores mapeados | [holo-table](features/holo-table.md) | T026 | ✅ |

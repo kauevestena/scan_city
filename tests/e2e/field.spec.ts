@@ -34,7 +34,7 @@ test('C00: sugestão automática de GCPs → plano padrão → checklist → dec
   await expect(page.getByTestId('stat-lines')).toHaveText(/^\d+$/);
 
   await page.getByRole('tab', { name: '4 · Checklist' }).click();
-  await expect(page.getByTestId('checklist-requirements').getByRole('listitem')).toHaveCount(6);
+  await expect(page.getByTestId('checklist-requirements').getByRole('listitem')).toHaveCount(7);
   await page.getByTestId('takeoff').click();
   await expect(page.getByTestId('survey-flight-screen')).toBeVisible();
   await expect(page.getByTestId('flight-hud')).toBeVisible();

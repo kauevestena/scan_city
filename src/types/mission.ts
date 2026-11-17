@@ -102,6 +102,11 @@ export interface Shot {
   manual: boolean;
   overWater: boolean;
   inFog: boolean;
+  /**
+   * Nota de execução (domain-math §10.3). Ausente em save antigo e em foto sintética: a foto
+   * vale como válida, com peso 1.
+   */
+  grade?: ShotGrade;
 }
 
 /** Nota de execução de uma amostra do voo (domain-math §10.3). */
@@ -160,7 +165,10 @@ export interface MissionData {
   minigames: { levelScore?: number; imuScore?: number };
   atlasCalibrated: boolean;
   sorties: Array<{ index: number; outcome: SortieOutcome; durationS: number }>;
+  /** Linhas com uma passada aceita. */
   completedLines: number[];
+  /** Passadas voadas. Ausente em save antigo e em missão sintética: a execução vale 1. */
+  linePasses?: LinePass[];
   shots: Shot[];
   lidar?: { grid: LidarGrid; samples: LidarSample[] };
   events: {
