@@ -30,6 +30,8 @@
 | F7 | Conteúdo | T052–T071 | **M3** — 7 contratos reais + 11 fendas + campanha |
 | F8 | Mesa & Laboratório | T072–T074 | Museu completo e os 4 infográficos |
 | F9 | Polimento | T075–T079 | **M4** — release: zero placeholders, performance, acessibilidade |
+| — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
+| F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
 
 ## Grafo de dependências (resumo)
 
@@ -1674,6 +1676,175 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 
 ---
 
+# F10 — Voo com desafio (replanejamento do voo, Fase 1)
+
+> O primeiro teste com uma pessoa achou o voo sem desafio, e a medição confirmou ([ADR-029](decisions.md)). Esta fase faz a pilotagem valer: corredor, nota de execução, vento com rajadas, revoo e cruzeiro automático. As Fases 2 (um perigo e um relógio por contrato) e 3 (curvas e pousos jogáveis, concorrente no ar, medalhas) serão especificadas depois do teste humano desta. O `main` só recebe o código quando a fase inteira estiver pronta (uma entrega só: T085 a T092), para a versão publicada não ficar com meia mecânica.
+
+### T084 — Especificação da Fase 1 do voo
+- **Fase:** F10 · **Depende de:** T083 · **REQs:** — (escreve os REQ-FLT-025 a 029, o REQ-PRC-014 e o REQ-NFR-010, e muda o texto dos REQ-FLT-005, 013, 018, 019 e 023)
+- **Spec:** [ADR-029 a ADR-032](decisions.md)
+- **Passos:**
+  1. Medir o voo atual: o jogador parado contra o voo perfeito, nos 18 contratos.
+  2. Registrar as decisões (ADRs) e escrever os requisitos.
+  3. Atualizar a matemática, o modelo de dados, a spec do voo, do processamento, do input, do áudio e das fichas.
+  4. Escrever as tarefas T085 a T092 e as linhas da matriz.
+- **Aceite:**
+  - [x] As decisões estão em ADR-029 a ADR-032, e a ADR-020 aparece como substituída.
+  - [x] Os requisitos novos e os alterados têm critério de aceite verificável e tarefa na matriz.
+  - [x] Nenhuma mudança de código: `npm run verify` segue verde.
+- **Verificação:** `npm run verify`
+- **Arquivos (efetivos):** ~ `specs/{decisions,requirements,tasks,README}.md`, `specs/design/{domain-math,data-model,input,audio}.md`, `specs/features/{survey-flight,processing-results}.md`, `specs/content/{contracts-real,contracts-rifts}.md`, `README.md` (contagem de requisitos).
+- **Notas de implementação:**
+  - **O pedido.** Depois de jogar a versão publicada, o usuário achou o voo "sem qualquer desafio, meio enfadonho" e pediu um plano. O plano em três fases foi apresentado com quatro decisões em aberto, e ele respondeu "vá pelas suas recomendações": o jogador parado é reprovado, o ritmo vem do cruzeiro automático, os contratos reais puxam para a simulação e as fendas para o arcade, e a Fase 1 sai sozinha para ele testar antes das outras.
+  - **A medição** (um teste temporário, fora do repositório: o motor de verdade, sem render, com o plano de referência de cada contrato, uma vez sem nenhum comando e uma vez com o autopilot). Parado: aprovado nos 18 contratos (o único comando foi o `R` de voltar à base, no C05 e no R01); nota idêntica à do autopilot em 13 e diferença de até 0,03 nos outros 5 (C05 0,88 × 0,91; C03 0,97 × 0,99; R06 0,90 × 0,91; R09 0,99 × 1,00; R11 0,93 × 0,92). Desvio máximo sem comando: 271 m no C02 (91 % do tempo fora da faixa, nota 0,94 nos dois casos), 200 m no R09, 140 m no C03; **zero** em C01, C04 e C06 (vento paralelo às faixas) e de 2 a 4 m em R03, R07, R10 e R11 (só o tremor da interferência). Colisões: nenhuma em nenhum contrato; dos 7.983 objetos sólidos dos 18 terrenos, só um fio do C05 alcança a altitude do plano. Duração a ×1: de 3,6 min (C00) a 12,7 min (R11), com uma foto a cada 1,4 a 3,1 s.
+  - **Por que três eixos e não quatro.** O plano falava em "inclinação e deriva" como parte da nota. Na conta, a inclinação não serve de eixo: a correção lateral de um multirrotor é a própria inclinação (o gimbal compensa), e o que a velocidade lateral acrescenta ao arrasto é pouco (0,40 → 0,47 px no C00). Ficaram faixa, altura e avanço, que são as três tolerâncias clássicas de execução (desvio da faixa, variação da altura de voo, recobrimento longitudinal), uma para cada controle (`A/D`, `Q/E`, `W/S`).
+  - **Por que o avanço é relativo e não em pixels de blur.** Seis planos de referência já voam acima de 0,5 px de arrasto (C05 0,55; R11 0,59; R05 0,68; C06 0,75; C04 0,86; R07 0,90): um limite absoluto de nitidez deixaria esses contratos sem nota Perfeita possível. A foto borrada (> 1 px) continua inválida, como antes.
+  - **Por que existe o erro de entrada.** Com o vento médio compensado e só de 1 a 3 rajadas por linha, a conta do passeio aleatório mostra o jogador parado dentro da tolerância em vários contratos (o R05, por exemplo: rajadas de 2 m/s num T2 deslocam ~2 m cada, contra 9 m de limite). O erro de entrada (30 % a 40 % de `S`) garante a reprovação do parado com qualquer vento e dá a cada linha um primeiro gesto: alinhar com o primeiro portal.
+  - **Save.** `Shot.grade` e `MissionData.linePasses` são opcionais, então o save segue na versão 1 e nada migra.
+  - **Valores a calibrar na T089** (os desta spec são o ponto de partida): limites dos três eixos, pesos das notas, aceitação da linha (0,5), `MIN_EXECUTION` (0,5; 0,4 no C00), rajadas (quantidade, força mínima de 2 m/s, duração), erro de entrada (30 % a 40 % de `S`), fator do cruzeiro (`T/12`, de ×2 a ×6) e bônus de pilotagem.
+- **Status:** ✅
+
+### T085 — Domínio: rajadas, entrada de faixa e velocidade no solo
+- **Fase:** F10 · **Depende de:** T084 · **REQs:** REQ-FLT-013 (*parc.*), REQ-FLT-028 (*parc.*)
+- **Spec:** [domain-math §5, §5.1, §7, §14 (G29, G30)](design/domain-math.md), [ADR-030](decisions.md)
+- **Arquivos:** \+ `src/domain/gusts.ts`, `gusts.test.ts`; ~ `src/domain/flightPhysics.ts`, `flightPhysics.test.ts`
+- **Passos:**
+  1. Testes primeiro: `gustCount`, `planGusts` (determinismo, quantidade, janela, sem sobreposição, força mínima, ≥ 50 % na transversal), `gustEnvelope`, `gustPushAt`, `gustWarningAt`, `maxCorrectableM`, `entryOffsetM`.
+  2. `gusts.ts`.
+  3. `stepAircraft` com `meanAlongMs`, `gustAlongMs` e `gustLateralMs`: velocidade no solo comandada com limites deslocados pelo vento médio, `gs` de fato, avanço por `gs`, lateral sem deriva do vento médio.
+- **Aceite:**
+  - [ ] G29 e G30 passam; a mesma seed dá a mesma agenda; todo contrato gera rajada ≥ 2 m/s × 0,8.
+  - [ ] Com vento médio de proa maior que a folga de velocidade no ar, a velocidade no solo fica limitada; com rajada de cauda, `gs` passa da do plano.
+  - [ ] Sem rajada e sem comando, `x` não muda (o vento médio não deriva).
+- **Verificação:** `npx vitest run src/domain`
+- **Status:** ☐
+
+### T086 — Domínio: corredor e nota de execução
+- **Fase:** F10 · **Depende de:** T085 · **REQs:** REQ-FLT-025 (*parc.*), REQ-FLT-026 (*parc.*), REQ-FLT-027 (*parc.*)
+- **Spec:** [domain-math §10.3, §14 (G26 a G28, G32)](design/domain-math.md), [ADR-029](decisions.md)
+- **Arquivos:** \+ `src/domain/corridor.ts`, `corridor.test.ts`, `src/domain/execution.ts`, `execution.test.ts`; ~ `src/types/mission.ts` (`ShotGrade`, `LinePass`)
+- **Passos:**
+  1. Testes primeiro, com os golden values.
+  2. `corridor.ts`: `gatePositions`, `plannedSamples`, `corridorProfile` (envelope com rampa limitada e teto), `corridorAltAt`.
+  3. `execution.ts`: `gradeAxis`, `gradeSample`, `worstGrade`, `passScore`, `passAccepted`, `gradeLetter`, `missionExecution`.
+- **Aceite:**
+  - [ ] G26, G27, G28 e G32 passam.
+  - [ ] O corredor nunca fica abaixo de relevo + `H` (salvo o teto) e nunca sobe mais que 70 % da razão de subida.
+  - [ ] `missionExecution` sem passadas devolve 1 só para missão sem `linePasses`; linha planejada sem passada vale 0.
+- **Verificação:** `npx vitest run src/domain`
+- **Status:** ☐
+
+### T087 — Avaliação com execução
+- **Fase:** F10 · **Depende de:** T086 · **REQs:** REQ-PRC-014, REQ-PRC-009 (*parc.*: bônus de pilotagem)
+- **Spec:** [domain-math §6.3, §6.7, §9, §10, §10.1, §12.1, §14 (G31)](design/domain-math.md), [data-model §4, §6, §7](design/data-model.md), [processing-results §5.4, §5.6, §5.8](features/processing-results.md), [contracts-real §2](content/contracts-real.md)
+- **Arquivos:** ~ `src/types/{mission,contracts,report}.ts`, `src/domain/{coverage,accuracy,mission,requirements}.ts` e testes, `src/data/contracts/{real,rifts}.ts` e testes, `src/data/strings.ts`, `src/state/persistence.ts` (validação tolerante aos campos novos), `src/screens/processing/*` (Resumo, Cobertura e Pagamento) e testes
+- **Passos:**
+  1. `Shot.grade`, `MissionData.linePasses`, `MIN_EXECUTION` e `QualityReport.execution`.
+  2. Cobertura com peso (`shotWeight`) e foto rejeitada inválida.
+  3. Multiplicador `execution` (fotos e LiDAR), nota × `(0,4 + 0,6·E)`, bônus de pilotagem em `Q`.
+  4. `MIN_EXECUTION` em todo contrato (0,4 no C00; 0,5 nos outros), na previsão ("—") e na avaliação.
+  5. Relatório: execução no Resumo, centros das fotos por nota na Cobertura, bônus no Pagamento.
+  6. Validação do save aceita missão com e sem os campos novos.
+- **Aceite:**
+  - [ ] G31 passa; missão sem `linePasses` tem a nota de antes (todos os testes anteriores seguem verdes sem mudar valor).
+  - [ ] Execução 0,65: multiplicador ×1,175 no RMSE, nota × 0,79 e nenhum bônus; execução 0,92: bônus de +0,10 em `Q`.
+  - [ ] Execução abaixo do valor do contrato: requisito crítico falha e a missão é reprovada.
+  - [ ] Um save anterior a esta tarefa carrega sem migração e sem perder a missão pendente.
+- **Verificação:** `npx vitest run src/domain src/data src/state src/screens/processing`
+- **Status:** ☐
+
+### T088 — Motor de voo: rajadas, corredor, notas, revoo e autopilot
+- **Fase:** F10 · **Depende de:** T087 · **REQs:** REQ-FLT-013 (*parc.*), REQ-FLT-025 (*parc.*), REQ-FLT-026, REQ-FLT-027, REQ-FLT-028
+- **Spec:** [survey-flight §3, §5.6 a §5.9, §5.12, §5.13, §5.16, §5.17, §5.19, §5.20, §6, §7](features/survey-flight.md)
+- **Arquivos:** ~ `src/engines/flight/{FlightEngine,autopilot,cameraSensor,lidarSensor,hudPublisher,environment}.ts` e testes; ~ `src/state/slices/missionSlice.ts`, `src/screens/flight/SurveyFlightScreen.tsx`; \+ `src/engines/flight/execution.test.ts`
+- **Passos:**
+  1. Vento: decomposição do vento médio, agenda de rajadas por passada, empurrões no `stepAircraft`, velocidade no solo nas fotos e nos pulsos.
+  2. Corredor: perfil por linha, decolagem até o corredor, erro de entrada em cada linha.
+  3. Notas: nota do instante, nota da foto (`Shot.grade`), amostra LiDAR por portal, peso dos pulsos, contagem e fechamento da passada.
+  4. Fila de revoo e `completedLines` só com as linhas aceitas; `SortieResult.linePasses`; store grava `linePasses` e descarta os da surtida perdida.
+  5. Autopilot: faixa com antecipação da rajada, velocidade no solo e altitude do corredor.
+  6. Snapshot do HUD com os campos novos e os alertas novos.
+- **Aceite:**
+  - [ ] C00 com o plano de referência e autopilot: 6 linhas aceitas, 96 ± 6 fotos, nenhuma rejeitada na contagem e execução ≥ 0,9.
+  - [ ] C00 sem comando: nenhuma linha aceita, cada linha é revoada uma vez e a execução fica < 0,4.
+  - [ ] A mesma missão e a mesma surtida repetem as mesmas rajadas e os mesmos erros de entrada.
+  - [ ] Surtida que termina em queda não deixa passada nem foto na missão.
+- **Verificação:** `npx vitest run src/engines/flight src/state src/screens/flight`
+- **Status:** ☐
+
+### T089 — Pilotos simulados e calibração
+- **Fase:** F10 · **Depende de:** T088 · **REQs:** REQ-NFR-010
+- **Spec:** [ADR-032](decisions.md), [survey-flight §9](features/survey-flight.md)
+- **Arquivos:** \+ `src/test/pilots.ts`, `src/test/flyMission.ts`, `src/engines/flight/flightChallenge.test.ts`, `scripts/qa-flight.mjs` (ou um teste marcado, fora do `verify`); ~ `package.json` (`qa:flight`), constantes calibradas em `src/domain/{gusts,execution,corridor}.ts`, `src/domain/campaignSim.test.ts`
+- **Passos:**
+  1. Os três pilotos e o voo de uma missão inteira sem render (surtidas, baterias, avaliação).
+  2. O teste das metas por contrato, com uma seed fixa, dentro do `verify`.
+  3. `qa:flight`: várias seeds por contrato, com execução, nota, aprovação, revoos e tempo real de cada surtida.
+  4. Calibrar as constantes até as metas valerem com folga; atualizar a spec com os valores finais.
+  5. Refazer a simulação de economia com a nota média do mediano.
+- **Aceite:**
+  - [ ] Parado: reprovado nos 18 contratos, em todas as seeds do `qa:flight`.
+  - [ ] Mediano: aprovado nos 18, com execução entre 0,5 e 0,9.
+  - [ ] Bom: aprovado nos 18, com execução ≥ 0,9 e nenhuma linha recusada.
+  - [ ] A campanha continua fechando na simulação de economia.
+  - [ ] As notas registram a tabela da medição e o tempo real por surtida.
+- **Verificação:** `npx vitest run src/engines/flight/flightChallenge.test.ts` · `npm run qa:flight`
+- **Status:** ☐
+
+### T090 — Portais, aviso de rajada, notas na tela, sons e boletim
+- **Fase:** F10 · **Depende de:** T088 · **REQs:** REQ-FLT-025, REQ-FLT-029, REQ-FLT-013, REQ-FLT-018, REQ-FLT-019, REQ-AUD-002
+- **Spec:** [survey-flight §4, §5.12, §5.13, §5.19, §5.21](features/survey-flight.md), [audio §3, §4](design/audio.md), [ui-style](design/ui-style.md)
+- **Arquivos:** \+ `src/engines/flight/corridorRenderer.ts` e teste; ~ `src/engines/flight/{FlightEngine,effects,particles}.ts`, `src/audio/sfx.ts` e teste, `src/screens/flight/{FlightHud,PostFlightDialog,SurveyFlightScreen}.tsx` e testes, `src/data/strings.ts`
+- **Passos:**
+  1. Portais e trilho do corredor (`buildCorridorDrawList`), com o piscar no cruzamento.
+  2. Riscos de vento e biruta; alerta de rajada com o lado e a contagem.
+  3. Marca da nota a cada amostra e pegada na cor da nota.
+  4. `GRADE` e `GRADE_MISS`, com a escala da sequência; `STAGE_DONE` e `DENIED` no boletim.
+  5. HUD: execução, sequência, velocidade no solo com alvo, seta de altura, cruzeiro; boletim da linha na curva.
+  6. Pós-voo com a nota por linha e as linhas a revoar.
+- **Aceite:**
+  - [ ] A draw list mostra no máximo 16 portais, de longe para perto, só à frente.
+  - [ ] Com `reduceFlashes`, nenhum portal pisca, nenhuma marca se move e os riscos não piscam.
+  - [ ] Teste RTL: HUD com rajada avisada, com nota Fraca por faixa e com boletim de linha recusada; pós-voo com linha a revoar.
+  - [ ] O tempo por quadro do voo continua dentro de 12 ms em Alta no perfil de medição (o contador do `F9`).
+- **Verificação:** `npx vitest run src/engines/flight src/screens/flight src/audio` · `npx playwright test tests/e2e/flight.spec.ts`
+- **Status:** ☐
+
+### T091 — Cruzeiro automático
+- **Fase:** F10 · **Depende de:** T090 · **REQs:** REQ-FLT-023
+- **Spec:** [survey-flight §5.14](features/survey-flight.md), [input §2](design/input.md), [ADR-031](decisions.md)
+- **Arquivos:** ~ `src/engines/flight/{fieldElements,FlightEngine}.ts` e testes, `src/screens/flight/{SurveyFlightScreen,FlightHud}.tsx`, `src/data/strings.ts`
+- **Passos:**
+  1. `cruiseMaxFor`, `cruiseEligible` e `stepCruise`, com teste.
+  2. O motor calcula o fator a cada passo; `TIME_WARP` liga e desliga.
+  3. HUD e dica de controle.
+- **Aceite:**
+  - [ ] Estável por 1,5 s e sem evento: o fator sobe até o da linha (×3 numa linha de 30 s; ×6 numa de 75 s).
+  - [ ] No aviso de rajada, com alerta crítico, com objeto à frente ou com a nota do instante abaixo de Boa, o fator cai a 1 no mesmo passo.
+  - [ ] Com o cruzeiro desligado, o voo fica em ×1.
+- **Verificação:** `npx vitest run src/engines/flight`
+- **Status:** ☐
+
+### T092 — Tutorial, E2E, documentação e entrega da Fase 1
+- **Fase:** F10 · **Depende de:** T089, T091 · **REQs:** — (fecha a fase; confere REQ-NFR-001, REQ-NFR-007 e REQ-CNT-005 no que mudou)
+- **Spec:** [survey-flight §8, §9](features/survey-flight.md), [qa-manual](qa-manual.md)
+- **Arquivos:** ~ dicas do tutorial do voo e `src/data/strings.ts`; ~ `tests/e2e/*` (voo, slice do C00, teclado, controle); ~ `README.md`, `specs/{README,qa-manual,tasks}.md`
+- **Passos:**
+  1. Dicas do C00: alinhar na entrada, seguir os portais, reagir à rajada, acompanhar o relevo, ler a nota e o boletim.
+  2. Ajustar os E2E que voavam sem comando e somar o caso do jogador parado.
+  3. Rodar o E2E inteiro (Chromium e Firefox) e as entradas aleatórias no voo.
+  4. README, roteiro de QA manual (o que avaliar no voo novo) e matriz.
+  5. Um pull request com T085 a T092; depois do CI verde, merge (publica).
+- **Aceite:**
+  - [ ] O C00 jogado só com o teclado, pilotando, aprova; sem comando, reprova com o boletim de revoo.
+  - [ ] E2E inteiro verde no Chromium e no Firefox.
+  - [ ] A versão publicada abre o voo novo.
+- **Verificação:** `npm run e2e` · `npm run e2e:firefox` · `npm run qa:random`
+- **Status:** ☐
+
+
+---
+
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
 
 > Gerada a partir das referências cruzadas. Ao concluir uma tarefa, o agente marca a coluna **Status** do REQ como ✅ quando **todas** as tarefas listadas estiverem concluídas.
@@ -1696,7 +1867,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
-| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076 | ✅ |
+| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076, T090 | ☐ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ✅ |
@@ -1743,18 +1914,23 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
-| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030 | ✅ |
+| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090 | ☐ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ✅ |
-| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035 | ✅ |
-| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031 | ✅ |
+| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035, T090 | ☐ |
+| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031, T090 | ☐ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
-| REQ-FLT-023 | Aceleração de tempo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036 | ✅ |
+| REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
+| REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ☐ |
+| REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ☐ |
+| REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ☐ |
+| REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ☐ |
+| REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090 | ☐ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ✅ |
@@ -1763,11 +1939,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
 | REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ✅ |
 | REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ✅ |
-| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025 | ✅ |
+| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025, T087 | ☐ |
 | REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-013 | Volumetria | [contracts-real](content/contracts-real.md), [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T043, T057 | ✅ |
+| REQ-PRC-014 | Execução do voo na avaliação | [domain-math](design/domain-math.md), [data-model](design/data-model.md), [processing-results](features/processing-results.md), [contracts-real](content/contracts-real.md) | T087 | ☐ |
 | REQ-HOL-001 | Render 3D orbital | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-002 | Névoa cartográfica | [holo-table](features/holo-table.md) | T026 | ✅ |
 | REQ-HOL-003 | Setores mapeados | [holo-table](features/holo-table.md) | T026 | ✅ |
@@ -1811,3 +1988,4 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
+| REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089 | ☐ |

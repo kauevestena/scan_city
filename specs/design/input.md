@@ -42,7 +42,7 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 | `PAUSE` | Pausar / menu | `Esc` ou `M` | `Menu` (botão 9) | `Options` (9) |
 | `TOGGLE_DIMENSION` **[ADIÇÃO]** | Mapa e mesa: Real ↔ Fendas | `Tab` | `Y` (3) | `△` (3) |
 | `CYCLE_VEHICLE` **[ADIÇÃO]** | Mapa: trocar o modo de locomoção | `V` | `LB` (4) | `L1` (4) |
-| `TIME_WARP` **[ADIÇÃO]** | Voo: ×1 → ×2 → ×4 | `T` | `RB` (5) | `R1` (5) |
+| `TIME_WARP` **[ADIÇÃO]** | Voo: liga e desliga o cruzeiro automático ([ADR-031](../decisions.md)) | `T` | `RB` (5) | `R1` (5) |
 | `LOOK_X/Y` **[ADIÇÃO]** | Mesa/nuvem 3D: orbitar | arrastar com o mouse / setas | Analógico dir. (eixos 2/3) | idem |
 | `ZOOM` **[ADIÇÃO]** | Mesa/nuvem 3D: zoom | roda do mouse / `+` `−` | `RT`/`LT` | `R2`/`L2` |
 | `MODE_1..3` **[ADIÇÃO]** | Mesa: modo de exibição | `1` `2` `3` | — (usar `FIRE`, cíclico) | — |

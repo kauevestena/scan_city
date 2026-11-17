@@ -115,7 +115,7 @@ specs/         a especificação (SDD): a fonte da verdade do projeto
 O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](specs/README.md) é a fonte da verdade e cada tarefa de [`specs/tasks.md`](specs/tasks.md) cita os requisitos (`REQ-*`) que atende. O mapa:
 
 - [`constitution.md`](specs/constitution.md): stack, princípios, convenções e Definition of Done;
-- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 131 requisitos;
+- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 138 requisitos;
 - [`design/`](specs/design) e [`features/`](specs/features): arquitetura, matemática do domínio, terreno, input, áudio, UI e uma spec por tela;
 - [`decisions.md`](specs/decisions.md) e [`open-questions.md`](specs/open-questions.md): decisões (ADRs) e perguntas em aberto.
 

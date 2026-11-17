@@ -9,7 +9,7 @@ Transformar os dados da missão (fotos e pulsos) em produtos cartográficos com 
 - enviar o resultado ao Museu.
 
 ## 2. Requisitos cobertos
-REQ-PRC-001 a REQ-PRC-013, REQ-PRG-001, REQ-PRG-006, REQ-PRG-010, REQ-PRG-011 (comparativo), REQ-PRG-012, REQ-CNT-005, REQ-CNT-007, REQ-AUD-002.
+REQ-PRC-001 a REQ-PRC-014, REQ-PRG-001, REQ-PRG-006, REQ-PRG-010, REQ-PRG-011 (comparativo), REQ-PRG-012, REQ-CNT-005, REQ-CNT-007, REQ-AUD-002.
 
 ## 3. Fluxo e estados internos
 
@@ -73,12 +73,13 @@ REPORT ──"Concluir" (escritório) / "Voltar ao mapa" (em campo)──▶ goT
 ### 5.4 Aba Resumo
 - Status grande: **APROVADO** (emerald) ou **REPROVADO** (rose).
 - Classe atingida e score (0–100).
-- Requisitos com `ChecklistItem` (valor medido, severidade, ✓ ou ✗).
+- **Execução do voo** (REQ-PRC-014, só em missão com dado de execução): a letra (S a D), a execução em % e a contagem por nota ("14 perfeitas · 3 boas · 1 fraca · 0 rejeitadas"), com a frase "A nota da missão é a nota técnica × (0,4 + 0,6 × execução)".
+- Requisitos com `ChecklistItem` (valor medido, severidade, ✓ ou ✗). O requisito `MIN_EXECUTION` aparece como "Execução do voo ≥ N %".
 - **Ficha técnica:**
   - aeronave, sensor e lente;
   - H médio (AGL), GSD efetivo;
   - p real (mediana) e q estimado;
-  - nº de fotos (válidas / borradas / sobre água / névoa) e pulsos;
+  - nº de fotos (válidas / rejeitadas na execução / borradas / sobre água / névoa) e pulsos;
   - surtidas, colisões e duração.
 - Diálogo final do cliente (sucesso ou falha), em `DialogueBox`.
 
@@ -104,7 +105,7 @@ REPORT ──"Concluir" (escritório) / "Voltar ao mapa" (em campo)──▶ goT
   - vermelho (`rose-500`) com < 3;
   - hachura azul nas células excluídas (água).
 - Legenda com os percentuais. Tooltip por célula com o nº de fotos.
-- Toggle "Mostrar centros das fotos": pontos, com os borrados em vermelho.
+- Toggle "Mostrar centros das fotos": pontos, com os borrados e os rejeitados na execução em vermelho e os fracos em âmbar.
 - Em missões LiDAR, uma segunda camada mostra a densidade (pts/m², escala viridis-like com os tokens) e a densidade de solo.
 
 ### 5.7 Aba Produtos (REQ-PRC-008, `engines/raster/products.ts`)
@@ -125,7 +126,7 @@ Todos os rasters são 256 × 256 sobre a AOI, gerados do `TerrainSampler` e masc
 - Linhas de `PaymentBreakdown`:
   - valor-base;
   - × replay;
-  - × qualidade (score);
+  - × qualidade (score), com o bônus de pilotagem indicado ao lado quando houver ("inclui +0,10 de pilotagem");
   - × rival;
   - × Gestão (GES_1);
   - × equipe;
@@ -161,6 +162,8 @@ Todos os rasters são 256 × 256 sobre a AOI, gerados do `TerrainSampler` e masc
 - **Dado** uma missão com 20 % das células vermelhas, **quando** abrir a orto, **então** essas áreas aparecem com ruído ou xadrez, e o multiplicador "Buracos de cobertura (×1,20)" está listado.
 - **Dado** uma aprovação inédita, **quando** o relatório abrir, **então** o saldo aumenta exatamente `payment.totalBRL`, o souvenir entra em `souvenirs` e o toast aparece **uma vez**, mesmo que o componente re-renderize.
 - **Dado** a câmera `CAM_20MP_RS`, **quando** abrir a aba Produtos, **então** NDVI está desabilitado com o motivo.
+- **Dado** uma missão com execução 0,65, **quando** o relatório abrir, **então** o Resumo mostra "Execução do voo: C · 65 %", o multiplicador "Execução do voo (×1,18)" está listado e a nota é a nota técnica × 0,79.
+- **Dado** uma missão com execução 0,30, **quando** processar, **então** o requisito "Execução do voo ≥ 50 %" falha e o relatório sai REPROVADO.
 
 ## 9. Testes
 - **Unitário:** `evaluateMission` (golden de um cenário fixo completo), `applyMissionResult` idempotente, divisão de tempo das etapas, geração dos rasters (dimensões, determinismo, máscara de sem-dados).

@@ -312,7 +312,7 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - Tudo respeitando os limites da aeronave.
 - *Aceite:* testes unitários da física (`stepAircraft`).
 
-**REQ-FLT-005: Linhas como corridas.** O sistema deve tratar cada linha de voo como uma corrida para frente: início antes da AOI (*lead-in*) e fim depois dela (*lead-out*), com indicador de desvio lateral. Ao fim de cada linha, executa a curva automática animada até a próxima linha, alternando o sentido.
+**REQ-FLT-005: Linhas como corridas.** O sistema deve tratar cada linha de voo como uma corrida para frente: início antes da AOI (*lead-in*) e fim depois dela (*lead-out*), com indicador de desvio lateral. Ao fim de cada linha, executa a curva automática animada até a próxima linha, alternando o sentido. A linha seguinte começa com o erro de entrada do REQ-FLT-028.
 - *Aceite:* o autopilot completa as N linhas do plano em sequência.
 
 **REQ-FLT-006: Câmera RGB.** Enquanto o sensor ativo for uma câmera e a aeronave estiver dentro da AOI (± uma base), o sistema deve:
@@ -352,8 +352,13 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - Cada janela altera a paleta, o comprimento das sombras projetadas e o tempo de exposição (blur).
 - *Aceite:* teste unitário de `shadowLength()` e da tabela de exposição.
 
-**REQ-FLT-013: Vento e térmicas.** O sistema deve aplicar vento cruzado com rajadas, que empurra a aeronave lateralmente conforme o `driftFactor`, e térmicas localizadas, que empurram verticalmente. O HUD mostra o vento e o *crab angle* necessário.
-- *Aceite:* teste unitário. O golden value do crab é 19,47°.
+**REQ-FLT-013: Vento e térmicas.** O sistema deve aplicar o vento em duas partes ([ADR-030](decisions.md)):
+- o **vento médio** é compensado pela aeronave (sem deriva lateral constante; a velocidade no solo do plano é mantida dentro dos limites de velocidade no ar) e custa energia;
+- as **rajadas**, de 1 a 3 por linha, sorteadas pela seed da missão, empurram a aeronave de lado e mudam a velocidade no solo conforme o `driftFactor`, e são avisadas 1,5 s antes (alerta com o lado, biruta no HUD e riscos no ar);
+- as térmicas localizadas empurram verticalmente.
+
+O HUD mostra o vento, o *crab angle* necessário e a velocidade no solo.
+- *Aceite:* testes unitários (o golden value do crab é 19,47°; a agenda de rajadas é determinística pela seed; toda rajada tem ≥ 50 % da força na transversal; todo contrato tem rajada ≥ 2 m/s).
 
 **REQ-FLT-014: Energia e RTH.** O sistema deve drenar a bateria (ou o milho, no caso de Atlas) conforme [domain-math §7](design/domain-math.md):
 - Quando a energia restante ficar abaixo da necessária para voltar × 1,2, ou abaixo de 20 %, emite o bip RTH e o alerta "RTH RECOMENDADO".
@@ -385,13 +390,16 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - ALT, AGL, velocidade, vento e crab;
 - GSD ao vivo, p real e q estimado;
 - fotos e blur;
-- densidade LiDAR, casco, minimapa e dicas de controle com glyphs.
+- densidade LiDAR, casco, minimapa e dicas de controle com glyphs;
+- a execução (REQ-FLT-029): a nota da última amostra, a sequência, a execução da linha, a velocidade no solo com o alvo, a seta do alvo de altura, a biruta com o aviso de rajada e o estado do cruzeiro.
 - *Aceite:* teste RTL do HUD a partir de um snapshot.
 
 **REQ-FLT-019: Fim da surtida e da missão.** Quando a última linha terminar ou o RTH concluir, o sistema deve exibir o diálogo pós-voo:
 - **Processar agora**, se possuir Van Lab → `PROCESSING_RESULTS`;
 - **Levar dados ao escritório** → `WORLD_MAP`, com a missão na fila;
-- **Nova surtida** (troca de bateria ou alimentar Atlas), se houver linhas incompletas e energia reserva.
+- **Nova surtida** (troca de bateria ou alimentar Atlas), se houver linhas incompletas ou a revoar e energia reserva.
+
+O diálogo mostra a nota de cada linha voada e as linhas a revoar (REQ-FLT-027).
 - *Aceite:* E2E com autopilot.
 
 **REQ-FLT-020: Interferência eletromagnética.** Enquanto o voo ocorrer numa Fenda com aeronave não imune, o sistema deve aplicar ruído de bússola/IMU (tremor lateral e desvio de rumo) e o multiplicador de RMSE de [domain-math §6](design/domain-math.md).
@@ -409,11 +417,35 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - marcar as fotos daquele trecho com `rtk = 'FLOAT'`.
 - *Aceite:* teste unitário de `rtkStatusAt()`.
 
-**REQ-FLT-023: Aceleração de tempo.** O sistema deve permitir `TIME_WARP` (×1 → ×2 → ×4) nas retas das linhas, com sub-passos de física. Ele volta automaticamente a ×1 quando houver obstáculo a < 150 m à frente no corredor, alerta ativo ou curva.
-- *Aceite:* teste unitário da regra de queda para ×1.
+**REQ-FLT-023: Cruzeiro automático.** Enquanto a aeronave estiver estável no corredor (faixa, altura e avanço em Boa ou melhor por 1,5 s) e nada pedir atenção, o sistema deve acelerar o tempo sozinho, com sub-passos de física, até um fator que cresce com a duração da linha (×2 a ×6). Ele volta a ×1 no instante em que houver rajada ativa ou avisada, obstáculo a < 150 m à frente no corredor, alerta crítico, holofote próximo, distração do Atlas, pico elétrico, corredor que sobe ou desce à frente (sem TF) ou curva. `TIME_WARP` liga e desliga o cruzeiro ([ADR-031](decisions.md)).
+- *Aceite:* teste unitário das condições de entrada e de queda para ×1, e do fator máximo por duração de linha.
 
 **REQ-FLT-024: Detecção furtiva e alvos especiais.** Onde o contrato definir holofotes (`SEARCHLIGHTS`), se a aeronave permanecer > 1,5 s em um cone de holofote, então o sistema marca `detected = true`. Onde definir `FEATURE_TARGETS`, registra os alvos especiais cobertos por dados suficientes (≥ 3 fotos ou ≥ 50 pts/m² na célula).
 - *Aceite:* testes unitários.
+
+**REQ-FLT-025: Corredor de voo.** O sistema deve definir, para cada linha, um corredor ([survey-flight §5.19](features/survey-flight.md)): portais nos pontos de disparo do plano (a cada base `B`, na janela de disparo), com meia largura de `0,10·S` e meia altura de `0,10·H`, na altitude do corredor. A altitude do corredor segue o relevo com a regra do Terrain Following (maior elevação nos próximos 2 s de trajeto + `H`), limitada a uma rampa que a aeronave consegue subir e ao teto. O sistema deve desenhar os portais à frente da aeronave em perspectiva.
+- *Aceite:* testes unitários (posições, altitude ≥ relevo + `H`, rampa ≤ 70 % da razão de subida, teto) e teste de draw list dos portais.
+
+**REQ-FLT-026: Nota de execução.** Quando uma foto automática for disparada (ou, com o LiDAR ativo, quando um portal for cruzado), o sistema deve dar a ela uma nota, a pior dos três eixos ([domain-math §10.3](design/domain-math.md)):
+- **faixa:** `|desvio lateral| / S` ≤ 0,05 Perfeita, ≤ 0,10 Boa, ≤ 0,25 Fraca, acima Rejeitada;
+- **altura:** `|altitude − altitude do corredor| / H` ≤ 0,05, ≤ 0,10, ≤ 0,20;
+- **avanço:** distância à foto anterior sobre `B` (no LiDAR, velocidade no solo sobre a do plano) ≤ 1,05, ≤ 1,15, ≤ 1,30.
+
+Foto borrada (> 1 px) é Rejeitada. As fotos da margem de entrada (antes do início da AOI) e as manuais não entram na contagem da linha. Com o LiDAR ativo, os pulsos acumulam com peso 1, 0,5 (Fraca) ou 0 (Rejeitada) conforme a nota do instante.
+- *Aceite:* testes unitários com os limites de cada eixo.
+
+**REQ-FLT-027: Aceitação da linha e revoo.** Quando uma passada terminar, o sistema deve calcular a nota dela (Perfeita 1, Boa 0,8, Fraca 0,4, Rejeitada 0, na média das amostras) e aceitá-la se estiver completa e com nota ≥ 0,5. Só a linha aceita fica concluída. Se a passada for recusada, então o sistema deve pôr a linha no fim da fila da surtida, uma vez por surtida, para revoo; as linhas recusadas que sobrarem ficam disponíveis para uma nova surtida.
+- *Aceite:* testes unitários da nota e da fila; teste do motor com uma linha voada fora do corredor.
+
+**REQ-FLT-028: Entrada de faixa.** Quando uma linha começar, o sistema deve posicionar a aeronave deslocada lateralmente de 30 % a 40 % de `S`, para um lado sorteado pela seed, limitado a 90 % do que a aeronave consegue corrigir até o início da AOI.
+- *Aceite:* teste unitário (faixa de valores, limite por aeronave, determinismo pela seed).
+
+**REQ-FLT-029: Retorno imediato da execução.** O sistema deve mostrar a execução enquanto ela acontece:
+- uma marca com a nota a cada amostra, na cor da nota, e a pegada da foto na mesma cor;
+- um som a cada amostra: a sequência de Perfeitas sobe uma escala, a Boa mantém a nota e a Fraca ou a Rejeitada quebra a sequência com um som surdo;
+- o boletim da linha durante a curva (letra de S a D, contagem por nota e "revoo" quando recusada);
+- com "Reduzir flashes e tremores", as marcas aparecem sem piscar.
+- *Aceite:* teste RTL do HUD e do boletim; teste do motor (eventos de nota e de fim de passada).
 
 ---
 
@@ -475,6 +507,17 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 
 **REQ-PRC-013: Volumetria.** Onde o contrato exigir volumetria (`MAX_VOLUME_ERROR_PCT`), o sistema deve calcular o volume de corte e aterro de referência e o medido, e exibir o erro percentual.
 - *Aceite:* teste unitário com terreno analítico (cone de volume conhecido).
+
+**REQ-PRC-014: Execução do voo na avaliação.** O sistema deve calcular a execução `E` da missão (0 a 1: a melhor passada de cada linha planejada, ponderada pelas amostras planejadas; linha não voada vale 0) e usá-la na avaliação ([domain-math §10.3](design/domain-math.md)):
+- foto Rejeitada não conta na cobertura nem nas medições, e Fraca conta metade na cobertura;
+- o multiplicador `execution` (`1 + 0,5·(1 − E)`) entra no RMSE;
+- a nota da missão é multiplicada por `0,4 + 0,6·E`;
+- o requisito `MIN_EXECUTION`, presente em todo contrato, falha se `E` ficar abaixo do valor;
+- o pagamento ganha o bônus de pilotagem (+0,05 em `Q` com `E` ≥ 0,80; +0,10 com `E` ≥ 0,90);
+- o relatório mostra a execução, a letra e a contagem por nota.
+
+Missão sem dado de execução (save antigo) vale `E = 1`.
+- *Aceite:* testes unitários com golden values; teste RTL do relatório.
 
 ---
 
@@ -637,3 +680,9 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 
 **REQ-NFR-009: Navegadores.** O jogo deve funcionar nas versões atuais de Chrome, Edge e Firefox. A Gamepad API é testada em Chrome e Edge.
 - *Aceite:* smoke E2E no Chromium + verificação manual no Firefox documentada.
+
+**REQ-NFR-010: Desafio do voo verificável.** Para cada contrato, com o plano de referência, o voo deve cumprir as metas de [ADR-032](decisions.md) com três pilotos simulados no motor de verdade:
+- o **parado** (nenhum comando) é reprovado;
+- o **mediano** (reação de 0,35 s, comando tudo ou nada, lapsos de 1 s) é aprovado, com execução entre 0,5 e 0,9;
+- o **bom** (o autopilot) é aprovado, com execução ≥ 0,9.
+- *Aceite:* teste automático por contrato dentro do `npm run verify`; `npm run qa:flight` repete com várias seeds e mede o tempo real de cada surtida.

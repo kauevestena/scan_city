@@ -7,10 +7,10 @@ Executar o plano de voo num Canvas 2D a 60 FPS, com forte ilusão de profundidad
 - sensores operando em tempo real (câmera RGB com pegada luminosa e LiDAR com leque de feixes);
 - clima, vento e energia como desafios.
 
-Cada linha de voo é uma corrida para frente. As consequências técnicas (GSD, sobreposição, blur, RTK) são medidas a cada disparo.
+Cada linha de voo é uma corrida para frente, e **quem pilota é o jogador**: ele alinha a aeronave na entrada da faixa, segura o corredor contra as rajadas, acompanha o relevo quando não há Terrain Following e cuida da velocidade no solo. As consequências técnicas (GSD, sobreposição, blur, RTK) são medidas a cada disparo, e cada disparo recebe uma **nota de execução** que entra na avaliação da missão ([ADR-029](../decisions.md)). Um jogador que não toca nos controles é reprovado (REQ-NFR-010).
 
 ## 2. Requisitos cobertos
-REQ-FLT-001 a REQ-FLT-024, REQ-AUD-002 (sons do voo), REQ-NFR-001, REQ-NFR-007, REQ-CORE-003, REQ-CORE-008.
+REQ-FLT-001 a REQ-FLT-029, REQ-AUD-002 (sons do voo), REQ-NFR-001, REQ-NFR-007, REQ-NFR-010, REQ-CORE-003, REQ-CORE-008.
 
 ## 3. Fluxo e estados internos (`FlightPhase`)
 
@@ -18,12 +18,15 @@ REQ-FLT-001 a REQ-FLT-024, REQ-AUD-002 (sons do voo), REQ-NFR-001, REQ-NFR-007, 
 TAKEOFF (2,5 s) ──▶ RUN(line i) ──fim da linha──▶ TURN (animação) ──▶ RUN(line i+1) … ──última──▶ LANDING (2 s) ──▶ POST_FLIGHT
      RUN ──RTH (confirmado)──▶ RETURNING (3 s) ──▶ POST_FLIGHT
      RUN ──casco = 0 | colisão com terreno | energia = 0──▶ CRASHED (2 s, câmera treme) ──▶ POST_FLIGHT
-POST_FLIGHT ──"Nova surtida"──▶ TAKEOFF (na 1ª linha incompleta)
+     TURN ──última linha da fila, com linha recusada ainda não revoada nesta surtida──▶ RUN(revoo da linha recusada)
+POST_FLIGHT ──"Nova surtida"──▶ TAKEOFF (na 1ª linha não concluída)
 POST_FLIGHT ──"Processar agora" (Van) ──▶ goTo(PROCESSING_RESULTS)    ──"Levar dados"/"Abandonar"──▶ goTo(WORLD_MAP)
 ```
 
-- **Linha completa:** a aeronave passou de `aoiEndS + B` ao longo da linha com dados registrados, ou seja, ≥ 1 disparo ou pulso na janela da AOI.
-- **Linha incompleta:** foi interrompida antes disso. Linhas incompletas ficam disponíveis para uma nova surtida.
+- **Passada completa:** a aeronave passou de `aoiEndS + B` ao longo da linha com dados registrados, ou seja, ≥ 1 disparo ou pulso na janela da AOI.
+- **Linha concluída:** teve uma passada completa **e aceita** (nota da passada ≥ 0,5, §5.20). Só as linhas concluídas entram em `completedLines`.
+- **Linha recusada:** a passada terminou com nota < 0,5. Ela vai para o fim da fila da surtida, uma vez por surtida (**revoo**). As fotos da passada recusada ficam na missão com a nota delas: as rejeitadas não contam, as outras contam.
+- **Linha incompleta:** foi interrompida antes do fim. Linhas incompletas e recusadas ficam disponíveis para uma nova surtida.
 - **Surtida que termina em CRASH ou ENERGY_DEPLETED:** os **shots e pulsos dessa surtida são descartados**. Os dados das surtidas anteriores ficam.
 
 ## 4. Layout do HUD (React sobreposto ao canvas)
@@ -31,19 +34,25 @@ POST_FLIGHT ──"Processar agora" (Van) ──▶ goTo(PROCESSING_RESULTS)    
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ ✈ Condor RTK  ·  📷 RGB 45MP [Tab]  ·  RTK: FIX        LINHA 3/9  ▕████████░░░░▏ 62 %        🔋 74 % 18:32 │
-│                                                        desvio  ◀──────●──▶  +2,1 m                ♥♥♥♡ │
+│ EXECUÇÃO  A 88 %  ·  sequência ×7                      desvio  ◀──────●──▶  +2,1 m                ♥♥♥♡ │
 │                                                                                                       │
-│                         [ ⚠ OVERLAP INSUFICIENTE 58 % ]                                               │
+│                         [ ⚠ RAJADA ▶ em 1,2 s ]                                                       │
 │                                                                                                       │
-│                              (canvas 2.5D: céu, relevo, objetos, aeronave)                            │
-│                                                                                                       │
-│ ALT 412 m  AGL 98 m  ▲Q ▼E        GSD 1,79 cm/px ✓      FOTOS 143 / 243        LiDAR 158 pts/m²  ┌────┐ │
-│ VEL 10,4 m/s  [W/S]  ×2 [T]       p 74 %  q 66 %         BLUR 0,4 px ✓          solo 17 pts/m²   │mini│ │
-│ VENTO → 6,2 m/s  CRAB 12°                                                                         └────┘ │
+│               (canvas 2.5D: céu, relevo, objetos, portais do corredor, aeronave)                      │
+│                                                         PERFEITA                                      │
+│ ALT 412 m  AGL 98 m  ▲ +4 m  ▲Q ▼E   GSD 1,79 cm/px ✓      FOTOS 143 / 243        LiDAR 158 pts/m²  ┌────┐ │
+│ SOLO 10,4 m/s  alvo 10  [W/S]        p 74 %  q 66 %         BLUR 0,4 px ✓          solo 17 pts/m²   │mini│ │
+│ VENTO → 6,2 m/s  CRAB 12°  🡆 biruta  CRUZEIRO ×4 [T]                                             └────┘ │
 └──────────────────────────────── dicas: [Espaço] foto manual · [R] RTH · [Esc] pausa ─────────────────┘
 ```
 
 O HUD lê o `FlightHudSnapshot` (§6), publicado a 10 Hz. Alertas centrais: no máximo 2, ordenados por prioridade (§5.17).
+
+- **EXECUÇÃO:** a letra e a nota da passada em curso, e a sequência de amostras Boas ou Perfeitas seguidas (§5.21).
+- **▲ +4 m / ▼ −3 m:** quanto falta subir ou descer para a altitude do corredor; some dentro de ±5 % de `H`.
+- **SOLO / alvo:** a velocidade no solo e a do plano. Fica âmbar acima de 1,05× e rosa acima de 1,15×.
+- **Biruta:** uma seta com a direção do vento em relação à aeronave; na rajada (aviso e sopro) a seta cresce, pisca e aponta para onde ela empurra.
+- **CRUZEIRO ×N:** aparece com o tempo acelerado; "CRUZEIRO DESLIGADO" quando o jogador o desliga (§5.14).
 
 ## 5. Regras e algoritmos
 
@@ -123,7 +132,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 ### 5.6 Aeronave
 - **Física:** `stepAircraft` ([domain-math §5](../design/domain-math.md)).
 - **Input** (contexto `FLIGHT`):
-  - `MOVE_Y` → velocidade-alvo;
+  - `MOVE_Y` → velocidade no solo alvo (centro = a do plano);
   - `MOVE_X` → lateral;
   - `ALT_UP`/`ALT_DOWN` → vertical ou AGL-alvo (com TF).
 - **Sprite** (desenhado em `Z = 0`, sempre por cima do terreno da faixa 0, com sombra no chão projetada verticalmente cujo tamanho diminui com o AGL), com cores da pintura do drone ou acessório do Atlas:
@@ -137,14 +146,15 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - `NONE` se não tem RTK.
 
 ### 5.7 Linhas, corredor e curvas
-- O *run* começa em `s = 0` (início do lead-in), com `X = 0` e a altitude do plano: H sobre a cota média da AOI, ou o AGL-alvo com TF.
-- **Indicador de desvio:** `e = X`. "FORA DA FAIXA" quando `|e| > 0,25·S`.
+- O *run* começa em `s = 0` (início do lead-in), na altitude em que a aeronave vinha. A decolagem leva a aeronave à altitude do corredor em `s = 0` (§5.19).
+- **Entrada de faixa (REQ-FLT-028):** toda linha, inclusive a primeira e os revoos, começa com `X = entryOffsetM(...)` ([domain-math §5.1](../design/domain-math.md)): de 30 % a 40 % de `S` para um lado sorteado, limitado ao que a aeronave corrige até o início da AOI. O sorteio usa a seed `"<missão>:<surtida>:<linha>:<passada>:entry"`. O jogador tem o lead-in para alinhar: as fotos antes de `aoiStartS` não entram na nota da passada.
+- **Indicador de desvio:** `e = X`. "FORA DA FAIXA" quando `|e| > 0,25·S` (o limite da nota Fraca).
 - **Fim da linha:** quando `s ≥ lineLength`. Entra em `TURN`:
   - duração = `turnTimeS` do plano, limitada à apresentação de 2,5 s;
   - a energia correspondente ao `turnTimeS` real é consumida;
-  - animação de fade com minimapa ampliado mostrando a curva;
-  - o próximo *run* começa com o X atual relativo à nova linha = 0. A curva automática alinha.
-- **Ordem das linhas:** primárias em zigue-zague, depois as cruzadas, se houver.
+  - animação de fade com minimapa ampliado mostrando a curva e, por cima, o **boletim da linha** (§5.21);
+  - o próximo *run* começa com o erro de entrada da nova linha.
+- **Ordem das linhas:** primárias em zigue-zague, depois as cruzadas, se houver. Depois da última, as linhas recusadas nesta surtida, na ordem em que foram recusadas (cada uma no máximo uma vez por surtida).
 
 ### 5.8 Câmera RGB (`sensors/camera.ts`)
 - **Disparo automático:** um temporizador acumula `dt`. Quando `acc ≥ Δt_plano`, dispara, desde que `s ∈ [aoiStartS − B, aoiEndS + B]`, e faz `acc −= Δt`.
@@ -159,9 +169,10 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - `skewPx`;
   - iluminação e RTK;
   - `overWater`: a fração de água sob a pegada, amostrada numa grade de 5 × 5, é > 0,5;
-  - `inFog = MAGIC_FOG`.
+  - `inFog = MAGIC_FOG`;
+  - `grade`: a nota de execução (§5.20). A velocidade registrada é a velocidade no solo.
 - **Visual:**
-  - os 4 cantos da pegada no chão (ou a pegada oblíqua) são projetados e preenchidos com trapézio `cyan-300` em alfa 0,35, com fade de 0,6 s e contorno 1 px;
+  - os 4 cantos da pegada no chão (ou a pegada oblíqua) são projetados e preenchidos com um trapézio na cor da nota (§5.21) em alfa 0,35, com fade de 0,6 s e contorno 1 px;
   - **flash**: overlay branco de alfa 0,18 por 80 ms, desligado com `reduceFlashes`;
   - som `SHUTTER`;
   - o contador "FOTOS" pulsa.
@@ -180,7 +191,8 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - em célula com dossel `c`, sorteia (RNG visual, não usado nos dados) se o feixe continua até o solo com `P_solo` e desenha os pontos intermediários;
   - linha do feixe em `cyan-400` com alfa 0,5 e ponto de impacto de 2 px: **ciano** no 1º retorno acima do solo, **verde** (`emerald-400`) no último retorno no solo;
   - os pontos de impacto persistem 1,5 s com fade, formando a "nuvem viva".
-- **Dados:** o acúmulo analítico na grade 64 × 64 ([domain-math §4.4](../design/domain-math.md)) vale para toda a faixa sob a aeronave a cada sub-passo.
+- **Dados:** o acúmulo analítico na grade 64 × 64 ([domain-math §4.4](../design/domain-math.md)) vale para toda a faixa sob a aeronave a cada sub-passo, com o peso da nota do instante (1; 0,5 se Fraca; 0 se Rejeitada, §5.20).
+- **Amostras de execução:** com o LiDAR ativo, cada portal cruzado gera uma amostra com nota (o avanço é `gs / v_plano`).
 - **Amostras para o visualizador:** 8 por frame (posição real dos impactos), até 50.000 em memória.
 - **HUD:**
   - `lidarDensity(PRR, v, AGL, FOV)`;
@@ -215,9 +227,10 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   3. a surtida termina como `RTH`, com os dados mantidos;
   4. a linha corrente fica marcada como incompleta.
 - **Pós-voo** (`PostFlightDialog`, modal):
-  - resumo: linhas completas / total, fotos, pulsos, tempo, energia restante, colisões e alertas;
+  - resumo: linhas concluídas / total, fotos, pulsos, tempo, energia restante, colisões e alertas;
+  - **execução:** a letra e a nota de cada linha voada na surtida (a melhor passada), com "revoar" nas recusadas, e a execução da missão até aqui;
   - botões:
-    - "Nova surtida" (visível se houver linhas incompletas **e**, para multirrotor e asa fixa, `spareBatteries` restantes nesta missão, ou, para o Atlas, estoque de milho > 0, que enche o papo);
+    - "Nova surtida" (visível se houver linhas não concluídas, ou seja, incompletas ou recusadas, **e**, para multirrotor e asa fixa, `spareBatteries` restantes nesta missão, ou, para o Atlas, estoque de milho > 0, que enche o papo);
     - "Processar agora" (Van Lab possuída e dados > 0);
     - "Levar dados ao escritório" (dados > 0);
     - "Abandonar missão" (com confirmação; descarta tudo).
@@ -226,7 +239,8 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 ### 5.13 Ambiente especial
 | Elemento | Implementação |
 | :--- | :--- |
-| Vento | `windAt(t)` é perpendicular à linha (componente cruzada) mais uma componente frontal (ignorada na deriva, mas afeta o dreno). Deriva = `driftVelocityMs`. O HUD mostra a seta de vento e o `crabAngleRad`. Acima da tolerância, a deriva dobra (`STRONG_WIND`) |
+| Vento médio | `windAt(t)` (vento de fundo) é decomposto na transversal e ao longo da linha. A aeronave compensa a transversal (o *crab*; sem deriva constante) e mantém a velocidade no solo do plano dentro dos limites de velocidade no ar ([domain-math §5](../design/domain-math.md)). O HUD mostra a seta de vento, o `crabAngleRad` e a velocidade no solo; quando o limite corta a velocidade, o alerta "VENTO DE PROA: velocidade limitada" (ou "DE CAUDA") aparece. O vento segue afetando o dreno |
+| Rajadas (REQ-FLT-013) | A cada passada, `planGusts` ([domain-math §5.1](../design/domain-math.md)) sorteia de 1 a 3 rajadas com a seed `"<missão>:<surtida>:<linha>:<passada>:gusts"`. O empurrão de cada uma, `driftVelocityMs(peak·env, driftFactor, windDrift)·driftMultiplier`, entra no `stepAircraft` como `gustLateralMs` e `gustAlongMs`. Acima da tolerância da aeronave o empurrão dobra (`STRONG_WIND`). **Aviso** de 1,5 s: alerta "RAJADA ◀" ou "RAJADA ▶" com a contagem, a biruta e riscos de vento no ar (partículas alongadas que cruzam a tela no sentido da rajada, até 40; sem piscar com `reduceFlashes`) |
 | Térmicas | `thermalLiftMs`. Visual: distorção sutil (onda) no ar sobre a zona |
 | EM | `EM_INTERFERENCE`: soma `ruído(t)·0,8 m/s` lateral e 3° de rumo. Glitch de scanlines no HUD. Atlas fica imune |
 | RTK canyon | `rtkStatusAt(u, v)`, com toast na mudança de estado |
@@ -236,15 +250,22 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 | Criaturas elétricas | Picos seedados a cada 8–12 s: empurrão lateral de 3 m/s por 2 s e faíscas |
 | Névoa / neve | Ver §5.3 (`zFog`), §5.5 e [contracts-real §1](../content/contracts-real.md) |
 
-### 5.14 Aceleração de tempo (`TIME_WARP`, REQ-FLT-023)
-- O ciclo é ×1 → ×2 → ×4 → ×1. O debug com autopilot permite ×8.
-- `timeScale` é aplicado ao `GameLoop` (sub-passos).
-- **Volta automática a ×1** quando:
-  - há objeto sólido a < 150 m à frente com `|X − Xobj| < 15 m`;
-  - há alerta ativo de prioridade ≥ 2;
-  - a fase é diferente de `RUN`;
-  - há holofote a < 100 m.
-- **Indicador** no HUD "×2"/"×4" em âmbar.
+### 5.14 Cruzeiro automático (`TIME_WARP`, REQ-FLT-023, [ADR-031](../decisions.md))
+- O tempo acelera **sozinho**. `timeScale` é aplicado ao `GameLoop` (sub-passos). O debug com autopilot continua em ×8.
+- **Fator máximo da linha:** `cruiseMax = clamp(round(T/12), 2, 6)`, com `T = lengthM / v_plano` (linhas longas cruzam mais rápido).
+- **Condições** (todas, por `CRUISE_ARM_S = 1,5` s seguidos):
+  - fase `RUN` e cruzeiro ligado;
+  - a nota do instante (faixa, altura e avanço, §5.20) é Boa ou Perfeita;
+  - nenhuma rajada avisada ou em curso (do aviso até o fim da rampa de descida);
+  - não há objeto sólido a < 150 m à frente com `|X − Xobj| < 15 m`;
+  - não há alerta crítico;
+  - não há holofote a < 100 m;
+  - o Atlas não está avisado nem distraído, e não há pico elétrico em curso nem nos próximos 1,5 s;
+  - sem Terrain Following, o corredor não muda mais que `0,05·H` nos próximos `2·cruiseMax` s de trajeto.
+- **Subida e queda:** cumpridas as condições, o fator sobe de 1 a `cruiseMax` a 2 por segundo (tempo real). Quando uma condição cai, o fator volta a 1 no mesmo passo e a contagem de 1,5 s recomeça.
+- **`TIME_WARP`** liga e desliga o cruzeiro (começa ligado em cada surtida). Desligado, o voo fica em ×1.
+- **Indicador** no HUD "CRUZEIRO ×N" em âmbar, ou "CRUZEIRO DESLIGADO".
+- Funções puras: `cruiseMaxFor(lineDurationS)`, `cruiseEligible(ctx)` e `stepCruise(state, eligible, dtRealS)`.
 
 ### 5.15 Atlas
 - **Energia** em milho: o HUD mostra 🌽 × n e a barra do papo.
@@ -256,21 +277,25 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 
 ### 5.16 Autopilot (debug)
 - Com `?debug=1&autopilot=1`, um controlador PD substitui o input:
-  - X → 0;
-  - velocidade → a do plano;
-  - altitude → a do plano. Com TF, o AGL-alvo; sem TF, sobe +5 m/s se houver objeto à frente mais alto que `alt − 5`.
+  - X → 0 (com o empurrão lateral da rajada em curso somado à velocidade lateral medida);
+  - velocidade no solo → a do plano (compensa a parte de proa ou de cauda da rajada);
+  - altitude → a do corredor (§5.19) um pouco à frente. Com TF, o AGL-alvo; sem TF, sobe +5 m/s se houver objeto à frente mais alto que `alt − 5`.
+- É o piloto **bom** das metas de desafio (REQ-NFR-010): aprovado com execução ≥ 0,9 em todo contrato.
 - O autopilot confirma "Levar dados" ou "Processar agora" automaticamente no pós-voo, para o E2E.
 
 ### 5.17 Prioridade dos alertas
 1. Queda iminente: AGL < 5 m e caindo, ou casco = 1 (crítico).
 2. RTH recomendado / energia baixa (crítico).
 3. Detectado (crítico).
-4. Vento acima do limite (aviso).
-5. Overlap insuficiente (aviso).
-6. Motion blur (aviso).
-7. Fora da faixa (aviso).
-8. RTK FLOAT (info).
-9. Atlas distraído (info).
+4. Rajada avisada ou em curso, com o lado (aviso).
+5. Vento acima do limite (aviso).
+6. Fora da faixa (aviso).
+7. Fora da altura do corredor: `|alt − corridorAlt| > 0,10·H`, com "SUBA" ou "DESÇA" (aviso).
+8. Overlap insuficiente (aviso).
+9. Motion blur (aviso).
+10. Velocidade limitada pelo vento (info).
+11. RTK FLOAT (info).
+12. Atlas distraído (info).
 
 ### 5.18 Performance
 - O orçamento é de ≤ 12 ms/frame em Alta no perfil de referência.
@@ -282,6 +307,35 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - objetos fora do frustum descartados antes da ordenação.
 - **Contador interno de tempo por etapa** (terreno, objetos, HUD), exibido no painel `F9`.
 
+### 5.19 Corredor e portais (REQ-FLT-025)
+- **Perfil:** ao começar cada linha, o motor calcula `corridorProfile` ([domain-math §10.3](../design/domain-math.md)) com a elevação ao longo do eixo da linha, `H`, a velocidade do plano, a razão de subida da aeronave e o teto. O perfil não muda durante a passada.
+- **Portais:** em `gatePositions(line, B)`. Cada portal é um retângulo de `0,20·S` × `0,20·H` centrado em `X = 0` e na altitude do corredor, com um losango central de `0,10·S` × `0,10·H` (a zona da nota Perfeita).
+- **Desenho** (`corridorRenderer.ts`, depois do terreno e dos objetos, antes da aeronave):
+  - só os portais com `0 < Z ≤ 400 m`, de longe para perto, no máximo 16;
+  - contorno de 2 px em `cyan-300`, com alfa de 0,15 (longe) a 0,7 (perto); o próximo portal é o mais forte;
+  - portal já cruzado some; no cruzamento, pisca na cor da nota do instante por 0,25 s (sem piscar com `reduceFlashes`);
+  - entre portais vizinhos, duas linhas finas (alfa 0,12) ligam os cantos inferiores: o "trilho" do corredor;
+  - nas fendas a cor é `violet-300`.
+- **API para testes:** `buildCorridorDrawList(state): GateDraw[]`.
+- **Decolagem:** a aeronave sobe até a altitude do corredor em `s = 0`, com ou sem TF.
+
+### 5.20 Nota de execução no voo (REQ-FLT-026, REQ-FLT-027)
+- **Nota do instante:** a cada sub-passo o motor calcula `gradeSample` ([domain-math §10.3](../design/domain-math.md)) com o estado da aeronave, usando `gs / v_plano` como avanço. Ela alimenta o HUD, o cruzeiro e o peso dos pulsos LiDAR.
+- **Foto automática:** a nota usa o avanço real (`d / B` até a foto automática anterior da passada). Vai em `Shot.grade`.
+- **Foto manual:** nota só pela altura e pelo avanço instantâneo. Não entra na contagem da passada.
+- **Amostra LiDAR:** uma a cada portal cruzado com o LiDAR ativo.
+- **Contagem da passada:** as amostras automáticas com `s ≥ aoiStartS`. No fim da linha (ou na interrupção) o motor fecha o `LinePass` e publica `onLinePass`.
+- **Aceitação:** `passAccepted`. Linha aceita entra em `completedLines`; linha recusada vai para a fila de revoo da surtida (uma vez por surtida) e conta em `refly` no resultado.
+- **Surtida perdida** (queda ou energia): as passadas dela são descartadas junto com as fotos.
+
+### 5.21 Retorno imediato (REQ-FLT-029)
+- **Cores das notas:** Perfeita `emerald-400`, Boa `cyan-300`, Fraca `amber-400`, Rejeitada `rose-500`.
+- **Marca da amostra:** a cada amostra, o nome da nota ("PERFEITA", "BOA", "FRACA", "REJEITADA") aparece acima da aeronave, na cor da nota, sobe 24 px e some em 0,7 s. Na Fraca e na Rejeitada, o eixo que derrubou a nota vem junto ("FRACA · faixa", "REJEITADA · altura", "FRACA · avanço"). Com `reduceFlashes`, aparece sem movimento e some por alfa.
+- **Sequência:** o número de amostras seguidas com nota Boa ou Perfeita. O HUD mostra "sequência ×N" a partir de 3.
+- **Som** ([audio §4](../design/audio.md)): `GRADE` com o grau da escala subindo a cada Perfeita seguida, `GRADE` no mesmo grau na Boa e `GRADE_MISS` na Fraca e na Rejeitada, que zeram o grau.
+- **Boletim da linha:** durante a curva (e no pouso depois da última linha), um cartão central mostra "LINHA 3 · A", a contagem por nota e, se a passada foi recusada, "REVOO NECESSÁRIO" em rosa. Toca `STAGE_DONE` (aceita) ou `DENIED` (recusada).
+- **Dica do corredor:** enquanto a nota do instante for Rejeitada por mais de 1 s, o alerta do eixo ("FORA DA FAIXA", "SUBA", "DESÇA") fica visível (§5.17).
+
 ## 6. Integração
 
 ```ts
@@ -292,11 +346,20 @@ interface FlightHudSnapshot {
   hull: number; hullMax: number; rtk: RtkStatus; activeSensor: 'RGB' | 'LIDAR';
   gsdCm: number; gsdOk: boolean; pRealPct: number | null; qEstPct: number; photos: number; photosPlanned: number; blurPx: number;
   lidarDensity?: number; groundDensity?: number; alerts: FlightAlert[]; detectedProgress?: number; rings?: number;
+  groundSpeedMs: number; planSpeedMs: number;                       // velocidade no solo e a do plano
+  corridorDeltaM: number;                                           // altitude do corredor − altitude (positivo: subir)
+  grade: ShotGrade; lastGrade?: { grade: ShotGrade; axis?: 'lateral' | 'vertical' | 'advance'; seq: number };
+  streak: number; passScore: number | null; passLetter: string | null;
+  gust: { side: -1 | 1; inS: number; active: boolean } | null;      // rajada avisada ou em curso
+  windRelDeg: number;                                               // para a biruta: direção do vento em relação à aeronave
+  cruise: { on: boolean; factor: number };
+  lineReport: { lineNumber: number; letter: string; counts: [number, number, number, number]; accepted: boolean } | null;
   minimap: { lines: Array<[AoiPoint, AoiPoint]>; shots: AoiPoint[]; pos: AoiPoint; heading: number };
 }
 ```
 
-- **Eventos → store:** `onShot` → `mission.appendShots` em lotes de 10, `onLidarBatch` → `mission.mergeLidar` a cada 0,5 s, `onSortieEnd` → `mission.endSortie(outcome)`. Este último descarta os dados da surtida em CRASH ou ENERGY_DEPLETED e registra `completedLines`.
+- **Eventos → store:** `onShot` → `mission.appendShots` em lotes de 10, `onLidarBatch` → `mission.mergeLidar` a cada 0,5 s, `onSortieEnd` → `mission.endSortie(outcome)`. Este último descarta os dados da surtida em CRASH ou ENERGY_DEPLETED e registra `completedLines` (as linhas aceitas) e `linePasses` (as passadas da surtida, que vêm no `SortieResult`).
+- **Eventos de execução:** `onGrade(grade, streak)` (som e marca) e `onLinePass(pass, accepted)` (boletim).
 - **Estatísticas:** `stats.photosTaken`, `stats.flightTimeS` e `stats.crashes` são atualizadas no fim da surtida.
 
 ## 7. Casos de borda
@@ -308,18 +371,28 @@ interface FlightHudSnapshot {
 - Asa fixa abaixo de vMin: a velocidade é limitada (*stall* não modelado) e o HUD mostra "VELOCIDADE MÍNIMA".
 - Terrain Following sem suporte: o toggle nem aparece no plano.
 - Malha cruzada com Atlas: indisponível, porque o pombo só segue rotas simples.
+- Linha mais curta que o lead-in mais 5 s: uma única rajada, logo depois da entrada.
+- Passada sem nenhuma amostra na contagem (linha interrompida antes de `aoiStartS`): nota 0, incompleta; não gera boletim.
+- Revoo recusado de novo: a linha fica recusada até uma nova surtida; a fila não cresce uma segunda vez.
+- RTH durante um revoo: a passada fica incompleta e a nota dela vale proporcionalmente às amostras feitas.
+- Missão de save antigo (sem `linePasses`): já estava voada e na fila de processamento; a execução dela vale 1.
 
 ## 8. Critérios de aceite
 - **Dado** o C00 com o plano de referência e autopilot, **quando** o voo terminar, **então** há 6 linhas completas e 96 ± 6 fotos, e o pós-voo oferece "Levar dados".
 - **Dado** um objeto `BUILDING` de 30 m à frente e voo a AGL 20 m, **quando** a aeronave alcançar o objeto sem desviar, **então** o casco cai 1, toca `CRASH` e a velocidade cai a 30 %.
 - **Dado** velocidade 30 % acima do plano, **quando** dois disparos consecutivos ocorrerem, **então** `p_real` fica abaixo do mínimo e aparece "OVERLAP INSUFICIENTE".
+- **Dado** o C00 com o plano de referência e **nenhum comando**, **quando** a surtida terminar, **então** nenhuma linha é aceita, a execução fica abaixo de 0,4 e o processamento reprova a missão.
+- **Dado** uma linha recém-iniciada, **quando** o jogador não corrige o erro de entrada, **então** as fotos saem Rejeitadas ou Fracas pela faixa, o boletim mostra "REVOO NECESSÁRIO" e a linha volta ao fim da fila.
+- **Dado** uma rajada sorteada para t = 12 s da linha, **quando** o voo chega a t = 10,5 s, **então** o alerta "RAJADA" aparece com o lado, o cruzeiro cai para ×1 e, a partir de t = 12 s, a aeronave é empurrada.
+- **Dado** a aeronave estável no corredor por 1,5 s e nenhuma rajada avisada, **quando** o cruzeiro está ligado, **então** o tempo acelera até o fator da linha.
 - **Dado** o Pod LiDAR e `TOGGLE_SENSOR`, **quando** alternar para LiDAR, **então** o leque aparece, o zumbido toca, a densidade exibida é igual a `lidarDensity()` e os disparos param.
 - **Dado** energia insuficiente para voltar, **quando** `rthRequired` virar true, **então** o bip toca a cada 1,5 s e o alerta crítico aparece.
 - **Dado** `reduceFlashes`, **quando** uma foto for disparada, **então** nenhum overlay branco é desenhado.
 - **Dado** a qualidade Alta em 1280 × 720, **quando** voar 10 s no C01, **então** a média de FPS fica ≥ 55 no perfil de referência (verificação manual em T077).
 
 ## 9. Testes
-- **Unitário (puro):** `project`, mapeamento AOI ↔ *run*, `stepAircraft` (limites, TF, asa fixa), temporizador de disparo, `realForwardOverlap` no fluxo, `checkCollision` (cada forma, fio, raio), sorteio da distração do Atlas, regra de volta do *time warp*, `rtkStatusAt`, detecção de holofote, coleta de anéis, avaliação de features, fim de surtida (descarte).
+- **Unitário (puro):** `planGusts`, `gustPushAt`, `entryOffsetM`, `corridorProfile`, `gradeSample`, `passScore`, `missionExecution`, `cruiseEligible`, `stepCruise`, `project`, mapeamento AOI ↔ *run*, `stepAircraft` (limites, TF, asa fixa, velocidade no solo), temporizador de disparo, `realForwardOverlap` no fluxo, `checkCollision` (cada forma, fio, raio), sorteio da distração do Atlas, regra de volta do *time warp*, `rtkStatusAt`, detecção de holofote, coleta de anéis, avaliação de features, fim de surtida (descarte).
 - **Draw list:** `buildDrawList` de uma cena com morro e objeto atrás confirma a ordem (objeto antes do quad que o oclui).
 - **RTL:** HUD a partir de snapshots (alertas, Atlas, LiDAR) e `PostFlightDialog` (combinações de botões).
-- **E2E:** `flight.spec.ts` cobre `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` até o pós-voo, e testa pausa no meio (posição congelada).
+- **Pilotos simulados (REQ-NFR-010):** `flightChallenge.test.ts` voa cada contrato com o plano de referência como parado, mediano e bom, e confere as metas de [ADR-032](../decisions.md).
+- **E2E:** `flight.spec.ts` cobre `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` até o pós-voo, e testa pausa no meio (posição congelada); um caso voa o C00 sem comando e confere o boletim com "REVOO NECESSÁRIO".

@@ -2,7 +2,7 @@
 
 > Especificação **normativa** de todas as fórmulas e modelos do jogo. Cada função listada deve existir em `src/domain/` com a assinatura indicada e ser testada com os *golden values* da §14 (tolerância relativa de 1e-3, salvo indicação).
 >
-> **Requisitos cobertos:** REQ-FLD-007, REQ-FLT-001, REQ-FLT-007, REQ-FLT-008, REQ-FLT-009, REQ-FLT-012, REQ-FLT-013, REQ-FLT-014, REQ-FLT-016, REQ-FLT-017, REQ-PRC-002 a REQ-PRC-007, REQ-PRC-009, REQ-PRC-013, REQ-PRG-006, REQ-PRG-009, REQ-LAB-005.
+> **Requisitos cobertos:** REQ-FLD-007, REQ-FLT-001, REQ-FLT-007, REQ-FLT-008, REQ-FLT-009, REQ-FLT-012, REQ-FLT-013, REQ-FLT-014, REQ-FLT-016, REQ-FLT-017, REQ-FLT-025 a REQ-FLT-028, REQ-PRC-002 a REQ-PRC-007, REQ-PRC-009, REQ-PRC-013, REQ-PRC-014, REQ-PRG-006, REQ-PRG-009, REQ-LAB-005.
 
 **Convenções:**
 - Entradas e saídas em SI: m, s, rad, m/s, Hz.
@@ -160,8 +160,8 @@ A cada passo de simulação com o LiDAR ativo, a faixa varrida (comprimento `v·
 
 ```ts
 crabAngleRad(crossWindMs, airspeedMs): number            // asin(clamp(w/v, −1, 1))
-windAt(tS, wind: Contract['wind'], noise): number         // w(t) = mean + gust·(0,6·sin(2πt/7) + 0,4·n1(t/3))
-driftVelocityMs(crossWindMs, driftFactor, windDriftMod): number   // w·driftFactor·mod
+windAt(tS, wind: Contract['wind'], noise): number         // vento de fundo: w(t) = mean + gust·(0,6·sin(2πt/7) + 0,4·n1(t/3))
+driftVelocityMs(windMs, driftFactor, windDriftMod): number   // empurrão do vento na aeronave: w·driftFactor·mod (nos dois eixos)
 thermalLiftMs(zones, u, v, lighting, thermalMod): number  // Σ lift·(1 − d/r)·mod · (SUN_HIGH ? 1 : 0,5)
 shadowLengthM(objectHeightM, lighting): number            // h / tan(elevSolar); 0 se difusa
 terrainFollowTargetAlt(sampler, u, v, speedMs, aglTargetM, dir): number
@@ -169,22 +169,49 @@ terrainFollowTargetAlt(sampler, u, v, speedMs, aglTargetM, dir): number
 stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): AircraftState
 ```
 
-**`stepAircraft`** (todos os limites vêm de `Aircraft`):
-- **Velocidade:** `v += clamp(target − v, ±accelMs2·dt)`, onde `target` vem de `MOVE_Y` (−1 → vMin, 0 → velocidade do plano, +1 → vMax).
-- **Lateral:**
-  - Multirrotor e ave: `vLat = MOVE_X · lateralSpeedMaxMs + drift`.
+**`stepAircraft`** (todos os limites vêm de `Aircraft`). O ambiente (`FlightEnv`) traz três empurrões do vento, já multiplicados por `driftFactor`, pelo modificador de deriva e pelo fator de `STRONG_WIND`: `meanAlongMs` (o vento médio ao longo da linha; positivo de cauda), `gustAlongMs` e `gustLateralMs` (§5.1).
+- **Velocidade no solo:** `v` é a velocidade no solo comandada. `v += clamp(target − v, ±accelMs2·dt)`, onde `target` vem de `MOVE_Y`: −1 → `lo`, 0 → `cruise`, +1 → `hi`, com `lo = max(0,5, vMin + meanAlong)`, `hi = max(lo, vMax + meanAlong)` e `cruise = clamp(v_plano, lo, hi)`. A aeronave mantém a velocidade no solo do plano contra o vento médio enquanto a velocidade no ar couber em `[vMin, vMax]`.
+- **Avanço:** `gs = max(0,5, v + gustAlong)` e `s += gs·dt`. `gs` (a velocidade no solo de fato) é a que vai para as fotos, para o blur e para a densidade LiDAR. A velocidade no ar, usada na energia (§7), é `v − meanAlong`.
+- **Lateral:** `x += (vLat + gustLateral)·dt`. O vento médio transversal é compensado pela aeronave (o *crab*), sem deriva.
+  - Multirrotor e ave: `vLat = MOVE_X · lateralSpeedMaxMs`.
   - Asa fixa: `vLat` limitado por `aLat ≤ v²/R`.
 - **Vertical:**
   - Sem TF: `vz = (ALT_UP − ALT_DOWN)·climbRateMs + thermal`.
   - Com TF: o AGL-alvo é ajustado pelos gatilhos, e a altitude persegue `terrainFollowTargetAlt` limitada a `climbRateMs`.
 - **Limites:** `alt` é limitada a `[elev + 2, elev + min(hMaxM, ceilingM)]`. Colidir com o terreno ainda é possível se a subida for insuficiente diante de um relevo abrupto.
 
+### 5.1 Rajadas e entrada de faixa (`gusts.ts`, [ADR-030](../decisions.md))
+
+```ts
+interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; angleRad: number }
+//   tempos em segundos desde o início da linha; ângulo em relação ao sentido da linha
+//   (0 = de cauda, +π/2 = empurra para a direita)
+gustCount(lineDurationS): number                         // clamp(round(T/20), 1, 3)
+planGusts(rng, wind, lineHeadingRad, lineDurationS, leadInS): Gust[]
+gustEnvelope(gust, tS): number                           // 0..1: sobe em rampS, patamar de holdS, desce em rampS
+gustPushAt(gusts, tS): { lateralMs: number; alongMs: number }   // Σ peak·env·(sen θ, cos θ)
+gustWarningAt(gusts, tS): { gust: Gust; inS: number } | null    // rajada avisada (inS > 0) ou em curso (inS ≤ 0)
+maxCorrectableM(aircraft, speedMs, timeS): number
+entryOffsetM(rng, spacingM, maxCorrectableM): number     // com sinal
+```
+
+**Agenda de rajadas** (por passada de linha, com a seed da missão):
+- `T = lengthM / v_plano` e `t_in = aoiStartS / v_plano`. Há `n = gustCount(T)` rajadas.
+- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais, e cada rajada começa num instante uniforme nos primeiros 60 % da sua parte (as rajadas nunca se sobrepõem). Se a janela tiver menos de `5·n` s, `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
+- `rampS = 0,5`, `holdS = U(1,5, 2,5)` e `peakMs = max(2, gustMs)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 2 m/s.
+- **Direção:** `θ₀` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,5`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,5`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos metade da força na transversal.
+- **Aviso:** `GUST_WARN_S = 1,5` s antes do início.
+
+**Entrada de faixa:**
+- `maxCorrectableM`: o deslocamento lateral que a aeronave faz, parando no fim, em `timeS`. Multirrotor e ave: `lateralSpeedMaxMs·t`. Asa fixa, com `a = v²/R` e `vmax = v·sen 30°`: `a·t²/4` se `t ≤ 2·vmax/a`; senão `vmax·(t − vmax/a)`.
+- `entryOffsetM = ±min(U(0,30, 0,40)·S, 0,9·maxCorrectable)`, com o lado sorteado, e `timeS = t_in`.
+
 ---
 
 ## 6. Modelo de acurácia
 
 ### 6.1 Entradas
-- `GSD_eff`: média dos GSDs (pelo AGL de cada foto) das fotos **válidas** (não borradas, fora de névoa e sem invalidação especular).
+- `GSD_eff`: média dos GSDs (pelo AGL de cada foto) das fotos **válidas** (não rejeitadas na execução, não borradas, fora de névoa e sem invalidação especular).
 - `φ` (fração RTK FIX): `(nFIX + 0,5·nFLOAT)/nShots`. É 0 se a aeronave não tiver RTK ou se o jogador não possuir o `GNSS_RTK_KIT`.
 
 ### 6.2 Base
@@ -209,6 +236,7 @@ $$RMSE_{xy}^{base} = GSD_{eff}\,(1{,}0\,\varphi + 1{,}5\,(1-\varphi)), \qquad RM
 | `blur` | fração borrada `f_b` | `1 + 0,5·f_b` | igual |
 | `em` | `EM_INTERFERENCE` e aeronave não imune | 1,20 | 1,20 |
 | `camera` | `sensor.qualityPenalty` (Atlas calibrado: `1 + (q−1)·0,5`) | q | q |
+| `execution` | execução `E` da missão (§10.3) | `1 + 0,5·(1 − E)` | igual |
 | `imu` | `imuScore` s (mini-game) | `1 − 0,08s` | `1 − 0,12s` |
 | `skills` | `rmseGlobal` (modificador) | mod | mod |
 
@@ -243,7 +271,7 @@ collinearityIndex(points): number                     // λmin/λmax da matriz d
 ```
 
 ### 6.7 Acurácia LiDAR
-Em missões em que o requisito exige `SENSOR_KIND = LIDAR`, a acurácia é avaliada com `lidarRmseXY/Z` (§4.3), aplicando `em` e `skills`, mais o σ dos GCPs (§6.4).
+Em missões em que o requisito exige `SENSOR_KIND = LIDAR`, a acurácia é avaliada com `lidarRmseXY/Z` (§4.3), aplicando `em`, `execution` e `skills`, mais o σ dos GCPs (§6.4).
 
 ---
 
@@ -310,10 +338,12 @@ createCoverageGrid(aoi, cols = 64, rows = 64): CoverageGrid
 footprintPolygon(shot: Shot, aircraftKind, sensor, focalM): AoiPoint[]
 //   retângulo H_g(AGL) × W_g(AGL) centrado em (u,v), rotacionado pela direção da linha;
 //   asa fixa: + crabRad; oblíqua: §2.8 (deslocado à frente)
-accumulateShot(grid, polygon): void       // +1 para cada célula cujo centro esteja dentro do polígono
-isShotValid(shot, rules): boolean         // !blurred && !(inFog && RGB) && !(overWater && SPECULAR_WATER && SUN_HIGH)
+accumulateShot(grid, polygon, weight = 1): void   // +weight para cada célula cujo centro esteja dentro do polígono
+isShotValid(shot, rules): boolean         // grade ≠ REJECTED && !blurred && !(inFog && RGB) && !(overWater && SPECULAR_WATER && SUN_HIGH)
+shotWeight(shot): number                  // 0,5 se grade = WEAK; senão 1 (foto sem nota vale 1)
 summarizeCoverage(grid, excludedCells): CoverageResult
-// excluídas: células de água (landCover WATER) — sempre; classes: verde ≥ 5, amarelo 3–4, vermelho < 3
+// excluídas: células de água (landCover WATER) — sempre; classes: verde ≥ 5, amarelo ≥ 3 e < 5, vermelho < 3
+// (as contagens são fracionárias por causa do peso das fotos fracas)
 ```
 
 ---
@@ -339,21 +369,70 @@ evaluateMission(mission, contract, ctx): QualityReport
 | `MAX_BLUR_FRACTION` | blur previsto > 1 px ⇒ ✗ | fração de fotos borradas |
 | `NOT_DETECTED` | — | `!events.detected` |
 | `FEATURE_CAPTURED` | — | `featureId ∈ events.featuresCaptured` |
+| `MIN_EXECUTION` | "—" (aviso informativo) | execução `E` da missão (§10.3) ≥ valor |
 
 ### 10.1 Pontuação de qualidade (0..1)
 
-$$score = 0{,}4\,acc + 0{,}3\,cov + 0{,}2\,gsd + 0{,}1\,clean$$
+$$score = \left(0{,}4\,acc + 0{,}3\,cov + 0{,}2\,gsd + 0{,}1\,clean\right)\cdot\left(0{,}4 + 0{,}6\,E\right)$$
 
 - `acc = clamp(0,5 + (tol/rmse − 1), 0, 1)`, onde `tol` é o EP (PEC) ou a classe ASPRS. Com várias exigências, usa-se o mínimo. Sem exigência, vale 1.
 - `cov = clamp(green + 0,5·yellow, 0, 1)`.
 - `gsd = clamp(0,5 + (req/GSD_eff − 1), 0, 1)`. Sem exigência, vale 1.
 - `clean = clamp(1 − 0,25·collisions − 0,5·blurFraction, 0, 1)`.
+- `E` é a execução do voo (§10.3). Com `E = 1` a nota é a de antes da execução existir.
 
 ### 10.2 Aprovação
 - **Reprovação crítica** (`critical = true`) acontece se:
   - algum requisito `CRITICAL` falhar; ou
   - não houver dados, ou seja, todas as surtidas terminaram em `CRASH`/`ENERGY_DEPLETED` sem nenhum disparo ou pulso salvo.
 - `approved = !critical`.
+
+### 10.3 Execução do voo (`corridor.ts`, `execution.ts`, [ADR-029](../decisions.md))
+
+```ts
+type ShotGrade = 'PERFECT' | 'GOOD' | 'WEAK' | 'REJECTED'      // Perfeita, Boa, Fraca, Rejeitada
+GRADE_WEIGHT = { PERFECT: 1, GOOD: 0.8, WEAK: 0.4, REJECTED: 0 }
+
+// corridor.ts
+gatePositions(line, baseM): number[]                  // s_k = aoiStartS − B + k·B, enquanto s_k ≤ aoiEndS + B
+corridorProfile(elevationAlong, lengthM, opts): CorridorProfile   // altitude do corredor numa grade de 5 m
+corridorAltAt(profile, s): number                     // interpolação linear
+plannedSamples(line, baseM): number                   // portais com s_k ≥ aoiStartS
+
+// execution.ts
+gradeAxis(value, limits: [number, number, number]): ShotGrade
+gradeSample(input: { crossTrackM, spacingM, altM, corridorAltM, heightM, advanceRatio, blurred }): { grade, lateral, vertical, advance }
+worstGrade(...grades): ShotGrade
+passScore(counts: [nP, nG, nW, nR]): number           // (nP + 0,8·nG + 0,4·nW) / n; 0 sem amostras
+passAccepted(pass): boolean                           // complete && passScore ≥ 0,5
+gradeLetter(score): 'S' | 'A' | 'B' | 'C' | 'D'       // ≥ 0,95 / ≥ 0,85 / ≥ 0,70 / ≥ 0,50 / abaixo
+missionExecution(passes: LinePass[], planned: number[]): number   // E, 0..1
+```
+
+**Altitude do corredor** (ao longo do eixo da linha, `x = 0`):
+1. `T(s) = max(elev(s'), s' ∈ [s, s + 2·v_plano], a cada 5 m) + H`: a regra do Terrain Following com AGL-alvo `H`.
+2. Rampa máxima `m = 0,7·climbRateMs / v_plano`. `A(s) = max_{s'} (T(s') − m·|s' − s|)`: o envelope superior de `T` com inclinação limitada (duas varreduras, para frente e para trás), sempre ≥ `T`.
+3. `corridorAlt(s) = min(A(s), elev(s) + min(hMaxM, ceilingM))`.
+
+**Portal:** retângulo centrado em `x = 0` e na altitude do corredor em `s_k`, com meia largura `0,10·S` e meia altura `0,10·H`.
+
+**Nota da amostra** (a pior dos três eixos; `blurred` ⇒ `REJECTED`):
+
+| Eixo | Medida | Perfeita | Boa | Fraca | Rejeitada |
+| :--- | :--- | :-: | :-: | :-: | :-: |
+| Faixa | `\|x\| / S` | ≤ 0,05 | ≤ 0,10 | ≤ 0,25 | > 0,25 |
+| Altura | `\|alt − corridorAlt(s)\| / H` | ≤ 0,05 | ≤ 0,10 | ≤ 0,20 | > 0,20 |
+| Avanço | foto: `d / B`, com `d` a distância à foto automática anterior da passada (na primeira, `gs / v_plano`); LiDAR: `gs / v_plano` | ≤ 1,05 | ≤ 1,15 | ≤ 1,30 | > 1,30 |
+
+- **Quem recebe nota:** toda foto automática; com o LiDAR ativo, uma amostra a cada portal cruzado. A foto manual recebe nota só pela altura e pelo avanço instantâneo (`gs / v_plano`); o enquadramento lateral é livre.
+- **Quem entra na contagem da passada:** as amostras automáticas com `s ≥ aoiStartS` (a margem de entrada fica de fora). As fotos manuais não entram.
+- **Peso nos dados:** foto `REJECTED` é inválida (§9); `WEAK` pesa 0,5 na cobertura. Os pulsos LiDAR de cada sub-passo acumulam com peso 1, 0,5 ou 0 conforme a nota do instante.
+
+**Passada e missão:**
+- `LinePass = { lineIndex, pass, sortie, counts, complete }`; `complete` é a regra de linha completa de [survey-flight §3](../features/survey-flight.md).
+- A linha fica **concluída** quando uma passada é aceita (`passAccepted`).
+- `E = Σ_L best_L·n_L / Σ_L n_L`, sobre todas as linhas **planejadas**, com `n_L = plannedSamples(L)` e `best_L` o maior `passScore·f` entre as passadas da linha, onde `f = 1` na passada completa e `min(1, n/n_L)` na incompleta. Linha sem passada vale 0.
+- Missão sem `linePasses` (save anterior à execução ou missão sintética) vale `E = 1`.
 
 ---
 
@@ -377,7 +456,7 @@ $$total = \max\left(0,\ \mathrm{round}\left(base \cdot r \cdot Q \cdot R \cdot G
 | Símbolo | Definição |
 | :-: | :--- |
 | `r` | replayFactor: 1 na primeira aprovação, 0,4 em repetição |
-| `Q` | qualityFactor: crítico → 0,10; senão `(0,6 + 0,4·score) · Π(MAJOR falho ×0,85, MINOR falho ×0,95) + (classe atingida melhor que a exigida ? 0,10 : 0)` |
+| `Q` | qualityFactor: crítico → 0,10; senão `(0,6 + 0,4·score) · Π(MAJOR falho ×0,85, MINOR falho ×0,95) + (classe atingida melhor que a exigida ? 0,10 : 0) + bônus de pilotagem (E ≥ 0,90 ? 0,10 : E ≥ 0,80 ? 0,05 : 0)`. O bônus só vale em missão com dado de execução |
 | `R` | rivalFactor (1 ou 0,85) |
 | `G` | modificador `contractPayment` (1,25 com GES_1) |
 | `E` | `1 + Σ paymentBonus·qtd` (equipe) |
@@ -469,3 +548,10 @@ rollCounterOffer(rng, rivalChanceMod): boolean   // p = 0,20 · rivalChanceMod
 | G23 | plano C00 (referência) | Atlas, CAM_PIGEON, H 60, p 70, q 60, v 10, AOI 240 × 160 | GSD 2,5204 cm; W_g 82,267; H_g 60,667; B 18,2; S 32,907; Δt 1,82 s; 6 linhas; 16 fotos/linha; 96 fotos; voo 231,45 s; 1 "bateria" |
 | G24 | `sectorIncomePerMin` | income R$ 10/min, score 0,8 | R$ 9,00/min (com GES_2: R$ 13,50) |
 | G25 | `classifyPec` | 5 CPs com resultantes [0,10; 0,12; 0,08; 0,15; 0,11] m, 1:1000 | RMSE_r = 0,1144 m → classe **A** |
+| G26 | `gradeSample` (faixa) | S = 30 m, altura e avanço perfeitos, `x` = 1,4 / 2,9 / 7,4 / 7,6 m | Perfeita / Boa / Fraca / Rejeitada |
+| G27 | `passScore` / `gradeLetter` | contagem [10, 5, 3, 2] | 0,76 → **B** |
+| G28 | `missionExecution` | 2 linhas de 16 amostras; linha 0 com passada completa de nota 0,9; linha 1 sem passada | E = 0,45 |
+| G29 | `gustCount` | T = 12 / 30 / 75 s | 1 / 2 / 3 |
+| G30 | `maxCorrectableM` | multirrotor (lateral 8 m/s), t = 3 s; asa fixa (v = 22 m/s, R = 80 m), t = 80/22 s | 24 m; 20,0 m |
+| G31 | nota com execução | base 0,9; E = 1 / 0,65 | 0,900 / 0,711 |
+| G32 | `corridorProfile` | relevo plano a 100 m com degrau de +30 m em s = 200 m; H = 60, v = 10, subida 3 m/s | 160 m em s ≤ 37 m; 173,2 m em s = 100 m; 190 m em s ≥ 180 m |
