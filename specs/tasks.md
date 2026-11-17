@@ -1735,11 +1735,17 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   2. `corridor.ts`: `gatePositions`, `plannedSamples`, `corridorProfile` (envelope com rampa limitada e teto), `corridorAltAt`.
   3. `execution.ts`: `gradeAxis`, `gradeSample`, `worstGrade`, `passScore`, `passAccepted`, `gradeLetter`, `missionExecution`.
 - **Aceite:**
-  - [ ] G26, G27, G28 e G32 passam.
-  - [ ] O corredor nunca fica abaixo de relevo + `H` (salvo o teto) e nunca sobe mais que 70 % da razão de subida.
-  - [ ] `missionExecution` sem passadas devolve 1 só para missão sem `linePasses`; linha planejada sem passada vale 0.
+  - [x] G26, G27, G28 e G32 passam.
+  - [x] O corredor nunca fica abaixo de relevo + `H` (salvo o teto) e nunca sobe mais que 70 % da razão de subida.
+  - [x] `missionExecution` sem passadas devolve 1 só para missão sem `linePasses`; linha planejada sem passada vale 0.
 - **Verificação:** `npx vitest run src/domain`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/domain/corridor.ts`, `corridor.test.ts`, `src/domain/execution.ts`, `execution.test.ts`; ~ `src/types/mission.ts` (`ShotGrade`, `GradeCounts`, `LinePass`), `specs/design/domain-math.md`.
+- **Notas de implementação:**
+  - **`corridor.ts`**: `gatePositions` (o portal que cairia antes do começo da linha não existe, o que só acontece com base maior que o lead-in), `plannedSamples`, `corridorProfile` (grade de 5 m; a antecipação de 2 s amostra o relevo além do fim da linha; o envelope com rampa limitada são duas varreduras, para frente e para trás; o teto acima do terreno entra por último, então perto dele a rampa pode passar do limite, e a física limita a aeronave do mesmo jeito), `corridorAltAt` e `corridorChangeAhead` (a maior variação à frente, que o cruzeiro vai usar).
+  - **`execution.ts`**: `gradeAxis`, `gradeSample` (devolve também o eixo que derrubou a nota, na ordem faixa, altura, avanço, para a marca na tela), `worstGrade`, contagem (`emptyCounts`, `addGrade`, `countSamples`), `passScore`, `passValue`, `passAccepted`, `gradeLetter`, `bestPasses`, `bestCounts`, `missionExecution`, e os três efeitos na avaliação (`executionFactor`, `executionMultiplier`, `pilotBonus`). Dois pesos distintos: o da nota (1 / 0,8 / 0,4 / 0) e o dos dados (1 / 1 / 0,5 / 0).
+  - **Mudança em relação à T084: o valor da passada.** A spec dizia que a passada completa vale a nota dela, sem olhar a quantidade de amostras. Isso abria uma brecha (desligar o sensor na linha e religar no fim dava uma passada "completa" com duas amostras perfeitas) e, do outro lado, puniria a linha que perde uma foto pelo disparo por tempo. Ficou `passValue = passScore · min(1, n / (0,9·n_L))` para toda passada: até 10 % de amostras a menos não tiram nada, e a aceitação usa esse valor. A spec foi atualizada.
+  - **Testes** (10 em `corridor.test.ts`, 21 em `execution.test.ts`): G26, G27, G28, G31 e G32; os 16 portais do C00 (G23); corredor nunca abaixo de relevo + `H` e com a rampa respeitada em três combinações de velocidade e subida; descida depois de uma borda; teto; os limites de cada eixo com o valor de fronteira; foto borrada; foto manual; letras; valor da passada; melhor passada por linha; missão sem dado de execução.
+- **Status:** ✅
 
 ### T087 — Avaliação com execução
 - **Fase:** F10 · **Depende de:** T086 · **REQs:** REQ-PRC-014, REQ-PRC-009 (*parc.*: bônus de pilotagem)

@@ -104,6 +104,23 @@ export interface Shot {
   inFog: boolean;
 }
 
+/** Nota de execução de uma amostra do voo (domain-math §10.3). */
+export type ShotGrade = 'PERFECT' | 'GOOD' | 'WEAK' | 'REJECTED';
+
+/** Contagem de amostras por nota: perfeitas, boas, fracas e rejeitadas. */
+export type GradeCounts = [perfect: number, good: number, weak: number, rejected: number];
+
+/** Resumo de uma passada por uma linha (domain-math §10.3). */
+export interface LinePass {
+  lineIndex: number;
+  /** 0 na primeira passada da linha na missão, 1 no primeiro revoo… */
+  pass: number;
+  sortie: number;
+  counts: GradeCounts;
+  /** A aeronave chegou ao fim da linha com dados. */
+  complete: boolean;
+}
+
 /** Grade de cobertura da AOI (mesma de coverage: 64×64). */
 export interface LidarGrid {
   cols: number;

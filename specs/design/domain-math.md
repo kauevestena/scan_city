@@ -398,6 +398,7 @@ GRADE_WEIGHT = { PERFECT: 1, GOOD: 0.8, WEAK: 0.4, REJECTED: 0 }
 gatePositions(line, baseM): number[]                  // s_k = aoiStartS − B + k·B, enquanto s_k ≤ aoiEndS + B
 corridorProfile(elevationAlong, lengthM, opts): CorridorProfile   // altitude do corredor numa grade de 5 m
 corridorAltAt(profile, s): number                     // interpolação linear
+corridorChangeAhead(profile, s, distanceM): number    // maior variação da altitude do corredor à frente (para o cruzeiro)
 plannedSamples(line, baseM): number                   // portais com s_k ≥ aoiStartS
 
 // execution.ts
@@ -405,9 +406,12 @@ gradeAxis(value, limits: [number, number, number]): ShotGrade
 gradeSample(input: { crossTrackM, spacingM, altM, corridorAltM, heightM, advanceRatio, blurred }): { grade, lateral, vertical, advance }
 worstGrade(...grades): ShotGrade
 passScore(counts: [nP, nG, nW, nR]): number           // (nP + 0,8·nG + 0,4·nW) / n; 0 sem amostras
-passAccepted(pass): boolean                           // complete && passScore ≥ 0,5
+passValue(pass, planned): number                      // passScore · min(1, n / (0,9·planned))
+passAccepted(pass, planned): boolean                  // complete && passValue ≥ 0,5
 gradeLetter(score): 'S' | 'A' | 'B' | 'C' | 'D'       // ≥ 0,95 / ≥ 0,85 / ≥ 0,70 / ≥ 0,50 / abaixo
-missionExecution(passes: LinePass[], planned: number[]): number   // E, 0..1
+missionExecution(passes: LinePass[] | undefined, planned: number[]): number   // E, 0..1
+bestPasses(passes, planned) / bestCounts(passes, planned)   // a melhor passada de cada linha e a soma das contagens delas
+executionFactor(E) = 0,4 + 0,6·E;  executionMultiplier(E) = 1 + 0,5·(1 − E);  pilotBonus(E) = 0,10 | 0,05 | 0
 ```
 
 **Altitude do corredor** (ao longo do eixo da linha, `x = 0`):
@@ -431,8 +435,9 @@ missionExecution(passes: LinePass[], planned: number[]): number   // E, 0..1
 
 **Passada e missão:**
 - `LinePass = { lineIndex, pass, sortie, counts, complete }`; `complete` é a regra de linha completa de [survey-flight §3](../features/survey-flight.md).
-- A linha fica **concluída** quando uma passada é aceita (`passAccepted`).
-- `E = Σ_L best_L·n_L / Σ_L n_L`, sobre todas as linhas **planejadas**, com `n_L = plannedSamples(L)` e `best_L` o maior `passScore·f` entre as passadas da linha, onde `f = 1` na passada completa e `min(1, n/n_L)` na incompleta. Linha sem passada vale 0.
+- **Valor da passada:** `passValue = passScore · min(1, n / (0,9·n_L))`, com `n` as amostras da passada e `n_L = plannedSamples(L)`. Até 10 % de amostras a menos que o planejado não tiram nada (o disparo por tempo perde uma foto de vez em quando); daí para baixo a nota cai em proporção, o que cobre a passada interrompida e a passada com o sensor desligado em parte da linha.
+- A linha fica **concluída** quando uma passada é aceita: completa e com `passValue ≥ 0,5`.
+- `E = Σ_L best_L·n_L / Σ_L n_L`, sobre todas as linhas **planejadas**, com `best_L` o maior `passValue` entre as passadas da linha (completas ou não). Linha sem passada vale 0.
 - Missão sem `linePasses` (save anterior à execução ou missão sintética) vale `E = 1`.
 
 ---
