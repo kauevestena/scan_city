@@ -90,17 +90,25 @@ describe('FlightEngine — C00 com o plano de referência e autopilot (critério
     expect(e.energy).toBeGreaterThan(0);
   });
 
-  it('os disparos: altitude H sobre a cota média, sobreposição perto da do plano, sem blur', () => {
+  it('os disparos: a H do corredor (que segue o relevo), sobreposição perto da do plano, sem blur', () => {
     const { e } = engine();
     fly(e);
     const shots = e.shots;
-    const alt = meanAoiElevation(createTerrain(C00)) + 60;
+    const terrain = createTerrain(C00);
     for (const s of shots) {
-      expect(s.altM).toBeCloseTo(alt, 0);
+      // O corredor fica em relevo + H com antecipação de 2 s: o AGL nunca fica abaixo de H
+      // (menos o erro de seguimento) e fica perto dele no sítio de relevo suave.
+      expect(s.aglM).toBeGreaterThan(60 * 0.95);
+      expect(s.aglM).toBeLessThan(60 * 1.25);
+      expect(s.altM - terrain.elevation(s.u, s.v)).toBeCloseTo(s.aglM, 6);
       expect(s.blurred).toBe(false);
       expect(s.sortie).toBe(0);
       expect(s.manual).toBe(false);
     }
+    // A altitude não é mais constante: acompanha o terreno do sítio.
+    const alts = shots.map((s) => s.altM);
+    expect(Math.max(...alts) - Math.min(...alts)).toBeGreaterThan(2);
+    expect(meanAoiElevation(terrain)).toBeGreaterThan(0);
     // Disparos consecutivos da mesma linha: ~70 % de sobreposição (p do plano).
     const line0 = shots.filter((s) => s.lineIndex === 0);
     const d = Math.hypot(
@@ -143,12 +151,16 @@ describe('FlightEngine — controles, alertas e HUD', () => {
   });
 
   it('30 % acima da velocidade do plano: overlap real abaixo do mínimo e alerta', () => {
-    const { e } = engine({ autopilot: false, input: { axis: (a) => (a === 'MOVE_Y' ? 1 : 0) } });
+    const { e } = engine({
+      autopilot: false,
+      calm: true,
+      input: { axis: (a) => (a === 'MOVE_Y' ? 1 : 0) },
+    });
     for (let t = 0; t < 20; t += 1 / 60) e.update(1 / 60);
     // Com o Atlas no máximo (16 m/s > 13 m/s), a base cresce além do previsto.
     expect(e.pRealPct()).not.toBeNull();
     expect(e.pRealPct() ?? 100).toBeLessThan(65);
-    expect(e.alerts().map((a) => a.id)).toContain('OVERLAP');
+    expect(e.alertList().map((a) => a.id)).toContain('OVERLAP');
   });
 
   it('fora da faixa quando |X| > 0,25·S; abortar encerra a surtida', () => {
@@ -157,7 +169,7 @@ describe('FlightEngine — controles, alertas e HUD', () => {
       input: { axis: (a) => (a === 'MOVE_X' ? 1 : 0) },
     });
     for (let t = 0; t < 6; t += 1 / 60) e.update(1 / 60);
-    expect(e.alerts().map((a) => a.id)).toContain('OUT_OF_LANE');
+    expect(e.alertList().map((a) => a.id)).toContain('OUT_OF_LANE');
     e.abort();
     expect(results[0]?.outcome).toBe('ABORTED');
     expect(e.phase).toBe('POST_FLIGHT');

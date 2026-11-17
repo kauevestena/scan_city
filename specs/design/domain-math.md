@@ -283,7 +283,7 @@ drainPerSecond(ctx): number      // fração do total por segundo
 //  = (1 / (enduranceS · enduranceMod)) · fSpeed · fWind · fClimb · fWeather
 //  fSpeed   = 1 + 0,5·((v − vCruise)/vCruise)²
 //  fWind    = 1 + 0,03·|w|
-//  fClimb   = subindo ? 1,3 : 1
+//  fClimb   = 1 + 0,3·clamp(vz / climbRateMs, 0, 1)   (no voo; sem a razão de subida: subindo ? 1,3 : 1)
 //  fWeather = BLIZZARD_DRAIN ? 2 : 1
 rthRequired(remaining, distanceHomeM, vCruise, drainAtCruise): boolean
 //  tempoVolta = distanceHomeM / vCruise + 15

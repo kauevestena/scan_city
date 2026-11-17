@@ -240,6 +240,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 | Elemento | Implementação |
 | :--- | :--- |
 | Vento médio | `windAt(t)` (vento de fundo) é decomposto na transversal e ao longo da linha. A aeronave compensa a transversal (o *crab*; sem deriva constante) e mantém a velocidade no solo do plano dentro dos limites de velocidade no ar ([domain-math §5](../design/domain-math.md)). O HUD mostra a seta de vento, o `crabAngleRad` e a velocidade no solo; quando o limite corta a velocidade, o alerta "VENTO DE PROA: velocidade limitada" (ou "DE CAUDA") aparece. O vento segue afetando o dreno |
+| Depuração | `?debug=1&calm=1` voa sem rajadas e sem erro de entrada; o corredor e as notas continuam valendo |
 | Rajadas (REQ-FLT-013) | A cada passada, `planGusts` ([domain-math §5.1](../design/domain-math.md)) sorteia de 1 a 3 rajadas com a seed `"<missão>:<surtida>:<linha>:<passada>:gusts"`. O empurrão de cada uma, `driftVelocityMs(peak·env, driftFactor, windDrift)·driftMultiplier`, entra no `stepAircraft` como `gustLateralMs` e `gustAlongMs`. Acima da tolerância da aeronave o empurrão dobra (`STRONG_WIND`). **Aviso** de 1,5 s: alerta "RAJADA ◀" ou "RAJADA ▶" com a contagem, a biruta e riscos de vento no ar (partículas alongadas que cruzam a tela no sentido da rajada, até 40; sem piscar com `reduceFlashes`) |
 | Térmicas | `thermalLiftMs`. Visual: distorção sutil (onda) no ar sobre a zona |
 | EM | `EM_INTERFERENCE`: soma `ruído(t)·0,8 m/s` lateral e 3° de rumo. Glitch de scanlines no HUD. Atlas fica imune |
@@ -287,15 +288,16 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 1. Queda iminente: AGL < 5 m e caindo, ou casco = 1 (crítico).
 2. RTH recomendado / energia baixa (crítico).
 3. Detectado (crítico).
-4. Rajada avisada ou em curso, com o lado (aviso).
+4. Rajada avisada ou em curso, com o lado (aviso); Atlas distraído (info). Os dois empurram a aeronave e pedem a correção agora.
 5. Vento acima do limite (aviso).
 6. Fora da faixa (aviso).
 7. Fora da altura do corredor: `|alt − corridorAlt| > 0,10·H`, com "SUBA" ou "DESÇA" (aviso).
 8. Overlap insuficiente (aviso).
-9. Motion blur (aviso).
-10. Velocidade limitada pelo vento (info).
+9. Motion blur / pouca luz (aviso).
+10. Velocidade limitada pelo vento (info); velocidade mínima da asa fixa (aviso).
 11. RTK FLOAT (info).
-12. Atlas distraído (info).
+
+`alerts()` devolve os 2 mais urgentes (o HUD); `alertList()`, todos os ativos (testes e cruzeiro).
 
 ### 5.18 Performance
 - O orçamento é de ≤ 12 ms/frame em Alta no perfil de referência.

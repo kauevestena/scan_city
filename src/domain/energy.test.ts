@@ -24,6 +24,16 @@ describe('energia (domain-math §7)', () => {
     expect(fast).toBeCloseTo((1 / 720) * 1.5, 15);
     expect(drainPerSecond({ ...base, windMs: -10 })).toBeCloseTo((1 / 720) * 1.3, 15);
     expect(drainPerSecond({ ...base, climbing: true })).toBeCloseTo((1 / 720) * 1.3, 15);
+    // Proporcional à razão de subida, quando ela vem: meia subida custa 15 %.
+    expect(drainPerSecond({ ...base, climbing: true, climbRatio: 0.5 })).toBeCloseTo(
+      (1 / 720) * 1.15,
+      15,
+    );
+    expect(drainPerSecond({ ...base, climbing: true, climbRatio: 3 })).toBeCloseTo(
+      (1 / 720) * 1.3,
+      15,
+    );
+    expect(drainPerSecond({ ...base, climbing: false, climbRatio: -1 })).toBeCloseTo(1 / 720, 15);
     expect(drainPerSecond({ ...base, enduranceMod: 1.15 })).toBeCloseTo(1 / (720 * 1.15), 15);
   });
 

@@ -175,6 +175,7 @@ function arena(
     mods: neutralModifiers(),
     ownsRtkKit: false,
     autopilot: over.autopilot ?? true,
+    calm: true,
     quality: () => 'LOW',
     reduceFlashes: () => false,
     colors: { primary: '#fff', secondary: '#000' },

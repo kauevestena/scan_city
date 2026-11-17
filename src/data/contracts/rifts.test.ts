@@ -1297,13 +1297,14 @@ describe('R09 — Savana das Gramas Altas', () => {
     expect(report.multipliers.find((m) => m.key === 'texture')?.xy).toBeCloseTo(1.24, 6);
   });
 
-  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o AGL só cai nos morros e a mediana de p fica um décimo abaixo de 80 %', () => {
+  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o corredor segue os morros e a mediana de p fica logo abaixo de 80 %', () => {
     expect(getAircraft('DRONE_T2').hMaxM).toBe(R09.referencePlan.heightM);
     const { shots } = fly(R09);
     expect(shots).toHaveLength(333);
     // O teto de AGL do T2 corta os vales: nenhuma foto sai com AGL acima do H do plano (±10 cm de passo).
     expect(Math.max(...shots.map((s) => s.aglM))).toBeLessThanOrEqual(120.1);
-    expect(Math.min(...shots.map((s) => s.aglM))).toBeLessThan(112);
+    // O corredor acompanha o relevo (ADR-029): o AGL não cai mais nos morros.
+    expect(Math.min(...shots.map((s) => s.aglM))).toBeGreaterThan(118);
     // A mediana medida na pegada real fica logo abaixo do 80 % nominal (o relatório marca
     // "Sobreposição longitudinal" como não atendida, IMPORTANTE, e a missão segue aprovada).
     const p = medianForwardOverlapPct(shots) as number;

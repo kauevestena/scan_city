@@ -48,6 +48,19 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     flashes: 43,
     blurPx: 0.2,
     alerts: [makeAlert('OVERLAP', 58), makeAlert('OUT_OF_LANE')],
+    groundSpeedMs: 10.4,
+    planSpeedMs: 10,
+    corridorDeltaM: 0.5,
+    grade: 'GOOD',
+    lastGrade: null,
+    streak: 0,
+    passScore: null,
+    passLetter: null,
+    refly: false,
+    gust: null,
+    windRelDeg: 90,
+    cruise: { on: false, factor: 1 },
+    lineReport: null,
     minimap: {
       lines: [
         [
@@ -182,6 +195,8 @@ describe('PostFlightDialog', () => {
     rings: 0,
     featuresCaptured: [],
     atlas: false,
+    linePasses: [],
+    refly: [],
   };
 
   it('com dados: "Levar dados" põe a missão na fila e volta ao mapa (T10, QUEUED)', () => {

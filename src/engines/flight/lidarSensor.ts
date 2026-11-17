@@ -41,6 +41,11 @@ export interface SweepInput {
   x: number;
   aglM: number;
   dtS: number;
+  /**
+   * Peso dos pulsos do passo, pela nota de execução do instante (1; 0,5 se Fraca; 0 se
+   * Rejeitada). Padrão: 1.
+   */
+  weight?: number;
 }
 
 export class LidarSensor {
@@ -96,11 +101,12 @@ export class LidarSensor {
    */
   sweep(i: SweepInput): number {
     const swath = lidarSwathM(i.aglM, this.fovRad);
-    if (swath <= 0 || i.dtS <= 0) return 0;
+    const weight = i.weight ?? 1;
+    if (swath <= 0 || i.dtS <= 0 || weight <= 0) return 0;
     const alongLen = Math.max(0, i.s1 - i.s0);
     const nAcross = Math.max(1, Math.min(96, Math.ceil(swath / Math.min(this.cellL, this.cellW))));
     const nAlong = Math.max(1, Math.min(4, Math.ceil(alongLen / Math.min(this.cellL, this.cellW))));
-    const share = (this.pod.prrHz * i.dtS) / (nAcross * nAlong);
+    const share = ((this.pod.prrHz * i.dtS) / (nAcross * nAlong)) * weight;
     let inside = 0;
     for (let a = 0; a < nAlong; a++) {
       const s = i.s0 + ((a + 0.5) / nAlong) * alongLen;

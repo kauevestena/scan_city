@@ -54,6 +54,7 @@ function createEngine(
     mods: selectModifiers(state),
     ownsRtkKit: state.inventory.fieldEquipment.includes('GNSS_RTK_KIT'),
     autopilot: getDebugFlags().autopilot,
+    calm: getDebugFlags().calm,
     quality: () => useGameStore.getState().settings.quality,
     reduceFlashes: () => useGameStore.getState().settings.reduceFlashes,
     // O Atlas usa as cores do pombo; os drones, a pintura equipada.

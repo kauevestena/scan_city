@@ -72,6 +72,8 @@ function setup(
     wind?: Contract['wind'];
     aircraft?: 'ATLAS' | 'DRONE_T2' | 'DRONE_T1';
     kit?: boolean;
+    /** Sem rajadas e sem erro de entrada (o padrão destes testes de outros sistemas). */
+    calm?: boolean;
   } = {},
 ) {
   const aircraft = over.aircraft ?? 'DRONE_T2';
@@ -118,6 +120,7 @@ function setup(
     mods: neutralModifiers(),
     ownsRtkKit: over.kit ?? true,
     autopilot: false,
+    calm: over.calm ?? true,
     quality: () => 'LOW',
     reduceFlashes: () => false,
     colors: { primary: '#fff', secondary: '#000' },
@@ -133,21 +136,47 @@ const run = (e: FlightEngine, s: number) => {
 };
 
 describe('FlightEngine — vento, térmicas, EM e RTK (§5.13)', () => {
-  it('deriva proporcional ao driftFactor × windDrift, e dobrada acima da tolerância', () => {
+  it('o vento médio não deriva (a aeronave compensa); o HUD mostra o vento e o crab', () => {
     // Vento de 0° (do norte, para +v) sobre uma linha para +u: o cruzado é o vento inteiro.
-    const mild = setup({ aircraft: 'DRONE_T1', wind: { meanMs: 3, gustMs: 0, directionDeg: 0 } });
     const strong = setup({
       aircraft: 'DRONE_T1',
       wind: { meanMs: 8, gustMs: 2, directionDeg: 0 },
     });
-    run(mild.e, 6);
-    run(strong.e, 6);
-    expect(Math.abs(strong.e.ac.x)).toBeGreaterThan(Math.abs(mild.e.ac.x) * 4);
-    expect(strong.e.alerts().map((a) => a.id)).toContain('WIND_LIMIT');
-    expect(mild.e.alerts().map((a) => a.id)).not.toContain('WIND_LIMIT');
+    run(strong.e, 8);
+    expect(strong.e.ac.x).toBe(0);
+    expect(strong.e.alertList().map((a) => a.id)).toContain('WIND_LIMIT');
     const snap = strong.e.snapshot();
     expect(Math.abs(snap.windCrossMs)).toBeGreaterThan(3);
     expect(Math.abs(snap.crabDeg)).toBeGreaterThan(0);
+    const mild = setup({ aircraft: 'DRONE_T1', wind: { meanMs: 3, gustMs: 0, directionDeg: 0 } });
+    run(mild.e, 8);
+    expect(mild.e.ac.x).toBe(0);
+    expect(mild.e.alertList().map((a) => a.id)).not.toContain('WIND_LIMIT');
+  });
+
+  it('rajada: empurra com driftFactor × windDrift e dobra acima da tolerância (STRONG_WIND)', () => {
+    // Mesma missão e mesma rajada (a rajada só depende de `gustMs` e da direção); só a média
+    // muda: 3 + 2 fica abaixo da tolerância de 8 m/s do T1, e 7 + 2 passa dela.
+    const mild = setup({
+      aircraft: 'DRONE_T1',
+      calm: false,
+      wind: { meanMs: 3, gustMs: 2, directionDeg: 0 },
+    });
+    const strong = setup({
+      aircraft: 'DRONE_T1',
+      calm: false,
+      wind: { meanMs: 7, gustMs: 2, directionDeg: 0 },
+    });
+    // O erro de entrada é o mesmo nas duas.
+    const entry = mild.e.ac.x;
+    expect(strong.e.ac.x).toBe(entry);
+    expect(Math.abs(entry)).toBeGreaterThan(0);
+    run(mild.e, 20);
+    run(strong.e, 20);
+    const pushedMild = mild.e.ac.x - entry;
+    const pushedStrong = strong.e.ac.x - entry;
+    expect(Math.abs(pushedMild)).toBeGreaterThan(0.5);
+    expect(pushedStrong).toBeCloseTo(2 * pushedMild, 6);
   });
 
   it('térmica sob a rota empurra a aeronave para cima', () => {

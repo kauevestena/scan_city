@@ -64,6 +64,7 @@ function engine(
     mods: neutralModifiers(),
     ownsRtkKit: false,
     autopilot: true,
+    calm: true,
     quality: () => 'LOW',
     reduceFlashes: () => false,
     colors: { primary: '#fff', secondary: '#000' },

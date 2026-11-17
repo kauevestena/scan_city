@@ -558,6 +558,20 @@ export const STRINGS = {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
       RTH: () => 'RTH RECOMENDADO',
       DETECTED: () => 'DETECTADO!',
+      GUST: (inS?: number, side?: number) => {
+        const label = (side ?? 1) < 0 ? '◀ RAJADA' : 'RAJADA ▶';
+        return inS !== undefined && inS > 0
+          ? `${label} em ${inS.toFixed(1).replace('.', ',')} s`
+          : label;
+      },
+      OFF_ALTITUDE: (deltaM?: number) =>
+        (deltaM ?? 0) > 0
+          ? `SUBA ▲ ${Math.round(deltaM ?? 0)} m`
+          : `DESÇA ▼ ${Math.round(Math.abs(deltaM ?? 0))} m`,
+      SPEED_LIMITED: (sign?: number) =>
+        (sign ?? -1) < 0
+          ? 'VENTO DE PROA: velocidade limitada'
+          : 'VENTO DE CAUDA: velocidade limitada',
       WIND_LIMIT: () => 'VENTO ACIMA DO LIMITE DA AERONAVE',
       OVERLAP: (v?: number) => `OVERLAP INSUFICIENTE ${v ?? ''} %`,
       MOTION_BLUR: () => 'MOTION BLUR',

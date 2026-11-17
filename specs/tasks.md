@@ -1788,12 +1788,21 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   5. Autopilot: faixa com antecipação da rajada, velocidade no solo e altitude do corredor.
   6. Snapshot do HUD com os campos novos e os alertas novos.
 - **Aceite:**
-  - [ ] C00 com o plano de referência e autopilot: 6 linhas aceitas, 96 ± 6 fotos, nenhuma rejeitada na contagem e execução ≥ 0,9.
-  - [ ] C00 sem comando: nenhuma linha aceita, cada linha é revoada uma vez e a execução fica < 0,4.
-  - [ ] A mesma missão e a mesma surtida repetem as mesmas rajadas e os mesmos erros de entrada.
-  - [ ] Surtida que termina em queda não deixa passada nem foto na missão.
+  - [x] C00 com o plano de referência e autopilot: 6 linhas aceitas, 96 ± 6 fotos, nenhuma rejeitada na contagem e execução ≥ 0,9.
+  - [x] C00 sem comando: nenhuma linha aceita, cada linha é revoada uma vez e a execução fica < 0,4.
+  - [x] A mesma missão e a mesma surtida repetem as mesmas rajadas e os mesmos erros de entrada.
+  - [x] Surtida que termina em queda não deixa passada nem foto na missão.
 - **Verificação:** `npx vitest run src/engines/flight src/state src/screens/flight`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/engines/flight/linePass.ts`, `src/engines/flight/execution.test.ts`; ~ `src/engines/flight/{FlightEngine,autopilot,hudPublisher,lidarSensor}.ts`, `src/domain/energy.ts` e teste, `src/state/{types.ts,slices/missionSlice.ts}`, `src/app/debugFlags.ts` e teste, `src/screens/flight/{SurveyFlightScreen,FlightHud}.tsx`, `src/data/strings.ts`; os testes antigos do voo (`FlightEngine`, `environment`, `fieldElements`, `lidar`, `modes`, `quality`, `flightScreens`) e o `rifts.test` (R09); ~ `specs/features/survey-flight.md`, `specs/design/domain-math.md`.
+- **Notas de implementação:**
+  - **`linePass.ts`** reúne o que o motor sorteia e calcula no começo de cada passada: o corredor (`corridorProfile` com a elevação ao longo do eixo), as rajadas (`planGusts`) e o erro de entrada (`entryOffsetM`, limitado ao que a aeronave corrige no lead-in), com a semente `missão:surtida:linha:passada`. O número da passada conta as passadas da missão e as da surtida: o revoo sorteia rajadas e entrada novas.
+  - **Motor.** O vento de fundo vira `alongWind` e `crossWind`; o médio entra no `stepAircraft` como `meanAlongMs` (velocidade no solo mantida) e só as rajadas empurram (`gustAlongMs`, `gustLateralMs`), todos com o `driftFactor`, a habilidade e o fator de `STRONG_WIND`. A energia usa a velocidade no ar. A decolagem sobe até a altitude do corredor (a altitude constante sobre a cota média saiu). A nota do instante é calculada a cada passo; a de cada foto automática usa o avanço real (`d/B`) e só entra na contagem a partir do início da AOI; com o LiDAR, cada portal cruzado é uma amostra e os pulsos do passo pesam pela nota do instante (`sweep` ganhou `weight`). `closePass` fecha a passada no fim da linha, no RTH confirmado, na queda e no abandono; a linha aceita entra em `completedLines` e a recusada (completa e abaixo de 0,5) vai para o fim da fila, uma vez por surtida. `SortieResult` traz `linePasses` (vazio em surtida perdida) e `refly`; a store soma as passadas e descarta as da surtida perdida.
+  - **Autopilot.** Segue a altitude do corredor 0,5 s à frente (sem TF) e controla a velocidade no solo (`moveY` proporcional à diferença), além da faixa.
+  - **Custo da subida proporcional (mudança de spec).** Seguir o corredor faz a aeronave subir e descer o tempo todo, e a regra "subindo ? 1,3 : 1" cobrava 30 % a mais em qualquer correção mínima: na malha cruzada do C00 o autopilot passou a voltar à base duas linhas antes do fim. Ficou `fClimb = 1 + 0,3·clamp(vz/climbRate, 0, 1)` no voo (subida plena continua custando 30 %); `drainPerSecond` aceita `climbRatio` e, sem ele, mantém a regra antiga. domain-math §7 atualizada.
+  - **HUD e alertas.** Snapshot com a velocidade no solo e a do plano, a diferença para o corredor, a nota do instante, a última amostra, a sequência, a nota e a letra da passada, o revoo, a rajada, a direção do vento para a biruta, o cruzeiro (por ora sempre desligado, até a T091) e o boletim (na curva, no retorno e no pouso). Alertas novos `GUST` (com o lado e a contagem), `OFF_ALTITUDE` ("SUBA"/"DESÇA") e `SPEED_LIMITED`; a distração do Atlas subiu para a prioridade da rajada, porque também pede correção imediata. `alertList()` dá todos os ativos; `alerts()` segue com os 2 do HUD. Opção de depuração `calm=1`.
+  - **Testes antigos.** Os que testam outros sistemas (EM, criaturas elétricas, RTK, térmica, LiDAR, iluminação, disparo manual) passaram a voar com `calm`; os que olhavam alertas usam `alertList()`. Três mudaram de conteúdo, porque o comportamento mudou de propósito: "a deriva do vento médio" virou "o vento médio não deriva" e "a rajada dobra acima da tolerância" (mesma rajada, dois ventos médios: o empurrão é exatamente o dobro); "altitude H sobre a cota média" virou "o AGL fica perto de H e a altitude acompanha o terreno"; e no Terrain Following, "sem TF o AGL varia muito" virou "sem TF, quem segue o corredor mantém o AGL; quem não mexe na altura, não". No R09, o AGL não cai mais nos morros (mínimo acima de 118 m); a mediana de p segue logo abaixo de 80 %.
+  - **Testes novos** (11, `execution.test.ts`): autopilot no C00 (6 linhas aceitas de primeira, 96 ± 6 fotos, nenhuma rejeitada na contagem, execução ≥ 0,9); jogador parado (nenhuma linha aceita, revoo no máximo uma vez, execução < 0,4); determinismo; o sorteio da passada; a rajada com aviso de 1,5 s e o empurrão para o lado anunciado; eventos de nota e sequência; boletim na curva; linha recusada aceita no revoo; RTH com passada incompleta; LiDAR com amostra por portal e pulsos fora da tolerância descartados; a store somando e descartando passadas.
+- **Status:** ✅
 
 ### T089 — Pilotos simulados e calibração
 - **Fase:** F10 · **Depende de:** T088 · **REQs:** REQ-NFR-010
@@ -1950,9 +1959,9 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
 | REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ☐ |
-| REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ☐ |
-| REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ☐ |
-| REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ☐ |
+| REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
+| REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
+| REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ✅ |
 | REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090 | ☐ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |

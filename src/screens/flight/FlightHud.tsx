@@ -178,7 +178,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
                     : 'border-cyan-400 bg-slate-950/80 text-cyan-200',
               )}
             >
-              {T.alerts[a.id](a.value)}
+              {T.alerts[a.id](a.value, a.side)}
             </span>
           ))}
           {snap.rthConfirm && (
