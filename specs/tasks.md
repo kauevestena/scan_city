@@ -1713,11 +1713,18 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   2. `gusts.ts`.
   3. `stepAircraft` com `meanAlongMs`, `gustAlongMs` e `gustLateralMs`: velocidade no solo comandada com limites deslocados pelo vento médio, `gs` de fato, avanço por `gs`, lateral sem deriva do vento médio.
 - **Aceite:**
-  - [ ] G29 e G30 passam; a mesma seed dá a mesma agenda; todo contrato gera rajada ≥ 2 m/s × 0,8.
-  - [ ] Com vento médio de proa maior que a folga de velocidade no ar, a velocidade no solo fica limitada; com rajada de cauda, `gs` passa da do plano.
-  - [ ] Sem rajada e sem comando, `x` não muda (o vento médio não deriva).
+  - [x] G29 e G30 passam; a mesma seed dá a mesma agenda; todo contrato gera rajada ≥ 2 m/s × 0,8.
+  - [x] Com vento médio de proa maior que a folga de velocidade no ar, a velocidade no solo fica limitada; com rajada de cauda, `gs` passa da do plano.
+  - [x] Sem rajada e sem comando, `x` não muda (o vento médio não deriva).
 - **Verificação:** `npx vitest run src/domain`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/domain/gusts.ts`, `gusts.test.ts`; ~ `src/domain/flightPhysics.ts`, `flightPhysics.test.ts`, `src/engines/flight/FlightEngine.ts` (só a chamada do `stepAircraft`), `specs/design/domain-math.md`.
+- **Notas de implementação:**
+  - **`gusts.ts`**: `gustCount`, `windRelativeRad` (o ângulo do vento em relação à linha, a partir de `directionDeg` e dos vetores da linha, para o domínio não depender do `RunFrame`), `planGusts`, `gustEnvelope`, `gustPushAt`, `gustWarningAt`, `maxCorrectableM` e `entryOffsetM`. O sorteio do lado da rajada sem componente transversal consome o gerador em toda rajada, para a agenda não depender do caso.
+  - **Rajadas que não se cruzam.** A primeira conta (parte mínima de 5 s, início nos primeiros 60 %) deixava o aviso de uma rajada começar antes do fim da anterior. Ficou: parte mínima de **10 s** e início na **primeira metade** da parte, o que sempre deixa a rajada inteira (até 3,5 s) e o aviso da seguinte (1,5 s) sem sobreposição. A spec foi atualizada.
+  - **`stepAircraft`**: `FlightEnv` troca `crossWindMs` e `windDriftMod` por `meanAlongMs`, `gustAlongMs` e `gustLateralMs` (empurrões já com o `driftFactor`); o estado ganha `gs`, a velocidade no solo de fato, que é a que avança a aeronave e alimenta o Terrain Following. `groundSpeedLimits` é exportada, porque o HUD e o autopilot precisam dos mesmos limites. O piso de 0,5 m/s impede a aeronave de andar para trás na linha.
+  - **O jogo ainda se comporta como antes.** Até a T088, o motor passa a deriva antiga do vento médio como `gustLateralMs` e zero nos outros dois: os testes do motor não mudaram de valor.
+  - **Testes** (17 novos em `gusts.test.ts`, 4 novos em `flightPhysics.test.ts`): G29 e G30; determinismo; quantidade, janela, ordem e ausência de sobreposição em 200 seeds × 6 durações; força mínima em contrato sem vento; ≥ 50 % na transversal com vento paralelo, com os dois lados aparecendo; abertura de ±50°; os 18 contratos; envelope, soma e aviso; entrada de 30 % a 40 % de `S` e o limite de 90 % do corrigível; velocidade no solo com vento médio de proa e de cauda e com rajada.
+- **Status:** ✅
 
 ### T086 — Domínio: corredor e nota de execução
 - **Fase:** F10 · **Depende de:** T085 · **REQs:** REQ-FLT-025 (*parc.*), REQ-FLT-026 (*parc.*), REQ-FLT-027 (*parc.*)

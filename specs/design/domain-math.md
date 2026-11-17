@@ -187,7 +187,8 @@ interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; a
 //   tempos em segundos desde o início da linha; ângulo em relação ao sentido da linha
 //   (0 = de cauda, +π/2 = empurra para a direita)
 gustCount(lineDurationS): number                         // clamp(round(T/20), 1, 3)
-planGusts(rng, wind, lineHeadingRad, lineDurationS, leadInS): Gust[]
+windRelativeRad(directionDeg, dir, right): number        // θ₀: para onde o vento sopra, em relação à linha
+planGusts(rng, wind, windRelRad, lineDurationS, leadInS): Gust[]
 gustEnvelope(gust, tS): number                           // 0..1: sobe em rampS, patamar de holdS, desce em rampS
 gustPushAt(gusts, tS): { lateralMs: number; alongMs: number }   // Σ peak·env·(sen θ, cos θ)
 gustWarningAt(gusts, tS): { gust: Gust; inS: number } | null    // rajada avisada (inS > 0) ou em curso (inS ≤ 0)
@@ -197,9 +198,9 @@ entryOffsetM(rng, spacingM, maxCorrectableM): number     // com sinal
 
 **Agenda de rajadas** (por passada de linha, com a seed da missão):
 - `T = lengthM / v_plano` e `t_in = aoiStartS / v_plano`. Há `n = gustCount(T)` rajadas.
-- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais, e cada rajada começa num instante uniforme nos primeiros 60 % da sua parte (as rajadas nunca se sobrepõem). Se a janela tiver menos de `5·n` s, `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
+- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais, e cada rajada começa num instante uniforme na primeira metade da sua parte: uma rajada (até 3,5 s) e o aviso da seguinte nunca se cruzam. Se a janela tiver menos de `10·n` s, `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
 - `rampS = 0,5`, `holdS = U(1,5, 2,5)` e `peakMs = max(2, gustMs)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 2 m/s.
-- **Direção:** `θ₀` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,5`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,5`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos metade da força na transversal.
+- **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,5`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,5`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos metade da força na transversal.
 - **Aviso:** `GUST_WARN_S = 1,5` s antes do início.
 
 **Entrada de faixa:**

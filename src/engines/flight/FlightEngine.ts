@@ -9,6 +9,7 @@ import { drainPerSecond, rthRequired } from '@/domain/energy';
 import { capturedFeatures } from '@/domain/features';
 import {
   crabAngleRad,
+  driftVelocityMs,
   thermalLiftMs,
   initialAircraftState,
   stepAircraft,
@@ -615,10 +616,12 @@ export class FlightEngine implements Simulation {
         planSpeedMs: plan.params.speedMs,
         ceilingM: this.opts.contract.ceilingM,
         elevationM: this.elevationAt(this.ac.s, this.ac.x),
-        crossWindMs: this.crossWind,
+        meanAlongMs: 0,
+        gustAlongMs: 0,
         // Acima da tolerância, a deriva dobra (STRONG_WIND).
-        windDriftMod:
-          this.opts.mods.windDrift * driftMultiplier(this.opts.contract.wind, this.aircraft),
+        gustLateralMs:
+          driftVelocityMs(this.crossWind, this.aircraft.driftFactor, this.opts.mods.windDrift) *
+          driftMultiplier(this.opts.contract.wind, this.aircraft),
         thermalLiftMs: thermalLiftMs(
           this.opts.terrain.zones,
           this.pos().u,
