@@ -20,7 +20,8 @@ class AudioEngine {
 }
 interface LoopHandle { setParam(name: 'pitch' | 'gain' | 'rate', value: number): void; stop(fadeS?: number): void }
 type SfxId = 'SHUTTER' | 'RTH_BEEP' | 'PIGEON_COO' | 'CASH_REGISTER' | 'CRASH' | 'UI_CLICK' | 'UI_HOVER'
-           | 'ALERT' | 'TAKEOFF' | 'RIFT_OPEN' | 'LEVEL_UP' | 'COLLECT' | 'DENIED' | 'STAGE_DONE';
+           | 'ALERT' | 'TAKEOFF' | 'RIFT_OPEN' | 'LEVEL_UP' | 'COLLECT' | 'DENIED' | 'STAGE_DONE'
+           | 'GRADE' | 'GRADE_MISS';
 type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 ```
 
@@ -62,6 +63,8 @@ fontes → gainSfx → gainMaster → DynamicsCompressor (threshold −18 dB, ra
 | `COLLECT` | `sine` com glide de 1200→2400 Hz em 120 ms | 0,12 s |
 | `DENIED` | `square` 180 Hz, dois pulsos de 80 ms | 0,25 s |
 | `STAGE_DONE` | `sine` 880 Hz e depois 1320 Hz, 60 ms cada | 0,15 s |
+| `GRADE` | `triangle` 660 Hz × `pitch`, a 2 ms, d 90 ms, peak 0,22, mais `sine` uma oitava acima, peak 0,08 | 0,1 s |
+| `GRADE_MISS` | `sine` com queda de 220→140 Hz em 120 ms, peak 0,2 (som surdo) | 0,12 s |
 | `MOTOR` (loop) | Multirrotor: `sawtooth` (frequência = 80 + 6·v Hz) → `lowpass` 1,2 kHz, gain 0,08, mais ruído → `bandpass` 400 Hz com gain 0,04. Asa fixa: `sawtooth` (50 + 3·v Hz). Atlas: sem motor, mas um "bater de asas" (ruído em pulsos de 40 ms a cada 250 ms, com frequência de pulsos ∝ v) | contínuo |
 | `WIND` (loop) | Ruído → `lowpass` 500 Hz, com gain proporcional ao |vento| (0..0,15) | contínuo |
 | `PROCESSING` (loop) | Fan noise: ruído → `lowpass` 300 Hz, gain 0,05 × speedFactor^0,3. Mais "bips" de disco aleatórios a cada 0,3–0,8 s | contínuo |
@@ -84,6 +87,9 @@ fontes → gainSfx → gainMaster → DynamicsCompressor (threshold −18 dB, ra
 | Anel coletado (R01) / marco geodésico encontrado | `COLLECT` |
 | Entrar na aba Fendas / abrir briefing de fenda | `RIFT_OPEN` |
 | Etapa do pipeline concluída | `STAGE_DONE` |
+| Amostra do voo com nota Perfeita ou Boa ([survey-flight §5.21](../features/survey-flight.md)) | `GRADE`, com `pitch = 2^(g/12)`, onde `g` é o grau atual da escala pentatônica maior (0, 2, 4, 7, 9, 12, 14…): cada Perfeita seguida sobe um grau (até o 12º), a Boa repete o grau |
+| Amostra do voo com nota Fraca ou Rejeitada | `GRADE_MISS`, e a sequência volta ao grau 0 |
+| Boletim da linha: passada aceita / recusada | `STAGE_DONE` / `DENIED` |
 
 ---
 

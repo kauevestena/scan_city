@@ -12,7 +12,7 @@ O desenvolvimento segue **Spec-Driven Development (SDD)**: primeiro a spec, depo
 | :-: | :--- | :--- |
 | 1 | [constitution.md](constitution.md) | Regras imutáveis: stack, princípios, convenções, Definition of Done, guarda de conteúdo |
 | 2 | [product.md](product.md) | Visão, narrativa, loop de jogo, pilares e glossário técnico |
-| 3 | [requirements.md](requirements.md) | 131 requisitos `REQ-<ÁREA>-NNN` (formato EARS) com critério de aceite |
+| 3 | [requirements.md](requirements.md) | 138 requisitos `REQ-<ÁREA>-NNN` (formato EARS) com critério de aceite |
 | 4 | [design/architecture.md](design/architecture.md) | Pastas, máquina de 7 telas (16 transições), store, game loop, persistência, debug, testes |
 | 4 | [design/data-model.md](design/data-model.md) | Interfaces TypeScript canônicas |
 | 4 | [design/domain-math.md](design/domain-math.md) | Todas as fórmulas e modelos, com **25 golden values** para testes |
@@ -86,10 +86,12 @@ O código nunca diverge silenciosamente da spec.
 | (F1) Domínio | Toda a matemática, com golden values | T010–T019 | ✅ |
 | **M1** Vertical Slice | C00 jogável de ponta a ponta | T020–T027 | ✅ (E2E; revisão manual pendente) |
 | **M2** Voo completo | Obstáculos, clima, vento, energia, Atlas, LiDAR, modos, alertas, *time warp* | T028–T036 | ✅ |
-| (F4–F6) Sistemas | Mini-games, veículos, eventos, produtos, Van, loja, skills, equipe, cosméticos, museu, rival | T037–T051 | ☐ |
-| **M3** Conteúdo | 7 contratos reais + 11 fendas + campanha | T052–T071 | ☐ |
-| (F8) Museu & Lab | Mesa completa, 4 infográficos | T072–T074 | ☐ |
-| **M4** Release | Pausa, juice, performance, acessibilidade, regressão | T075–T079 | ☐ |
+| (F4–F6) Sistemas | Mini-games, veículos, eventos, produtos, Van, loja, skills, equipe, cosméticos, museu, rival | T037–T051 | ✅ |
+| **M3** Conteúdo | 7 contratos reais + 11 fendas + campanha | T052–T071 | ✅ |
+| (F8) Museu & Lab | Mesa completa, 4 infográficos | T072–T074 | ✅ |
+| **M4** Release | Pausa, juice, performance, acessibilidade, regressão | T075–T079 | ✅ |
+| Pós-release | Verificação extra, resiliência do navegador, publicação e Firefox | T080–T083 | ✅ |
+| **M5** Voo com desafio | Fase 1 do replanejamento do voo: corredor, nota de execução, rajadas, revoo e cruzeiro ([ADR-029 a 032](decisions.md)) | T084–T092 | ☐ |
 
 ---
 
@@ -141,7 +143,7 @@ O código nunca diverge silenciosamente da spec.
 ## 6. Verificação desta suíte de specs
 
 Checagens feitas na conversão, que podem ser repetidas:
-- **Rastreabilidade:** os 131 REQs aparecem em ≥ 1 documento de design, feature ou conteúdo **e** em ≥ 1 tarefa. A matriz está no final de [tasks.md](tasks.md).
+- **Rastreabilidade:** os 138 REQs aparecem em ≥ 1 documento de design, feature ou conteúdo **e** em ≥ 1 tarefa. A matriz está no final de [tasks.md](tasks.md).
 - **Tarefas:** todas têm "Aceite", "Verificação" e "Status". As tarefas T053–T058 e T060–T070 herdam a verificação comum declarada no início de F7.
 - **Golden values:** recalculados de forma independente em Python. Os 18 planos de referência dos contratos atendem aos próprios requisitos de GSD, tempo de voo, baterias e acurácia prevista.
 - **Balanceamento:** a simulação manual da campanha é viável ([catalog §13](content/catalog.md)).

@@ -233,7 +233,8 @@ export type RequirementCheck =
   | { type: 'MAX_VOLUME_ERROR_PCT'; value: number }
   | { type: 'MAX_BLUR_FRACTION'; value: number }
   | { type: 'NOT_DETECTED' }
-  | { type: 'FEATURE_CAPTURED'; featureId: string };
+  | { type: 'FEATURE_CAPTURED'; featureId: string }
+  | { type: 'MIN_EXECUTION'; value: number };             // execução E mínima do voo, 0..1 (domain-math §10.3); todo contrato tem
 
 export interface ContractRequirement { id: string; label: string; severity: Severity; check: RequirementCheck }
 
@@ -374,6 +375,19 @@ export interface Shot {
   blurPx: number; skewPx: number; blurred: boolean;
   lighting: LightingId; rtk: RtkStatus; manual: boolean;
   overWater: boolean; inFog: boolean;
+  grade?: ShotGrade;              // nota de execução (domain-math §10.3); ausente em save antigo e em foto sintética: vale como válida, peso 1
+}
+// `speedMs` é a velocidade no solo no instante do disparo.
+
+export type ShotGrade = 'PERFECT' | 'GOOD' | 'WEAK' | 'REJECTED';
+
+/** Resumo de uma passada por uma linha (domain-math §10.3). */
+export interface LinePass {
+  lineIndex: number;
+  pass: number;                   // 0 na primeira passada da linha na missão, 1 no primeiro revoo…
+  sortie: number;
+  counts: [perfect: number, good: number, weak: number, rejected: number];
+  complete: boolean;              // a aeronave chegou ao fim da linha com dados
 }
 
 export interface LidarGrid {           // grade de cobertura da AOI (mesma de coverage: 64×64)
@@ -400,7 +414,8 @@ export interface MissionData {
   minigames: { levelScore?: number; imuScore?: number };
   atlasCalibrated: boolean;
   sorties: Array<{ index: number; outcome: SortieOutcome; durationS: number }>;
-  completedLines: number[];
+  completedLines: number[];       // linhas com uma passada aceita
+  linePasses?: LinePass[];        // ausente em save antigo e em missão sintética: a execução vale 1
   shots: Shot[];
   lidar?: { grid: LidarGrid; samples: LidarSample[] };
   events: { collisions: number; crashes: number; detected: boolean; featuresCaptured: string[]; ringsCollected: number };
@@ -424,7 +439,7 @@ export interface PecResult {
 export interface AsprsResult { horizontalCm: number; verticalCm: number; rmseHcm: number; rmseVcm: number; passH: boolean; passV: boolean }
 
 export interface CoverageResult {
-  cols: number; rows: number; counts: number[];       // fotos válidas por célula
+  cols: number; rows: number; counts: number[];       // fotos válidas por célula (fracionário: foto fraca pesa 0,5)
   green: number; yellow: number; red: number;         // frações das células válidas
   excludedCells: number[];                             // água sob SPECULAR_WATER etc.
   meanCount: number;
@@ -458,6 +473,12 @@ export interface QualityReport {
   xp: number; reputationDelta: number;
   souvenirAwarded?: string;
   processingTimeS: number;
+  execution?: {                           // só em missão com `linePasses`
+    score: number;                        // E, 0..1
+    letter: 'S' | 'A' | 'B' | 'C' | 'D';
+    counts: [perfect: number, good: number, weak: number, rejected: number];   // da melhor passada de cada linha
+    pilotBonus: number;                   // parcela do bônus de pilotagem em Q (0, 0,05 ou 0,10)
+  };
 }
 ```
 
