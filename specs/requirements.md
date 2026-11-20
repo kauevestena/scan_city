@@ -437,7 +437,7 @@ Foto borrada (> 1 px) é Rejeitada. As fotos da margem de entrada (antes do iní
 **REQ-FLT-027: Aceitação da linha e revoo.** Quando uma passada terminar, o sistema deve calcular a nota dela (Perfeita 1, Boa 0,8, Fraca 0,4, Rejeitada 0, na média das amostras) e aceitá-la se estiver completa e com nota ≥ 0,5. Só a linha aceita fica concluída. Se a passada for recusada, então o sistema deve pôr a linha no fim da fila da surtida, uma vez por surtida, para revoo; as linhas recusadas que sobrarem ficam disponíveis para uma nova surtida.
 - *Aceite:* testes unitários da nota e da fila; teste do motor com uma linha voada fora do corredor.
 
-**REQ-FLT-028: Entrada de faixa.** Quando uma linha começar, o sistema deve posicionar a aeronave deslocada lateralmente de 30 % a 40 % de `S`, para um lado sorteado pela seed, limitado a 90 % do que a aeronave consegue corrigir até o início da AOI.
+**REQ-FLT-028: Entrada de faixa.** Quando uma linha começar, o sistema deve posicionar a aeronave deslocada lateralmente de 30 % a 40 % de `S`, para um lado sorteado pela seed, limitado a 90 % do que a aeronave consegue corrigir até 2 s depois do início da AOI.
 - *Aceite:* teste unitário (faixa de valores, limite por aeronave, determinismo pela seed).
 
 **REQ-FLT-029: Retorno imediato da execução.** O sistema deve mostrar a execução enquanto ela acontece:
@@ -510,7 +510,7 @@ Foto borrada (> 1 px) é Rejeitada. As fotos da margem de entrada (antes do iní
 
 **REQ-PRC-014: Execução do voo na avaliação.** O sistema deve calcular a execução `E` da missão (0 a 1: a melhor passada de cada linha planejada, ponderada pelas amostras planejadas; linha não voada vale 0) e usá-la na avaliação ([domain-math §10.3](design/domain-math.md)):
 - foto Rejeitada não conta na cobertura nem nas medições, e Fraca conta metade na cobertura;
-- o multiplicador `execution` (`1 + 0,5·(1 − E)`) entra no RMSE;
+- o multiplicador `execution` (`1 + 0,5·max(0, 0,9 − E)`) entra no RMSE;
 - a nota da missão é multiplicada por `0,4 + 0,6·E`;
 - o requisito `MIN_EXECUTION`, presente em todo contrato, falha se `E` ficar abaixo do valor;
 - o pagamento ganha o bônus de pilotagem (+0,05 em `Q` com `E` ≥ 0,80; +0,10 com `E` ≥ 0,90);
@@ -681,8 +681,9 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 **REQ-NFR-009: Navegadores.** O jogo deve funcionar nas versões atuais de Chrome, Edge e Firefox. A Gamepad API é testada em Chrome e Edge.
 - *Aceite:* smoke E2E no Chromium + verificação manual no Firefox documentada.
 
-**REQ-NFR-010: Desafio do voo verificável.** Para cada contrato, com o plano de referência, o voo deve cumprir as metas de [ADR-032](decisions.md) com três pilotos simulados no motor de verdade:
-- o **parado** (nenhum comando) é reprovado;
-- o **mediano** (reação de 0,35 s, comando tudo ou nada, lapsos de 1 s) é aprovado, com execução entre 0,5 e 0,9;
-- o **bom** (o autopilot) é aprovado, com execução ≥ 0,9.
+**REQ-NFR-010: Desafio do voo verificável.** Para cada contrato, com o plano de referência, o voo deve cumprir as metas de [ADR-032](decisions.md) com quatro pilotos simulados no motor de verdade:
+- o **parado** (nenhum comando) é reprovado, com execução abaixo da mínima do contrato;
+- o **distraído** (pilota só na entrada de cada linha) fica pelo menos 0,2 abaixo do mediano e reprova em pelo menos 15 dos 18 contratos;
+- o **mediano** (reação de 0,35 s, comando tudo ou nada, lapsos de 1 s) é aprovado, com execução ≥ 0,7 e nota média ≥ 0,8;
+- o **bom** (o autopilot) é aprovado, com execução ≥ 0,9 e nenhuma linha recusada.
 - *Aceite:* teste automático por contrato dentro do `npm run verify`; `npm run qa:flight` repete com várias seeds e mede o tempo real de cada surtida.

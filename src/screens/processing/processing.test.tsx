@@ -129,7 +129,7 @@ describe('execução do voo no relatório (REQ-PRC-014)', () => {
     expect(box).toHaveTextContent('A nota da missão é a nota técnica × (0,4 + 0,6 × execução).');
     expect(screen.getByTestId('report-requirements')).toHaveTextContent('Execução do voo ≥ 40 %');
     // O multiplicador entra na lista da aba Acurácia.
-    expect(report.multipliers.map(multiplierText)).toContain('Execução do voo (×1,18)');
+    expect(report.multipliers.map(multiplierText)).toContain('Execução do voo (×1,13)');
   });
 
   it('missão sem dado de execução: o bloco não aparece', () => {

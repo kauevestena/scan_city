@@ -264,8 +264,12 @@
 - **Consequências:** precisão vira tempo ganho, e a chegada de uma rajada "desacelera o mundo", o que serve de aviso. O ×8 do autopilot de depuração continua. O REQ-FLT-023 muda de texto.
 - **Status:** Aceita · 2026-11-17
 
-### ADR-032 — O desafio do voo como requisito verificável: três jogadores simulados
+### ADR-032 — O desafio do voo como requisito verificável: pilotos simulados
 - **Contexto:** "o voo tem desafio" não é verificável por um teste comum, e foi exatamente o que passou despercebido até uma pessoa jogar.
 - **Decisão:** três pilotos simulados voam cada contrato com o plano de referência, pelo motor de verdade e sem render: o **parado** (nenhum comando; só volta à base quando o alarme toca), o **mediano** (reage 0,35 s depois, comanda tudo ou nada como num teclado e, de vez em quando, demora 1 s) e o **bom** (o autopilot de depuração). As metas viram teste automático: o parado é reprovado em todos os contratos; o mediano é aprovado em todos com execução entre 0,5 e 0,9; o bom é aprovado com execução ≥ 0,9. Um script (`npm run qa:flight`) repete com várias seeds e mede o tempo real de cada surtida.
 - **Consequências:** o desafio não regride calado: se uma mudança deixar o jogador parado passar, ou o bom falhar, o `verify` quebra. Os valores da Fase 1 (tolerâncias, rajadas, entrada, cruzeiro) são calibrados por essa medição e ficam registrados na T089.
-- **Status:** Aceita · 2026-11-17
+- **Revisão na calibração (T089, 2026-11-20):**
+  - **Um quarto piloto, o distraído:** o mediano que só pilota na entrada de cada linha (até 2 s depois do início da AOI) e larga o controle. Com as rajadas da spec inicial (1 a 3 por linha, ~1 m/s de empurrão no C00) ele passaria: o voo exigiria um gesto por linha, que é o tédio que motivou a fase. Ele força as rajadas a importar.
+  - **Metas finais:** o parado é reprovado em todos os contratos, com execução abaixo da mínima; o distraído fica pelo menos 0,2 abaixo do mediano em todos e reprova em pelo menos 15 dos 18; o mediano é aprovado em todos com execução ≥ 0,7 e nota média ≥ 0,8 (a da simulação da campanha); o bom é aprovado com execução ≥ 0,9 e nenhuma linha recusada.
+  - **O teto de 0,9 do mediano saiu.** O mediano da definição (0,35 s de reação, tudo ou nada, lapsos) é um jogador atento e chega a 0,74–0,97; baixar o modelo dele só para caber no número seria arbitrário. O que separa quem pilota de quem não pilota está nas metas do parado e do distraído.
+- **Status:** Aceita · 2026-11-17 (revisada em 2026-11-20)

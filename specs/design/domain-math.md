@@ -169,7 +169,7 @@ terrainFollowTargetAlt(sampler, u, v, speedMs, aglTargetM, dir): number
 stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): AircraftState
 ```
 
-**`stepAircraft`** (todos os limites vêm de `Aircraft`). O ambiente (`FlightEnv`) traz três empurrões do vento, já multiplicados por `driftFactor`, pelo modificador de deriva e pelo fator de `STRONG_WIND`: `meanAlongMs` (o vento médio ao longo da linha; positivo de cauda), `gustAlongMs` e `gustLateralMs` (§5.1).
+**`stepAircraft`** (todos os limites vêm de `Aircraft`). O ambiente (`FlightEnv`) traz três empurrões do vento, já multiplicados por `driftFactor` e pelo modificador de deriva: `meanAlongMs` (o vento médio ao longo da linha; positivo de cauda), `gustAlongMs` e `gustLateralMs` (§5.1). Só os das rajadas levam o fator de `STRONG_WIND` (×2 acima da tolerância da aeronave, [ADR-030](../decisions.md)).
 - **Velocidade no solo:** `v` é a velocidade no solo comandada. `v += clamp(target − v, ±accelMs2·dt)`, onde `target` vem de `MOVE_Y`: −1 → `lo`, 0 → `cruise`, +1 → `hi`, com `lo = max(0,5, vMin + meanAlong)`, `hi = max(lo, vMax + meanAlong)` e `cruise = clamp(v_plano, lo, hi)`. A aeronave mantém a velocidade no solo do plano contra o vento médio enquanto a velocidade no ar couber em `[vMin, vMax]`.
 - **Avanço:** `gs = max(0,5, v + gustAlong)` e `s += gs·dt`. `gs` (a velocidade no solo de fato) é a que vai para as fotos, para o blur e para a densidade LiDAR. A velocidade no ar, usada na energia (§7), é `v − meanAlong`.
 - **Lateral:** `x += (vLat + gustLateral)·dt`. O vento médio transversal é compensado pela aeronave (o *crab*), sem deriva.
@@ -186,7 +186,7 @@ stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): Air
 interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; angleRad: number }
 //   tempos em segundos desde o início da linha; ângulo em relação ao sentido da linha
 //   (0 = de cauda, +π/2 = empurra para a direita)
-gustCount(lineDurationS): number                         // clamp(round(T/20), 1, 3)
+gustCount(lineDurationS): number                         // clamp(round(T/10), 1, 6)
 windRelativeRad(directionDeg, dir, right): number        // θ₀: para onde o vento sopra, em relação à linha
 planGusts(rng, wind, windRelRad, lineDurationS, leadInS): Gust[]
 gustEnvelope(gust, tS): number                           // 0..1: sobe em rampS, patamar de holdS, desce em rampS
@@ -198,14 +198,14 @@ entryOffsetM(rng, spacingM, maxCorrectableM): number     // com sinal
 
 **Agenda de rajadas** (por passada de linha, com a seed da missão):
 - `T = lengthM / v_plano` e `t_in = aoiStartS / v_plano`. Há `n = gustCount(T)` rajadas.
-- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais, e cada rajada começa num instante uniforme na primeira metade da sua parte: uma rajada (até 3,5 s) e o aviso da seguinte nunca se cruzam. Se a janela tiver menos de `10·n` s, `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
-- `rampS = 0,5`, `holdS = U(1,5, 2,5)` e `peakMs = max(2, gustMs)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 2 m/s.
-- **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,5`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,5`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos metade da força na transversal.
+- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais. Cada rajada ocupa no máximo `F = 5 s` (as duas rampas, o patamar mais longo e o aviso) e começa num instante uniforme nos primeiros `parte − F` segundos da sua parte: uma rajada e o aviso da seguinte nunca se cruzam. Se a janela tiver menos de `6·n` s (`F` mais 1 s de calma por rajada), `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
+- `rampS = 0,5`, `holdS = U(1,5, 2,5)` e `peakMs = max(4, gustMs + 2)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 4 m/s, e a do contrato soma 2 m/s.
+- **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,7`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,7`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos 70 % da força na transversal.
 - **Aviso:** `GUST_WARN_S = 1,5` s antes do início.
 
 **Entrada de faixa:**
 - `maxCorrectableM`: o deslocamento lateral que a aeronave faz, parando no fim, em `timeS`. Multirrotor e ave: `lateralSpeedMaxMs·t`. Asa fixa, com `a = v²/R` e `vmax = v·sen 30°`: `a·t²/4` se `t ≤ 2·vmax/a`; senão `vmax·(t − vmax/a)`.
-- `entryOffsetM = ±min(U(0,30, 0,40)·S, 0,9·maxCorrectable)`, com o lado sorteado, e `timeS = t_in`.
+- `entryOffsetM = ±min(U(0,30, 0,40)·S, 0,9·maxCorrectable)`, com o lado sorteado, e `timeS = t_in + 2 s` (as primeiras amostras da AOI ainda podem sair fora; sem essa folga a asa fixa, lenta de lado e com lead-in curto, entraria quase alinhada).
 
 ---
 
@@ -237,7 +237,7 @@ $$RMSE_{xy}^{base} = GSD_{eff}\,(1{,}0\,\varphi + 1{,}5\,(1-\varphi)), \qquad RM
 | `blur` | fração borrada `f_b` | `1 + 0,5·f_b` | igual |
 | `em` | `EM_INTERFERENCE` e aeronave não imune | 1,20 | 1,20 |
 | `camera` | `sensor.qualityPenalty` (Atlas calibrado: `1 + (q−1)·0,5`) | q | q |
-| `execution` | execução `E` da missão (§10.3) | `1 + 0,5·(1 − E)` | igual |
+| `execution` | execução `E` da missão (§10.3); neutro com `E ≥ 0,9` (as fotos rejeitadas e fracas já saem da cobertura) | `1 + 0,5·max(0, 0,9 − E)` | igual |
 | `imu` | `imuScore` s (mini-game) | `1 − 0,08s` | `1 − 0,12s` |
 | `skills` | `rmseGlobal` (modificador) | mod | mod |
 
@@ -411,7 +411,7 @@ passAccepted(pass, planned): boolean                  // complete && passValue �
 gradeLetter(score): 'S' | 'A' | 'B' | 'C' | 'D'       // ≥ 0,95 / ≥ 0,85 / ≥ 0,70 / ≥ 0,50 / abaixo
 missionExecution(passes: LinePass[] | undefined, planned: number[]): number   // E, 0..1
 bestPasses(passes, planned) / bestCounts(passes, planned)   // a melhor passada de cada linha e a soma das contagens delas
-executionFactor(E) = 0,4 + 0,6·E;  executionMultiplier(E) = 1 + 0,5·(1 − E);  pilotBonus(E) = 0,10 | 0,05 | 0
+executionFactor(E) = 0,4 + 0,6·E;  executionMultiplier(E) = 1 + 0,5·max(0, 0,9 − E);  pilotBonus(E) = 0,10 | 0,05 | 0
 ```
 
 **Altitude do corredor** (ao longo do eixo da linha, `x = 0`):
@@ -557,7 +557,7 @@ rollCounterOffer(rng, rivalChanceMod): boolean   // p = 0,20 · rivalChanceMod
 | G26 | `gradeSample` (faixa) | S = 30 m, altura e avanço perfeitos, `x` = 1,4 / 2,9 / 7,4 / 7,6 m | Perfeita / Boa / Fraca / Rejeitada |
 | G27 | `passScore` / `gradeLetter` | contagem [10, 5, 3, 2] | 0,76 → **B** |
 | G28 | `missionExecution` | 2 linhas de 16 amostras; linha 0 com passada completa de nota 0,9; linha 1 sem passada | E = 0,45 |
-| G29 | `gustCount` | T = 12 / 30 / 75 s | 1 / 2 / 3 |
+| G29 | `gustCount` | T = 12 / 30 / 75 s | 1 / 3 / 6 |
 | G30 | `maxCorrectableM` | multirrotor (lateral 8 m/s), t = 3 s; asa fixa (v = 22 m/s, R = 80 m), t = 80/22 s | 24 m; 20,0 m |
 | G31 | nota com execução | base 0,9; E = 1 / 0,65 | 0,900 / 0,711 |
 | G32 | `corridorProfile` | relevo plano a 100 m com degrau de +30 m em s = 200 m; H = 60, v = 10, subida 3 m/s | 160 m em s ≤ 37 m; 173,2 m em s = 100 m; 190 m em s ≥ 180 m |

@@ -15,33 +15,42 @@ const DEG = Math.PI / 180;
 /** Antecedência do aviso de rajada. */
 export const GUST_WARN_S = 1.5;
 /** Toda rajada tem pelo menos esta força de pico, mesmo em contrato sem vento. */
-export const GUST_MIN_PEAK_MS = 2;
+export const GUST_MIN_PEAK_MS = 4;
+/** A rajada do contrato mais isto: o pico base da rajada (antes do sorteio de 0,8 a 1,3). */
+export const GUST_EXTRA_MS = 2;
 export const GUST_RAMP_S = 0.5;
 export const GUST_HOLD_S = [1.5, 2.5] as const;
 export const GUST_PEAK_FACTOR = [0.8, 1.3] as const;
 /** Abertura da direção da rajada em torno do vento médio. */
 export const GUST_SPREAD_RAD = 50 * DEG;
-/** Fração mínima da força que fica na transversal. */
-export const GUST_MIN_LATERAL = 0.5;
-/** Uma rajada a cada tantos segundos de linha (de 1 a 3 por linha). */
-export const GUST_PERIOD_S = 20;
-export const GUST_MAX_PER_LINE = 3;
+/** Fração mínima da força que fica na transversal (|sen θ|). */
+export const GUST_MIN_LATERAL = 0.7;
+/** Uma rajada a cada tantos segundos de linha (de 1 a 6 por linha). */
+export const GUST_PERIOD_S = 10;
+export const GUST_MAX_PER_LINE = 6;
 /** A primeira rajada não vem antes de a entrada de faixa terminar, mais esta folga. */
 export const GUST_AFTER_ENTRY_S = 1;
 /** Nenhuma rajada começa nos últimos segundos da linha. */
 export const GUST_BEFORE_END_S = 4;
+/** Tempo que uma rajada ocupa no máximo, com o aviso: 2 rampas, o patamar mais longo e o aviso. */
+export const GUST_FOOTPRINT_S = 2 * GUST_RAMP_S + GUST_HOLD_S[1] + GUST_WARN_S;
 /**
- * Parte mínima da janela por rajada. Com o início na primeira metade da parte, sobra tempo
- * para a rajada inteira (até 3,5 s) e para o aviso da seguinte (1,5 s): elas nunca se cruzam.
+ * Parte mínima da janela por rajada: a rajada inteira com o aviso e 1 s de calma. A rajada
+ * começa nos primeiros `parte − footprint` segundos da sua parte, então o aviso da seguinte
+ * nunca cruza a anterior.
  */
-export const GUST_MIN_SLOT_S = 10;
-/** A rajada começa na primeira metade da sua parte da janela. */
-const GUST_SLOT_USE = 0.5;
+export const GUST_MIN_SLOT_S = GUST_FOOTPRINT_S + 1;
 
 /** Erro de entrada de faixa: fração do espaçamento `S`. */
 export const ENTRY_OFFSET_FRACTION = [0.3, 0.4] as const;
-/** O erro de entrada nunca passa desta fração do que a aeronave corrige no lead-in. */
+/** O erro de entrada nunca passa desta fração do que a aeronave corrige até lá. */
 export const ENTRY_CORRECTABLE_FRACTION = 0.9;
+/**
+ * Tempo de correção do erro de entrada além do lead-in: as primeiras amostras da AOI ainda
+ * podem sair fora. Sem essa folga, a asa fixa (lenta de lado e com lead-in curto) entraria
+ * quase alinhada e o jogador parado passaria.
+ */
+export const ENTRY_GRACE_S = 2;
 /** Proa máxima da asa fixa em relação à linha (a mesma de `flightPhysics`). */
 const FIXED_WING_MAX_HEADING_RAD = 30 * DEG;
 
@@ -55,7 +64,7 @@ export interface Gust {
   angleRad: number;
 }
 
-/** Rajadas por linha: `clamp(round(T/20), 1, 3)`. */
+/** Rajadas por linha: `clamp(round(T/10), 1, 6)`. */
 export function gustCount(lineDurationS: number): number {
   return clamp(Math.round(lineDurationS / GUST_PERIOD_S), 1, GUST_MAX_PER_LINE);
 }
@@ -92,7 +101,7 @@ function withMinLateral(angleRad: number, sideIfZero: 1 | -1): number {
 
 /**
  * Agenda de rajadas de uma passada. A janela `[leadIn + 1, T − 4]` é dividida em partes
- * iguais e cada rajada começa na primeira metade da sua parte.
+ * iguais e cada rajada começa nos primeiros `parte − footprint` segundos da sua parte.
  */
 export function planGusts(
   rng: Rng,
@@ -108,10 +117,11 @@ export function planGusts(
   const slotS = windowS / n;
   const gusts: Gust[] = [];
   for (let i = 0; i < n; i++) {
-    const startS = from + slotS * (i + rng.range(0, GUST_SLOT_USE));
+    const startS = from + slotS * i + rng.range(0, Math.max(0, slotS - GUST_FOOTPRINT_S));
     const holdS = rng.range(GUST_HOLD_S[0], GUST_HOLD_S[1]);
     const peakMs =
-      Math.max(GUST_MIN_PEAK_MS, wind.gustMs) * rng.range(GUST_PEAK_FACTOR[0], GUST_PEAK_FACTOR[1]);
+      Math.max(GUST_MIN_PEAK_MS, wind.gustMs + GUST_EXTRA_MS) *
+      rng.range(GUST_PEAK_FACTOR[0], GUST_PEAK_FACTOR[1]);
     const raw =
       wind.meanMs >= 1
         ? windRelRad + rng.range(-GUST_SPREAD_RAD, GUST_SPREAD_RAD)

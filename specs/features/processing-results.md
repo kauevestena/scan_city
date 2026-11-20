@@ -162,8 +162,8 @@ Todos os rasters são 256 × 256 sobre a AOI, gerados do `TerrainSampler` e masc
 - **Dado** uma missão com 20 % das células vermelhas, **quando** abrir a orto, **então** essas áreas aparecem com ruído ou xadrez, e o multiplicador "Buracos de cobertura (×1,20)" está listado.
 - **Dado** uma aprovação inédita, **quando** o relatório abrir, **então** o saldo aumenta exatamente `payment.totalBRL`, o souvenir entra em `souvenirs` e o toast aparece **uma vez**, mesmo que o componente re-renderize.
 - **Dado** a câmera `CAM_20MP_RS`, **quando** abrir a aba Produtos, **então** NDVI está desabilitado com o motivo.
-- **Dado** uma missão com execução 0,65, **quando** o relatório abrir, **então** o Resumo mostra "Execução do voo: C · 65 %", o multiplicador "Execução do voo (×1,18)" está listado e a nota é a nota técnica × 0,79.
-- **Dado** uma missão com execução 0,30, **quando** processar, **então** o requisito "Execução do voo ≥ 50 %" falha e o relatório sai REPROVADO.
+- **Dado** uma missão com execução 0,65, **quando** o relatório abrir, **então** o Resumo mostra "Execução do voo: C · 65 %", o multiplicador "Execução do voo (×1,13)" está listado e a nota é a nota técnica × 0,79.
+- **Dado** uma missão com execução 0,30, **quando** processar, **então** o requisito "Execução do voo ≥ 60 %" falha e o relatório sai REPROVADO.
 
 ## 9. Testes
 - **Unitário:** `evaluateMission` (golden de um cenário fixo completo), `applyMissionResult` idempotente, divisão de tempo das etapas, geração dos rasters (dimensões, determinismo, máscara de sem-dados).

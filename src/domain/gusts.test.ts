@@ -5,6 +5,7 @@ import {
   ENTRY_OFFSET_FRACTION,
   GUST_BEFORE_END_S,
   GUST_MIN_LATERAL,
+  GUST_EXTRA_MS,
   GUST_MIN_PEAK_MS,
   GUST_PEAK_FACTOR,
   GUST_RAMP_S,
@@ -25,12 +26,12 @@ const DEG = Math.PI / 180;
 const WIND = { meanMs: 4, gustMs: 3, directionDeg: 90 };
 
 describe('golden values', () => {
-  it('G29 — rajadas por linha: 1 em 12 s, 2 em 30 s, 3 em 75 s', () => {
+  it('G29 — rajadas por linha: 1 em 12 s, 3 em 30 s, 6 em 75 s (o máximo)', () => {
     expect(gustCount(12)).toBe(1);
-    expect(gustCount(30)).toBe(2);
-    expect(gustCount(75)).toBe(3);
+    expect(gustCount(30)).toBe(3);
+    expect(gustCount(75)).toBe(6);
     expect(gustCount(0)).toBe(1);
-    expect(gustCount(600)).toBe(3);
+    expect(gustCount(600)).toBe(6);
   });
 
   it('G30 — o que a aeronave corrige no lead-in: 24 m (multirrotor) e 20,0 m (asa fixa)', () => {
@@ -95,15 +96,17 @@ describe('planGusts', () => {
 
   it('linha curta: a quantidade cai até caber; com janela vazia, uma rajada logo após a entrada', () => {
     // 20 s de linha com 3 s de lead-in: janela de 12 s, só cabe uma.
-    expect(planGusts(mulberry32(3), WIND, 0, 20, 3)).toHaveLength(1);
+    // 16 s de linha com 3 s de lead-in: janela de 8 s, só cabe uma (cada uma pede 6 s).
+    expect(gustCount(16)).toBe(2);
+    expect(planGusts(mulberry32(3), WIND, 0, 16, 3)).toHaveLength(1);
     const tight = planGusts(mulberry32(3), WIND, 0, 6, 3);
     expect(tight).toHaveLength(1);
     expect(tight[0]?.startS).toBe(4);
   });
 
-  it('força de pico: max(2, rajada) × [0,8, 1,3), também em contrato sem vento', () => {
+  it('força de pico: max(4, rajada + 2) × [0,8, 1,3), também em contrato sem vento', () => {
     for (const wind of [WIND, { meanMs: 0, gustMs: 0, directionDeg: 0 }]) {
-      const base = Math.max(GUST_MIN_PEAK_MS, wind.gustMs);
+      const base = Math.max(GUST_MIN_PEAK_MS, wind.gustMs + GUST_EXTRA_MS);
       for (let seed = 1; seed <= 100; seed++) {
         for (const g of planGusts(mulberry32(seed), wind, 0, 75, 3)) {
           expect(g.peakMs).toBeGreaterThanOrEqual(base * GUST_PEAK_FACTOR[0]);
@@ -113,7 +116,7 @@ describe('planGusts', () => {
     }
   });
 
-  it('toda rajada tem pelo menos metade da força na transversal, com vento paralelo ou não', () => {
+  it('toda rajada tem pelo menos 70 % da força na transversal, com vento paralelo ou não', () => {
     const laterals: number[] = [];
     for (const rel of [0, Math.PI, Math.PI / 2, 0.2, -2.9]) {
       for (let seed = 1; seed <= 150; seed++) {
@@ -148,7 +151,7 @@ describe('planGusts', () => {
     expect(quadrants.size).toBe(4);
   });
 
-  it('todo contrato tem rajada com pico ≥ 2 m/s × 0,8', () => {
+  it('todo contrato tem rajada com pico ≥ 4 m/s × 0,8', () => {
     for (const c of CONTRACTS) {
       const gusts = planGusts(mulberry32(c.seed), c.wind, 0.5, 60, 3);
       expect(gusts.length).toBeGreaterThanOrEqual(1);

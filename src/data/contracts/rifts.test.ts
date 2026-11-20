@@ -1297,7 +1297,7 @@ describe('R09 — Savana das Gramas Altas', () => {
     expect(report.multipliers.find((m) => m.key === 'texture')?.xy).toBeCloseTo(1.24, 6);
   });
 
-  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o corredor segue os morros e a mediana de p fica logo abaixo de 80 %', () => {
+  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o corredor segue os morros e a mediana de p fica em 80 %', () => {
     expect(getAircraft('DRONE_T2').hMaxM).toBe(R09.referencePlan.heightM);
     const { shots } = fly(R09);
     expect(shots).toHaveLength(333);
@@ -1305,11 +1305,11 @@ describe('R09 — Savana das Gramas Altas', () => {
     expect(Math.max(...shots.map((s) => s.aglM))).toBeLessThanOrEqual(120.1);
     // O corredor acompanha o relevo (ADR-029): o AGL não cai mais nos morros.
     expect(Math.min(...shots.map((s) => s.aglM))).toBeGreaterThan(118);
-    // A mediana medida na pegada real fica logo abaixo do 80 % nominal (o relatório marca
-    // "Sobreposição longitudinal" como não atendida, IMPORTANTE, e a missão segue aprovada).
+    // A mediana medida na pegada real fica no 80 % nominal, sem folga: um voo que deixe a
+    // velocidade no solo subir já marca "Sobreposição longitudinal" como não atendida (MAJOR).
     const p = medianForwardOverlapPct(shots) as number;
     expect(p).toBeGreaterThan(79.5);
-    expect(p).toBeLessThan(80);
+    expect(p).toBeLessThan(80.5);
     // Com 2 pontos percentuais de folga no p, o voo de verdade passa com sobra.
     const roomy = { ...R09, referencePlan: { ...R09.referencePlan, forwardOverlapPct: 82 } };
     const better = medianForwardOverlapPct(fly(roomy).shots) as number;
@@ -1543,13 +1543,15 @@ describe('R03 — Planalto dos Guerreiros', () => {
     expect(result.outcome).toBe('COMPLETED');
     expect(result.collisions).toBe(0);
     expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(result.photos).toBe(160);
+    // 160 no plano; as rajadas mudam a velocidade no solo e o disparo é por tempo.
+    expect(Math.abs(result.photos - 160)).toBeLessThanOrEqual(6);
     expect(result.detected).toBe(false);
     // 442 s de voo dos 2.100 s do T2.
     expect(used).toBeLessThan(0.4);
-    // O TF segura o AGL perto dos 90 m do plano nos 74 m de relevo (o declive de 60° só atrasa um pouco).
+    // O AGL fica perto dos 90 m do plano nos 74 m de relevo. O corredor sobe antes dos
+    // paredões (a rampa limitada da subida) e desce devagar depois: aí o AGL passa de 90 m.
     expect(minAgl).toBeGreaterThan(70);
-    expect(maxAgl).toBeLessThan(115);
+    expect(maxAgl).toBeLessThan(125);
     // As colunas têm 80 m e o T2 passa 12 m acima do topo; quem voa mais baixo é que precisa cronometrar.
     expect(minOverBeam).toBeGreaterThan(8);
   });

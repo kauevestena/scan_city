@@ -1815,13 +1815,54 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   4. Calibrar as constantes até as metas valerem com folga; atualizar a spec com os valores finais.
   5. Refazer a simulação de economia com a nota média do mediano.
 - **Aceite:**
-  - [ ] Parado: reprovado nos 18 contratos, em todas as seeds do `qa:flight`.
-  - [ ] Mediano: aprovado nos 18, com execução entre 0,5 e 0,9.
-  - [ ] Bom: aprovado nos 18, com execução ≥ 0,9 e nenhuma linha recusada.
-  - [ ] A campanha continua fechando na simulação de economia.
-  - [ ] As notas registram a tabela da medição e o tempo real por surtida.
-- **Verificação:** `npx vitest run src/engines/flight/flightChallenge.test.ts` · `npm run qa:flight`
-- **Status:** ☐
+  - [x] Parado: reprovado nos 18 contratos, em todas as seeds do `qa:flight`.
+  - [x] Distraído (metas revisadas na ADR-032): pelo menos 0,2 abaixo do mediano em todos e reprovado em pelo menos 15 dos 18.
+  - [x] Mediano: aprovado nos 18, com execução ≥ 0,7 (o teto de 0,9 saiu na revisão da ADR-032) e nota média ≥ 0,8.
+  - [x] Bom: aprovado nos 18, com execução ≥ 0,9 e nenhuma linha recusada.
+  - [x] A campanha continua fechando na simulação de economia.
+  - [x] As notas registram a tabela da medição e o tempo real por surtida.
+- **Verificação:** `npx vitest run src/engines/flight/challenge` · `npm run qa:flight`
+- **Arquivos (efetivos):** \+ `src/test/{pilots,flyMission}.ts`, `src/engines/flight/challenge/{challenge.ts,challenge.idle.test.ts,challenge.align.test.ts,challenge.pilots.test.ts,flightSeeds.qa.ts}`, `vitest.qa.config.ts`; ~ `package.json` (`qa:flight`), `tsconfig.node.json`; ~ `src/domain/{gusts,execution,energy}.ts` e testes (constantes calibradas), `src/engines/flight/{FlightEngine,autopilot,collision,linePass}.ts` e testes, `src/data/contracts/common.ts` e `schema.test`, `src/data/contracts/rifts.test.ts` (R03 e R09), testes de `accuracy`, `mission` e `processing`; ~ `specs/{decisions,requirements,tasks}.md`, `specs/design/domain-math.md`, `specs/features/{survey-flight,processing-results}.md`, `specs/content/{contracts-real,contracts-rifts}.md`.
+- **Notas de implementação:**
+  - **Pilotos** (`src/test/pilots.ts`): o **parado** (nenhum comando); o **mediano** (vê a faixa, a altura do corredor e a velocidade no solo com 0,35 s de atraso, comanda tudo ou nada com folga de 5 % de `S` e de `H` e de 6 % na velocidade, e se distrai 1 s com chance de 4 % por segundo); o **distraído** (o mediano, mas só até 2 s depois do início da AOI de cada linha); o **bom** (o autopilot). O parado e o mediano voltam à base quando o alarme toca. `flyMission` voa a missão inteira com as surtidas que a aeronave permite (1 + reservas; o Atlas, três papos), funde cada surtida como a store faz e avalia com `evaluateMission`.
+  - **O que a primeira medição mostrou e o que mudou.**
+    - *O jogador parado passava no C02* (execução 0,54): na asa fixa o erro de entrada era limitado ao que ela corrige no lead-in (3,6 s), o que dava só 20 % de `S`. O tempo de correção ganhou 2 s além do lead-in (`ENTRY_GRACE_S`).
+    - *O autopilot não seguia o corredor com Terrain Following* (C04 0,55; R05 0,75): o TF só antecipa 2 s e o corredor sobe antes dos paredões. O autopilot passou a levar o AGL-alvo do TF ao que põe a aeronave no corredor.
+    - *O C06 reprovava o mediano na acurácia*: o plano de referência passa o ASPRS vertical com só 6 % de folga, e o multiplicador de execução (1 + 0,5·(1 − E)) a consumia inteira. Como as fotos rejeitadas e fracas já saem da cobertura, o multiplicador passou a ser `1 + 0,5·max(0, 0,9 − E)`: neutro no voo bom.
+    - *No C06 o vento de cauda tinha o dobro*: o motor aplicava o fator de `STRONG_WIND` também ao vento médio ao longo da linha (a spec manda dobrar só as rajadas), e a aeronave não conseguia frear abaixo de 11,8 m/s no solo. Corrigido.
+    - *As rajadas não exigiam nada*: com 1 a 3 por linha e ~1 m/s de empurrão no C00, o **distraído** (um gesto por linha) teria execução 0,6 a 0,8 e passaria em quase todos. Ficou: uma a cada 10 s de linha (até 6; a parte mínima de cada uma é a rajada inteira com o aviso, mais 1 s de calma), pico de `max(4, rajada do contrato + 2)·U(0,8, 1,3)` m/s e pelo menos 70 % da força na transversal.
+    - *O parado passava no R09* (0,51) pelo melhor de até 8 passadas sorteadas: o mínimo de execução dos contratos subiu de 0,5 para **0,6** (0,4 no tutorial).
+    - *O piloto bom* ganhou a compensação do empurrão que vê e da rajada que vem (o aviso), e no R07 (nevasca, 0,9 px de arrasto no plano) voa um pouco mais devagar para o arrasto ficar em 0,75 px: é o que um jogador bom faz com pouca luz.
+  - **Metas revisadas (ADR-032).** O mediano da definição é um jogador atento: chega a 0,71–0,98, e o teto de 0,9 da spec saiu. Entrou o distraído, que separa quem pilota de quem só alinha. O bom continua ≥ 0,9.
+  - **Desempenho.** Os pilotos voam o motor de verdade a 60 Hz. Dois cortes que valem também no jogo: os 24 feixes visuais do LiDAR saíram do passo de física para o render (eram 24 consultas ao terreno por passo, várias por quadro com o tempo acelerado), e a colisão ganhou um filtro no plano (`mayTouch`) antes de consultar a elevação de cada objeto próximo. O R04 caiu de 10,5 s para 2,2 s por voo, com os mesmos resultados; um teste de propriedade (20 mil corpos sorteados perto de cada forma) garante que o filtro nunca descarta um objeto que colide, e ele pegou um erro na primeira versão (o canto da caixa expandida pelo raio).
+  - **Custo da subida** (já na T088) e **valor da passada** (T086) seguem como estão.
+  - **No `verify`:** três arquivos em paralelo (parado; distraído contra mediano; mediano e bom), 74 testes, ≈ 50 s de relógio. **`npm run qa:flight`** (fora do `verify`; `QA_SEEDS`, padrão 3) roda os quatro pilotos com várias sementes, imprime a tabela e falha se alguma semente sair das metas.
+  - **Medição final** (`QA_SEEDS=3 npm run qa:flight`; E = execução, faixa entre as sementes; nota = média; a última coluna é a duração das surtidas do mediano em tempo de jogo, ainda sem o cruzeiro da T091):
+
+    | Contrato | Parado (E) | Distraído (E) | Mediano (E · nota) | Bom (E · nota) | Surtida do mediano (min) |
+    | :-- | :-: | :-: | :-: | :-: | :-: |
+    | C00 | 0,26–0,36 | 0,61–0,68 | 0,97–0,98 · 0,98 | 0,99–0,99 · 0,99 | 3,60–3,60 |
+    | C01 | 0,33–0,35 | 0,46–0,53 | 0,96–0,96 · 0,91 | 0,98–0,98 · 0,92 | 0,76–7,42 |
+    | C05 | 0,02–0,04 | 0,17–0,20 | 0,87–0,90 · 0,85 | 0,94–0,95 · 0,88 | 2,07–8,12 |
+    | C06 | 0,34–0,41 | 0,43–0,50 | 0,94–0,95 · 0,79 | 0,97–0,98 · 0,82 | 9,58–9,66 |
+    | C02 | 0,43–0,56 | 0,41–0,46 | 0,91–0,94 · 0,90 | 1,00–1,00 · 0,94 | 11,82–11,86 |
+    | C04 | 0,21–0,25 | 0,36–0,39 | 0,84–0,85 · 0,84 | 0,96–0,97 · 0,92 | 9,14–9,15 |
+    | C03 | 0,19–0,24 | 0,41–0,51 | 0,89–0,91 · 0,94 | 0,99–1,00 · 1,00 | 9,41–9,42 |
+    | R01 | 0,15–0,17 | 0,55–0,64 | 0,91–0,92 · 0,90 | 0,97–0,97 · 0,92 | 0,92–6,92 |
+    | R02 | 0,29–0,34 | 0,20–0,23 | 0,96–0,97 · 0,89 | 0,98–0,99 · 0,90 | 6,18–6,20 |
+    | R03 | 0,40–0,42 | 0,50–0,55 | 0,90–0,91 · 0,94 | 0,97–0,97 · 0,98 | 7,13–7,13 |
+    | R04 | 0,30–0,32 | 0,29–0,30 | 0,93–0,96 · 0,97 | 0,99–0,99 · 0,99 | 11,11–11,13 |
+    | R05 | 0,31–0,36 | 0,25–0,28 | 0,71–0,76 · 0,83 | 0,94–0,95 · 0,97 | 7,28–7,29 |
+    | R06 | 0,32–0,34 | 0,20–0,22 | 0,95–0,96 · 0,89 | 0,99–0,99 · 0,91 | 6,85–6,86 |
+    | R07 | 0,33–0,50 | 0,62–0,66 | 0,87–0,92 · 0,93 | 0,99–1,00 · 0,99 | 4,85–4,86 |
+    | R08 | 0,24–0,25 | 0,18–0,19 | 0,89–0,91 · 0,94 | 0,99–0,99 · 0,99 | 9,33–9,36 |
+    | R09 | 0,33–0,51 | 0,33–0,57 | 0,97–0,97 · 0,98 | 1,00–1,00 · 1,00 | 11,83–11,84 |
+    | R10 | 0,25–0,46 | 0,47–0,62 | 0,90–0,91 · 0,94 | 0,97–0,98 · 0,98 | 8,49–8,49 |
+    | R11 | 0,10–0,12 | 0,00–0,00 | 0,88–0,89 · 0,93 | 0,92–0,92 · 0,95 | 12,48–12,54 |
+
+    Resumo: parado 0 de 54 aprovadas (E ≤ 0,56); distraído reprovado em 46 de 54 (passa no C00, que pede 0,4, no R07 e em sementes do R10 e do R09), sempre ≥ 0,2 abaixo do mediano; mediano 54 de 54 (E de 0,71 a 0,98); bom 54 de 54 (E de 0,92 a 1,00, nenhuma linha recusada).
+  - **Economia.** A simulação da campanha (`campaignSim.test.ts`) usa nota fixa de 0,8. A nota média do mediano fica acima disso (0,79 no C06 é a menor; média ≈ 0,9) e o teste do mediano confere a média ≥ 0,8: a campanha continua fechando com quem pilota razoavelmente. Quem voa mal recebe menos, que é o objetivo.
+- **Status:** ✅
 
 ### T090 — Portais, aviso de rajada, notas na tela, sons e boletim
 - **Fase:** F10 · **Depende de:** T088 · **REQs:** REQ-FLT-025, REQ-FLT-029, REQ-FLT-013, REQ-FLT-018, REQ-FLT-019, REQ-AUD-002
@@ -2020,4 +2061,4 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
-| REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089 | ☐ |
+| REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089 | ✅ |

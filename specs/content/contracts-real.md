@@ -38,7 +38,7 @@
 Cada bloco abaixo se converte 1:1 num objeto `Contract` ([data-model §4](../design/data-model.md)).
 
 - **Requisitos:** `Severidade · tipo(valor)`.
-- **Requisito comum a todo contrato** (reais e fendas; não é repetido nas fichas): `CRITICAL · MIN_EXECUTION(0,5)`, com id `<id>-exec` e rótulo "Execução do voo ≥ 50 %", sempre o último da lista ([domain-math §10.3](../design/domain-math.md), [ADR-029](../decisions.md)). No tutorial (C00) o valor é **0,4** ("Execução do voo ≥ 40 %").
+- **Requisito comum a todo contrato** (reais e fendas; não é repetido nas fichas): `CRITICAL · MIN_EXECUTION(0,6)`, com id `<id>-exec` e rótulo "Execução do voo ≥ 60 %", sempre o último da lista ([domain-math §10.3](../design/domain-math.md), [ADR-029](../decisions.md)). No tutorial (C00) o valor é **0,4** ("Execução do voo ≥ 40 %").
 - **Plano de referência:** é **usado em teste** (viabilidade). O teste:
   1. gera o plano com `domain/flightPlanner`;
   2. confere `expected` (tolerância de 1 % no GSD, igualdade no nº de linhas, 2 % no tempo);

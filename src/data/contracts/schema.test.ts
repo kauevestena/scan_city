@@ -128,7 +128,7 @@ describe('schema dos contratos', () => {
   it('todo contrato termina com o requisito crítico de execução do voo: 0,5, ou 0,4 no tutorial', () => {
     for (const c of CONTRACTS) {
       const last = c.requirements.at(-1);
-      const value = c.id === 'C00' ? 0.4 : 0.5;
+      const value = c.id === 'C00' ? 0.4 : 0.6;
       expect(last, c.id).toEqual({
         id: `${c.id}-exec`,
         label: `Execução do voo ≥ ${value * 100} %`,

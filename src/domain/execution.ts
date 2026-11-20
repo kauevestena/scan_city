@@ -204,9 +204,16 @@ export function executionFactor(execution: number): number {
   return 0.4 + 0.6 * execution;
 }
 
-/** Multiplicador `execution` do RMSE: `1 + 0,5·(1 − E)` (domain-math §6.3). */
+/**
+ * Execução a partir da qual o RMSE não piora: as fotos rejeitadas e fracas já saem da
+ * cobertura (e entram nos multiplicadores de sobreposição e buracos); o voo bom não paga duas
+ * vezes.
+ */
+export const EXECUTION_ACCURACY_FREE = 0.9;
+
+/** Multiplicador `execution` do RMSE: `1 + 0,5·max(0, 0,9 − E)` (domain-math §6.3). */
 export function executionMultiplier(execution: number): number {
-  return 1 + 0.5 * (1 - execution);
+  return 1 + 0.5 * Math.max(0, EXECUTION_ACCURACY_FREE - execution);
 }
 
 /** Bônus de pilotagem em `Q`: +0,10 com E ≥ 0,90; +0,05 com E ≥ 0,80 (domain-math §12.1). */

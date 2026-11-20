@@ -6,8 +6,10 @@ import {
   hitsObject,
   hitsTerrain,
   isBeamOn,
+  mayTouch,
   motionOffset,
 } from './collision';
+import { mulberry32 } from '@/lib/rng';
 import { crashPose, CRASH_S, invulnerableAlpha, shakeOffset } from './effects';
 
 let id = 0;
@@ -195,5 +197,51 @@ describe('Atlas: sem custo de reparo', () => {
     expect(Math.round((3 * atlas.priceBRL * atlas.repairCostPct) / 100)).toBe(0);
     const t1 = getAircraft('DRONE_T1');
     expect(Math.round((1 * t1.priceBRL * t1.repairCostPct) / 100)).toBeGreaterThan(0);
+  });
+});
+
+describe('filtro no plano (mayTouch) antes da colisão exata', () => {
+  it('nunca descarta um objeto que colide, em 20 mil corpos sorteados perto de cada forma', () => {
+    const rng = mulberry32(31);
+    const shapes: WorldObject[] = [
+      obj({ kind: 'BUILDING', rotationRad: 0.7, widthM: 12, depthM: 6 }),
+      obj({ kind: 'CUBE_BLOCK', widthM: 4, depthM: 4, heightM: 4 }),
+      obj({ kind: 'TREE', widthM: 8, heightM: 18 }),
+      obj({ kind: 'POLE', heightM: 10 }),
+      obj({ kind: 'PIPE', widthM: 3, heightM: 12 }),
+      obj({ kind: 'STONE_ARCH', widthM: 20, depthM: 4, heightM: 15, rotationRad: 1.1 }),
+      obj({ kind: 'WIRE', u2: 35, v2: 12, baseM: 10, heightM: 10 }),
+      obj({
+        kind: 'MOVING_HAZARD',
+        widthM: 6,
+        baseM: 5,
+        heightM: 6,
+        motion: { axis: 'u', amplitudeM: 15, periodS: 4, phase: 0 },
+      }),
+    ];
+    let hits = 0;
+    for (const o of shapes) {
+      for (let k = 0; k < 2500; k++) {
+        const body = at(
+          rng.range(-30, 45),
+          rng.range(-30, 30),
+          rng.range(0, 25),
+          rng.range(0.3, 1.5),
+        );
+        const t = rng.range(0, 10);
+        if (hitsObject(body, o, t, flat)) {
+          hits++;
+          expect(mayTouch(body, o), `${o.kind} em ${JSON.stringify(body)}`).toBe(true);
+        }
+      }
+    }
+    // O teste só vale se houve colisões de verdade a conferir.
+    expect(hits).toBeGreaterThan(100);
+  });
+
+  it('descarta o que está longe no plano e o que não é sólido', () => {
+    expect(mayTouch(at(100, 0, 5), obj({ kind: 'BUILDING' }))).toBe(false);
+    expect(mayTouch(at(0, 0, 5), obj({ kind: 'RING', solid: false }))).toBe(false);
+    expect(mayTouch(at(5, 0, 5), obj({ kind: 'BUILDING' }))).toBe(true);
   });
 });

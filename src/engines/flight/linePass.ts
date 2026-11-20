@@ -11,6 +11,7 @@ import {
 } from '@/domain/corridor';
 import { addGrade, emptyCounts, passAccepted } from '@/domain/execution';
 import {
+  ENTRY_GRACE_S,
   entryOffsetM,
   maxCorrectableM,
   planGusts,
@@ -94,7 +95,7 @@ export function beginLinePass(i: LinePassInput): LinePassState {
     : entryOffsetM(
         rng.fork('entry'),
         plan.stats.spacingM,
-        maxCorrectableM(aircraft, speed, leadInS),
+        maxCorrectableM(aircraft, speed, leadInS + ENTRY_GRACE_S),
       );
   return {
     lineIndex: line.index,

@@ -243,14 +243,14 @@ describe('execução do voo na avaliação (REQ-PRC-014)', () => {
     expect(exec?.valueText).toContain('100');
   });
 
-  it('execução 0,65: multiplicador ×1,175 no RMSE, nota × 0,79 e nenhum bônus', () => {
+  it('execução 0,65: multiplicador ×1,125 no RMSE, nota × 0,79 e nenhum bônus', () => {
     const base = run(null);
     // (9 + 0,8·5) / 20 = 0,65.
     const report = run([9, 5, 0, 6]);
     expect(report.approved).toBe(true);
     const m = report.multipliers.find((x) => x.key === 'execution');
-    expect(m?.xy).toBeCloseTo(1.175, 12);
-    expect(m?.z).toBeCloseTo(1.175, 12);
+    expect(m?.xy).toBeCloseTo(1.125, 12);
+    expect(m?.z).toBeCloseTo(1.125, 12);
     expect(report.qualityScore).toBeCloseTo(base.qualityScore * 0.79, 12);
     expect(report.payment.qualityFactor).toBeCloseTo(0.6 + 0.4 * report.qualityScore, 12);
     expect(report.execution).toEqual({

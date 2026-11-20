@@ -147,7 +147,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 
 ### 5.7 Linhas, corredor e curvas
 - O *run* começa em `s = 0` (início do lead-in), na altitude em que a aeronave vinha. A decolagem leva a aeronave à altitude do corredor em `s = 0` (§5.19).
-- **Entrada de faixa (REQ-FLT-028):** toda linha, inclusive a primeira e os revoos, começa com `X = entryOffsetM(...)` ([domain-math §5.1](../design/domain-math.md)): de 30 % a 40 % de `S` para um lado sorteado, limitado ao que a aeronave corrige até o início da AOI. O sorteio usa a seed `"<missão>:<surtida>:<linha>:<passada>:entry"`. O jogador tem o lead-in para alinhar: as fotos antes de `aoiStartS` não entram na nota da passada.
+- **Entrada de faixa (REQ-FLT-028):** toda linha, inclusive a primeira e os revoos, começa com `X = entryOffsetM(...)` ([domain-math §5.1](../design/domain-math.md)): de 30 % a 40 % de `S` para um lado sorteado, limitado a 90 % do que a aeronave corrige até 2 s depois do início da AOI. O sorteio usa a seed `"<missão>:<surtida>:<linha>:<passada>:entry"`. O jogador tem o lead-in para alinhar: as fotos antes de `aoiStartS` não entram na nota da passada.
 - **Indicador de desvio:** `e = X`. "FORA DA FAIXA" quando `|e| > 0,25·S` (o limite da nota Fraca).
 - **Fim da linha:** quando `s ≥ lineLength`. Entra em `TURN`:
   - duração = `turnTimeS` do plano, limitada à apresentação de 2,5 s;
@@ -396,5 +396,5 @@ interface FlightHudSnapshot {
 - **Unitário (puro):** `planGusts`, `gustPushAt`, `entryOffsetM`, `corridorProfile`, `gradeSample`, `passScore`, `missionExecution`, `cruiseEligible`, `stepCruise`, `project`, mapeamento AOI ↔ *run*, `stepAircraft` (limites, TF, asa fixa, velocidade no solo), temporizador de disparo, `realForwardOverlap` no fluxo, `checkCollision` (cada forma, fio, raio), sorteio da distração do Atlas, regra de volta do *time warp*, `rtkStatusAt`, detecção de holofote, coleta de anéis, avaliação de features, fim de surtida (descarte).
 - **Draw list:** `buildDrawList` de uma cena com morro e objeto atrás confirma a ordem (objeto antes do quad que o oclui).
 - **RTL:** HUD a partir de snapshots (alertas, Atlas, LiDAR) e `PostFlightDialog` (combinações de botões).
-- **Pilotos simulados (REQ-NFR-010):** `flightChallenge.test.ts` voa cada contrato com o plano de referência como parado, mediano e bom, e confere as metas de [ADR-032](../decisions.md).
+- **Pilotos simulados (REQ-NFR-010):** `challenge/challenge.{idle,align,pilots}.test.ts` voam cada contrato com o plano de referência como parado, distraído, mediano e bom, e confere as metas de [ADR-032](../decisions.md).
 - **E2E:** `flight.spec.ts` cobre `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` até o pós-voo, e testa pausa no meio (posição congelada); um caso voa o C00 sem comando e confere o boletim com "REVOO NECESSÁRIO".

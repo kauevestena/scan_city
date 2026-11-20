@@ -14,7 +14,7 @@
   - A aba **Fendas Dimensionais** do mapa passa a aparecer.
 - **Marcador no mapa:** é um portal animado (anel violeta pulsante com partículas) visível só na aba Fendas. Ao aceitar o contrato, a transição para o `FIELD_SETUP` tem um efeito de "distorção", com shader procedural de ondas no canvas, desligado por `reduceFlashes`.
 - **Interferência:** todas as fendas têm `EM_INTERFERENCE`. Atlas é imune.
-- **Execução do voo:** toda fenda tem o requisito comum `CRITICAL · MIN_EXECUTION(0,5)` ([contracts-real §2](contracts-real.md)), além dos da ficha.
+- **Execução do voo:** toda fenda tem o requisito comum `CRITICAL · MIN_EXECUTION(0,6)` ([contracts-real §2](contracts-real.md)), além dos da ficha.
 - **Aparência dentro da fenda:**
   - céu com gradiente violeta-ciano;
   - partículas flutuantes;

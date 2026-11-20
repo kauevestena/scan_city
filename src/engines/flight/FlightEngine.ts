@@ -22,10 +22,12 @@ import { capturedFeatures } from '@/domain/features';
 import {
   crabAngleRad,
   driftVelocityMs,
+  FIXED_WING_MAX_HEADING_RAD,
   groundSpeedLimits,
   thermalLiftMs,
   initialAircraftState,
   stepAircraft,
+  terrainFollowTargetAlt,
   windAt,
   type AircraftState,
   type FlightInput,
@@ -96,7 +98,12 @@ import {
   SHAKE_S,
   shakeOffset,
 } from './effects';
-import { AUTOPILOT_LOOKAHEAD_S, autopilotInput } from './autopilot';
+import {
+  AUTOPILOT_GUST_LEAD_S,
+  AUTOPILOT_LOOKAHEAD_S,
+  autopilotInput,
+  autopilotSpeedMs,
+} from './autopilot';
 import {
   cameraModel,
   FOOTPRINT_FADE_S,
@@ -354,6 +361,8 @@ export class FlightEngine implements Simulation {
   private toggleCooldown = 0;
   private lineLidarData = false;
   private fan: LidarHit[] = [];
+  /** Instante (tempo de surtida) dos últimos feixes desenhados. */
+  private lastFanT = 0;
   private distractionPlan: DistractionPlan | null = null;
   private distraction: DistractionState = initialDistraction();
   private lineT = 0;
@@ -439,12 +448,14 @@ export class FlightEngine implements Simulation {
     });
   }
 
-  /** Empurrão do vento na aeronave: o `driftFactor`, a habilidade e o fator de `STRONG_WIND`. */
+  /** Empurrão de uma rajada: o `driftFactor`, a habilidade e o fator de `STRONG_WIND`. */
   private push(windMs: number): number {
-    return (
-      driftVelocityMs(windMs, this.aircraft.driftFactor, this.opts.mods.windDrift) *
-      driftMultiplier(this.opts.contract.wind, this.aircraft)
-    );
+    return this.meanPush(windMs) * driftMultiplier(this.opts.contract.wind, this.aircraft);
+  }
+
+  /** Empurrão do vento médio (compensado pela aeronave): sem o fator de `STRONG_WIND`. */
+  private meanPush(windMs: number): number {
+    return driftVelocityMs(windMs, this.aircraft.driftFactor, this.opts.mods.windDrift);
   }
 
   /** Uma amostra entrou na contagem da passada: sequência, marca e som. */
@@ -651,19 +662,31 @@ export class FlightEngine implements Simulation {
   private readInput(): FlightInput {
     if (this.opts.autopilot) {
       const plan = this.opts.mission.plan;
+      const target = this.corridorAlt(this.ac.s + AUTOPILOT_LOOKAHEAD_S * this.ac.gs);
+      // Com Terrain Following, os gatilhos mexem no AGL-alvo: o autopilot o leva ao que põe a
+      // aeronave no corredor, antecipando os paredões que o TF sozinho (2 s) pegaria tarde.
+      const tf = plan.params.terrainFollowing;
+      const tfBase = tf
+        ? terrainFollowTargetAlt((d) => this.elevationAt(this.ac.s + d, this.ac.x), this.ac.gs, 0)
+        : 0;
+      // A rajada que vem (o jogador atento lê o aviso): quanto o empurrão vai mudar.
+      const now = gustPushAt(this.pass.gusts, this.lineT);
+      const ahead = gustPushAt(this.pass.gusts, this.lineT + AUTOPILOT_GUST_LEAD_S);
       return autopilotInput({
         x: this.ac.x,
-        vx: this.ac.vLat + this.ac.drift,
-        alt: this.ac.alt,
-        // Com Terrain Following, o AGL-alvo é mantido pela física: sem correção vertical.
-        // Sem ele, o alvo é a altitude do corredor um pouco à frente.
-        targetAlt: plan.params.terrainFollowing
-          ? this.ac.alt
-          : this.corridorAlt(this.ac.s + AUTOPILOT_LOOKAHEAD_S * this.ac.gs),
-        lateralMaxMs: Math.max(1, this.aircraft.lateralSpeedMaxMs),
+        vLat: this.ac.vLat,
+        driftMs: this.ac.drift,
+        alt: tf ? this.ac.aglTargetM : this.ac.alt,
+        targetAlt: tf ? target - tfBase : target,
+        lateralMaxMs:
+          this.aircraft.turnRadiusM > 0
+            ? this.ac.v * Math.sin(FIXED_WING_MAX_HEADING_RAD)
+            : this.aircraft.lateralSpeedMaxMs,
         obstacleAhead: false,
         groundSpeedMs: this.ac.gs,
-        planSpeedMs: plan.params.speedMs,
+        planSpeedMs: autopilotSpeedMs(plan.params.speedMs, plan.stats.blurPx, this.activeSensor),
+        lateralPushChangeMs: this.push(ahead.lateralMs) - this.push(now.lateralMs),
+        alongPushChangeMs: this.push(ahead.alongMs) - this.push(now.alongMs),
       });
     }
     const i = this.opts.input;
@@ -690,7 +713,7 @@ export class FlightEngine implements Simulation {
       enduranceS: this.aircraft.enduranceS,
       enduranceMod: this.opts.mods.endurance,
       // A energia depende da velocidade no ar: a do solo menos o empurrão do vento médio.
-      speedMs: Math.max(0, this.ac.v - this.push(this.alongWind)),
+      speedMs: Math.max(0, this.ac.v - this.meanPush(this.alongWind)),
       vCruiseMs: this.aircraft.vCruiseMs,
       windMs: Math.hypot(this.crossWind, this.alongWind),
       climbing: this.ac.climbing,
@@ -818,8 +841,8 @@ export class FlightEngine implements Simulation {
         planSpeedMs: plan.params.speedMs,
         ceilingM: this.opts.contract.ceilingM,
         elevationM: this.elevationAt(this.ac.s, this.ac.x),
-        // Acima da tolerância da aeronave, os empurrões dobram (STRONG_WIND).
-        meanAlongMs: this.push(this.alongWind),
+        // Acima da tolerância da aeronave, os empurrões das rajadas dobram (STRONG_WIND).
+        meanAlongMs: this.meanPush(this.alongWind),
         gustAlongMs: this.push(gust.alongMs),
         gustLateralMs: this.push(gust.lateralMs),
         thermalLiftMs: thermalLiftMs(
@@ -880,8 +903,6 @@ export class FlightEngine implements Simulation {
         weight: DATA_WEIGHT[this.instant.grade],
       });
       if (pulses > 0 && window) this.lineLidarData = true;
-      this.fan = this.lidar.beams(this.sortieT, this.ac.s, this.ac.x, this.ac.alt, this.frame);
-      this.lidar.trackHits(this.fan, dtS);
     }
     this.crossGates();
     if (this.ac.s >= this.frame.lengthM) {
@@ -1162,7 +1183,7 @@ export class FlightEngine implements Simulation {
       list.push(makeAlert('OFF_ALTITUDE', delta));
     }
     // O vento médio tirou a velocidade do plano do alcance da aeronave.
-    const limits = groundSpeedLimits(this.aircraft, this.push(this.alongWind));
+    const limits = groundSpeedLimits(this.aircraft, this.meanPush(this.alongWind));
     if (plan.params.speedMs > limits.hi + 1e-9) list.push(makeAlert('SPEED_LIMITED', -1));
     else if (plan.params.speedMs < limits.lo - 1e-9) list.push(makeAlert('SPEED_LIMITED', 1));
     if (this.rtk() === 'FLOAT') list.push(makeAlert('RTK_FLOAT'));
@@ -1483,9 +1504,19 @@ export class FlightEngine implements Simulation {
     }
   }
 
-  /** Leque de 24 feixes e a nuvem viva (impactos que persistem 1,5 s). */
+  /**
+   * Leque de 24 feixes e a nuvem viva (impactos que persistem 1,5 s). Os feixes são só
+   * visuais: saem uma vez por quadro, aqui, e não a cada passo de física (com o tempo
+   * acelerado, seriam vários por quadro sem ninguém ver).
+   */
   private drawLidar(ctx: CanvasRenderingContext2D, cam: FlightCamera): void {
     if (this.activeSensor !== 'LIDAR' || !this.lidar) return;
+    if (this.phase === 'RUN') {
+      const dt = Math.max(0, this.sortieT - this.lastFanT);
+      this.lastFanT = this.sortieT;
+      this.fan = this.lidar.beams(this.sortieT, this.ac.s, this.ac.x, this.ac.alt, this.frame);
+      this.lidar.trackHits(this.fan, dt);
+    }
     const origin = projectAbs(this.ac.x, this.ac.alt, 0, cam);
     const project = (h: LidarHit) => {
       const r = toRun(this.frame, h);

@@ -227,10 +227,11 @@ describe('efeitos da execução na avaliação', () => {
     expect(executionFactor(1)).toBe(1);
   });
 
-  it('multiplicador do RMSE: 1 + 0,5·(1 − E)', () => {
+  it('multiplicador do RMSE: 1 + 0,5·max(0, 0,9 − E)', () => {
     expect(executionMultiplier(1)).toBe(1);
-    expect(executionMultiplier(0.65)).toBeCloseTo(1.175, 12);
-    expect(executionMultiplier(0)).toBe(1.5);
+    expect(executionMultiplier(0.9)).toBe(1);
+    expect(executionMultiplier(0.65)).toBeCloseTo(1.125, 12);
+    expect(executionMultiplier(0)).toBeCloseTo(1.45, 12);
   });
 
   it('bônus de pilotagem: +0,10 com E ≥ 0,90; +0,05 com E ≥ 0,80', () => {

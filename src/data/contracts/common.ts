@@ -2,7 +2,7 @@
 import type { ContractRequirement } from '@/types';
 
 /** Execução mínima do voo nos contratos (domain-math §10.3); o tutorial pede menos. */
-export const MIN_EXECUTION = 0.5;
+export const MIN_EXECUTION = 0.6;
 export const MIN_EXECUTION_TUTORIAL = 0.4;
 
 /**
