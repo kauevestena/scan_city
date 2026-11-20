@@ -167,6 +167,7 @@ export function flyMission(contract: Contract, pilot: PilotKind, seed = 1): Flow
     });
     medium?.attach(e);
     let wall = 0;
+    let steps = 0;
     const ended = () => e.phase === 'POST_FLIGHT';
     for (let t = 0; t < 4000 && !ended();) {
       // O piloto (mediano ou parado) volta à base quando o alarme toca.
@@ -174,11 +175,13 @@ export function flyMission(contract: Contract, pilot: PilotKind, seed = 1): Flow
         e.requestRth();
         e.requestRth();
       }
-      const scale = e.timeWarp;
-      for (let k = 0; k < scale && !ended(); k++) {
+      // Um quadro de 60 Hz: o cruzeiro (fracionário) dá quantos passos de física ele tem.
+      steps += e.timeWarp;
+      while (steps >= 1 && !ended()) {
         medium?.tick();
         e.update(PILOT_STEP_S);
         t += PILOT_STEP_S;
+        steps -= 1;
       }
       wall += PILOT_STEP_S;
     }

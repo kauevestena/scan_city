@@ -18,7 +18,7 @@ const max = (rows: FlownMission[]) => Math.max(...rows.map((r) => r.execution));
 
 it(`os pilotos simulados com ${SEEDS} sementes`, () => {
   const out: string[] = [
-    '| Contrato | Parado (E) | Distraído (E) | Mediano (E · nota) | Bom (E · nota) | Surtida do mediano (min) |',
+    '| Contrato | Parado (E) | Distraído (E) | Mediano (E · nota) | Bom (E · nota) | Surtida do mediano: jogo → real (min) |',
     '| :-- | :-: | :-: | :-: | :-: | :-: |',
   ];
   const all = new Map<PilotKind, FlownMission[]>(PILOTS.map((p) => [p, []]));
@@ -74,8 +74,13 @@ it(`os pilotos simulados com ${SEEDS} sementes`, () => {
     const score = (rows: FlownMission[]) =>
       fmt(rows.reduce((s, r) => s + r.report.qualityScore, 0) / rows.length);
     const minutes = medium.flatMap((r) => r.sortieS).map((s) => s / 60);
+    const wall = medium.flatMap((r) => r.wallS).map((s) => s / 60);
+    const span = (xs: number[]) =>
+      Math.min(...xs) === Math.max(...xs)
+        ? fmt(xs[0] as number)
+        : `${fmt(Math.min(...xs))}–${fmt(Math.max(...xs))}`;
     out.push(
-      `| ${c.id} | ${fmt(min(idle))}–${fmt(max(idle))} | ${fmt(min(align))}–${fmt(max(align))} | ${fmt(min(medium))}–${fmt(max(medium))} · ${score(medium)} | ${fmt(min(good))}–${fmt(max(good))} · ${score(good)} | ${fmt(Math.min(...minutes))}–${fmt(Math.max(...minutes))} |`,
+      `| ${c.id} | ${fmt(min(idle))}–${fmt(max(idle))} | ${fmt(min(align))}–${fmt(max(align))} | ${fmt(min(medium))}–${fmt(max(medium))} · ${score(medium)} | ${fmt(min(good))}–${fmt(max(good))} · ${score(good)} | ${span(minutes)} → ${span(wall)} |`,
     );
   }
   out.push('');

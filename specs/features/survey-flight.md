@@ -254,7 +254,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 ### 5.14 Cruzeiro automático (`TIME_WARP`, REQ-FLT-023, [ADR-031](../decisions.md))
 - O tempo acelera **sozinho**. `timeScale` é aplicado ao `GameLoop` (sub-passos). O debug com autopilot continua em ×8.
 - **Fator máximo da linha:** `cruiseMax = clamp(round(T/12), 2, 6)`, com `T = lengthM / v_plano` (linhas longas cruzam mais rápido).
-- **Condições** (todas, por `CRUISE_ARM_S = 1,5` s seguidos):
+- **Condições** (todas, por `CRUISE_ARM_S = 1` s seguido):
   - fase `RUN` e cruzeiro ligado;
   - a nota do instante (faixa, altura e avanço, §5.20) é Boa ou Perfeita;
   - nenhuma rajada avisada ou em curso (do aviso até o fim da rampa de descida);
@@ -263,10 +263,10 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - não há holofote a < 100 m;
   - o Atlas não está avisado nem distraído, e não há pico elétrico em curso nem nos próximos 1,5 s;
   - sem Terrain Following, o corredor não muda mais que `0,05·H` nos próximos `2·cruiseMax` s de trajeto.
-- **Subida e queda:** cumpridas as condições, o fator sobe de 1 a `cruiseMax` a 2 por segundo (tempo real). Quando uma condição cai, o fator volta a 1 no mesmo passo e a contagem de 1,5 s recomeça.
+- **Subida e queda:** cumpridas as condições, o fator sobe de 1 a `cruiseMax` a 4 por segundo (tempo real). Quando uma condição cai, o fator volta a 1 no mesmo passo e a contagem de 1 s recomeça.
 - **`TIME_WARP`** liga e desliga o cruzeiro (começa ligado em cada surtida). Desligado, o voo fica em ×1.
 - **Indicador** no HUD "CRUZEIRO ×N" em âmbar, ou "CRUZEIRO DESLIGADO".
-- Funções puras: `cruiseMaxFor(lineDurationS)`, `cruiseEligible(ctx)` e `stepCruise(state, eligible, dtRealS)`.
+- Funções puras (`cruise.ts`): `cruiseMaxFor(lineDurationS)`, `cruiseEligible(ctx)`, `stepCruise(state, eligible, dtRealS, max)` e `solidAheadOf(objects, x)`.
 
 ### 5.15 Atlas
 - **Energia** em milho: o HUD mostra 🌽 × n e a barra do papo.

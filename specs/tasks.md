@@ -1903,11 +1903,43 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   2. O motor calcula o fator a cada passo; `TIME_WARP` liga e desliga.
   3. HUD e dica de controle.
 - **Aceite:**
-  - [ ] Estável por 1,5 s e sem evento: o fator sobe até o da linha (×3 numa linha de 30 s; ×6 numa de 75 s).
-  - [ ] No aviso de rajada, com alerta crítico, com objeto à frente ou com a nota do instante abaixo de Boa, o fator cai a 1 no mesmo passo.
-  - [ ] Com o cruzeiro desligado, o voo fica em ×1.
+  - [x] Estável por 1 s (1,5 s na spec inicial) e sem evento: o fator sobe até o da linha (×3 numa linha de 30 s; ×6 numa de 75 s).
+  - [x] No aviso de rajada, com alerta crítico, com objeto à frente ou com a nota do instante abaixo de Boa, o fator cai a 1 no mesmo passo.
+  - [x] Com o cruzeiro desligado, o voo fica em ×1.
 - **Verificação:** `npx vitest run src/engines/flight`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/engines/flight/cruise.ts` e teste; ~ `src/engines/flight/{FlightEngine,fieldElements}.ts` e `fieldElements.test.ts`, `src/screens/flight/FlightHud.tsx` e teste, `src/data/strings.ts`, `src/test/flyMission.ts`, `src/engines/flight/challenge/flightSeeds.qa.ts`; ~ `specs/{decisions,requirements,tasks}.md`, `specs/features/survey-flight.md`.
+- **Notas de implementação:**
+  - **`cruise.ts`**: `cruiseMaxFor` (`clamp(round(T/12), 2, 6)`), `cruiseEligible` (as dez condições de §5.14), `stepCruise` (em tempo real) e `solidAheadOf` (que veio do antigo time warp). O ×2/×4 manual saiu de `fieldElements.ts` (`nextWarp`, `shouldResetWarp`).
+  - **Motor**: a cada passo, `stepCruiseFactor` monta o contexto (a nota do instante, a rajada avisada ou em curso, o objeto sólido à frente, o alerta crítico calculado direto, o holofote, o Atlas, o pico elétrico nos próximos 1,5 s e, sem TF, a mudança do corredor nos próximos `2·máximo` s) e converte o passo simulado em tempo real (`dt / fator`). `TIME_WARP` liga e desliga (`cycleTimeWarp` devolve o estado); o voo começa com o cruzeiro ligado. O ×8 do autopilot de depuração continua na tela.
+  - **HUD**: "CRUZEIRO ×3,4" em âmbar com o tempo acelerado e "CRUZEIRO DESLIGADO" quando o jogador o desliga; a dica do controle passou de "tempo" a "cruzeiro".
+  - **Mudança de spec: 1 s e 4 por segundo** (em vez de 1,5 s e 2 por segundo). Com a rajada a cada ~10 s, sobra pouca calma por linha, e com 1,5 s de espera e subida lenta o cruzeiro quase não chegava ao máximo.
+  - **O que o cruzeiro rende** (o mediano, 1 semente; tempo de jogo → tempo real por surtida, em minutos):
+
+    | Contrato | Surtida (min) |
+    | :-- | :-: |
+    | Contrato | Surtida do mediano: jogo → real (min) |
+    | C00 | 3,60 → 2,86 |
+    | C01 | 0,76–7,42 → 0,76–6,66 |
+    | C05 | 2,09–8,09 → 1,93–7,20 |
+    | C06 | 9,58 → 6,91 |
+    | C02 | 11,85 → 6,94 |
+    | C04 | 9,14 → 6,28 |
+    | C03 | 9,41 → 7,84 |
+    | R01 | 0,92–6,92 → 0,92–6,40 |
+    | R02 | 6,19 → 4,74 |
+    | R03 | 7,13 → 5,12 |
+    | R04 | 11,12 → 10,31 |
+    | R05 | 7,29 → 6,57 |
+    | R06 | 6,85 → 6,13 |
+    | R07 | 4,85 → 3,87 |
+    | R08 | 9,33 → 8,73 |
+    | R09 | 11,83 → 9,65 |
+    | R10 | 8,49 → 7,40 |
+    | R11 | 12,48 → 11,19 |
+
+    **A meta de surtidas de 2 a 4 minutos não foi atingida**: o cruzeiro corta de 7 % a 40 % (mais nas linhas longas e planas, como o C02, de 11,9 para 6,9 min) e quase nada onde sempre há algo à frente: relevo sem Terrain Following (o corredor muda), fios e postes na faixa (R08) ou linhas muito longas com a rajada a cada 10 s (R09, R11). Isso é o que a ADR-031 manda (o tempo não acelera quando há algo a reagir); encurtar as missões longas fica para a Fase 2 (janela operacional por contrato, ou áreas e planos menores), depois do teste humano.
+  - **Pilotos simulados**: o voo sem render passou a avançar quantos passos de física o fator do cruzeiro pede por quadro de 60 Hz, e a tabela do `qa:flight` ganhou o tempo real por surtida. As notas e as execuções não mudaram (o cruzeiro só arma quando nada acontece).
+- **Status:** ✅
 
 ### T092 — Tutorial, E2E, documentação e entrega da Fase 1
 - **Fase:** F10 · **Depende de:** T089, T091 · **REQs:** — (fecha a fase; confere REQ-NFR-001, REQ-NFR-007 e REQ-CNT-005 no que mudou)
@@ -2008,7 +2040,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
-| REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ☐ |
+| REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ✅ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
 | REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ✅ |
 | REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
@@ -2023,7 +2055,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRC-006 | Classificação cartográfica | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T016, T025 | ✅ |
 | REQ-PRC-007 | Mapa de calor de sobreposição | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T015, T025 | ✅ |
 | REQ-PRC-008 | Visualizador de produtos | [processing-results](features/processing-results.md) | T041, T042 | ✅ |
-| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025, T087 | ☐ |
+| REQ-PRC-009 | Pagamento e recompensas | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T018, T025, T087 | ✅ |
 | REQ-PRC-010 | Enviar ao Museu | [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-011 | Processamento em campo | [processing-results](features/processing-results.md) | T044 | ✅ |
 | REQ-PRC-012 | Vetorização pela equipe | [processing-results](features/processing-results.md) | T044 | ✅ |

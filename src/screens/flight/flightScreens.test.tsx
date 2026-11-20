@@ -127,14 +127,26 @@ describe('FlightHud', () => {
     expect(screen.getByText('VELOCIDADE MÍNIMA')).toBeInTheDocument();
   });
 
-  it('time warp em âmbar, anéis e a barra de detecção do holofote', () => {
-    const { rerender } = render(<FlightHud snap={snap()} />);
+  it('cruzeiro em âmbar (ou desligado), anéis e a barra de detecção do holofote', () => {
+    const { rerender } = render(<FlightHud snap={snap({ cruise: { on: true, factor: 1 } })} />);
     expect(screen.queryByTestId('hud-warp')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hud-rings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hud-detection')).not.toBeInTheDocument();
-    rerender(<FlightHud snap={snap({ timeScale: 4, rings: 3, detectedProgress: 0.5 })} />);
-    expect(screen.getByTestId('hud-warp')).toHaveTextContent('×4');
+    rerender(
+      <FlightHud
+        snap={snap({
+          timeScale: 3.4,
+          cruise: { on: true, factor: 3.4 },
+          rings: 3,
+          detectedProgress: 0.5,
+        })}
+      />,
+    );
+    expect(screen.getByTestId('hud-warp')).toHaveTextContent('CRUZEIRO ×3,4');
     expect(screen.getByTestId('hud-warp')).toHaveClass('text-amber-400');
+    rerender(<FlightHud snap={snap({ cruise: { on: false, factor: 1 } })} />);
+    expect(screen.getByTestId('hud-warp')).toHaveTextContent('CRUZEIRO DESLIGADO');
+    rerender(<FlightHud snap={snap({ rings: 3, detectedProgress: 0.5 })} />);
     expect(screen.getByTestId('hud-rings')).toHaveTextContent('Anéis: 3');
     expect(screen.getByTestId('hud-detection')).toBeInTheDocument();
   });

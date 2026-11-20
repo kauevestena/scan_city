@@ -130,9 +130,14 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
           <span>{snap.sensorName}</span>
           <span className="text-slate-400">·</span>
           <span data-testid="hud-rtk">{T.rtk(snap.rtk)}</span>
-          {snap.timeScale > 1 && (
+          {snap.cruise.on && snap.cruise.factor > 1.05 && (
             <span className="font-mono font-bold text-amber-400" data-testid="hud-warp">
-              {T.warp(snap.timeScale)}
+              {T.cruise(formatNumber(snap.cruise.factor, 1))}
+            </span>
+          )}
+          {!snap.cruise.on && (
+            <span className="font-mono text-xs text-slate-400" data-testid="hud-warp">
+              {T.cruiseOff}
             </span>
           )}
           {snap.rings !== undefined && (

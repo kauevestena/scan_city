@@ -260,7 +260,7 @@
 
 ### ADR-031 — Cruzeiro automático no lugar da aceleração manual (substitui a ADR-020)
 - **Contexto:** o `TIME_WARP` manual (×2 e ×4) existia para pular um voo vazio. Com corredor, rajadas e nota, sobram trechos calmos entre os eventos, e acelerá-los na mão seria mais uma tecla sem decisão.
-- **Decisão:** o tempo acelera **sozinho** quando a aeronave está estável no corredor (faixa, altura e avanço em Boa ou melhor por 1,5 s) e nada pede atenção (nenhuma rajada ativa ou avisada, nenhum dos motivos de volta a ×1 que já existiam e, sem TF, corredor plano à frente). O fator máximo cresce com a duração da linha (de ×2 a ×6). Volta a ×1 no instante em que uma condição cai. `TIME_WARP` (`T`, `RB`, `R1`) passa a ligar e desligar o cruzeiro; ele começa ligado.
+- **Decisão:** o tempo acelera **sozinho** quando a aeronave está estável no corredor (faixa, altura e avanço em Boa ou melhor por 1 s; 1,5 s na versão inicial, mudado na T091) e nada pede atenção (nenhuma rajada ativa ou avisada, nenhum dos motivos de volta a ×1 que já existiam e, sem TF, corredor plano à frente). O fator máximo cresce com a duração da linha (de ×2 a ×6). Volta a ×1 no instante em que uma condição cai. `TIME_WARP` (`T`, `RB`, `R1`) passa a ligar e desligar o cruzeiro; ele começa ligado.
 - **Consequências:** precisão vira tempo ganho, e a chegada de uma rajada "desacelera o mundo", o que serve de aviso. O ×8 do autopilot de depuração continua. O REQ-FLT-023 muda de texto.
 - **Status:** Aceita · 2026-11-17
 

@@ -5,7 +5,7 @@
  */
 import type { Catalog } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
-import { corridorAltAt, GATE_HALF_HEIGHT } from '@/domain/corridor';
+import { corridorAltAt, corridorChangeAhead, GATE_HALF_HEIGHT } from '@/domain/corridor';
 import { drainPerSecond, rthRequired } from '@/domain/energy';
 import {
   DATA_WEIGHT,
@@ -54,6 +54,7 @@ import type {
   Shot,
   ShotGrade,
   SortieOutcome,
+  WorldObject,
 } from '@/types';
 import { valueNoise2D } from '@/world/terrain/noise';
 import type { TerrainSampler } from '@/world/terrain/TerrainSampler';
@@ -77,17 +78,22 @@ import {
   initialDetection,
   insideSearchlight,
   nearestSearchlightM,
-  nextWarp,
   ringCollected,
   searchlightSpot,
-  shouldResetWarp,
-  solidAheadOf,
   stepDetection,
   type DetectionState,
-  type TimeWarp,
 } from './fieldElements';
 import { LidarSensor, TOGGLE_COOLDOWN_S, type LidarHit } from './lidarSensor';
 import { beginLinePass, closeLinePass, tallyGrade, type LinePassState } from './linePass';
+import {
+  CRUISE_SPIKE_LEAD_S,
+  cruiseEligible,
+  cruiseMaxFor,
+  initialCruise,
+  solidAheadOf,
+  stepCruise,
+  type CruiseState,
+} from './cruise';
 import {
   buildCorridorDrawList,
   drawCorridor,
@@ -363,8 +369,11 @@ export class FlightEngine implements Simulation {
   private lastRtk: RtkStatus = 'NONE';
   private rthConfirmUntil = -1;
   readonly lidar: LidarSensor | null;
-  /** Aceleração de tempo do jogador (×1/×2/×4); o loop lê `timeWarp`. */
-  timeWarp: TimeWarp = 1;
+  /** Fator de tempo do cruzeiro automático (§5.14); o loop lê `timeWarp`. */
+  timeWarp = 1;
+  /** O jogador deixou o cruzeiro ligado (`TIME_WARP` liga e desliga). */
+  cruiseOn = true;
+  private cruise: CruiseState = initialCruise();
   private detection: DetectionState = initialDetection();
   private readonly collectedRings = new Set<number>();
   private readonly electric: ElectricSchedule | null;
@@ -1059,14 +1068,53 @@ export class FlightEngine implements Simulation {
     return rthRequired(this.energy, this.distanceHomeM(), this.aircraft.vCruiseMs, drainCruise);
   }
 
-  /** `TIME_WARP`: ×1 → ×2 → ×4 → ×1 (só durante o `RUN`). */
-  cycleTimeWarp(): TimeWarp {
-    if (this.phase !== 'RUN') {
+  /** `TIME_WARP`: liga e desliga o cruzeiro automático (ADR-031). Devolve se ficou ligado. */
+  cycleTimeWarp(): boolean {
+    this.cruiseOn = !this.cruiseOn;
+    if (!this.cruiseOn) {
+      this.cruise = initialCruise();
       this.timeWarp = 1;
-      return this.timeWarp;
     }
-    this.timeWarp = nextWarp(this.timeWarp);
-    return this.timeWarp;
+    return this.cruiseOn;
+  }
+
+  /** O cruzeiro deste passo (§5.14): as condições e a subida ou a queda do fator. */
+  private stepCruiseFactor(dtS: number, nearby: readonly WorldObject[]): void {
+    const plan = this.opts.mission.plan;
+    const p = this.pos();
+    const rel = nearby.map((o) => {
+      const r = toRun(this.frame, o);
+      return { solid: o.solid, X: r.x, Z: r.s - this.ac.s };
+    });
+    const agl = this.ac.alt - this.opts.terrain.elevation(p.u, p.v);
+    const critical =
+      (agl < 5 && this.ac.vz < 0) ||
+      this.hull === 1 ||
+      this.detection.detected ||
+      this.rthRecommended();
+    const max = cruiseMaxFor(this.frame.lengthM / Math.max(0.1, plan.params.speedMs));
+    const corridorChange = plan.params.terrainFollowing
+      ? 0
+      : corridorChangeAhead(this.pass.profile, this.ac.s, 2 * max * this.ac.gs) /
+        Math.max(1e-9, plan.params.heightM);
+    const eligible = cruiseEligible({
+      phase: this.phase,
+      on: this.cruiseOn,
+      steady: this.instant.grade === 'PERFECT' || this.instant.grade === 'GOOD',
+      gust: gustWarningAt(this.pass.gusts, this.lineT) !== null,
+      solidAhead: solidAheadOf(rel, this.ac.x),
+      criticalAlert: critical,
+      searchlightM: nearestSearchlightM(this.opts.terrain.zones, p.u, p.v),
+      atlasDistracted: isDistracted(this.distraction),
+      spikeSoon:
+        this.electric !== null &&
+        (this.electric.at(this.sortieT) !== null ||
+          this.electric.at(this.sortieT + CRUISE_SPIKE_LEAD_S) !== null),
+      corridorChange,
+    });
+    // O passo de física é de tempo simulado; o cruzeiro sobe em tempo real.
+    this.cruise = stepCruise(this.cruise, eligible, dtS / Math.max(1, this.timeWarp), max);
+    this.timeWarp = this.cruise.factor;
   }
 
   /** Alvos (`FEATURE_TARGETS`) capturados pelos dados desta e das surtidas anteriores. */
@@ -1121,23 +1169,7 @@ export class FlightEngine implements Simulation {
         this.opts.onRing?.();
       }
     }
-    if (this.timeWarp > 1) {
-      const rel = nearby.map((o) => {
-        const r = toRun(this.frame, o);
-        return { solid: o.solid, X: r.x, Z: r.s - this.ac.s };
-      });
-      const critical = this.alertList().some((a) => a.level === 'critical');
-      if (
-        shouldResetWarp({
-          phase: this.phase,
-          solidAhead: solidAheadOf(rel, this.ac.x),
-          criticalAlert: critical,
-          searchlightM: nearestSearchlightM(zones, p.u, p.v),
-        })
-      ) {
-        this.timeWarp = 1;
-      }
-    }
+    this.stepCruiseFactor(dtS, nearby);
   }
 
   /** Libera os efeitos contínuos (o zumbido do LiDAR) ao sair da tela. */
@@ -1274,7 +1306,7 @@ export class FlightEngine implements Simulation {
       refly: this.pass.pass > 0,
       gust: this.gustNow(),
       windRelDeg: (Math.atan2(windLateral, windAlong) * 180) / Math.PI,
-      cruise: { on: false, factor: this.timeWarp },
+      cruise: { on: this.cruiseOn, factor: this.timeWarp },
       lineReport:
         this.phase === 'TURN' || this.phase === 'LANDING' || this.phase === 'RETURNING'
           ? this.lineReport
