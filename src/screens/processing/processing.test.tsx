@@ -229,8 +229,13 @@ describe('ProcessingResultsScreen', () => {
       screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')
         ?.textContent;
     expect(selected()).toBe('Resumo');
-    fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
-    expect(selected()).toBe('Acurácia');
+    // O relatório entra num commit e a camada de navegação no efeito logo depois: com a máquina
+    // carregada (o CI) o E pode chegar entre os dois. Espera o primeiro E valer.
+    await waitFor(() => {
+      fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
+      fireEvent.keyUp(window, { code: 'KeyE', key: 'e' });
+      expect(selected()).toBe('Acurácia');
+    });
     fireEvent.keyDown(window, { code: 'KeyE', key: 'e' });
     expect(selected()).toBe('Cobertura');
     fireEvent.keyDown(window, { code: 'KeyQ', key: 'q' });
