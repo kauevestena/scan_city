@@ -5,7 +5,8 @@ import { expect, test } from '@playwright/test';
  * até o fim sem queda nem colisão, leva os dados à Workstation e confere o relatório aprovado e
  * o setor no museu. Rodar um só: `npx playwright test tests/e2e/contracts.spec.ts --grep C01`.
  *
- * `photos` é o total do plano de referência (`null` nos voos de LiDAR); `pec` diz se o relatório
+ * `photos` é o total que o autopilot tira (`null` nos voos de LiDAR): o do plano de referência,
+ * ou mais onde o autopilot voa abaixo da velocidade do plano (R07); `pec` diz se o relatório
  * mostra a classe PEC-PCD. Ao enviar ao museu, a mesa abre na ala do contrato (a Real, ou o
  * anel do Multiverso para as fendas) com o setor focado. O autopilot cuida de várias
  * surtidas: o C05 gasta 2 baterias (RTH na primeira, "Nova surtida" sozinho, e o pós-voo só
@@ -113,7 +114,9 @@ const CONTRACTS: readonly Entry[] = [
     id: 'R07',
     title: 'Base Polar das Sombras',
     lines: 6,
-    photos: 78,
+    // O plano tem 78; na penumbra ele voa a 0,90 px de arrasto e o autopilot freia para 0,75 px
+    // (survey-flight §5.16): o intervalo de disparo é o mesmo, então saem ~18 % mais fotos.
+    photos: 92,
     pec: false,
     souvenir: 'Caixa de Papelão',
   },
