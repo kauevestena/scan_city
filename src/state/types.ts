@@ -7,6 +7,7 @@ import type {
   Emblem,
   GroundPoint,
   LidarBatch,
+  LinePass,
   MissionData,
   PlanParams,
   QualityReport,
@@ -162,6 +163,8 @@ export interface SortieReport {
   featuresCaptured?: string[];
   /** Dados LiDAR da surtida; entram na missão só se a surtida não foi perdida. */
   lidar?: LidarBatch | null;
+  /** Passadas fechadas na surtida (domain-math §10.3); descartadas se a surtida foi perdida. */
+  linePasses?: LinePass[];
 }
 
 export interface MissionActions {

@@ -197,6 +197,11 @@ export const createMissionSlice: StateCreator<
       ? active.completedLines
       : [...new Set([...active.completedLines, ...result.completedLines])].sort((a, b) => a - b);
     const kept = shots.filter((shot) => shot.sortie === index).length;
+    // As passadas de uma surtida perdida vão embora com as fotos dela.
+    const linePasses =
+      result.linePasses === undefined
+        ? active.linePasses
+        : [...(active.linePasses ?? []), ...(lost ? [] : result.linePasses)];
     set((s) => ({
       mission: {
         ...s.mission,
@@ -204,6 +209,7 @@ export const createMissionSlice: StateCreator<
           ...active,
           shots,
           completedLines: completed,
+          ...(linePasses ? { linePasses } : {}),
           sorties: [
             ...active.sorties,
             { index, outcome: result.outcome, durationS: result.durationS },

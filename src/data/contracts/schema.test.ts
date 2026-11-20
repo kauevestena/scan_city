@@ -116,13 +116,30 @@ describe('schema dos contratos', () => {
     }
   });
 
-  it('C00 conforme a ficha: 6 requisitos, R$ 2.500, setor (2, 1), desbloqueio ALWAYS', () => {
-    expect(C00.requirements).toHaveLength(6);
+  it('C00 conforme a ficha: 6 requisitos (mais o de execução), R$ 2.500, setor (2, 1), desbloqueio ALWAYS', () => {
+    expect(C00.requirements).toHaveLength(7);
     expect(C00.basePaymentBRL).toBe(250_000);
     expect(museumSlotCoords(C00.museum.slot)).toEqual({ col: 2, lin: 1 });
     expect(C00.museum.incomePerMinBRL).toBe(1_000);
     expect(C00.unlock).toEqual({ type: 'ALWAYS' });
     expect(C00.dialogs.briefing).toHaveLength(3);
+  });
+
+  it('todo contrato termina com o requisito crítico de execução do voo: 0,5, ou 0,4 no tutorial', () => {
+    for (const c of CONTRACTS) {
+      const last = c.requirements.at(-1);
+      const value = c.id === 'C00' ? 0.4 : 0.6;
+      expect(last, c.id).toEqual({
+        id: `${c.id}-exec`,
+        label: `Execução do voo ≥ ${value * 100} %`,
+        severity: 'CRITICAL',
+        check: { type: 'MIN_EXECUTION', value },
+      });
+      expect(
+        c.requirements.filter((r) => r.check.type === 'MIN_EXECUTION'),
+        c.id,
+      ).toHaveLength(1);
+    }
   });
 
   it('busca por id e por marcador; o progresso inicial libera só os ALWAYS', () => {

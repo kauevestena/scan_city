@@ -66,6 +66,33 @@ body {
   animation: photo-pulse 0.35s ease-out;
 }
 
+/* Marca da nota de cada amostra do voo (survey-flight §5.21): sobe 24 px e some em 0,7 s. */
+@keyframes grade-pop {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px) scale(1);
+  }
+}
+.grade-pop {
+  animation: grade-pop 0.7s ease-out forwards;
+}
+/* Com "Reduzir flashes e tremores": some por alfa, sem movimento. */
+@keyframes grade-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.grade-fade {
+  animation: grade-fade 0.7s linear forwards;
+}
+
 /*
  * Troca de tela (T076): a tela nova entra com fade de 200 ms; ao entrar ou sair de uma fenda, o
  * mesmo fade ganha a "distorção" (matiz violeta-ciano, desfoque e um leve empenamento).

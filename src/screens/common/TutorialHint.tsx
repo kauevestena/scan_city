@@ -22,7 +22,16 @@ export function completeTutorialStep(step: number): void {
  * não é alcançável pelo foco nas telas de jogo (o `Tab` e as setas têm outro uso), então a
  * ação `DISMISS_HINT` (`H`, `View` no gamepad) faz o mesmo (REQ-NFR-007, REQ-INP-006).
  */
-export function TutorialHint({ step, className }: { step: number; className?: string }) {
+export function TutorialHint({
+  step,
+  className,
+  detail,
+}: {
+  step: number;
+  className?: string;
+  /** Uma segunda linha, a do momento (as dicas do voo, por exemplo). */
+  detail?: string | null;
+}) {
   const current = useGameStore((s) => s.flags.tutorialStep);
   const hint = T.steps[step];
   const shown = current === step && hint !== undefined;
@@ -47,10 +56,17 @@ export function TutorialHint({ step, className }: { step: number; className?: st
       )}
     >
       <Lightbulb size={18} className="shrink-0 text-amber-300" aria-hidden />
-      <span className="flex items-center gap-1.5">
-        {hint.before}
-        {hint.action && <InputGlyph action={hint.action as ButtonAction} />}
-        {hint.after}
+      <span className="flex flex-col gap-0.5">
+        <span className="flex items-center gap-1.5">
+          {hint.before}
+          {hint.action && <InputGlyph action={hint.action as ButtonAction} />}
+          {hint.after}
+        </span>
+        {detail && (
+          <span className="text-xs text-amber-200" data-testid="tutorial-hint-detail">
+            {detail}
+          </span>
+        )}
       </span>
       <InputGlyph action="DISMISS_HINT" />
       <button

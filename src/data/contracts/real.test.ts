@@ -37,11 +37,9 @@ describe('C01 — Metrópole Vertical', () => {
     expect(C01.wind).toEqual({ meanMs: 4, gustMs: 3, directionDeg: 90 });
     expect(C01.specialRules).toEqual(['URBAN_CANYON_RTK_LOSS']);
     expect(
-      C01.requirements.map((r) => [
-        r.severity,
-        r.check.type,
-        'value' in r.check ? r.check.value : '',
-      ]),
+      C01.requirements
+        .slice(0, -1)
+        .map((r) => [r.severity, r.check.type, 'value' in r.check ? r.check.value : '']),
     ).toEqual([
       ['CRITICAL', 'MIN_SIDE_OVERLAP', 80],
       ['CRITICAL', 'MIN_COVERAGE_GREEN', 0.8],
@@ -123,7 +121,7 @@ describe('C05 — Centro Histórico Colonial', () => {
     expect(C05.lightingOptions).toEqual(['OVERCAST', 'SUN_HIGH', 'GOLDEN_HOUR']);
     expect(C05.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 45 });
     expect(C05.specialRules).toEqual(['LOW_WIRES']);
-    expect(C05.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(C05.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'FLIGHT_MODE', value: 'OBLIQUE' }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
       [
@@ -190,7 +188,7 @@ describe('C06 — Zona Costeira e Estuário', () => {
     expect(C06.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
     expect(C06.wind).toEqual({ meanMs: 9, gustMs: 4, directionDeg: 90 });
     expect(C06.specialRules).toEqual(['SPECULAR_WATER', 'STRONG_WIND']);
-    expect(C06.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(C06.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'MIN_AIRCRAFT_TIER', value: 2 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.8 }],
       ['CRITICAL', { type: 'ACCURACY_ASPRS', horizontalCm: 7, verticalCm: 10 }],
@@ -252,7 +250,7 @@ describe('C02 — Planalto Agrícola', () => {
     expect(C02.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
     expect(C02.wind).toEqual({ meanMs: 5, gustMs: 3, directionDeg: 0 });
     expect(C02.specialRules).toEqual(['HOMOGENEOUS_TEXTURE']);
-    expect(C02.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(C02.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' }],
       ['CRITICAL', { type: 'AIRCRAFT_KIND', value: 'FIXED_WING_VTOL' }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
@@ -346,7 +344,7 @@ describe('C04 — Mina a Céu Aberto', () => {
     expect(C04.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST', 'GOLDEN_HOUR']);
     expect(C04.wind).toEqual({ meanMs: 6, gustMs: 4, directionDeg: 270 });
     expect(C04.specialRules).toEqual(['STEEP_RELIEF']);
-    expect(C04.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(C04.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'FLIGHT_MODE', value: 'TERRAIN_FOLLOWING' }],
       ['CRITICAL', { type: 'MAX_VOLUME_ERROR_PCT', value: 2 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
@@ -436,7 +434,7 @@ describe('C03 — Floresta Amazônica', () => {
     expect(C03.lightingOptions).toEqual(['OVERCAST', 'SUN_HIGH']);
     expect(C03.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 180 });
     expect(C03.specialRules).toEqual(['DENSE_CANOPY']);
-    expect(C03.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(C03.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
       ['CRITICAL', { type: 'MIN_GROUND_DENSITY', value: 8 }],
       ['MAJOR', { type: 'MIN_LIDAR_DENSITY', value: 100 }],

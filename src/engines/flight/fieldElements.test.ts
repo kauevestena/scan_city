@@ -12,12 +12,9 @@ import {
   initialDetection,
   insideSearchlight,
   nearestSearchlightM,
-  nextWarp,
   RING_COLLECT_M,
   ringCollected,
   searchlightSpot,
-  shouldResetWarp,
-  solidAheadOf,
   SPIKE_FORCE_MS,
   stepDetection,
 } from './fieldElements';
@@ -95,31 +92,6 @@ describe('anéis, picos elétricos e time warp (puros)', () => {
     }
     expect(a.lateralMs(0)).toBe(0);
   });
-
-  it('time warp: ciclo ×1 → ×2 → ×4 → ×1 e as quatro regras de volta a ×1', () => {
-    expect([nextWarp(1), nextWarp(2), nextWarp(4)]).toEqual([2, 4, 1]);
-    const ok = {
-      phase: 'RUN' as const,
-      solidAhead: false,
-      criticalAlert: false,
-      searchlightM: Infinity,
-    };
-    expect(shouldResetWarp(ok)).toBe(false);
-    expect(shouldResetWarp({ ...ok, phase: 'TURN' })).toBe(true);
-    expect(shouldResetWarp({ ...ok, solidAhead: true })).toBe(true);
-    expect(shouldResetWarp({ ...ok, criticalAlert: true })).toBe(true);
-    expect(shouldResetWarp({ ...ok, searchlightM: 99 })).toBe(true);
-    expect(shouldResetWarp({ ...ok, searchlightM: 100 })).toBe(false);
-    const objs = [
-      { solid: true, X: 10, Z: 100 },
-      { solid: true, X: 40, Z: 50 },
-      { solid: false, X: 0, Z: 20 },
-      { solid: true, X: 0, Z: 200 },
-      { solid: true, X: 0, Z: -5 },
-    ];
-    expect(solidAheadOf(objs, 0)).toBe(true);
-    expect(solidAheadOf(objs.slice(1), 0)).toBe(false);
-  });
 });
 
 // --- Cenas de teste (arena sintética) ---------------------------------------------------
@@ -175,6 +147,7 @@ function arena(
     mods: neutralModifiers(),
     ownsRtkKit: false,
     autopilot: over.autopilot ?? true,
+    calm: true,
     quality: () => 'LOW',
     reduceFlashes: () => false,
     colors: { primary: '#fff', secondary: '#000' },
@@ -426,33 +399,39 @@ describe('FEATURE_TARGETS: avaliadas no fim da surtida', () => {
   });
 });
 
-describe('time warp no engine', () => {
-  it('cicla só no RUN e volta a ×1 ao se aproximar de um objeto sólido', () => {
+describe('cruzeiro automático no motor (survey-flight §5.14)', () => {
+  it('estável no corredor, acelera até o fator da linha; perto de um objeto sólido, volta a ×1', () => {
     const wall = {
       kind: 'BUILDING' as const,
-      u: 120,
+      u: 400,
       v: ON_LINE,
       widthM: 10,
       depthM: 10,
       heightM: 5,
       color: [1, 2, 3] as [number, number, number],
     };
-    const { e } = arena({ objects: [wall] }, { autopilot: false });
-    expect(e.cycleTimeWarp()).toBe(1);
-    run(e, 4);
-    expect([e.cycleTimeWarp(), e.cycleTimeWarp(), e.cycleTimeWarp()]).toEqual([2, 4, 1]);
-    e.cycleTimeWarp();
-    expect(e.snapshot().timeScale).toBe(2);
-    // O prédio fica a ~140 m: dentro dos 150 m com |X − Xobj| < 15, volta a ×1.
-    run(e, 1);
+    const { e } = arena({ objects: [wall] }, { autopilot: true });
     expect(e.timeWarp).toBe(1);
-    expect(e.snapshot().timeScale).toBe(1);
+    // Decolagem, alinhamento e 1,5 s de estabilidade: depois o fator sobe.
+    run(e, 9);
+    expect(e.timeWarp).toBeGreaterThan(1);
+    expect(e.snapshot().cruise).toMatchObject({ on: true });
+    expect(e.snapshot().timeScale).toBe(e.timeWarp);
+    // O prédio em u = 400: a menos de 150 m à frente e no eixo, o cruzeiro cai a ×1.
+    for (let t = 0; t < 60 && 400 - e.pos().u > 140; t += 1 / 60) e.update(1 / 60);
+    run(e, 0.1);
+    expect(e.timeWarp).toBe(1);
   });
 
-  it('volta a ×1 na curva e com alerta crítico', () => {
-    const { e } = arena({}, { autopilot: false });
+  it('TIME_WARP desliga e religa o cruzeiro; fora do RUN e com alerta crítico fica em ×1', () => {
+    const { e } = arena({}, { autopilot: true });
+    expect(e.cycleTimeWarp()).toBe(false);
+    run(e, 9);
+    expect(e.timeWarp).toBe(1);
+    expect(e.snapshot().cruise).toEqual({ on: false, factor: 1 });
+    expect(e.cycleTimeWarp()).toBe(true);
     run(e, 4);
-    e.cycleTimeWarp();
+    expect(e.timeWarp).toBeGreaterThan(1);
     e.hull = 1;
     run(e, 0.1);
     expect(e.timeWarp).toBe(1);

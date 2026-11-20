@@ -3,6 +3,7 @@ import { Anchor, Church, Landmark, Pickaxe, Tractor, TreePine, Wheat } from 'luc
 import type { Contract } from '@/types';
 import { registerIcons } from '@/ui/iconRegistry';
 import { brl } from '../catalog/money';
+import { executionRequirement, MIN_EXECUTION_TUTORIAL } from './common';
 import { museumSlot } from './museum';
 
 registerIcons({ Anchor, Church, Landmark, Pickaxe, Tractor, TreePine, Wheat });
@@ -71,6 +72,7 @@ export const C00: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_SIDE_OVERLAP', value: 55 },
     },
+    executionRequirement('C00', MIN_EXECUTION_TUTORIAL),
   ],
   recommended: { aircraft: ['ATLAS'], sensors: ['CAM_PIGEON'], vehicle: 'FOOT_BIKE', notes: '' },
   minVehicle: 'FOOT_BIKE',
@@ -187,6 +189,7 @@ export const C01: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 2 },
     },
+    executionRequirement('C01'),
   ],
   recommended: {
     aircraft: ['DRONE_T1'],
@@ -308,6 +311,7 @@ export const C05: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 3 },
     },
+    executionRequirement('C05'),
   ],
   recommended: {
     aircraft: ['DRONE_T1', 'DRONE_T2'],
@@ -421,6 +425,7 @@ export const C06: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 3 },
     },
+    executionRequirement('C06'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -549,6 +554,7 @@ export const C02: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_GCP', value: 5 },
     },
+    executionRequirement('C02'),
   ],
   recommended: {
     aircraft: ['VTOL_T3'],
@@ -667,6 +673,7 @@ export const C04: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 3 },
     },
+    executionRequirement('C04'),
   ],
   recommended: {
     aircraft: ['DRONE_T2'],
@@ -789,6 +796,7 @@ export const C03: Contract = {
       severity: 'MINOR',
       check: { type: 'MIN_CP', value: 2 },
     },
+    executionRequirement('C03'),
   ],
   recommended: {
     aircraft: ['VTOL_T3'],

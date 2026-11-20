@@ -53,6 +53,7 @@ export const STRINGS = {
       em: 'Interferência eletromagnética',
       camera: 'Qualidade da câmera',
       cameraCalibrated: 'Câmera do Atlas (calibrada)',
+      execution: 'Execução do voo',
       imu: 'Calibração da IMU',
       skills: 'Habilidades de engenharia',
     },
@@ -542,14 +543,38 @@ export const STRINGS = {
     rthConfirm: 'Retornar à base?',
     detection: 'Detecção',
     rings: 'Anéis',
-    warp: (n: number) => `×${n}`,
+    cruise: (factor: string) => `CRUZEIRO ×${factor}`,
+    cruiseOff: 'CRUZEIRO DESLIGADO',
+    execution: 'EXECUÇÃO',
+    executionValue: (letter: string, pct: number) => `${letter} ${pct} %`,
+    streak: (n: number) => `sequência ×${n}`,
+    refly: 'REVOO',
+    groundSpeed: 'SOLO',
+    target: (v: string) => `alvo ${v}`,
+    climb: (m: number) => `▲ +${m} m`,
+    descend: (m: number) => `▼ −${m} m`,
+    windsock: (deg: number) => `Biruta: vento a ${deg}° do rumo`,
+    grades: {
+      PERFECT: 'PERFEITA',
+      GOOD: 'BOA',
+      WEAK: 'FRACA',
+      REJECTED: 'REJEITADA',
+    },
+    axes: { lateral: 'faixa', vertical: 'altura', advance: 'avanço' },
+    lineReport: {
+      title: (n: number, letter: string) => `LINHA ${n} · ${letter}`,
+      counts: (c: readonly [number, number, number, number]) =>
+        `${c[0]} perfeitas · ${c[1]} boas · ${c[2]} fracas · ${c[3]} rejeitadas`,
+      refly: 'REVOO NECESSÁRIO',
+      accepted: 'Linha aceita',
+    },
     rthConfirmKeys: 'confirmar',
     rthCancelKeys: 'cancelar',
     hints: {
       photo: 'foto manual',
       rth: 'RTH',
       pause: 'pausa',
-      warp: 'tempo',
+      warp: 'cruzeiro',
       noLidar: 'Sem LiDAR a bordo',
       activateCamera: 'Ative a câmera [Tab]',
     },
@@ -557,6 +582,20 @@ export const STRINGS = {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
       RTH: () => 'RTH RECOMENDADO',
       DETECTED: () => 'DETECTADO!',
+      GUST: (inS?: number, side?: number) => {
+        const label = (side ?? 1) < 0 ? '◀ RAJADA' : 'RAJADA ▶';
+        return inS !== undefined && inS > 0
+          ? `${label} em ${inS.toFixed(1).replace('.', ',')} s`
+          : label;
+      },
+      OFF_ALTITUDE: (deltaM?: number) =>
+        (deltaM ?? 0) > 0
+          ? `SUBA ▲ ${Math.round(deltaM ?? 0)} m`
+          : `DESÇA ▼ ${Math.round(Math.abs(deltaM ?? 0))} m`,
+      SPEED_LIMITED: (sign?: number) =>
+        (sign ?? -1) < 0
+          ? 'VENTO DE PROA: velocidade limitada'
+          : 'VENTO DE CAUDA: velocidade limitada',
       WIND_LIMIT: () => 'VENTO ACIMA DO LIMITE DA AERONAVE',
       OVERLAP: (v?: number) => `OVERLAP INSUFICIENTE ${v ?? ''} %`,
       MOTION_BLUR: () => 'MOTION BLUR',
@@ -582,6 +621,10 @@ export const STRINGS = {
       time: 'Tempo de voo',
       energyLeft: 'Energia restante',
       collisions: 'Colisões',
+      execution: 'Execução das linhas desta surtida',
+      lineGrade: (n: number, letter: string, pct: number) => `Linha ${n}: ${letter} · ${pct} %`,
+      toRefly: 'revoar',
+      missionExecution: (pct: number) => `Execução da missão até aqui: ${pct} %`,
       newSortie: 'Nova surtida',
       process: 'Processar agora',
       take: 'Levar dados ao escritório',
@@ -693,6 +736,19 @@ export const STRINGS = {
     rejected: 'REPROVADO',
     score: (n: number) => `Score ${n}`,
     classAchieved: (cls: string) => `Classe ${cls}`,
+    execution: {
+      title: 'Execução do voo',
+      summary: (letter: string, pct: number) => `${letter} · ${pct} %`,
+      counts: (c: readonly [number, number, number, number]) =>
+        [
+          `${c[0]} ${c[0] === 1 ? 'perfeita' : 'perfeitas'}`,
+          `${c[1]} ${c[1] === 1 ? 'boa' : 'boas'}`,
+          `${c[2]} ${c[2] === 1 ? 'fraca' : 'fracas'}`,
+          `${c[3]} ${c[3] === 1 ? 'rejeitada' : 'rejeitadas'}`,
+        ].join(' · '),
+      note: 'A nota da missão é a nota técnica × (0,4 + 0,6 × execução).',
+      pilotBonus: (bonus: string) => `inclui +${bonus} de pilotagem`,
+    },
     requirements: 'Requisitos',
     sheet: 'Ficha técnica',
     sheetRows: {
@@ -703,7 +759,7 @@ export const STRINGS = {
       gsd: 'GSD efetivo',
       p: 'p real (mediana)',
       q: 'q estimado',
-      photos: 'Fotos (válidas / borradas / água / névoa)',
+      photos: 'Fotos (válidas / rejeitadas / borradas / água / névoa)',
       pulses: 'Pulsos LiDAR',
       sorties: 'Surtidas',
       collisions: 'Colisões',
@@ -748,7 +804,7 @@ export const STRINGS = {
       water: 'Água (excluída)',
     },
     showCenters: 'Mostrar centros das fotos',
-    cellTooltip: (n: number) => `${n} fotos na célula`,
+    cellTooltip: (n: string) => `${n} fotos na célula`,
     coverageLabel: 'Mapa de calor da cobertura',
     paymentRows: {
       base: 'Valor-base',
@@ -780,9 +836,22 @@ export const STRINGS = {
       { before: 'Encoste no marcador e aperte', action: 'INTERACT', after: '' },
       { before: 'Clique para cravar ao menos 3 GCPs', action: null, after: '' },
       { before: 'Observe o GSD mudar com a altura', action: null, after: '' },
-      { before: 'Mantenha-se na linha — fotos saem sozinhas', action: null, after: '' },
+      {
+        before: 'Voe pelos portais: no losango do centro a foto é Perfeita',
+        action: null,
+        after: '',
+      },
       { before: 'Veja o mapa de calor: verde = ≥ 5 fotos', action: null, after: '' },
     ],
+    /** Dicas do primeiro voo, uma de cada vez, quando o voo mostra o que cada uma explica. */
+    flightCoach: {
+      ENTRY: 'Alinhe já na entrada: a linha começa fora do eixo e o primeiro portal vale nota',
+      GUST: 'Rajada avisada! Comece a empurrar contra a seta antes de ela chegar',
+      RELIEF: 'O corredor acompanha o relevo: suba (Q) ou desça (E) com a seta',
+      GRADE: 'Cada portal dá uma nota: verde Perfeita, ciano Boa, âmbar Fraca, vermelho Rejeitada',
+      CRUISE: 'Na reta tranquila o cruzeiro acelera o tempo; ele solta sozinho na hora do perigo',
+      REPORT: 'O boletim dá a nota da linha; abaixo de 50 % ela é refeita no fim da surtida',
+    },
   },
   holo: {
     title: 'Mesa Holográfica — Museu da Terra',

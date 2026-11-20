@@ -7,6 +7,7 @@ import {
   excludedCellsWhere,
   footprintPolygon,
   isShotValid,
+  shotWeight,
   summarizeCoverage,
 } from './coverage';
 import { polygonArea } from './geometry';
@@ -154,6 +155,53 @@ describe('isShotValid e buildCoverage', () => {
     expect(isShotValid({ ...wet, lighting: 'OVERCAST' }, { ...rgb, specularWater: true })).toBe(
       true,
     );
+  });
+
+  it('execução do voo: a foto rejeitada não conta e a fraca pesa metade', () => {
+    expect(isShotValid(shot({ grade: 'REJECTED' }), rgb)).toBe(false);
+    for (const grade of ['PERFECT', 'GOOD', 'WEAK'] as const) {
+      expect(isShotValid(shot({ grade }), rgb)).toBe(true);
+    }
+    // Foto sem nota (save antigo ou sintética) vale 1.
+    expect(shotWeight({})).toBe(1);
+    expect(shotWeight({ grade: 'PERFECT' })).toBe(1);
+    expect(shotWeight({ grade: 'GOOD' })).toBe(1);
+    expect(shotWeight({ grade: 'WEAK' })).toBe(0.5);
+    expect(shotWeight({ grade: 'REJECTED' })).toBe(0);
+  });
+
+  it('accumulateShot soma o peso; as classes valem com contagem fracionária', () => {
+    const grid = createCoverageGrid(AOI);
+    const polygon = footprintPolygon(shot(), 'MULTIROTOR', FF, 0.035);
+    accumulateShot(grid, polygon);
+    accumulateShot(grid, polygon, 0.5);
+    expect(Math.max(...grid.counts)).toBe(1.5);
+    // 4,5 fotos é amarelo (≥ 3 e < 5); 5 é verde.
+    const classes = createCoverageGrid(AOI, 3, 1);
+    classes.counts = [4.5, 5, 2.5];
+    const summary = summarizeCoverage(classes, []);
+    expect(summary.yellow).toBeCloseTo(1 / 3, 12);
+    expect(summary.green).toBeCloseTo(1 / 3, 12);
+    expect(summary.red).toBeCloseTo(1 / 3, 12);
+    expect(summary.meanCount).toBeCloseTo(4, 12);
+  });
+
+  it('buildCoverage: 4 fotos boas e 2 fracas dão 5 na célula; as rejeitadas ficam de fora', () => {
+    const shots = [
+      ...Array.from({ length: 4 }, () => shot({ grade: 'GOOD' })),
+      shot({ grade: 'WEAK' }),
+      shot({ grade: 'WEAK' }),
+      shot({ grade: 'REJECTED' }),
+      shot({ grade: 'REJECTED' }),
+    ];
+    const result = buildCoverage(shots, AOI, {
+      aircraftKind: 'MULTIROTOR',
+      sensor: FF,
+      focalM: 0.035,
+      rules: rgb,
+      excludedCells: [],
+    });
+    expect(Math.max(...result.counts)).toBe(5);
   });
 
   it('buildCoverage acumula só as fotos válidas', () => {

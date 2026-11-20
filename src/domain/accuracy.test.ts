@@ -6,6 +6,7 @@ import {
   effectiveGsdM,
   gcpSigma,
   generateResiduals,
+  lidarModel,
   modelRmse,
   requirementAccuracy,
   rmse,
@@ -196,6 +197,17 @@ describe('multiplicadores (§6.3) — uma linha por teste', () => {
     expect(mult({ cameraPenalty: 1.3, atlasCalibrated: true }, 'camera')?.xy).toBeCloseTo(1.15, 12);
   });
 
+  it('execution: 1 + 0,5·max(0, 0,9 − E), igual nos dois eixos; ausente ou ≥ 0,9 é neutro', () => {
+    expect(mult({}, 'execution')).toBeUndefined();
+    expect(mult({ execution: 1 }, 'execution')).toBeUndefined();
+    expect(mult({ execution: 0.92 }, 'execution')).toBeUndefined();
+    const m = mult({ execution: 0.65 }, 'execution');
+    expect(m?.xy).toBeCloseTo(1.125, 12);
+    expect(m?.z).toBeCloseTo(1.125, 12);
+    expect(m?.label).toBe('Execução do voo');
+    expect(mult({ execution: 0 }, 'execution')?.xy).toBeCloseTo(1.45, 12);
+  });
+
   it('imu: 1 − 0,08s / 1 − 0,12s', () => {
     expect(mult({ imuScore: 1 }, 'imu')).toMatchObject({ xy: 0.92, z: 0.88 });
     expect(mult({ imuScore: 0.5 }, 'imu')?.z).toBeCloseTo(0.94, 12);
@@ -215,6 +227,33 @@ describe('multiplicadores (§6.3) — uma linha por teste', () => {
     ]);
     expect(m.xy).toBeCloseTo(0.06, 15);
     expect(m.z).toBeCloseTo(0.06, 15);
+  });
+});
+
+describe('modelo LiDAR com a execução do voo (§6.7)', () => {
+  const mods = { lidarNoise: 1, rmseGlobal: 1 };
+
+  it('execução ≥ 0,9 (ou ausente) não muda nada; abaixo multiplica os dois eixos e aparece na lista', () => {
+    const base = lidarModel(0.03, 100, 1, 0, mods, false);
+    expect(lidarModel(0.03, 100, 1, 0, mods, false, 1)).toEqual(base);
+    expect(lidarModel(0.03, 100, 1, 0, mods, false, 0.95)).toEqual(base);
+    expect(base.multipliers).toEqual([]);
+    const weak = lidarModel(0.03, 100, 1, 0, mods, false, 0.5);
+    expect(weak.model.xy).toBeCloseTo(base.model.xy * 1.2, 12);
+    expect(weak.model.z).toBeCloseTo(base.model.z * 1.2, 12);
+    expect(weak.multipliers).toEqual([
+      {
+        key: 'execution',
+        label: 'Execução do voo',
+        xy: expect.closeTo(1.2, 12),
+        z: expect.closeTo(1.2, 12),
+      },
+    ]);
+  });
+
+  it('a execução vem depois da interferência e antes das habilidades', () => {
+    const all = lidarModel(0.03, 100, 1, 0, { lidarNoise: 1, rmseGlobal: 0.9 }, true, 0.8);
+    expect(all.multipliers.map((m) => m.key)).toEqual(['em', 'execution', 'skills']);
   });
 });
 

@@ -36,10 +36,10 @@ describe('BriefingModal — C01 Metrópole Vertical', () => {
     expect(d.getByTestId('briefing-souvenir')).toHaveTextContent(/Chave da Cidade/);
   });
 
-  it('7 requisitos, os críticos primeiro (sobreposição lateral, cobertura e PEC classe A)', () => {
+  it('7 requisitos da ficha (mais o de execução), os críticos primeiro (sobreposição lateral, cobertura e PEC classe A)', () => {
     const { d } = open();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(7);
+    expect(reqs).toHaveLength(8);
     expect(reqs[0]).toHaveTextContent('Sobreposição lateral ≥ 80 %');
     expect(reqs[1]).toHaveTextContent('Cobertura verde ≥ 80 %');
     expect(reqs[2]).toHaveTextContent('PEC-PCD classe A (1:1.000)');
@@ -81,7 +81,7 @@ describe('BriefingModal — C05 Centro Histórico Colonial', () => {
     expect(rules[0]).toHaveTextContent('Fios baixos');
     expect(d.getByText('Fiação a 8–14 m: mantenha o AGL acima de 20 m.')).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(7);
+    expect(reqs).toHaveLength(8);
     expect(reqs[0]).toHaveTextContent('Voo oblíquo');
     expect(reqs[1]).toHaveTextContent('Cobertura verde ≥ 85 %');
     expect(reqs[2]).toHaveTextContent('PEC-PCD classe A (1:500, eq. 0,5 m)');
@@ -113,7 +113,7 @@ describe('BriefingModal — C06 Zona Costeira e Estuário', () => {
     expect(d.getByText('9 m/s, rajadas de +4 m/s, de 90°')).toBeInTheDocument();
     expect(d.getByText('300 × 800 m')).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(6);
+    expect(reqs).toHaveLength(7);
     expect(reqs[0]).toHaveTextContent('Aeronave de nível ≥ 2');
     expect(reqs[2]).toHaveTextContent('ASPRS: 7 cm (H) e 10 cm (V)');
     expect(d.getByText('Água não tem tie points: GCPs só na faixa de areia.')).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('BriefingModal — C02 Planalto Agrícola', () => {
     ).toBeInTheDocument();
     expect(d.getByText('600 × 1500 m')).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(7);
+    expect(reqs).toHaveLength(8);
     expect(reqs[0]).toHaveTextContent('Sensor multiespectral');
     expect(reqs[1]).toHaveTextContent('Aeronave de asa fixa (VTOL)');
     expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 35.000,00');
@@ -164,7 +164,7 @@ describe('BriefingModal — C04 Mina a Céu Aberto', () => {
     expect(rules[0]).toHaveTextContent('Relevo acidentado');
     expect(d.getByText('320 × 480 m')).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(6);
+    expect(reqs).toHaveLength(7);
     expect(reqs[0]).toHaveTextContent('Voo com Terrain Following');
     expect(reqs[1]).toHaveTextContent('Erro de volume ≤ 2 %');
     expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 55.000,00');
@@ -192,7 +192,7 @@ describe('BriefingModal — C03 Floresta Amazônica', () => {
     expect(d.getByText('500 × 1000 m')).toBeInTheDocument();
     expect(d.getByText('Nublado, Sol alto')).toBeInTheDocument();
     const reqs = within(d.getByTestId('briefing-requirements')).getAllByRole('listitem');
-    expect(reqs).toHaveLength(6);
+    expect(reqs).toHaveLength(7);
     expect(reqs[0]).toHaveTextContent('Sensor LiDAR');
     expect(reqs[1]).toHaveTextContent('Densidade de solo ≥ 8 pts/m²');
     expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 90.000,00');

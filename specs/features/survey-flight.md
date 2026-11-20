@@ -147,7 +147,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 
 ### 5.7 Linhas, corredor e curvas
 - O *run* começa em `s = 0` (início do lead-in), na altitude em que a aeronave vinha. A decolagem leva a aeronave à altitude do corredor em `s = 0` (§5.19).
-- **Entrada de faixa (REQ-FLT-028):** toda linha, inclusive a primeira e os revoos, começa com `X = entryOffsetM(...)` ([domain-math §5.1](../design/domain-math.md)): de 30 % a 40 % de `S` para um lado sorteado, limitado ao que a aeronave corrige até o início da AOI. O sorteio usa a seed `"<missão>:<surtida>:<linha>:<passada>:entry"`. O jogador tem o lead-in para alinhar: as fotos antes de `aoiStartS` não entram na nota da passada.
+- **Entrada de faixa (REQ-FLT-028):** toda linha, inclusive a primeira e os revoos, começa com `X = entryOffsetM(...)` ([domain-math §5.1](../design/domain-math.md)): de 30 % a 40 % de `S` para um lado sorteado, limitado a 90 % do que a aeronave corrige até 2 s depois do início da AOI. O sorteio usa a seed `"<missão>:<surtida>:<linha>:<passada>:entry"`. O jogador tem o lead-in para alinhar: as fotos antes de `aoiStartS` não entram na nota da passada.
 - **Indicador de desvio:** `e = X`. "FORA DA FAIXA" quando `|e| > 0,25·S` (o limite da nota Fraca).
 - **Fim da linha:** quando `s ≥ lineLength`. Entra em `TURN`:
   - duração = `turnTimeS` do plano, limitada à apresentação de 2,5 s;
@@ -240,6 +240,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 | Elemento | Implementação |
 | :--- | :--- |
 | Vento médio | `windAt(t)` (vento de fundo) é decomposto na transversal e ao longo da linha. A aeronave compensa a transversal (o *crab*; sem deriva constante) e mantém a velocidade no solo do plano dentro dos limites de velocidade no ar ([domain-math §5](../design/domain-math.md)). O HUD mostra a seta de vento, o `crabAngleRad` e a velocidade no solo; quando o limite corta a velocidade, o alerta "VENTO DE PROA: velocidade limitada" (ou "DE CAUDA") aparece. O vento segue afetando o dreno |
+| Depuração | `?debug=1&calm=1` voa sem rajadas e sem erro de entrada; o corredor e as notas continuam valendo |
 | Rajadas (REQ-FLT-013) | A cada passada, `planGusts` ([domain-math §5.1](../design/domain-math.md)) sorteia de 1 a 3 rajadas com a seed `"<missão>:<surtida>:<linha>:<passada>:gusts"`. O empurrão de cada uma, `driftVelocityMs(peak·env, driftFactor, windDrift)·driftMultiplier`, entra no `stepAircraft` como `gustLateralMs` e `gustAlongMs`. Acima da tolerância da aeronave o empurrão dobra (`STRONG_WIND`). **Aviso** de 1,5 s: alerta "RAJADA ◀" ou "RAJADA ▶" com a contagem, a biruta e riscos de vento no ar (partículas alongadas que cruzam a tela no sentido da rajada, até 40; sem piscar com `reduceFlashes`) |
 | Térmicas | `thermalLiftMs`. Visual: distorção sutil (onda) no ar sobre a zona |
 | EM | `EM_INTERFERENCE`: soma `ruído(t)·0,8 m/s` lateral e 3° de rumo. Glitch de scanlines no HUD. Atlas fica imune |
@@ -253,7 +254,7 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 ### 5.14 Cruzeiro automático (`TIME_WARP`, REQ-FLT-023, [ADR-031](../decisions.md))
 - O tempo acelera **sozinho**. `timeScale` é aplicado ao `GameLoop` (sub-passos). O debug com autopilot continua em ×8.
 - **Fator máximo da linha:** `cruiseMax = clamp(round(T/12), 2, 6)`, com `T = lengthM / v_plano` (linhas longas cruzam mais rápido).
-- **Condições** (todas, por `CRUISE_ARM_S = 1,5` s seguidos):
+- **Condições** (todas, por `CRUISE_ARM_S = 1` s seguido):
   - fase `RUN` e cruzeiro ligado;
   - a nota do instante (faixa, altura e avanço, §5.20) é Boa ou Perfeita;
   - nenhuma rajada avisada ou em curso (do aviso até o fim da rampa de descida);
@@ -262,10 +263,10 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - não há holofote a < 100 m;
   - o Atlas não está avisado nem distraído, e não há pico elétrico em curso nem nos próximos 1,5 s;
   - sem Terrain Following, o corredor não muda mais que `0,05·H` nos próximos `2·cruiseMax` s de trajeto.
-- **Subida e queda:** cumpridas as condições, o fator sobe de 1 a `cruiseMax` a 2 por segundo (tempo real). Quando uma condição cai, o fator volta a 1 no mesmo passo e a contagem de 1,5 s recomeça.
+- **Subida e queda:** cumpridas as condições, o fator sobe de 1 a `cruiseMax` a 4 por segundo (tempo real). Quando uma condição cai, o fator volta a 1 no mesmo passo e a contagem de 1 s recomeça.
 - **`TIME_WARP`** liga e desliga o cruzeiro (começa ligado em cada surtida). Desligado, o voo fica em ×1.
 - **Indicador** no HUD "CRUZEIRO ×N" em âmbar, ou "CRUZEIRO DESLIGADO".
-- Funções puras: `cruiseMaxFor(lineDurationS)`, `cruiseEligible(ctx)` e `stepCruise(state, eligible, dtRealS)`.
+- Funções puras (`cruise.ts`): `cruiseMaxFor(lineDurationS)`, `cruiseEligible(ctx)`, `stepCruise(state, eligible, dtRealS, max)` e `solidAheadOf(objects, x)`.
 
 ### 5.15 Atlas
 - **Energia** em milho: o HUD mostra 🌽 × n e a barra do papo.
@@ -287,15 +288,16 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
 1. Queda iminente: AGL < 5 m e caindo, ou casco = 1 (crítico).
 2. RTH recomendado / energia baixa (crítico).
 3. Detectado (crítico).
-4. Rajada avisada ou em curso, com o lado (aviso).
+4. Rajada avisada ou em curso, com o lado (aviso); Atlas distraído (info). Os dois empurram a aeronave e pedem a correção agora.
 5. Vento acima do limite (aviso).
 6. Fora da faixa (aviso).
 7. Fora da altura do corredor: `|alt − corridorAlt| > 0,10·H`, com "SUBA" ou "DESÇA" (aviso).
 8. Overlap insuficiente (aviso).
-9. Motion blur (aviso).
-10. Velocidade limitada pelo vento (info).
+9. Motion blur / pouca luz (aviso).
+10. Velocidade limitada pelo vento (info); velocidade mínima da asa fixa (aviso).
 11. RTK FLOAT (info).
-12. Atlas distraído (info).
+
+`alerts()` devolve os 2 mais urgentes (o HUD); `alertList()`, todos os ativos (testes e cruzeiro).
 
 ### 5.18 Performance
 - O orçamento é de ≤ 12 ms/frame em Alta no perfil de referência.
@@ -388,11 +390,12 @@ interface FlightHudSnapshot {
 - **Dado** o Pod LiDAR e `TOGGLE_SENSOR`, **quando** alternar para LiDAR, **então** o leque aparece, o zumbido toca, a densidade exibida é igual a `lidarDensity()` e os disparos param.
 - **Dado** energia insuficiente para voltar, **quando** `rthRequired` virar true, **então** o bip toca a cada 1,5 s e o alerta crítico aparece.
 - **Dado** `reduceFlashes`, **quando** uma foto for disparada, **então** nenhum overlay branco é desenhado.
+- **Dado** o primeiro voo do C00 (etapa 4 do tutorial), **quando** a primeira linha começa, **então** a dica do voo ganha embaixo "Alinhe já na entrada…"; depois, o primeiro aviso de rajada, a primeira seta de altura, a primeira nota, o primeiro cruzeiro acelerado e o primeiro boletim trazem cada um a sua dica, uma de cada vez (6 s cada; a da rajada entra na hora) e uma vez só.
 - **Dado** a qualidade Alta em 1280 × 720, **quando** voar 10 s no C01, **então** a média de FPS fica ≥ 55 no perfil de referência (verificação manual em T077).
 
 ## 9. Testes
 - **Unitário (puro):** `planGusts`, `gustPushAt`, `entryOffsetM`, `corridorProfile`, `gradeSample`, `passScore`, `missionExecution`, `cruiseEligible`, `stepCruise`, `project`, mapeamento AOI ↔ *run*, `stepAircraft` (limites, TF, asa fixa, velocidade no solo), temporizador de disparo, `realForwardOverlap` no fluxo, `checkCollision` (cada forma, fio, raio), sorteio da distração do Atlas, regra de volta do *time warp*, `rtkStatusAt`, detecção de holofote, coleta de anéis, avaliação de features, fim de surtida (descarte).
 - **Draw list:** `buildDrawList` de uma cena com morro e objeto atrás confirma a ordem (objeto antes do quad que o oclui).
-- **RTL:** HUD a partir de snapshots (alertas, Atlas, LiDAR) e `PostFlightDialog` (combinações de botões).
-- **Pilotos simulados (REQ-NFR-010):** `flightChallenge.test.ts` voa cada contrato com o plano de referência como parado, mediano e bom, e confere as metas de [ADR-032](../decisions.md).
-- **E2E:** `flight.spec.ts` cobre `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` até o pós-voo, e testa pausa no meio (posição congelada); um caso voa o C00 sem comando e confere o boletim com "REVOO NECESSÁRIO".
+- **RTL:** HUD a partir de snapshots (alertas, Atlas, LiDAR), `PostFlightDialog` (combinações de botões) e as dicas do primeiro voo (`flightCoach`: qual dica cada snapshot pede, o tempo na tela e a urgente).
+- **Pilotos simulados (REQ-NFR-010):** `challenge/challenge.{idle,align,pilots}.test.ts` voam cada contrato com o plano de referência como parado, distraído, mediano e bom, e confere as metas de [ADR-032](../decisions.md).
+- **E2E:** `flight.spec.ts` cobre `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` até o pós-voo, e testa pausa no meio (posição congelada). `flight-piloting.spec.ts` voa o C00 sem autopilot: pilotando só pelo teclado (`A`/`D`, `Q`/`E` e `W`/`S` segurados, lendo o HUD a 10 Hz) nenhuma linha fica para revoo e o relatório aprova; sem comando, a linha 1 fecha com "REVOO NECESSÁRIO" e o retorno à base mostra a execução abaixo de 40 %. O HUD expõe em `data-*` os números que mostra (fase, desvio da faixa, diferença para o corredor e a tolerância, razão da velocidade no solo).

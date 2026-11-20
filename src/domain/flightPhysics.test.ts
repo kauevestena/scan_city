@@ -3,8 +3,10 @@ import { degToRad, radToDeg } from '@/lib/math';
 import { mulberry32 } from '@/lib/rng';
 import type { SpecialZone } from '@/types';
 import {
+  MIN_GROUND_SPEED_MS,
   crabAngleRad,
   driftVelocityMs,
+  groundSpeedLimits,
   initialAircraftState,
   shadowLengthM,
   stepAircraft,
@@ -27,8 +29,9 @@ function env(overrides: Partial<FlightEnv> = {}): FlightEnv {
     planSpeedMs: 10,
     ceilingM: 120,
     elevationM: 0,
-    crossWindMs: 0,
-    windDriftMod: 1,
+    meanAlongMs: 0,
+    gustAlongMs: 0,
+    gustLateralMs: 0,
     thermalLiftMs: 0,
     terrainFollowing: false,
     ...overrides,
@@ -120,14 +123,67 @@ describe('stepAircraft', () => {
     expect(run(0.5, 600).v).toBe(14);
   });
 
-  it('avança ao longo da linha e desloca na lateral com o input e a deriva', () => {
+  it('avança ao longo da linha e desloca na lateral com o input e a rajada', () => {
     let s = initialAircraftState(10, 60);
-    s = stepAircraft(s, { ...IDLE, moveX: 1 }, env({ crossWindMs: 5 }), 0.5);
+    s = stepAircraft(s, { ...IDLE, moveX: 1 }, env({ gustLateralMs: 3 }), 0.5);
     const t2 = getAircraft('DRONE_T2');
     expect(s.s).toBeCloseTo(5, 9);
     expect(s.vLat).toBeCloseTo(t2.lateralSpeedMaxMs, 9);
-    expect(s.drift).toBeCloseTo(5 * t2.driftFactor, 9);
+    expect(s.drift).toBe(3);
     expect(s.x).toBeCloseTo(0.5 * (t2.lateralSpeedMaxMs + 3), 9);
+  });
+
+  it('sem rajada e sem comando, o vento médio não deriva a aeronave', () => {
+    let s = initialAircraftState(10, 60);
+    for (let i = 0; i < 600; i++) s = stepAircraft(s, IDLE, env({ meanAlongMs: -3 }), 1 / 60);
+    expect(s.x).toBe(0);
+    expect(s.drift).toBe(0);
+    // A velocidade no solo do plano é mantida contra o vento de proa.
+    expect(s.v).toBe(10);
+    expect(s.gs).toBe(10);
+    expect(s.s).toBeCloseTo(100, 6);
+  });
+
+  it('rajada de cauda: a velocidade no solo passa da do plano e a aeronave avança mais', () => {
+    let s = initialAircraftState(10, 60);
+    s = stepAircraft(s, IDLE, env({ gustAlongMs: 2.5 }), 1);
+    expect(s.v).toBe(10);
+    expect(s.gs).toBe(12.5);
+    expect(s.s).toBe(12.5);
+    // De proa, a velocidade no solo cai, mas nunca abaixo do mínimo.
+    s = stepAircraft(initialAircraftState(10, 60), IDLE, env({ gustAlongMs: -4 }), 1);
+    expect(s.gs).toBe(6);
+    s = stepAircraft(initialAircraftState(10, 60), IDLE, env({ gustAlongMs: -40 }), 1);
+    expect(s.gs).toBe(MIN_GROUND_SPEED_MS);
+  });
+
+  it('limites da velocidade no solo: os da velocidade no ar deslocados pelo vento médio', () => {
+    const t2 = getAircraft('DRONE_T2');
+    expect(groundSpeedLimits(t2, 0)).toEqual({ lo: t2.vMinMs, hi: t2.vMaxMs });
+    expect(groundSpeedLimits(t2, 5)).toEqual({ lo: t2.vMinMs + 5, hi: t2.vMaxMs + 5 });
+    // Vento de proa forte: o piso é o mínimo absoluto e o teto cai.
+    expect(groundSpeedLimits(t2, -10.8)).toEqual({ lo: MIN_GROUND_SPEED_MS, hi: t2.vMaxMs - 10.8 });
+    expect(groundSpeedLimits(t2, -100)).toEqual({
+      lo: MIN_GROUND_SPEED_MS,
+      hi: MIN_GROUND_SPEED_MS,
+    });
+  });
+
+  it('vento médio de proa maior que a folga: a velocidade no solo fica limitada abaixo da do plano', () => {
+    const t2 = getAircraft('DRONE_T2');
+    let s = initialAircraftState(12, 60);
+    const e = env({ planSpeedMs: 12, meanAlongMs: -10.8 });
+    for (let i = 0; i < 600; i++) s = stepAircraft(s, IDLE, e, 1 / 60);
+    expect(s.v).toBeCloseTo(t2.vMaxMs - 10.8, 9);
+    // Acelerar não adianta: a velocidade no ar já está no máximo.
+    for (let i = 0; i < 600; i++) s = stepAircraft(s, { ...IDLE, moveY: 1 }, e, 1 / 60);
+    expect(s.v).toBeCloseTo(t2.vMaxMs - 10.8, 9);
+    // De cauda, a asa fixa não consegue ir mais devagar que vMin + vento.
+    const vtol = getAircraft('VTOL_T3');
+    let w = initialAircraftState(20, 100);
+    const tail = env({ aircraft: vtol, planSpeedMs: 16, ceilingM: 300, meanAlongMs: 6 });
+    for (let i = 0; i < 600; i++) w = stepAircraft(w, IDLE, tail, 1 / 60);
+    expect(w.v).toBe(vtol.vMinMs + 6);
   });
 
   it('asa fixa com MOVE_X = 1 respeita aLat ≤ v²/R', () => {
@@ -221,6 +277,6 @@ describe('terrainFollowTargetAlt', () => {
 describe('initialAircraftState', () => {
   it('começa no início do run, alinhada', () => {
     const s: AircraftState = initialAircraftState(10, 60);
-    expect(s).toMatchObject({ s: 0, x: 0, alt: 60, v: 10, vLat: 0, vz: 0, aglTargetM: 60 });
+    expect(s).toMatchObject({ s: 0, x: 0, alt: 60, v: 10, gs: 10, vLat: 0, vz: 0, aglTargetM: 60 });
   });
 });

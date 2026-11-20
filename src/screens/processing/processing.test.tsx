@@ -14,6 +14,9 @@ import { ProcessingResultsScreen } from './ProcessingResultsScreen';
 import { MegaMapCard } from './MegaMapCard';
 import { multiplierText } from './ReportAccuracy';
 import { paymentRows } from './ReportPayment';
+import { centerColor } from './ReportCoverage';
+import { ReportSummary, technicalSheet } from './ReportSummary';
+import { COLORS } from '@/ui/tokens';
 import { ReportAccuracy } from './ReportAccuracy';
 import { STRINGS } from '@/data/strings';
 import type { LidarGrid, LidarSample, QualityReport } from '@/types';
@@ -89,6 +92,86 @@ describe('avaliação (critérios 1 e 2)', () => {
     });
     expect(full).toHaveLength(8);
   });
+
+  it('bônus de pilotagem: aparece ao lado do fator de qualidade', () => {
+    const report = evaluateForState(get(), queue(), false);
+    const [, quality] = paymentRows(report.payment, 0.1);
+    expect(quality?.[0]).toBe('× qualidade (score)');
+    expect(quality?.[1]).toMatch(/^×\d,\d\d \(inclui \+0,10 de pilotagem\)$/);
+    expect(paymentRows(report.payment, 0)[1]?.[1]).toMatch(/^×\d,\d\d$/);
+  });
+});
+
+describe('execução do voo no relatório (REQ-PRC-014)', () => {
+  /** Uma passada completa por linha, com 20 amostras de mesma contagem. */
+  const withPasses = (counts: [number, number, number, number]): Partial<MissionData> => {
+    const base = syntheticMission(C00, createTerrain(C00));
+    return {
+      linePasses: base.plan.lines.map((l) => ({
+        lineIndex: l.index,
+        pass: 0,
+        sortie: 0,
+        counts,
+        complete: true,
+      })),
+    };
+  };
+
+  it('Resumo: letra, percentual, contagem por nota e a regra da nota', () => {
+    // (9 + 0,8·5) / 20 = 0,65.
+    const mission = queue(withPasses([9, 5, 0, 6]));
+    const report = evaluateForState(get(), mission, false);
+    render(<ReportSummary report={report} mission={mission} />);
+    const box = screen.getByTestId('report-execution');
+    expect(box).toHaveTextContent('Execução do voo');
+    expect(box).toHaveTextContent('C · 65 %');
+    expect(box).toHaveTextContent('54 perfeitas · 30 boas · 0 fracas · 36 rejeitadas');
+    expect(box).toHaveTextContent('A nota da missão é a nota técnica × (0,4 + 0,6 × execução).');
+    expect(screen.getByTestId('report-requirements')).toHaveTextContent('Execução do voo ≥ 40 %');
+    // O multiplicador entra na lista da aba Acurácia.
+    expect(report.multipliers.map(multiplierText)).toContain('Execução do voo (×1,13)');
+  });
+
+  it('missão sem dado de execução: o bloco não aparece', () => {
+    const mission = queue();
+    const report = evaluateForState(get(), mission, false);
+    render(<ReportSummary report={report} mission={mission} />);
+    expect(screen.queryByTestId('report-execution')).not.toBeInTheDocument();
+  });
+
+  it('execução abaixo do mínimo: REPROVADO, com o requisito em falha', () => {
+    // (0,4·15) / 20 = 0,30.
+    const mission = queue(withPasses([0, 0, 15, 5]));
+    const report = evaluateForState(get(), mission, false);
+    render(<ReportSummary report={report} mission={mission} />);
+    expect(screen.getByTestId('report-status')).toHaveTextContent('REPROVADO');
+    expect(screen.getByTestId('report-execution')).toHaveTextContent('D · 30 %');
+    expect(screen.getByTestId('report-execution')).toHaveTextContent(
+      '0 perfeitas · 0 boas · 90 fracas · 30 rejeitadas',
+    );
+    // Singular quando a contagem é 1.
+    expect(STRINGS.processing.execution.counts([1, 1, 1, 1])).toBe(
+      '1 perfeita · 1 boa · 1 fraca · 1 rejeitada',
+    );
+  });
+
+  it('ficha técnica: fotos válidas / rejeitadas / borradas / água / névoa', () => {
+    const base = syntheticMission(C00, createTerrain(C00));
+    const shots = base.shots.map((s, i) => (i < 10 ? { ...s, grade: 'REJECTED' as const } : s));
+    const row = technicalSheet({ ...base, shots }).find(([k]) => k.startsWith('Fotos'));
+    expect(row).toEqual([
+      'Fotos (válidas / rejeitadas / borradas / água / névoa)',
+      `${base.shots.length - 10} / 10 / 0 / 0 / 0`,
+    ]);
+  });
+
+  it('centros das fotos: rejeitada ou borrada em vermelho, fraca em âmbar', () => {
+    expect(centerColor({ blurred: false })).toBe(COLORS.text);
+    expect(centerColor({ blurred: false, grade: 'GOOD' })).toBe(COLORS.text);
+    expect(centerColor({ blurred: false, grade: 'WEAK' })).toBe(COLORS.warn);
+    expect(centerColor({ blurred: false, grade: 'REJECTED' })).toBe(COLORS.danger);
+    expect(centerColor({ blurred: true, grade: 'PERFECT' })).toBe(COLORS.danger);
+  });
 });
 
 describe('ProcessingResultsScreen', () => {
@@ -114,7 +197,7 @@ describe('ProcessingResultsScreen', () => {
     // Resumo, acurácia, cobertura e pagamento.
     expect(screen.getByTestId('report-status')).toHaveTextContent('APROVADO');
     expect(within(screen.getByTestId('report-requirements')).getAllByRole('listitem')).toHaveLength(
-      6,
+      7,
     );
     fireEvent.click(screen.getByRole('tab', { name: 'Acurácia' }));
     expect(screen.getByTestId('residuals')).toHaveTextContent('CP1');

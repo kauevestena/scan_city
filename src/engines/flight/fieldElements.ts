@@ -1,11 +1,10 @@
 /**
- * Elementos de fenda e aceleração de tempo (survey-flight §5.13, §5.14): holofotes,
- * anéis, picos elétricos e as regras de volta a ×1. Puro e determinístico.
+ * Elementos de fenda (survey-flight §5.13): holofotes, anéis e picos elétricos. Puro e
+ * determinístico. O cruzeiro automático (§5.14) fica em `cruise.ts`.
  */
 import { RULE_PARAMS } from '@/domain/specialRules';
 import type { Rng } from '@/lib/rng';
 import type { SpecialZone, WorldObject } from '@/types';
-import type { FlightPhase } from './hudPublisher';
 
 // --- Holofotes ----------------------------------------------------------------------
 
@@ -133,43 +132,4 @@ export class ElectricSchedule {
     const s = this.at(tS);
     return s ? s.side * SPIKE_FORCE_MS : 0;
   }
-}
-
-// --- Time warp (§5.14) -------------------------------------------------------------
-
-export type TimeWarp = 1 | 2 | 4;
-
-/** O ciclo do jogador: ×1 → ×2 → ×4 → ×1. */
-export const nextWarp = (w: TimeWarp): TimeWarp => (w === 1 ? 2 : w === 2 ? 4 : 1);
-
-export const WARP_OBJECT_AHEAD_M = 150;
-export const WARP_OBJECT_LATERAL_M = 15;
-export const WARP_SEARCHLIGHT_M = 100;
-
-export interface WarpContext {
-  phase: FlightPhase;
-  /** Há objeto sólido a menos de 150 m à frente com |X − Xobj| < 15 m? */
-  solidAhead: boolean;
-  /** Há alerta crítico ativo? */
-  criticalAlert: boolean;
-  /** Distância ao holofote mais próximo. */
-  searchlightM: number;
-}
-
-/** Volta a ×1 quando algo exige atenção. */
-export function shouldResetWarp(c: WarpContext): boolean {
-  return (
-    c.phase !== 'RUN' || c.solidAhead || c.criticalAlert || c.searchlightM < WARP_SEARCHLIGHT_M
-  );
-}
-
-/** Objeto sólido à frente: `0 < Z < 150 m` e `|X − Xobj| < 15 m` (frame do run). */
-export function solidAheadOf(
-  objects: ReadonlyArray<{ solid: boolean; X: number; Z: number }>,
-  x: number,
-): boolean {
-  return objects.some(
-    (o) =>
-      o.solid && o.Z > 0 && o.Z < WARP_OBJECT_AHEAD_M && Math.abs(o.X - x) < WARP_OBJECT_LATERAL_M,
-  );
 }

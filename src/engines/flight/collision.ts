@@ -194,6 +194,44 @@ export function hitsObject(
   }
 }
 
+/**
+ * Teste barato, só no plano: o corpo pode tocar o objeto? Descarta os objetos longe antes de
+ * `hitsObject`, que consulta a elevação do terreno (cara). Nunca descarta um que toque: o
+ * raio usado envolve a forma inteira em qualquer rotação.
+ */
+export function mayTouch(body: AircraftBody, o: WorldObject): boolean {
+  if (!o.solid) return false;
+  const r = body.radiusM;
+  switch (o.kind) {
+    case 'WIRE': {
+      const u2 = o.u2 ?? o.u;
+      const v2 = o.v2 ?? o.v;
+      const du = u2 - o.u;
+      const dv = v2 - o.v;
+      const len2 = du * du + dv * dv;
+      const k =
+        len2 === 0
+          ? 0
+          : Math.max(0, Math.min(1, ((body.u - o.u) * du + (body.v - o.v) * dv) / len2));
+      return Math.hypot(body.u - (o.u + du * k), body.v - (o.v + dv * k)) <= WIRE_RADIUS_M + r;
+    }
+    case 'MOVING_HAZARD': {
+      const amplitude = o.motion?.amplitudeM ?? 0;
+      return Math.hypot(body.u - o.u, body.v - o.v) <= amplitude + o.widthM / 2 + r;
+    }
+    case 'TREE':
+      return Math.hypot(body.u - o.u, body.v - o.v) <= Math.max(o.widthM / 2, TRUNK_RADIUS_M) + r;
+    case 'POLE':
+      return Math.hypot(body.u - o.u, body.v - o.v) <= POLE_RADIUS_M + r;
+    default:
+      // Caixas (e arcos, cilindros e feixes, que cabem nelas): a colisão exata expande o
+      // retângulo pelo raio em cada eixo, então o canto vai até hypot(w/2 + r, d/2 + r).
+      return (
+        Math.hypot(body.u - o.u, body.v - o.v) <= Math.hypot(o.widthM / 2 + r, o.depthM / 2 + r)
+      );
+  }
+}
+
 /** Primeiro objeto sólido tocado em `t`, ou `null`. */
 export function checkCollision(
   body: AircraftBody,
@@ -201,7 +239,7 @@ export function checkCollision(
   t: number,
   groundAt: GroundAt,
 ): WorldObject | null {
-  for (const o of objects) if (hitsObject(body, o, t, groundAt)) return o;
+  for (const o of objects) if (mayTouch(body, o) && hitsObject(body, o, t, groundAt)) return o;
   return null;
 }
 

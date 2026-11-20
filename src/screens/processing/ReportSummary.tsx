@@ -16,10 +16,13 @@ export function technicalSheet(mission: MissionData): Array<[string, string]> {
   const meanAgl =
     shots.length > 0 ? shots.reduce((s, x) => s + x.aglM, 0) / shots.length : plan.params.heightM;
   const gsd = (meanAgl * plan.stats.pixelPitchM) / plan.stats.focalM;
+  const rejected = shots.filter((s) => s.grade === 'REJECTED').length;
   const blurred = shots.filter((s) => s.blurred).length;
   const water = shots.filter((s) => s.overWater).length;
   const fog = shots.filter((s) => s.inFog).length;
-  const valid = shots.length - shots.filter((s) => s.blurred || s.overWater || s.inFog).length;
+  const valid =
+    shots.length -
+    shots.filter((s) => s.grade === 'REJECTED' || s.blurred || s.overWater || s.inFog).length;
   const p = medianForwardOverlapPct(shots);
   const q = estimatedSideOverlapPct(mission);
   const pulses = mission.lidar?.grid.pulses.reduce((a, b) => a + b, 0) ?? 0;
@@ -33,7 +36,7 @@ export function technicalSheet(mission: MissionData): Array<[string, string]> {
     [R.gsd, formatCm(gsd, 2)],
     [R.p, p === null ? '—' : `${formatNumber(p, 0)} %`],
     [R.q, q === null ? '—' : `${formatNumber(q, 0)} %`],
-    [R.photos, `${valid} / ${blurred} / ${water} / ${fog}`],
+    [R.photos, `${valid} / ${rejected} / ${blurred} / ${water} / ${fog}`],
   );
   if (pulses > 0) rows.push([R.pulses, formatNumber(Math.round(pulses), 0)]);
   rows.push(
@@ -79,6 +82,21 @@ export function ReportSummary({
             {P.score(Math.round(report.qualityScore * 100))}
           </span>
         </div>
+        {report.execution && (
+          <section data-testid="report-execution">
+            <h3 className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
+              {P.execution.title}
+            </h3>
+            <p className="font-mono text-lg text-slate-100 tabular-nums">
+              {P.execution.summary(
+                report.execution.letter,
+                Math.round(report.execution.score * 100),
+              )}
+            </p>
+            <p className="text-sm text-slate-300">{P.execution.counts(report.execution.counts)}</p>
+            <p className="text-xs text-slate-400">{P.execution.note}</p>
+          </section>
+        )}
         <section>
           <h3 className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
             {P.requirements}

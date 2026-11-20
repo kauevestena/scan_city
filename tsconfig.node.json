@@ -23,6 +23,7 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "playwright.firefox.config.ts",
+    "vitest.qa.config.ts",
     "tests/e2e"
   ]
 }

@@ -15,6 +15,7 @@ function setup(
   aircraft: 'DRONE_T1' | 'DRONE_T2',
   over: Partial<PlanParams> = {},
   terrainOver: (t: ReturnType<typeof createTerrain>) => ReturnType<typeof createTerrain> = (t) => t,
+  autopilot = true,
 ) {
   const sensor = aircraft === 'DRONE_T1' ? 'CAM_20MP_RS' : 'CAM_45MP_FF';
   const params: PlanParams = {
@@ -55,7 +56,8 @@ function setup(
     input: { axis: () => 0 },
     mods: neutralModifiers(),
     ownsRtkKit: false,
-    autopilot: true,
+    autopilot,
+    calm: !autopilot,
     quality: () => 'LOW',
     reduceFlashes: () => false,
     colors: { primary: '#fff', secondary: '#000' },
@@ -68,11 +70,11 @@ function setup(
 }
 
 describe('Terrain Following (§5.6)', () => {
-  it('numa rampa de 10 %, mantém o AGL a ≤ 15 % do alvo; sem TF, o AGL varia muito', () => {
+  it('numa rampa de 10 %, mantém o AGL a ≤ 15 % do alvo; sem TF, só quem segue o corredor o mantém', () => {
     const ramp = (t: ReturnType<typeof createTerrain>) =>
       ({ ...t, elevation: (u: number) => 0.1 * u, surface: (u: number) => 0.1 * u }) as typeof t;
-    const run = (terrainFollowing: boolean) => {
-      const { e, terrain } = setup('DRONE_T2', { terrainFollowing, heightM: 60 }, ramp);
+    const run = (terrainFollowing: boolean, autopilot = true) => {
+      const { e, terrain } = setup('DRONE_T2', { terrainFollowing, heightM: 60 }, ramp, autopilot);
       let worst = 0;
       for (let t = 0; t < 60; t += 1 / 60) {
         e.update(1 / 60);
@@ -84,7 +86,10 @@ describe('Terrain Following (§5.6)', () => {
       return worst;
     };
     expect(run(true)).toBeLessThanOrEqual(0.15);
-    expect(run(false)).toBeGreaterThan(0.15);
+    // Sem TF, o corredor sobe com o relevo: o piloto (aqui, o autopilot) segue na mão.
+    expect(run(false)).toBeLessThanOrEqual(0.15);
+    // Quem não mexe na altura fica com altitude constante e o AGL varia muito.
+    expect(run(false, false)).toBeGreaterThan(0.15);
   });
 });
 

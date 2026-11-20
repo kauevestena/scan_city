@@ -15,6 +15,8 @@ const SFX = [
   'COLLECT',
   'DENIED',
   'STAGE_DONE',
+  'GRADE',
+  'GRADE_MISS',
 ];
 const LOOPS = ['LIDAR_HUM', 'MOTOR', 'WIND', 'PROCESSING'];
 

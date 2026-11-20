@@ -5,7 +5,9 @@ import { syntheticMission } from '@/test/fixtures/syntheticMission';
 import type {
   Contract,
   ContractRequirement,
+  GradeCounts,
   LidarGrid,
+  LinePass,
   MissionData,
   PaymentBreakdown,
 } from '@/types';
@@ -23,6 +25,7 @@ import {
   type PaymentInput,
 } from './mission';
 import { neutralModifiers } from './modifiers';
+import { plannedSamples } from './corridor';
 
 /** Stub de pagamento: ecoa o qualityFactor recebido (o cálculo real vem em T019). */
 const paymentStub = (input: PaymentInput): PaymentBreakdown => ({
@@ -199,6 +202,128 @@ describe('cenário golden — missão sintética do C00', () => {
   });
 });
 
+describe('execução do voo na avaliação (REQ-PRC-014)', () => {
+  // Sem exigência de acurácia, a parcela `acc` da nota vale 1 e não depende do RMSE: a nota
+  // com execução fica exatamente a nota técnica vezes o fator.
+  const PLAIN: Contract = {
+    ...C00,
+    requirements: C00.requirements.filter((r) =>
+      ['MIN_COVERAGE_GREEN', 'MAX_GSD_CM', 'MIN_EXECUTION'].includes(r.check.type),
+    ),
+  };
+
+  /** Uma passada completa por linha, todas com a mesma contagem (20 amostras; o plano pede 15). */
+  const passes = (mission: MissionData, counts: GradeCounts, lines?: number[]): LinePass[] =>
+    mission.plan.lines
+      .filter((l) => !lines || lines.includes(l.index))
+      .map((l) => ({ lineIndex: l.index, pass: 0, sortie: 0, counts, complete: true }));
+
+  const run = (counts: GradeCounts | null, contract: Contract = PLAIN, lines?: number[]) => {
+    const ctx = context();
+    const base = syntheticMission(contract, ctx.terrain);
+    const mission = counts ? { ...base, linePasses: passes(base, counts, lines) } : base;
+    return evaluateMission(mission, contract, ctx);
+  };
+
+  it('o plano de referência do C00 tem 15 amostras planejadas por linha', () => {
+    const mission = syntheticMission(C00, context().terrain);
+    expect(mission.plan.lines.map((l) => plannedSamples(l, mission.plan.stats.baseM))).toEqual([
+      15, 15, 15, 15, 15, 15,
+    ]);
+  });
+
+  it('sem dado de execução: nota e Q de antes, nenhum multiplicador e nada de execução no relatório', () => {
+    const report = run(null);
+    expect(report.execution).toBeUndefined();
+    expect(report.multipliers.map((m) => m.key)).not.toContain('execution');
+    expect(report.payment.qualityFactor).toBeCloseTo(0.6 + 0.4 * report.qualityScore, 12);
+    // O requisito existe e passa: sem dado, a execução vale 1.
+    const exec = report.requirements.find((r) => r.id === 'C00-exec');
+    expect(exec).toMatchObject({ pass: true, severity: 'CRITICAL' });
+    expect(exec?.valueText).toContain('100');
+  });
+
+  it('execução 0,65: multiplicador ×1,125 no RMSE, nota × 0,79 e nenhum bônus', () => {
+    const base = run(null);
+    // (9 + 0,8·5) / 20 = 0,65.
+    const report = run([9, 5, 0, 6]);
+    expect(report.approved).toBe(true);
+    const m = report.multipliers.find((x) => x.key === 'execution');
+    expect(m?.xy).toBeCloseTo(1.125, 12);
+    expect(m?.z).toBeCloseTo(1.125, 12);
+    expect(report.qualityScore).toBeCloseTo(base.qualityScore * 0.79, 12);
+    expect(report.payment.qualityFactor).toBeCloseTo(0.6 + 0.4 * report.qualityScore, 12);
+    expect(report.execution).toEqual({
+      score: expect.closeTo(0.65, 12),
+      letter: 'C',
+      counts: [54, 30, 0, 36],
+      pilotBonus: 0,
+    });
+    // O RMSE do relatório cresce com o multiplicador.
+    expect(report.rmse.cp?.r ?? 0).toBeGreaterThan(base.rmse.cp?.r ?? Infinity);
+    // XP proporcional à nota: menor que o da missão sem dado de execução.
+    expect(report.requirements.find((r) => r.id === 'C00-exec')?.pass).toBe(true);
+  });
+
+  it('bônus de pilotagem: +0,10 em Q com execução ≥ 0,90 e +0,05 com ≥ 0,80', () => {
+    // (16 + 0,8·3) / 20 = 0,92.
+    const great = run([16, 3, 0, 1]);
+    expect(great.execution?.score).toBeCloseTo(0.92, 12);
+    expect(great.execution?.letter).toBe('A');
+    expect(great.execution?.pilotBonus).toBe(0.1);
+    expect(great.payment.qualityFactor).toBeCloseTo(0.6 + 0.4 * great.qualityScore + 0.1, 12);
+    // (12 + 0,8·6) / 20 = 0,84.
+    const good = run([12, 6, 0, 2]);
+    expect(good.execution?.pilotBonus).toBe(0.05);
+    expect(good.payment.qualityFactor).toBeCloseTo(0.6 + 0.4 * good.qualityScore + 0.05, 12);
+    // Perfeito: letra S e nota igual à técnica.
+    const perfect = run([20, 0, 0, 0]);
+    expect(perfect.execution).toMatchObject({ score: 1, letter: 'S', pilotBonus: 0.1 });
+    expect(perfect.qualityScore).toBeCloseTo(run(null).qualityScore, 12);
+    expect(perfect.multipliers.map((m) => m.key)).not.toContain('execution');
+  });
+
+  it('execução abaixo do valor do contrato: o requisito crítico falha e a missão é reprovada', () => {
+    // (0,4·19) / 20 = 0,38, abaixo dos 0,4 do tutorial.
+    const report = run([0, 0, 19, 1]);
+    const exec = report.requirements.find((r) => r.id === 'C00-exec');
+    expect(exec).toMatchObject({ pass: false, severity: 'CRITICAL' });
+    expect(exec?.valueText).toContain('38');
+    expect(report.critical).toBe(true);
+    expect(report.approved).toBe(false);
+    expect(report.qualityScore).toBe(0);
+    expect(report.payment.qualityFactor).toBe(0.1);
+    expect(report.execution).toMatchObject({ letter: 'D', pilotBonus: 0 });
+    expect(report.souvenirAwarded).toBeUndefined();
+    // No limite (0,4 exato) passa.
+    expect(run([0, 0, 20, 0]).requirements.find((r) => r.id === 'C00-exec')?.pass).toBe(true);
+  });
+
+  it('linha planejada sem passada vale zero: metade das linhas perfeitas dá execução 0,5', () => {
+    const report = run([20, 0, 0, 0], PLAIN, [0, 1, 2]);
+    expect(report.execution?.score).toBeCloseTo(0.5, 12);
+    expect(report.execution?.counts).toEqual([60, 0, 0, 0]);
+    expect(report.approved).toBe(true);
+    // Com a exigência de 0,5 dos outros contratos, 0,5 ainda passa; 0,49 não.
+    const strict: Contract = {
+      ...PLAIN,
+      requirements: PLAIN.requirements.map((r) =>
+        r.check.type === 'MIN_EXECUTION'
+          ? { ...r, check: { type: 'MIN_EXECUTION', value: 0.51 } }
+          : r,
+      ),
+    };
+    expect(run([20, 0, 0, 0], strict, [0, 1, 2]).approved).toBe(false);
+  });
+
+  it('com a exigência de acurácia do C00, a execução fraca piora o RMSE e nunca melhora a nota', () => {
+    const base = run(null, C00);
+    const weak = run([9, 5, 0, 6], C00);
+    expect(weak.rmse.cp?.r ?? 0).toBeGreaterThan(base.rmse.cp?.r ?? Infinity);
+    expect(weak.qualityScore).toBeLessThanOrEqual(base.qualityScore * 0.79 + 1e-12);
+  });
+});
+
 describe('cada check.type é avaliado', () => {
   const req = (
     id: string,
@@ -237,6 +362,7 @@ describe('cada check.type é avaliado', () => {
       req('blur', 'MINOR', { type: 'MAX_BLUR_FRACTION', value: 0.05 }),
       req('stealth', 'MINOR', { type: 'NOT_DETECTED' }),
       req('feat', 'MINOR', { type: 'FEATURE_CAPTURED', featureId: 'WELL' }),
+      req('exec', 'MINOR', { type: 'MIN_EXECUTION', value: 0.5 }),
     ],
   };
 
@@ -254,7 +380,7 @@ describe('cada check.type é avaliado', () => {
     };
   }
 
-  it('todos os 18 tipos aparecem com o resultado esperado', () => {
+  it('todos os 19 tipos aparecem com o resultado esperado', () => {
     const ctx = context();
     const mission = syntheticMission(ALL, ctx.terrain, {
       lidar: { grid: lidarGrid(10), samples: [] },
@@ -268,7 +394,8 @@ describe('cada check.type é avaliado', () => {
     });
     const report = evaluateMission(mission, ALL, ctx);
     const byId = Object.fromEntries(report.requirements.map((r) => [r.id, r]));
-    expect(report.requirements).toHaveLength(18);
+    expect(report.requirements).toHaveLength(19);
+    expect(byId.exec).toMatchObject({ pass: true });
     expect(byId.gsd?.pass).toBe(true);
     expect(byId.p?.pass).toBe(true);
     expect(byId.q?.pass).toBe(true);
@@ -369,5 +496,9 @@ describe('score e fator de qualidade', () => {
       qualityFactor(0.8, false, [r('MAJOR', false), r('MINOR', false), r('MAJOR', true)], false),
     ).toBeCloseTo(0.92 * 0.85 * 0.95, 12);
     expect(qualityFactor(1, false, [], true)).toBeCloseTo(1.1, 12);
+    // Bônus de pilotagem: soma no fim, como o da classe; não vale em reprovação crítica.
+    expect(qualityFactor(0.8, false, [], false, 0.1)).toBeCloseTo(1.02, 12);
+    expect(qualityFactor(1, false, [], true, 0.05)).toBeCloseTo(1.15, 12);
+    expect(qualityFactor(0.8, true, [], true, 0.1)).toBe(0.1);
   });
 });

@@ -193,7 +193,7 @@ describe('R01 — Colinas Verdes dos Espinhos', () => {
     expect(R01.lightingOptions).toEqual(['SUN_HIGH']);
     expect(R01.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 90 });
     expect(R01.specialRules).toEqual(['EM_INTERFERENCE', 'COLLECTIBLE_RINGS']);
-    expect(R01.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R01.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'MAX_GSD_CM', value: 3 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.8 }],
       ['MAJOR', { type: 'MIN_GCP', value: 4 }],
@@ -272,7 +272,7 @@ describe('R01 — Colinas Verdes dos Espinhos', () => {
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
     expect(report.requirements.every((r) => r.pass)).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R01-gsd',
       'R01-cov',
       'R01-gcp',
@@ -336,7 +336,7 @@ describe('R02 — Reino dos Encanamentos', () => {
     expect(R02.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST']);
     expect(R02.wind).toEqual({ meanMs: 2, gustMs: 1, directionDeg: 0 });
     expect(R02.specialRules).toEqual(['EM_INTERFERENCE', 'MOVING_HAZARDS']);
-    expect(R02.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R02.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000, contourIntervalM: 1 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.8 }],
       ['MAJOR', { type: 'MAX_GSD_CM', value: 3 }],
@@ -410,7 +410,7 @@ describe('R02 — Reino dos Encanamentos', () => {
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
     expect(report.requirements.every((r) => r.pass)).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R02-pec',
       'R02-cov',
       'R02-gsd',
@@ -488,7 +488,7 @@ describe('R08 — Bairro dos Santos', () => {
     expect(R08.lightingOptions).toEqual(['SUN_HIGH', 'GOLDEN_HOUR', 'OVERCAST']);
     expect(R08.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 0 });
     expect(R08.specialRules).toEqual(['EM_INTERFERENCE', 'LOW_WIRES']);
-    expect(R08.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R08.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'ACCURACY_PEC', cls: 'A', scaleDenominator: 1000 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
       ['MAJOR', { type: 'MAX_GSD_CM', value: 2 }],
@@ -563,7 +563,7 @@ describe('R08 — Bairro dos Santos', () => {
     const report = evaluateMission(mission, R08, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R08-pec',
       'R08-cov',
       'R08-gsd',
@@ -671,7 +671,7 @@ describe('R11 — Tumbas dos Desfiladeiros', () => {
       'FEATURE_TARGETS',
       'PAINT_MARKERS',
     ]);
-    expect(R11.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R11.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'FLIGHT_MODE', value: 'OBLIQUE' }],
       ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE_FACADE' }],
       ['MAJOR', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
@@ -776,7 +776,7 @@ describe('R11 — Tumbas dos Desfiladeiros', () => {
     const report = evaluateMission(mission, R11, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R11-mode',
       'R11-facade',
       'R11-cov',
@@ -834,7 +834,7 @@ describe('R06 — Pântano Cinzento', () => {
     expect(R06.lightingOptions).toEqual(['OVERCAST', 'GOLDEN_HOUR']);
     expect(R06.wind).toEqual({ meanMs: 3, gustMs: 2, directionDeg: 0 });
     expect(R06.specialRules).toEqual(['EM_INTERFERENCE', 'FEATURE_TARGETS']);
-    expect(R06.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R06.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'THERMAL' }],
       ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'DEN_A' }],
       ['MAJOR', { type: 'FEATURE_CAPTURED', featureId: 'DEN_B' }],
@@ -934,7 +934,7 @@ describe('R06 — Pântano Cinzento', () => {
     const report = evaluateMission(mission, R06, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R06-sensor',
       'R06-den-a',
       'R06-den-b',
@@ -1026,7 +1026,7 @@ describe('R07 — Base Polar das Sombras', () => {
       'SEARCHLIGHTS',
       'FEATURE_TARGETS',
     ]);
-    expect(R07.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R07.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'NOT_DETECTED' }],
       ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'WALKER' }],
       ['MAJOR', { type: 'MIN_COVERAGE_GREEN', value: 0.7 }],
@@ -1113,7 +1113,7 @@ describe('R07 — Base Polar das Sombras', () => {
     const report = evaluateMission(mission, R07, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R07-stealth',
       'R07-walker',
       'R07-cov',
@@ -1169,7 +1169,7 @@ describe('R09 — Savana das Gramas Altas', () => {
       'ELECTRIC_CREATURES',
       'HOMOGENEOUS_TEXTURE',
     ]);
-    expect(R09.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R09.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'MULTISPECTRAL' }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.75 }],
       ['MAJOR', { type: 'MAX_GSD_CM', value: 12 }],
@@ -1236,6 +1236,8 @@ describe('R09 — Savana das Gramas Altas', () => {
       ['R09-cov', true],
       ['R09-gsd', true],
       ['R09-fwd', true],
+      // A execução do voo só se mede com dados: na previsão é informativa.
+      ['R09-exec', true],
     ]);
   });
 
@@ -1273,7 +1275,7 @@ describe('R09 — Savana das Gramas Altas', () => {
     const report = evaluateMission(mission, R09, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R09-sensor',
       'R09-cov',
       'R09-gsd',
@@ -1295,18 +1297,19 @@ describe('R09 — Savana das Gramas Altas', () => {
     expect(report.multipliers.find((m) => m.key === 'texture')?.xy).toBeCloseTo(1.24, 6);
   });
 
-  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o AGL só cai nos morros e a mediana de p fica um décimo abaixo de 80 %', () => {
+  it('no voo de verdade o T2 não passa de 120 m (o H do plano): o corredor segue os morros e a mediana de p fica em 80 %', () => {
     expect(getAircraft('DRONE_T2').hMaxM).toBe(R09.referencePlan.heightM);
     const { shots } = fly(R09);
     expect(shots).toHaveLength(333);
     // O teto de AGL do T2 corta os vales: nenhuma foto sai com AGL acima do H do plano (±10 cm de passo).
     expect(Math.max(...shots.map((s) => s.aglM))).toBeLessThanOrEqual(120.1);
-    expect(Math.min(...shots.map((s) => s.aglM))).toBeLessThan(112);
-    // A mediana medida na pegada real fica logo abaixo do 80 % nominal (o relatório marca
-    // "Sobreposição longitudinal" como não atendida, IMPORTANTE, e a missão segue aprovada).
+    // O corredor acompanha o relevo (ADR-029): o AGL não cai mais nos morros.
+    expect(Math.min(...shots.map((s) => s.aglM))).toBeGreaterThan(118);
+    // A mediana medida na pegada real fica no 80 % nominal, sem folga: um voo que deixe a
+    // velocidade no solo subir já marca "Sobreposição longitudinal" como não atendida (MAJOR).
     const p = medianForwardOverlapPct(shots) as number;
     expect(p).toBeGreaterThan(79.5);
-    expect(p).toBeLessThan(80);
+    expect(p).toBeLessThan(80.5);
     // Com 2 pontos percentuais de folga no p, o voo de verdade passa com sobra.
     const roomy = { ...R09, referencePlan: { ...R09.referencePlan, forwardOverlapPct: 82 } };
     const better = medianForwardOverlapPct(fly(roomy).shots) as number;
@@ -1426,7 +1429,7 @@ describe('R03 — Planalto dos Guerreiros', () => {
     expect(R03.lightingOptions).toEqual(['SUN_HIGH', 'GOLDEN_HOUR']);
     expect(R03.wind).toEqual({ meanMs: 4, gustMs: 6, directionDeg: 90 });
     expect(R03.specialRules).toEqual(['EM_INTERFERENCE', 'ENERGY_BEAMS', 'STEEP_RELIEF']);
-    expect(R03.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R03.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'MAX_VOLUME_ERROR_PCT', value: 3 }],
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
       ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 8, verticalCm: 10 }],
@@ -1540,13 +1543,15 @@ describe('R03 — Planalto dos Guerreiros', () => {
     expect(result.outcome).toBe('COMPLETED');
     expect(result.collisions).toBe(0);
     expect(result.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(result.photos).toBe(160);
+    // 160 no plano; as rajadas mudam a velocidade no solo e o disparo é por tempo.
+    expect(Math.abs(result.photos - 160)).toBeLessThanOrEqual(6);
     expect(result.detected).toBe(false);
     // 442 s de voo dos 2.100 s do T2.
     expect(used).toBeLessThan(0.4);
-    // O TF segura o AGL perto dos 90 m do plano nos 74 m de relevo (o declive de 60° só atrasa um pouco).
+    // O AGL fica perto dos 90 m do plano nos 74 m de relevo. O corredor sobe antes dos
+    // paredões (a rampa limitada da subida) e desce devagar depois: aí o AGL passa de 90 m.
     expect(minAgl).toBeGreaterThan(70);
-    expect(maxAgl).toBeLessThan(115);
+    expect(maxAgl).toBeLessThan(125);
     // As colunas têm 80 m e o T2 passa 12 m acima do topo; quem voa mais baixo é que precisa cronometrar.
     expect(minOverBeam).toBeGreaterThan(8);
   });
@@ -1558,7 +1563,7 @@ describe('R03 — Planalto dos Guerreiros', () => {
     const report = evaluateMission(mission, R03, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R03-vol',
       'R03-cov',
       'R03-asprs',
@@ -1688,7 +1693,7 @@ describe('R05 — Mina dos Blocos Cúbicos', () => {
     expect(R05.lightingOptions).toEqual(['SUN_HIGH', 'OVERCAST']);
     expect(R05.wind).toEqual({ meanMs: 2, gustMs: 2, directionDeg: 0 });
     expect(R05.specialRules).toEqual(['EM_INTERFERENCE', 'LAVA_THERMALS', 'STEEP_RELIEF']);
-    expect(R05.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R05.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'MIN_COVERAGE_GREEN', value: 0.85 }],
       ['MAJOR', { type: 'MIN_FORWARD_OVERLAP', value: 80 }],
       ['MAJOR', { type: 'ACCURACY_ASPRS', horizontalCm: 6, verticalCm: 8 }],
@@ -1838,7 +1843,7 @@ describe('R05 — Mina dos Blocos Cúbicos', () => {
     const report = evaluateMission(mission, R05, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R05-cov',
       'R05-fwd',
       'R05-asprs',
@@ -1917,7 +1922,7 @@ describe('R04 — Bosque das Fadas Perdidas', () => {
       'DENSE_CANOPY',
       'FEATURE_TARGETS',
     ]);
-    expect(R04.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R04.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
       ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'TEMPLE' }],
       ['MAJOR', { type: 'MIN_GROUND_DENSITY', value: 10 }],
@@ -2035,7 +2040,7 @@ describe('R04 — Bosque das Fadas Perdidas', () => {
     const report = evaluateMission(mission, R04, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual([
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
       'R04-sensor',
       'R04-temple',
       'R04-ground',
@@ -2138,7 +2143,7 @@ describe('R10 — Trincheira da Estrela de Ferro', () => {
     expect(R10.lightingOptions).toEqual(['SUN_HIGH']);
     expect(R10.wind).toEqual({ meanMs: 0, gustMs: 0, directionDeg: 0 });
     expect(R10.specialRules).toEqual(['EM_INTERFERENCE', 'NARROW_TRENCH', 'FEATURE_TARGETS']);
-    expect(R10.requirements.map((r) => [r.severity, r.check])).toEqual([
+    expect(R10.requirements.slice(0, -1).map((r) => [r.severity, r.check])).toEqual([
       ['CRITICAL', { type: 'SENSOR_KIND', value: 'LIDAR' }],
       ['CRITICAL', { type: 'MIN_LIDAR_DENSITY', value: 100 }],
       ['CRITICAL', { type: 'FEATURE_CAPTURED', featureId: 'EXHAUST_PORT' }],
@@ -2264,7 +2269,11 @@ describe('R10 — Trincheira da Estrela de Ferro', () => {
     const report = evaluateMission(mission, R10, context());
     expect(report.critical).toBe(false);
     expect(report.approved).toBe(true);
-    expect(report.requirements.map((r) => r.id)).toEqual(['R10-sensor', 'R10-density', 'R10-port']);
+    expect(report.requirements.slice(0, -1).map((r) => r.id)).toEqual([
+      'R10-sensor',
+      'R10-density',
+      'R10-port',
+    ]);
     expect(report.requirements.every((r) => r.pass)).toBe(true);
     expect(report.requirements.find((r) => r.id === 'R10-density')?.valueText).toMatch(
       /^714,\d pts\/m²$/,

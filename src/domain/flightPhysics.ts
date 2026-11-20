@@ -15,16 +15,20 @@ export const MIN_AGL_M = 2;
 export const FIXED_WING_MAX_HEADING_RAD = 30 * DEG;
 /** Ganho (1/s) com que a altitude persegue o alvo do Terrain Following. */
 const TF_GAIN = 2;
+/** A aeronave nunca anda para trás na linha, por mais forte que seja o vento de proa. */
+export const MIN_GROUND_SPEED_MS = 0.5;
 
 export interface AircraftState {
   s: number;
   x: number;
   alt: number;
-  /** Velocidade ao longo da linha. */
+  /** Velocidade no solo comandada ao longo da linha (sem a rajada). */
   v: number;
-  /** Velocidade lateral comandada (sem a deriva). */
+  /** Velocidade no solo de fato neste passo (`v` mais a parte de proa ou de cauda da rajada). */
+  gs: number;
+  /** Velocidade lateral comandada (sem a rajada). */
   vLat: number;
-  /** Deriva lateral pelo vento neste passo. */
+  /** Empurrão lateral da rajada neste passo. */
   drift: number;
   vz: number;
   /** AGL-alvo do Terrain Following. */
@@ -45,9 +49,14 @@ export interface FlightEnv {
   ceilingM: number;
   /** Elevação do terreno sob a aeronave. */
   elevationM: number;
-  /** Componente do vento transversal à linha (m/s). */
-  crossWindMs: number;
-  windDriftMod: number;
+  /**
+   * Empurrões do vento na aeronave (m/s), já com o `driftFactor`, o modificador de deriva e o
+   * fator de `STRONG_WIND`: o vento médio ao longo da linha (positivo de cauda) e as duas
+   * componentes da rajada em curso (domain-math §5.1).
+   */
+  meanAlongMs: number;
+  gustAlongMs: number;
+  gustLateralMs: number;
   thermalLiftMs: number;
   terrainFollowing: boolean;
   /** Elevação a `d` metros à frente, ao longo da linha (usada pelo TF). */
@@ -60,6 +69,7 @@ export function initialAircraftState(speedMs: number, altM: number): AircraftSta
     x: 0,
     alt: altM,
     v: speedMs,
+    gs: speedMs,
     vLat: 0,
     drift: 0,
     vz: 0,
@@ -81,12 +91,21 @@ export function windAt(tS: number, wind: Contract['wind'], noise: (x: number) =>
   return wind.meanMs + wind.gustMs * (0.6 * Math.sin((2 * Math.PI * tS) / 7) + 0.4 * noise(tS / 3));
 }
 
-export function driftVelocityMs(
-  crossWindMs: number,
-  driftFactor: number,
-  windDriftMod: number,
-): number {
-  return crossWindMs * driftFactor * windDriftMod;
+/** Empurrão do vento na aeronave, em qualquer eixo: `w · driftFactor · modificador`. */
+export function driftVelocityMs(windMs: number, driftFactor: number, windDriftMod: number): number {
+  return windMs * driftFactor * windDriftMod;
+}
+
+/**
+ * Limites da velocidade no solo comandada: os da velocidade no ar deslocados pelo vento
+ * médio ao longo da linha. Com vento de proa forte, o teto cai abaixo da velocidade do plano.
+ */
+export function groundSpeedLimits(
+  aircraft: Pick<Aircraft, 'vMinMs' | 'vMaxMs'>,
+  meanAlongMs: number,
+): { lo: number; hi: number } {
+  const lo = Math.max(MIN_GROUND_SPEED_MS, aircraft.vMinMs + meanAlongMs);
+  return { lo, hi: Math.max(lo, aircraft.vMaxMs + meanAlongMs) };
 }
 
 /** Sustentação das térmicas: Σ lift·(1 − d/r)·mod, metade sem sol a pino. */
@@ -133,12 +152,16 @@ export function stepAircraft(
 ): AircraftState {
   const a = env.aircraft;
 
-  // Velocidade: −1 → vMin, 0 → velocidade do plano, +1 → vMax.
+  // Velocidade no solo comandada: −1 → mínima, 0 → a do plano, +1 → máxima. A aeronave
+  // compensa o vento médio enquanto a velocidade no ar couber em [vMin, vMax].
   const moveY = clamp(input.moveY, -1, 1);
-  const cruise = clamp(env.planSpeedMs, a.vMinMs, a.vMaxMs);
-  const target = moveY >= 0 ? lerp(cruise, a.vMaxMs, moveY) : lerp(cruise, a.vMinMs, -moveY);
+  const { lo, hi } = groundSpeedLimits(a, env.meanAlongMs);
+  const cruise = clamp(env.planSpeedMs, lo, hi);
+  const target = moveY >= 0 ? lerp(cruise, hi, moveY) : lerp(cruise, lo, -moveY);
   const maxDv = a.accelMs2 * dtS;
-  const v = clamp(state.v + clamp(target - state.v, -maxDv, maxDv), a.vMinMs, a.vMaxMs);
+  const v = clamp(state.v + clamp(target - state.v, -maxDv, maxDv), lo, hi);
+  // A parte de proa ou de cauda da rajada entra direto na velocidade no solo.
+  const gs = Math.max(MIN_GROUND_SPEED_MS, v + env.gustAlongMs);
 
   // Lateral: multirrotor e ave respondem direto; a asa fixa curva com aLat ≤ v²/R.
   const moveX = clamp(input.moveX, -1, 1);
@@ -150,7 +173,8 @@ export function stepAircraft(
   } else {
     vLat = moveX * a.lateralSpeedMaxMs;
   }
-  const drift = driftVelocityMs(env.crossWindMs, a.driftFactor, env.windDriftMod);
+  // O vento médio transversal é compensado (o crab); só a rajada empurra de lado.
+  const drift = env.gustLateralMs;
 
   // Vertical.
   const ceilingAgl = Math.min(a.hMaxM, env.ceilingM);
@@ -159,7 +183,7 @@ export function stepAircraft(
   let vz: number;
   if (env.terrainFollowing && env.elevationAhead) {
     aglTargetM = clamp(aglTargetM + lift * a.climbRateMs * dtS, a.hMinM, ceilingAgl);
-    const targetAlt = terrainFollowTargetAlt(env.elevationAhead, v, aglTargetM);
+    const targetAlt = terrainFollowTargetAlt(env.elevationAhead, gs, aglTargetM);
     vz =
       clamp((targetAlt - state.alt) * TF_GAIN, -a.climbRateMs, a.climbRateMs) + env.thermalLiftMs;
   } else {
@@ -173,10 +197,11 @@ export function stepAircraft(
   alt = Math.min(alt, env.elevationM + ceilingAgl);
 
   return {
-    s: state.s + v * dtS,
+    s: state.s + gs * dtS,
     x: state.x + (vLat + drift) * dtS,
     alt,
     v,
+    gs,
     vLat,
     drift,
     vz,

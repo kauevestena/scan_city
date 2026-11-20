@@ -85,7 +85,8 @@ function debugPlan(): FlightPlan {
       photosPerLine: 16,
       totalPhotos: 96,
       lineLengthM: lengthM + 2 * leadM,
-      turnTimeS: 0,
+      // Pivô do Atlas: S/v + 3 s (photogrammetry, turnTimeS); o voo de 231,45 s já a conta.
+      turnTimeS: 6.291,
       flightTimeS: 231.45,
       batteriesNeeded: 1,
       blurPx: 0,

@@ -60,6 +60,7 @@ function setup(
     mods: neutralModifiers(),
     ownsRtkKit: false,
     autopilot: false,
+    calm: true,
     quality: () => 'LOW',
     reduceFlashes: () => opts.reduce ?? false,
     colors: { primary: '#fff', secondary: '#000' },
@@ -71,7 +72,7 @@ function setup(
 const run = (e: FlightEngine, s: number) => {
   for (let t = 0; t < s; t += 1 / 60) e.update(1 / 60);
 };
-const ids = (e: FlightEngine) => e.alerts().map((a) => a.id);
+const ids = (e: FlightEngine) => e.alertList().map((a) => a.id);
 
 describe('fila de alertas (§5.17)', () => {
   it('no máximo 2, ordenados por prioridade', () => {

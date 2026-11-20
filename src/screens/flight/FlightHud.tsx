@@ -6,17 +6,32 @@ import { formatDuration, formatNumber, formatPct } from '@/lib/format';
 import type { AoiPoint } from '@/types';
 import { useGameStore } from '@/state/store';
 import { cx, ProgressBar } from '@/ui';
+import { ExecutionStrip, GradeMark, LineReportCard, Windsock } from './ExecutionHud';
 
 const T = STRINGS.flight;
 
-function Readout({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'bad' }) {
+function Readout({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'ok' | 'bad' | 'warn';
+}) {
   return (
     <span className="flex items-baseline gap-1.5">
       <span className="text-[10px] tracking-widest text-slate-400">{label}</span>
       <span
         className={cx(
           'font-mono text-sm tabular-nums',
-          tone === 'ok' ? 'text-emerald-300' : tone === 'bad' ? 'text-rose-400' : 'text-slate-100',
+          tone === 'ok'
+            ? 'text-emerald-300'
+            : tone === 'bad'
+              ? 'text-rose-400'
+              : tone === 'warn'
+                ? 'text-amber-300'
+                : 'text-slate-100',
         )}
       >
         {value}
@@ -78,12 +93,22 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
       ? `🌽 × ${snap.cornLeft ?? 0} · ${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`
       : `${formatPct(snap.energy, 0)} ${formatDuration(snap.timeLeftS)}`;
   const deviation = Math.max(-1, Math.min(1, snap.crossTrackM / 20));
+  // Velocidade no solo: âmbar acima de 1,05× a do plano e vermelha acima de 1,15× (o avanço).
+  const ratio = snap.groundSpeedMs / Math.max(0.1, snap.planSpeedMs);
+  const groundSpeedTone: 'bad' | 'warn' | undefined =
+    ratio > 1.15 ? 'bad' : ratio > 1.05 ? 'warn' : undefined;
   return (
     <div
       className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3"
       data-testid="flight-hud"
       data-glitch={glitch}
       data-rift={rift}
+      // O que o jogador lê no HUD, em números: o E2E pilota pelo teclado com eles.
+      data-phase={snap.phase}
+      data-cross-track={snap.crossTrackM.toFixed(2)}
+      data-corridor-delta={snap.corridorDeltaM.toFixed(2)}
+      data-corridor-tol={snap.corridorTolM.toFixed(2)}
+      data-speed-ratio={ratio.toFixed(3)}
     >
       {rift && (
         // Moldura de fenda: um filete violeta em volta de todo o HUD (contracts-rifts §1).
@@ -111,9 +136,14 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
           <span>{snap.sensorName}</span>
           <span className="text-slate-400">·</span>
           <span data-testid="hud-rtk">{T.rtk(snap.rtk)}</span>
-          {snap.timeScale > 1 && (
+          {snap.cruise.on && snap.cruise.factor > 1.05 && (
             <span className="font-mono font-bold text-amber-400" data-testid="hud-warp">
-              {T.warp(snap.timeScale)}
+              {T.cruise(formatNumber(snap.cruise.factor, 1))}
+            </span>
+          )}
+          {!snap.cruise.on && (
+            <span className="font-mono text-xs text-slate-400" data-testid="hud-warp">
+              {T.cruiseOff}
             </span>
           )}
           {snap.rings !== undefined && (
@@ -140,6 +170,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
           </div>
         )}
         <div className="flex items-center justify-center gap-3">
+          <ExecutionStrip snap={snap} />
           <span className="text-[10px] tracking-widest text-slate-400">{T.deviation}</span>
           <div className="relative h-2 w-48 rounded-full bg-slate-800">
             <span
@@ -178,7 +209,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
                     : 'border-cyan-400 bg-slate-950/80 text-cyan-200',
               )}
             >
-              {T.alerts[a.id](a.value)}
+              {T.alerts[a.id](a.value, a.side)}
             </span>
           ))}
           {snap.rthConfirm && (
@@ -191,6 +222,8 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
               <InputGlyph action="PAUSE" label={T.rthCancelKeys} />
             </span>
           )}
+          <GradeMark snap={snap} calm={reduceFlashes} />
+          <LineReportCard snap={snap} />
           {phaseLabel && (
             <span
               className="font-mono text-xs tracking-widest text-cyan-300"
@@ -208,11 +241,31 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
             <div className="flex gap-4">
               <Readout label={T.alt} value={`${formatNumber(snap.altM, 0)} m`} />
               <Readout label={T.agl} value={`${formatNumber(snap.aglM, 0)} m`} />
+              {Math.abs(snap.corridorDeltaM) > snap.corridorTolM && (
+                <span
+                  className="font-mono text-sm font-bold text-amber-300"
+                  data-testid="hud-climb"
+                >
+                  {snap.corridorDeltaM > 0
+                    ? T.climb(Math.round(snap.corridorDeltaM))
+                    : T.descend(Math.round(-snap.corridorDeltaM))}
+                </span>
+              )}
             </div>
-            <Readout label={T.speed} value={`${formatNumber(snap.speedMs, 1)} m/s`} />
-            <div className="flex gap-4">
+            <span className="flex items-baseline gap-2" data-testid="hud-ground-speed">
+              <Readout
+                label={T.groundSpeed}
+                value={`${formatNumber(snap.groundSpeedMs, 1)} m/s`}
+                {...(groundSpeedTone ? { tone: groundSpeedTone } : {})}
+              />
+              <span className="text-[10px] text-slate-400">
+                {T.target(formatNumber(snap.planSpeedMs, 0))}
+              </span>
+            </span>
+            <div className="flex items-center gap-4">
               <Readout label={T.wind} value={`${formatNumber(snap.windCrossMs, 1)} m/s`} />
               <Readout label={T.crab} value={`${formatNumber(snap.crabDeg, 0)}°`} />
+              <Windsock snap={snap} calm={reduceFlashes} />
             </div>
           </div>
           <div className="flex flex-col gap-1 rounded-lg bg-slate-950/70 px-3 py-2">

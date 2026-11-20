@@ -38,7 +38,7 @@
 Cada bloco abaixo se converte 1:1 num objeto `Contract` ([data-model §4](../design/data-model.md)).
 
 - **Requisitos:** `Severidade · tipo(valor)`.
-- **Requisito comum a todo contrato** (reais e fendas; não é repetido nas fichas): `CRITICAL · MIN_EXECUTION(0,5)`, com id `<id>-exec` e rótulo "Execução do voo ≥ 50 %", sempre o último da lista ([domain-math §10.3](../design/domain-math.md), [ADR-029](../decisions.md)). No tutorial (C00) o valor é **0,4** ("Execução do voo ≥ 40 %").
+- **Requisito comum a todo contrato** (reais e fendas; não é repetido nas fichas): `CRITICAL · MIN_EXECUTION(0,6)`, com id `<id>-exec` e rótulo "Execução do voo ≥ 60 %", sempre o último da lista ([domain-math §10.3](../design/domain-math.md), [ADR-029](../decisions.md)). No tutorial (C00) o valor é **0,4** ("Execução do voo ≥ 40 %").
 - **Plano de referência:** é **usado em teste** (viabilidade). O teste:
   1. gera o plano com `domain/flightPlanner`;
   2. confere `expected` (tolerância de 1 % no GSD, igualdade no nº de linhas, 2 % no tempo);
@@ -85,7 +85,7 @@ Cada bloco abaixo se converte 1:1 num objeto `Contract` ([data-model §4](../des
 1. no mapa, "Encoste no marcador e aperte [INTERACT]";
 2. no campo, "Clique para cravar ao menos 3 GCPs";
 3. no plano, "Observe o GSD mudar com a altura";
-4. no voo, "Mantenha-se na linha — fotos saem sozinhas";
+4. no voo, "Voe pelos portais: no losango do centro a foto é Perfeita", com uma segunda linha que muda conforme o voo mostra cada coisa nova, uma vez só: alinhar na entrada, a rajada avisada, o relevo (subir e descer com a seta), as cores das notas, o cruzeiro e o boletim da linha ([survey-flight §8](../features/survey-flight.md));
 5. no processamento, "Veja o mapa de calor: verde = ≥ 5 fotos".
 
 ---

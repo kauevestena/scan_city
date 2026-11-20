@@ -15,7 +15,9 @@ export type SfxId =
   | 'LEVEL_UP'
   | 'COLLECT'
   | 'DENIED'
-  | 'STAGE_DONE';
+  | 'STAGE_DONE'
+  | 'GRADE'
+  | 'GRADE_MISS';
 
 export type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 
@@ -34,6 +36,8 @@ export const SFX_IDS: readonly SfxId[] = [
   'COLLECT',
   'DENIED',
   'STAGE_DONE',
+  'GRADE',
+  'GRADE_MISS',
 ];
 export const LOOP_IDS: readonly LoopId[] = ['LIDAR_HUM', 'MOTOR', 'WIND', 'PROCESSING'];
 
@@ -306,6 +310,21 @@ export const SFX: Record<SfxId, (v: Voice) => number> = {
     tone(v, 'sine', 880, v.t0, { a: 0.003, d: 0.057, peak: 0.15 });
     tone(v, 'sine', 1320, v.t0 + 0.06, { a: 0.003, d: 0.057, peak: 0.15 });
     return 0.15;
+  },
+
+  // Nota de uma amostra do voo: o tom sobe com a sequência (`pitch`, audio §4).
+  GRADE: (v) => {
+    tone(v, 'triangle', 660, v.t0, { a: 0.002, d: 0.088, peak: 0.22 });
+    tone(v, 'sine', 1320, v.t0, { a: 0.002, d: 0.088, peak: 0.08 });
+    return 0.1;
+  },
+
+  // Amostra Fraca ou Rejeitada: um som surdo que desce.
+  GRADE_MISS: (v) => {
+    const { osc } = tone(v, 'sine', 220, v.t0, { a: 0.003, d: 0.117, peak: 0.2 });
+    osc.frequency.setValueAtTime(220 * v.pitch, v.t0);
+    osc.frequency.exponentialRampToValueAtTime(140 * v.pitch, v.t0 + 0.12);
+    return 0.12;
   },
 };
 

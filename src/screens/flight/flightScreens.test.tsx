@@ -3,7 +3,8 @@ import { createDebugMission } from '@/app/debugFixtures';
 import { AudioEngine } from '@/audio/AudioEngine';
 import type { LoopHandle, LoopId, MotorVariant } from '@/audio/sfx';
 import { resetDebugFlagsCache } from '@/app/debugFlags';
-import { makeAlert, type FlightHudSnapshot } from '@/engines/flight/hudPublisher';
+import { makeAlert } from '@/engines/flight/hudPublisher';
+import { snap } from '@/test/hudSnap';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { FlightHud } from './FlightHud';
@@ -11,57 +12,6 @@ import { PostFlightDialog } from './PostFlightDialog';
 import { SurveyFlightScreen } from './SurveyFlightScreen';
 
 const get = () => useGameStore.getState();
-
-function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
-  return {
-    phase: 'RUN',
-    aircraftName: 'Pombo Atlas',
-    sensorName: 'Câmera de Peito do Avô',
-    lineIndex: 3,
-    nLines: 6,
-    lineProgress: 0.62,
-    crossTrackM: 2.1,
-    outOfLane: false,
-    altM: 65,
-    aglM: 60,
-    speedMs: 10.4,
-    windCrossMs: 1.2,
-    crabDeg: 0,
-    timeScale: 1,
-    energy: 0.74,
-    energyUnit: 'CORN',
-    cornLeft: 8,
-    timeLeftS: 1112,
-    rthAlert: false,
-    emGlitch: false,
-    rthConfirm: false,
-    hull: 2,
-    hullMax: 3,
-    rtk: 'NONE',
-    activeSensor: 'RGB',
-    gsdCm: 2.52,
-    gsdOk: true,
-    pRealPct: 58,
-    qEstPct: 60,
-    photos: 43,
-    photosPlanned: 96,
-    flashes: 43,
-    blurPx: 0.2,
-    alerts: [makeAlert('OVERLAP', 58), makeAlert('OUT_OF_LANE')],
-    minimap: {
-      lines: [
-        [
-          { u: 0, v: 0 },
-          { u: 240, v: 0 },
-        ],
-      ],
-      shots: [{ u: 10, v: 0 }],
-      pos: { u: 20, v: 0 },
-      heading: 0,
-    },
-    ...over,
-  };
-}
 
 beforeEach(() => {
   resetGameStore();
@@ -96,7 +46,7 @@ describe('FlightHud', () => {
     const hud = screen.getByTestId('flight-hud');
     expect(hud).toHaveTextContent('RTK: FLOAT');
     expect(hud).toHaveTextContent('ALT65 m');
-    expect(hud).toHaveTextContent('VEL10,4 m/s');
+    expect(hud).toHaveTextContent('SOLO10,4 m/salvo 10');
     expect(hud).toHaveTextContent('VENTO1,2 m/s');
     expect(hud).toHaveTextContent('GSD2,52 cm/px');
     expect(hud).toHaveTextContent('p58 %');
@@ -113,14 +63,26 @@ describe('FlightHud', () => {
     expect(screen.getByText('VELOCIDADE MÍNIMA')).toBeInTheDocument();
   });
 
-  it('time warp em âmbar, anéis e a barra de detecção do holofote', () => {
-    const { rerender } = render(<FlightHud snap={snap()} />);
+  it('cruzeiro em âmbar (ou desligado), anéis e a barra de detecção do holofote', () => {
+    const { rerender } = render(<FlightHud snap={snap({ cruise: { on: true, factor: 1 } })} />);
     expect(screen.queryByTestId('hud-warp')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hud-rings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hud-detection')).not.toBeInTheDocument();
-    rerender(<FlightHud snap={snap({ timeScale: 4, rings: 3, detectedProgress: 0.5 })} />);
-    expect(screen.getByTestId('hud-warp')).toHaveTextContent('×4');
+    rerender(
+      <FlightHud
+        snap={snap({
+          timeScale: 3.4,
+          cruise: { on: true, factor: 3.4 },
+          rings: 3,
+          detectedProgress: 0.5,
+        })}
+      />,
+    );
+    expect(screen.getByTestId('hud-warp')).toHaveTextContent('CRUZEIRO ×3,4');
     expect(screen.getByTestId('hud-warp')).toHaveClass('text-amber-400');
+    rerender(<FlightHud snap={snap({ cruise: { on: false, factor: 1 } })} />);
+    expect(screen.getByTestId('hud-warp')).toHaveTextContent('CRUZEIRO DESLIGADO');
+    rerender(<FlightHud snap={snap({ rings: 3, detectedProgress: 0.5 })} />);
     expect(screen.getByTestId('hud-rings')).toHaveTextContent('Anéis: 3');
     expect(screen.getByTestId('hud-detection')).toBeInTheDocument();
   });
@@ -156,6 +118,90 @@ describe('FlightHud', () => {
   });
 });
 
+describe('FlightHud — execução do voo (REQ-FLT-029)', () => {
+  it('execução da passada, sequência a partir de 3 e o selo de revoo', () => {
+    const { rerender } = render(
+      <FlightHud snap={snap({ passScore: 0.88, passLetter: 'A', streak: 2 })} />,
+    );
+    expect(screen.getByTestId('hud-execution')).toHaveTextContent('EXECUÇÃOA 88 %');
+    expect(screen.queryByTestId('hud-streak')).not.toBeInTheDocument();
+    rerender(
+      <FlightHud snap={snap({ passScore: 0.88, passLetter: 'A', streak: 7, refly: true })} />,
+    );
+    expect(screen.getByTestId('hud-streak')).toHaveTextContent('sequência ×7');
+    expect(screen.getByTestId('hud-execution')).toHaveTextContent('REVOO');
+  });
+
+  it('rajada avisada: alerta com o lado e a contagem, biruta âmbar', () => {
+    render(
+      <FlightHud
+        snap={snap({
+          gust: { side: 1, inS: 1.2, active: false },
+          alerts: [makeAlert('GUST', 1.2, 1)],
+        })}
+      />,
+    );
+    expect(
+      within(screen.getByTestId('hud-alerts')).getByText('RAJADA ▶ em 1,2 s'),
+    ).toBeInTheDocument();
+    const sock = screen.getByTestId('hud-windsock');
+    expect(sock).toHaveAttribute('data-gust', 'warned');
+    expect(sock).toHaveAccessibleName('Biruta: vento a 90° do rumo');
+  });
+
+  it('nota Fraca pela faixa: a marca mostra a nota e o eixo; com reduceFlashes, sem subir', () => {
+    const weak = snap({ lastGrade: { grade: 'WEAK', axis: 'lateral', seq: 4 } });
+    const { rerender } = render(<FlightHud snap={weak} />);
+    const mark = screen.getByTestId('hud-grade');
+    expect(mark).toHaveTextContent('FRACA · faixa');
+    expect(mark).toHaveClass('grade-pop', 'text-amber-400');
+    useGameStore.setState((s) => ({ settings: { ...s.settings, reduceFlashes: true } }));
+    rerender(<FlightHud snap={weak} />);
+    expect(screen.getByTestId('hud-grade')).toHaveClass('grade-fade');
+    rerender(<FlightHud snap={snap({ lastGrade: { grade: 'PERFECT', axis: null, seq: 5 } })} />);
+    expect(screen.getByTestId('hud-grade')).toHaveTextContent(/^PERFEITA$/);
+  });
+
+  it('velocidade no solo acima do plano fica âmbar e depois vermelha; a seta de altura aparece fora da zona Perfeita', () => {
+    const { rerender } = render(<FlightHud snap={snap({ groundSpeedMs: 11, planSpeedMs: 10 })} />);
+    expect(within(screen.getByTestId('hud-ground-speed')).getByText('11,0 m/s')).toHaveClass(
+      'text-amber-300',
+    );
+    rerender(<FlightHud snap={snap({ groundSpeedMs: 12, planSpeedMs: 10 })} />);
+    expect(within(screen.getByTestId('hud-ground-speed')).getByText('12,0 m/s')).toHaveClass(
+      'text-rose-400',
+    );
+    expect(screen.queryByTestId('hud-climb')).not.toBeInTheDocument();
+    rerender(<FlightHud snap={snap({ corridorDeltaM: 4.4, corridorTolM: 3 })} />);
+    expect(screen.getByTestId('hud-climb')).toHaveTextContent('▲ +4 m');
+    rerender(<FlightHud snap={snap({ corridorDeltaM: -6, corridorTolM: 3 })} />);
+    expect(screen.getByTestId('hud-climb')).toHaveTextContent('▼ −6 m');
+  });
+
+  it('boletim da linha recusada na curva: letra, contagem e "REVOO NECESSÁRIO"', () => {
+    render(
+      <FlightHud
+        snap={snap({
+          phase: 'TURN',
+          lineReport: {
+            lineNumber: 3,
+            pass: 0,
+            score: 0.32,
+            letter: 'D',
+            counts: [1, 2, 6, 6],
+            accepted: false,
+          },
+        })}
+      />,
+    );
+    const card = screen.getByTestId('hud-line-report');
+    expect(card).toHaveAttribute('data-accepted', 'false');
+    expect(card).toHaveTextContent('LINHA 3 · D');
+    expect(card).toHaveTextContent('1 perfeitas · 2 boas · 6 fracas · 6 rejeitadas');
+    expect(card).toHaveTextContent('REVOO NECESSÁRIO');
+  });
+});
+
 describe('PostFlightDialog', () => {
   function withMission(withData: boolean) {
     const m = { ...createDebugMission('C00', withData), status: 'IN_FLIGHT' as const };
@@ -182,6 +228,8 @@ describe('PostFlightDialog', () => {
     rings: 0,
     featuresCaptured: [],
     atlas: false,
+    linePasses: [],
+    refly: [],
   };
 
   it('com dados: "Levar dados" põe a missão na fila e volta ao mapa (T10, QUEUED)', () => {
@@ -290,6 +338,47 @@ describe('PostFlightDialog', () => {
   it('RTH: a confirmação aparece no HUD com os glyphs', () => {
     render(<FlightHud snap={snap({ rthConfirm: true })} />);
     expect(screen.getByTestId('hud-rth-confirm')).toHaveTextContent('Retornar à base?');
+  });
+
+  it('a nota de cada linha voada, com "revoar" nas recusadas, e a execução da missão', () => {
+    withMission(true);
+    const passes = [
+      {
+        lineIndex: 0,
+        pass: 0,
+        sortie: 0,
+        counts: [15, 0, 0, 0] as [number, number, number, number],
+        complete: true,
+      },
+      {
+        lineIndex: 1,
+        pass: 0,
+        sortie: 0,
+        counts: [0, 0, 10, 5] as [number, number, number, number],
+        complete: true,
+      },
+    ];
+    act(() =>
+      useGameStore.setState((s) => ({
+        mission: {
+          ...s.mission,
+          active: s.mission.active && { ...s.mission.active, linePasses: passes },
+        },
+      })),
+    );
+    render(
+      <PostFlightDialog
+        result={{ ...result, linePasses: passes, refly: [1] }}
+        totalLines={6}
+        energyLeft={0.6}
+      />,
+    );
+    const box = screen.getByTestId('post-execution');
+    const items = within(box).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Linha 1: S · 100 %');
+    expect(items[0]).toHaveAttribute('data-refly', 'false');
+    expect(items[1]).toHaveTextContent('Linha 2: D · 27 %revoar');
+    expect(box).toHaveTextContent('Execução da missão até aqui:');
   });
 
   it('sem dados: só "Abandonar" e "Tentar de novo" (T16 volta ao planejamento)', () => {
@@ -421,6 +510,23 @@ describe('SurveyFlightScreen — som de ambiente (T076)', () => {
     expect(loops.filter((l) => l.id === 'MOTOR' || l.id === 'WIND').every((l) => l.stopped)).toBe(
       true,
     );
+  });
+
+  it('no primeiro voo do C00 a dica do voo ganha a linha do momento: alinhar na entrada', async () => {
+    spyLoops();
+    startFlight();
+    act(() => get().setFlags({ tutorialStep: 3 }));
+    render(<SurveyFlightScreen />);
+    expect(screen.getByTestId('tutorial-hint')).toHaveTextContent('Voe pelos portais');
+    // Depois da decolagem, já na primeira linha.
+    await waitFor(
+      () => expect(screen.getByTestId('tutorial-hint-detail')).toHaveTextContent('Alinhe já'),
+      { timeout: 8000 },
+    );
+    // Dispensar a dica da etapa leva junto as do voo.
+    fireEvent.keyDown(window, { key: 'h', code: 'KeyH' });
+    expect(screen.queryByTestId('tutorial-hint')).not.toBeInTheDocument();
+    expect(get().flags.tutorialStep).toBe(4);
   });
 
   it('a pausa cala o motor e o vento; retomar os devolve', async () => {

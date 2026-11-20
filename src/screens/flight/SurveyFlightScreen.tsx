@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getDebugFlags } from '@/app/debugFlags';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { FlightAmbience } from '@/audio/flightAmbience';
+import { gradeTone } from '@/audio/gradeScale';
 import type { LoopHandle } from '@/audio/sfx';
 import { CATALOG, getAircraft } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
@@ -24,6 +25,10 @@ import { createTerrain } from '@/world/terrain/createTerrain';
 import { FlightHud } from './FlightHud';
 import { PostFlightDialog } from './PostFlightDialog';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
+import { useFlightCoach } from './flightCoach';
+
+/** A etapa do tutorial dirigido do C00 que cabe ao voo. */
+const FLIGHT_TUTORIAL_STEP = 3;
 
 /** Aceleração do autopilot de depuração (survey-flight §5.14: o debug permite ×8). */
 export const AUTOPILOT_TIME_SCALE = 8;
@@ -42,6 +47,8 @@ function createEngine(
   const contract = getContract(mission.contractId);
   // Zumbido contínuo do LiDAR, enquanto o sensor ativo for o LiDAR.
   let lidarLoop: LoopHandle | null = null;
+  // Grau da escala da sequência de notas (audio §4).
+  let degree = -1;
   const { equipped } = state.inventory;
   const atlas = mission.plan.params.aircraftId === 'ATLAS';
   const paint = colorsOf(equipped.dronePaint) ?? { primary: '#64748b', secondary: '#0f172a' };
@@ -54,6 +61,7 @@ function createEngine(
     mods: selectModifiers(state),
     ownsRtkKit: state.inventory.fieldEquipment.includes('GNSS_RTK_KIT'),
     autopilot: getDebugFlags().autopilot,
+    calm: getDebugFlags().calm,
     quality: () => useGameStore.getState().settings.quality,
     reduceFlashes: () => useGameStore.getState().settings.reduceFlashes,
     // O Atlas usa as cores do pombo; os drones, a pintura equipada.
@@ -86,6 +94,12 @@ function createEngine(
       }
     },
     onCrash: () => AudioEngine.get().play('CRASH'),
+    onGrade: (g) => {
+      const t = gradeTone(degree, g.grade);
+      degree = t.degree;
+      AudioEngine.get().play(t.sfx, { pitch: t.pitch });
+    },
+    onLinePass: (r) => AudioEngine.get().play(r.accepted ? 'STAGE_DONE' : 'DENIED'),
     onHud: (snap) => {
       // O motor segue a velocidade e o vento, o ganho do vento.
       ambience.update(snap.speedMs, snap.windCrossMs);
@@ -96,7 +110,7 @@ function createEngine(
       lidarLoop = null;
       ambience.stop();
       useGameStore.getState().endSortie(result);
-      completeTutorialStep(3);
+      completeTutorialStep(FLIGHT_TUTORIAL_STEP);
       onEnd(result);
     },
   });
@@ -145,6 +159,9 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
     () => new FlightAmbience(AudioEngine.get(), getAircraft(mission.plan.params.aircraftId).kind),
   );
   const [engine] = useState(() => createEngine(mission, setHud, setResult, ambience));
+  // As dicas do primeiro voo só valem enquanto a dica da etapa do voo está na tela.
+  const coaching = useGameStore((s) => s.flags.tutorialStep === FLIGHT_TUTORIAL_STEP);
+  const coach = useFlightCoach(hud, coaching && !result);
   const autopilot = getDebugFlags().autopilot;
 
   // FIRE chega como ação discreta: disparo manual.
@@ -219,7 +236,11 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         data-testid="flight-canvas"
       />
       {hud && <FlightHud snap={hud} rift={getContract(mission.contractId).dimension === 'RIFT'} />}
-      <TutorialHint step={3} className="absolute top-28 left-1/2 -translate-x-1/2" />
+      <TutorialHint
+        step={FLIGHT_TUTORIAL_STEP}
+        detail={coach ? STRINGS.tutorial.flightCoach[coach] : null}
+        className="absolute top-28 left-1/2 -translate-x-1/2"
+      />
       {result && (
         <PostFlightDialog
           onNewSortie={onNewSortie}

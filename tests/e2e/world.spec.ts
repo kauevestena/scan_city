@@ -85,7 +85,7 @@ test('teleporta até o C00, abre o briefing e aceita: vai ao planejamento de cam
   await page.keyboard.press('Space');
   const briefing = page.getByRole('dialog', { name: 'Sítio do Avô' });
   await expect(briefing).toBeVisible();
-  await expect(briefing.getByTestId('briefing-requirements').getByRole('listitem')).toHaveCount(6);
+  await expect(briefing.getByTestId('briefing-requirements').getByRole('listitem')).toHaveCount(7);
   // Esc recusa; INTERACT de novo reabre.
   await page.keyboard.press('Escape');
   await expect(briefing).toBeHidden();

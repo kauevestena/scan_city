@@ -1,6 +1,7 @@
 // data-model §7 — Relatório de qualidade
 import type { CentsBRL } from './basics';
 import type { Severity } from './contracts';
+import type { GradeCounts } from './mission';
 
 export interface Residual {
   pointId: string;
@@ -111,4 +112,14 @@ export interface QualityReport {
   reputationDelta: number;
   souvenirAwarded?: string;
   processingTimeS: number;
+  /** Execução do voo (domain-math §10.3). Só em missão com `linePasses`. */
+  execution?: {
+    /** E, 0..1. */
+    score: number;
+    letter: 'S' | 'A' | 'B' | 'C' | 'D';
+    /** Contagem por nota da melhor passada de cada linha. */
+    counts: GradeCounts;
+    /** Parcela do bônus de pilotagem em Q (0, 0,05 ou 0,10). */
+    pilotBonus: number;
+  };
 }

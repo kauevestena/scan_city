@@ -8,6 +8,7 @@ import type {
   SensorKind,
   Shot,
 } from '@/types';
+import { DATA_WEIGHT } from './execution';
 import { pointInPolygon, polygonBounds } from './geometry';
 import { obliqueFootprint, verticalFovRad } from './photogrammetry';
 
@@ -79,8 +80,8 @@ export function footprintPolygon(
   return corners.map(([a, b]) => ({ u: cu + a * cos - b * sin, v: cv + a * sin + b * cos }));
 }
 
-/** +1 em cada célula cujo centro esteja dentro do polígono. */
-export function accumulateShot(grid: CoverageGrid, polygon: readonly AoiPoint[]): void {
+/** +`weight` em cada célula cujo centro esteja dentro do polígono. */
+export function accumulateShot(grid: CoverageGrid, polygon: readonly AoiPoint[], weight = 1): void {
   const box = polygonBounds(polygon);
   const c0 = Math.max(0, Math.floor(box.uMin / grid.cellLengthM));
   const c1 = Math.min(grid.cols - 1, Math.floor(box.uMax / grid.cellLengthM));
@@ -90,7 +91,7 @@ export function accumulateShot(grid: CoverageGrid, polygon: readonly AoiPoint[])
     for (let col = c0; col <= c1; col++) {
       const index = row * grid.cols + col;
       if (pointInPolygon(cellCenter(grid, index), polygon)) {
-        grid.counts[index] = (grid.counts[index] as number) + 1;
+        grid.counts[index] = (grid.counts[index] as number) + weight;
       }
     }
   }
@@ -103,11 +104,17 @@ export interface ShotRules {
   specularWater: boolean;
 }
 
-/** A foto conta para a cobertura? */
+/** A foto conta para a cobertura? A rejeitada na execução do voo (§10.3) não conta. */
 export function isShotValid(shot: Shot, rules: ShotRules): boolean {
+  if (shot.grade === 'REJECTED') return false;
   if (shot.blurred) return false;
   if (shot.inFog && rules.sensorKind === 'RGB') return false;
   return !(shot.overWater && rules.specularWater && shot.lighting === 'SUN_HIGH');
+}
+
+/** Peso da foto na cobertura: a de nota Fraca vale metade; a sem nota vale 1. */
+export function shotWeight(shot: Pick<Shot, 'grade'>): number {
+  return shot.grade ? DATA_WEIGHT[shot.grade] : 1;
 }
 
 /** Índices das células cujo centro satisfaz `predicate` (ex.: água). */
@@ -123,7 +130,10 @@ export function excludedCellsWhere(
   return out;
 }
 
-/** Frações verde (≥ 5), amarela (3–4) e vermelha (< 3) sobre as células não excluídas. */
+/**
+ * Frações verde (≥ 5), amarela (≥ 3 e < 5) e vermelha (< 3) sobre as células não excluídas.
+ * As contagens são fracionárias, porque a foto fraca pesa metade.
+ */
 export function summarizeCoverage(
   grid: CoverageGrid,
   excludedCells: readonly number[],
@@ -172,7 +182,11 @@ export function buildCoverage(
   const grid = createCoverageGrid(aoi);
   for (const shot of shots) {
     if (isShotValid(shot, opts.rules)) {
-      accumulateShot(grid, footprintPolygon(shot, opts.aircraftKind, opts.sensor, opts.focalM));
+      accumulateShot(
+        grid,
+        footprintPolygon(shot, opts.aircraftKind, opts.sensor, opts.focalM),
+        shotWeight(shot),
+      );
     }
   }
   return summarizeCoverage(grid, opts.excludedCells);

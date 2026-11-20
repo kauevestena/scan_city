@@ -11,6 +11,8 @@ export interface DebugFlags {
   /** Contrato usado pelos payloads de teste. */
   contract: string | null;
   autopilot: boolean;
+  /** `calm=1`: voo sem rajadas e sem erro de entrada de faixa (survey-flight §5.13). */
+  calm: boolean;
   unlockAll: boolean;
   /** Saldo inicial em reais. */
   money: number | null;
@@ -23,6 +25,7 @@ export const NO_DEBUG: DebugFlags = {
   screen: null,
   contract: null,
   autopilot: false,
+  calm: false,
   unlockAll: false,
   money: null,
   skipIntro: false,
@@ -50,6 +53,7 @@ export function parseDebugFlags(search: string): DebugFlags {
       screen !== null && DEBUG_SCREENS.includes(screen) ? (screen as DebugFlags['screen']) : null,
     contract: contract !== null && contract !== '' ? contract : null,
     autopilot: params.get('autopilot') === '1',
+    calm: params.get('calm') === '1',
     unlockAll: params.get('unlockAll') === '1',
     money: numberParam(params, 'money'),
     skipIntro: params.get('skipIntro') === '1',

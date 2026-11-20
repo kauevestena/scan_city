@@ -352,7 +352,7 @@ describe('FieldSetupScreen', () => {
     tab(/Checklist/);
     expect(
       within(screen.getByTestId('checklist-requirements')).getAllByRole('listitem'),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
     expect(screen.queryByTestId('checklist-blocking')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('takeoff'));
     expect(get().session.screen).toBe('SURVEY_FLIGHT');

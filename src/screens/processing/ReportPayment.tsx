@@ -12,13 +12,21 @@ const P = STRINGS.processing;
 /** Uma linha do pagamento a cada 250 ms (§5.8). */
 export const PAYMENT_ROW_MS = 250;
 
-/** Linhas do `PaymentBreakdown`; as neutras (×1, R$ 0) ficam de fora. */
-export function paymentRows(p: QualityReport['payment']): Array<[string, string]> {
+/**
+ * Linhas do `PaymentBreakdown`; as neutras (×1, R$ 0) ficam de fora. O bônus de pilotagem
+ * (parte do fator de qualidade) aparece ao lado dele.
+ */
+export function paymentRows(p: QualityReport['payment'], pilotBonus = 0): Array<[string, string]> {
   const R = P.paymentRows;
   const factor = (v: number) => `×${formatNumber(v, 2)}`;
   const rows: Array<[string, string]> = [[R.base, formatBRL(p.baseBRL)]];
   if (p.replayFactor !== 1) rows.push([R.replay, factor(p.replayFactor)]);
-  rows.push([R.quality, factor(p.qualityFactor)]);
+  rows.push([
+    R.quality,
+    pilotBonus > 0
+      ? `${factor(p.qualityFactor)} (${P.execution.pilotBonus(formatNumber(pilotBonus, 2))})`
+      : factor(p.qualityFactor),
+  ]);
   if (p.rivalFactor !== 1) rows.push([R.rival, factor(p.rivalFactor)]);
   if (p.managementBonus !== 1) rows.push([R.management, factor(p.managementBonus)]);
   if (p.staffBonus !== 1) rows.push([R.staff, factor(p.staffBonus)]);
@@ -30,7 +38,7 @@ export function paymentRows(p: QualityReport['payment']): Array<[string, string]
 
 /** Aba Pagamento: linhas animadas, total com CASH_REGISTER e recompensas. */
 export function ReportPayment({ report, stolen }: { report: QualityReport; stolen: boolean }) {
-  const rows = paymentRows(report.payment);
+  const rows = paymentRows(report.payment, report.execution?.pilotBonus ?? 0);
   const [shown, setShown] = useState(0);
   const souvenir = SOUVENIRS.find((s) => s.id === report.souvenirAwarded);
 
