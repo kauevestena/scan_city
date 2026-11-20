@@ -1876,12 +1876,23 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   5. HUD: execução, sequência, velocidade no solo com alvo, seta de altura, cruzeiro; boletim da linha na curva.
   6. Pós-voo com a nota por linha e as linhas a revoar.
 - **Aceite:**
-  - [ ] A draw list mostra no máximo 16 portais, de longe para perto, só à frente.
-  - [ ] Com `reduceFlashes`, nenhum portal pisca, nenhuma marca se move e os riscos não piscam.
-  - [ ] Teste RTL: HUD com rajada avisada, com nota Fraca por faixa e com boletim de linha recusada; pós-voo com linha a revoar.
-  - [ ] O tempo por quadro do voo continua dentro de 12 ms em Alta no perfil de medição (o contador do `F9`).
+  - [x] A draw list mostra no máximo 16 portais, de longe para perto, só à frente.
+  - [x] Com `reduceFlashes`, nenhum portal pisca, nenhuma marca se move e os riscos não piscam.
+  - [x] Teste RTL: HUD com rajada avisada, com nota Fraca por faixa e com boletim de linha recusada; pós-voo com linha a revoar.
+  - [x] O tempo por quadro do voo continua dentro de 12 ms em Alta no perfil de medição (o contador do `F9`).
 - **Verificação:** `npx vitest run src/engines/flight src/screens/flight src/audio` · `npx playwright test tests/e2e/flight.spec.ts`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/engines/flight/corridorRenderer.ts` e teste, `src/screens/flight/ExecutionHud.tsx`, `src/audio/gradeScale.ts` e teste; ~ `src/engines/flight/{FlightEngine,hudPublisher}.ts`, `src/audio/sfx.ts`, `src/screens/flight/{FlightHud,PostFlightDialog,SurveyFlightScreen}.tsx` e `flightScreens.test.tsx`, `src/data/strings.ts`, `src/index.css`, `vitest.config.ts`, `vitest.qa.config.ts`, `tests/e2e/audio.spec.ts`.
+- **Notas de implementação:**
+  - **Portais** (`corridorRenderer.ts`): `buildCorridorDrawList` dá os portais à frente (até 400 m, no máximo 16, de longe para perto), cada um com o retângulo da nota Boa e o losango da Perfeita, projetados na altitude do corredor; o próximo é o mais forte. `drawCorridor` desenha o trilho, os portais e, no cruzamento, uma borda na cor da nota do instante por 0,25 s (nada com "Reduzir flashes e tremores"). Nas fendas, violeta.
+  - **Riscos de vento**: com a rajada avisada, 16 traços cruzam a tela no sentido em que ela vai empurrar; no sopro, 40 e mais fortes. Posições fixas por índice (nada sorteado por quadro); com "Reduzir flashes", o alfa não pisca.
+  - **Desempenho.** Na primeira versão, um traço por portal e por risco custava de 1,4 a 3,3 ms por quadro no Chromium sem GPU (C01: mediana de 6,9 para 8,3 ms). Os traços passaram a ser agrupados por nível de transparência (6 níveis): no C01 o custo ficou em ≈ 0,3–0,5 ms (7,0–7,9 ms antes e 7,4–7,5 ms depois, duas medições de cada); no C03 e no R04 a diferença some no ruído da máquina (±3 ms entre execuções iguais). O orçamento de 12 ms do perfil com GPU segue sem medição humana (OQ-013).
+  - **Pegadas** na cor da nota da foto (Perfeita esmeralda, Boa ciano, Fraca âmbar, Rejeitada rosa).
+  - **HUD** (`ExecutionHud.tsx`): EXECUÇÃO com a letra e o percentual da passada, a sequência a partir de 3 e o selo REVOO; a marca de cada amostra (nome da nota e, na Fraca e na Rejeitada, o eixo), que sobe e some em 0,7 s, ou só some com "Reduzir flashes"; a velocidade no solo com o alvo, âmbar acima de 1,05× e vermelha acima de 1,15×; a seta de subir ou descer até o corredor fora da zona Perfeita; a biruta (para onde o vento sopra em relação à aeronave; na rajada, aponta o lado, fica âmbar e pulsa); o boletim da linha durante a curva, o retorno e o pouso.
+  - **Sons**: `GRADE` (um triângulo com a oitava) e `GRADE_MISS` (um som surdo que desce). `gradeScale.ts` decide o tom: cada Perfeita seguida sobe um grau da pentatônica maior até a oitava, a Boa repete o grau e a Fraca ou a Rejeitada quebra a sequência. O boletim toca `STAGE_DONE` na linha aceita e `DENIED` na recusada. A mesa de som (e o E2E dela) ganhou os dois efeitos.
+  - **Pós-voo**: a nota de cada linha voada na surtida (a melhor passada), "revoar" nas recusadas e a execução da missão até ali.
+  - **Ordem dos testes.** Com os testes de desafio da T089 rodando junto, dois testes sensíveis a tempo (as fatias de 4 ms do processamento e uma navegação por teclado) falharam por disputa de CPU. O Vitest passou a ter dois projetos: `unit` primeiro e `challenge` depois (`sequence.groupOrder`); o `verify` local leva ≈ 140 s.
+  - **Testes novos**: draw list dos portais (quantidade, ordem, centro, zona Perfeita, fendas, piscar e "Reduzir flashes") e riscos de vento (6); a escala de sons (2); o HUD com a execução, a rajada avisada, a marca Fraca por faixa, a velocidade no solo e a seta de altura, o boletim recusado (5); o pós-voo com linha a revoar (1).
+- **Status:** ✅
 
 ### T091 — Cruzeiro automático
 - **Fase:** F10 · **Depende de:** T090 · **REQs:** REQ-FLT-023
@@ -1940,7 +1951,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
-| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076, T090 | ☐ |
+| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076, T090 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ✅ |
@@ -1987,23 +1998,23 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
-| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090 | ☐ |
+| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
 | REQ-FLT-017 | Rolling shutter | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ✅ |
-| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035, T090 | ☐ |
-| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031, T090 | ☐ |
+| REQ-FLT-018 | HUD de voo | [survey-flight](features/survey-flight.md) | T024, T035, T090 | ✅ |
+| REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031, T090 | ✅ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
 | REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ☐ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
-| REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ☐ |
+| REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ✅ |
 | REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ✅ |
-| REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090 | ☐ |
+| REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090 | ✅ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ✅ |

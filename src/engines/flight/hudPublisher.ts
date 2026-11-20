@@ -124,6 +124,8 @@ export interface FlightHudSnapshot {
   planSpeedMs: number;
   /** Altitude do corredor menos a da aeronave: positivo, falta subir. */
   corridorDeltaM: number;
+  /** Abaixo desta diferença a seta de altura some (a zona da nota Perfeita, 5 % de H). */
+  corridorTolM: number;
   /** Nota do instante (faixa, altura e avanço pela velocidade no solo). */
   grade: ShotGrade;
   /** A última amostra com nota; `seq` muda a cada amostra, para a marca na tela. */

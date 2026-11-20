@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getDebugFlags } from '@/app/debugFlags';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { FlightAmbience } from '@/audio/flightAmbience';
+import { gradeTone } from '@/audio/gradeScale';
 import type { LoopHandle } from '@/audio/sfx';
 import { CATALOG, getAircraft } from '@/data/catalog';
 import { getContract } from '@/data/contracts';
@@ -42,6 +43,8 @@ function createEngine(
   const contract = getContract(mission.contractId);
   // Zumbido contínuo do LiDAR, enquanto o sensor ativo for o LiDAR.
   let lidarLoop: LoopHandle | null = null;
+  // Grau da escala da sequência de notas (audio §4).
+  let degree = -1;
   const { equipped } = state.inventory;
   const atlas = mission.plan.params.aircraftId === 'ATLAS';
   const paint = colorsOf(equipped.dronePaint) ?? { primary: '#64748b', secondary: '#0f172a' };
@@ -87,6 +90,12 @@ function createEngine(
       }
     },
     onCrash: () => AudioEngine.get().play('CRASH'),
+    onGrade: (g) => {
+      const t = gradeTone(degree, g.grade);
+      degree = t.degree;
+      AudioEngine.get().play(t.sfx, { pitch: t.pitch });
+    },
+    onLinePass: (r) => AudioEngine.get().play(r.accepted ? 'STAGE_DONE' : 'DENIED'),
     onHud: (snap) => {
       // O motor segue a velocidade e o vento, o ganho do vento.
       ambience.update(snap.speedMs, snap.windCrossMs);

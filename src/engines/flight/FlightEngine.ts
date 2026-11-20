@@ -15,6 +15,7 @@ import {
   gradeSample,
   passScore,
   passValue,
+  VERTICAL_LIMITS,
   type GradeAxis,
   type SampleGrade,
 } from '@/domain/execution';
@@ -87,6 +88,12 @@ import {
 } from './fieldElements';
 import { LidarSensor, TOGGLE_COOLDOWN_S, type LidarHit } from './lidarSensor';
 import { beginLinePass, closeLinePass, tallyGrade, type LinePassState } from './linePass';
+import {
+  buildCorridorDrawList,
+  drawCorridor,
+  drawGustStreaks,
+  GRADE_RGB,
+} from './corridorRenderer';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
@@ -267,6 +274,8 @@ export interface FlightEngineOptions {
 interface FootprintFx {
   corners: AoiPoint[];
   bornS: number;
+  /** A pegada sai na cor da nota da foto (survey-flight §5.21). */
+  grade: ShotGrade;
 }
 
 const meanElevCache = new WeakMap<TerrainSampler, number>();
@@ -310,6 +319,8 @@ export class FlightEngine implements Simulation {
   private lastGrade: { grade: ShotGrade; axis: GradeAxis | null; seq: number } | null = null;
   private gradeSeq = 0;
   private lineReport: LineReport | null = null;
+  /** O último portal cruzado, para o piscar na cor da nota. */
+  private gateFlash: { gateS: number; grade: ShotGrade; atS: number } | null = null;
   private frame: RunFrame;
   ac: AircraftState;
   energy = 1;
@@ -635,6 +646,7 @@ export class FlightEngine implements Simulation {
           ? shearCorners(base, this.frame, Math.sign(this.ac.vLat + this.ac.drift || 1) * shearM)
           : base,
       bornS: this.sortieT,
+      grade: sample.grade,
     });
     if (!this.opts.reduceFlashes()) {
       this.flashUntil = this.sortieT + FLASH_S;
@@ -932,6 +944,8 @@ export class FlightEngine implements Simulation {
     ) {
       const gateS = gates[this.pass.nextGate] as number;
       this.pass.nextGate++;
+      // O portal cruzado pisca na cor da nota do instante (survey-flight §5.19).
+      this.gateFlash = { gateS, grade: this.instant.grade, atS: this.sortieT };
       if (this.activeSensor === 'LIDAR' && this.lidar && gateS >= this.frame.aoiStartS - 1e-9) {
         this.registerSample(this.instant);
       }
@@ -1250,6 +1264,7 @@ export class FlightEngine implements Simulation {
       groundSpeedMs: this.ac.gs,
       planSpeedMs: plan.params.speedMs,
       corridorDeltaM: this.corridorAlt() - this.ac.alt,
+      corridorTolM: VERTICAL_LIMITS[0] * plan.params.heightM,
       grade: this.instant.grade,
       lastGrade: this.lastGrade,
       streak: this.streak,
@@ -1446,6 +1461,36 @@ export class FlightEngine implements Simulation {
     });
     PERF.flight.enter(FLIGHT_STAGE.OVERLAYS);
     this.drawFootprints(ctx, cam);
+    if (this.phase === 'RUN') {
+      const flash = this.gateFlash
+        ? {
+            gateS: this.gateFlash.gateS,
+            grade: this.gateFlash.grade,
+            ageS: this.sortieT - this.gateFlash.atS,
+          }
+        : null;
+      drawCorridor(
+        ctx,
+        buildCorridorDrawList({
+          gates: this.pass.gates,
+          profile: this.pass.profile,
+          s: this.ac.s,
+          spacingM: plan.stats.spacingM,
+          heightM: plan.params.heightM,
+          cam,
+          rift,
+          flash,
+          reduceFlashes: calm,
+        }),
+        flash,
+        calm,
+        width,
+        height,
+      );
+      // Riscos de vento: a rajada avisada ou em curso cruza a tela no sentido em que empurra.
+      const gust = this.gustNow();
+      if (gust) drawGustStreaks(ctx, width, height, cam.horizonY, gust, this.sortieT, calm);
+    }
     this.drawSearchlights(ctx, cam);
     this.drawLidar(ctx, cam);
     // Criaturas elétricas: faíscas amarelas sobem do capim durante o pico (nada com `reduceFlashes`).
@@ -1559,8 +1604,9 @@ export class FlightEngine implements Simulation {
         return projectAbs(r.x, terrain.elevation(c.u, c.v), r.s - this.ac.s, cam);
       });
       if (pts.some((p) => p === null)) continue;
-      ctx.fillStyle = `rgba(103, 232, 249, ${alpha})`;
-      ctx.strokeStyle = `rgba(103, 232, 249, ${Math.min(1, alpha * 2.5)})`;
+      const rgb = GRADE_RGB[f.grade];
+      ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
+      ctx.strokeStyle = `rgba(${rgb}, ${Math.min(1, alpha * 2.5)})`;
       ctx.beginPath();
       pts.forEach((p, k) =>
         k === 0 ? ctx.moveTo(p?.x ?? 0, p?.y ?? 0) : ctx.lineTo(p?.x ?? 0, p?.y ?? 0),

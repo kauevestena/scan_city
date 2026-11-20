@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { STRINGS } from '@/data/strings';
 import type { SortieResult } from '@/engines/flight/FlightEngine';
 import { getAircraft } from '@/data/catalog';
+import { plannedSamples } from '@/domain/corridor';
+import { gradeLetter, missionExecution, passValue } from '@/domain/execution';
 import { canStartNewSortie, missionHasData } from '@/domain/sorties';
 import { formatDuration, formatPct } from '@/lib/format';
 import { useGameStore } from '@/state/store';
@@ -37,6 +39,15 @@ export function PostFlightDialog({
     inventory,
   );
   const lost = result.outcome === 'CRASH' || result.outcome === 'ENERGY_DEPLETED';
+  // A nota de cada linha voada nesta surtida (a melhor passada) e a execução da missão.
+  const planned = mission.plan.lines.map((l) => plannedSamples(l, mission.plan.stats.baseM));
+  const best = new Map<number, number>();
+  for (const p of result.linePasses) {
+    const v = passValue(p, planned[p.lineIndex] ?? 0);
+    best.set(p.lineIndex, Math.max(best.get(p.lineIndex) ?? 0, v));
+  }
+  const lineGrades = [...best.entries()].sort((a, b) => a[0] - b[0]);
+  const execution = mission.linePasses ? missionExecution(mission.linePasses, planned) : null;
 
   const newSortie = () => {
     if (useGameStore.getState().startNewSortie()) onNewSortie?.();
@@ -110,6 +121,28 @@ export function PostFlightDialog({
               value={<span data-testid="post-collisions">{mission.events.collisions}</span>}
             />
           </div>
+          {lineGrades.length > 0 && (
+            <section data-testid="post-execution">
+              <h3 className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
+                {P.execution}
+              </h3>
+              <ul className="grid grid-cols-2 gap-x-4 text-sm text-slate-200">
+                {lineGrades.map(([line, v]) => (
+                  <li key={line} data-refly={result.refly.includes(line)}>
+                    {P.lineGrade(line + 1, gradeLetter(v), Math.round(v * 100))}
+                    {result.refly.includes(line) && (
+                      <span className="ml-2 text-xs font-semibold text-rose-300">{P.toRefly}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {execution !== null && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {P.missionExecution(Math.round(execution * 100))}
+                </p>
+              )}
+            </section>
+          )}
         </div>
       </Modal>
       {confirmAbandon && (

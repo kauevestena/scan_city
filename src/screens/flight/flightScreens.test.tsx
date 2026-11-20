@@ -51,6 +51,7 @@ function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     groundSpeedMs: 10.4,
     planSpeedMs: 10,
     corridorDeltaM: 0.5,
+    corridorTolM: 3,
     grade: 'GOOD',
     lastGrade: null,
     streak: 0,
@@ -109,7 +110,7 @@ describe('FlightHud', () => {
     const hud = screen.getByTestId('flight-hud');
     expect(hud).toHaveTextContent('RTK: FLOAT');
     expect(hud).toHaveTextContent('ALT65 m');
-    expect(hud).toHaveTextContent('VEL10,4 m/s');
+    expect(hud).toHaveTextContent('SOLO10,4 m/salvo 10');
     expect(hud).toHaveTextContent('VENTO1,2 m/s');
     expect(hud).toHaveTextContent('GSD2,52 cm/px');
     expect(hud).toHaveTextContent('p58 %');
@@ -166,6 +167,90 @@ describe('FlightHud', () => {
     );
     expect(screen.getByTestId('hud-energy')).toHaveTextContent(/^74 % 18:32$/);
     expect(screen.getByTestId('hud-phase')).toHaveTextContent('CURVA');
+  });
+});
+
+describe('FlightHud — execução do voo (REQ-FLT-029)', () => {
+  it('execução da passada, sequência a partir de 3 e o selo de revoo', () => {
+    const { rerender } = render(
+      <FlightHud snap={snap({ passScore: 0.88, passLetter: 'A', streak: 2 })} />,
+    );
+    expect(screen.getByTestId('hud-execution')).toHaveTextContent('EXECUÇÃOA 88 %');
+    expect(screen.queryByTestId('hud-streak')).not.toBeInTheDocument();
+    rerender(
+      <FlightHud snap={snap({ passScore: 0.88, passLetter: 'A', streak: 7, refly: true })} />,
+    );
+    expect(screen.getByTestId('hud-streak')).toHaveTextContent('sequência ×7');
+    expect(screen.getByTestId('hud-execution')).toHaveTextContent('REVOO');
+  });
+
+  it('rajada avisada: alerta com o lado e a contagem, biruta âmbar', () => {
+    render(
+      <FlightHud
+        snap={snap({
+          gust: { side: 1, inS: 1.2, active: false },
+          alerts: [makeAlert('GUST', 1.2, 1)],
+        })}
+      />,
+    );
+    expect(
+      within(screen.getByTestId('hud-alerts')).getByText('RAJADA ▶ em 1,2 s'),
+    ).toBeInTheDocument();
+    const sock = screen.getByTestId('hud-windsock');
+    expect(sock).toHaveAttribute('data-gust', 'warned');
+    expect(sock).toHaveAccessibleName('Biruta: vento a 90° do rumo');
+  });
+
+  it('nota Fraca pela faixa: a marca mostra a nota e o eixo; com reduceFlashes, sem subir', () => {
+    const weak = snap({ lastGrade: { grade: 'WEAK', axis: 'lateral', seq: 4 } });
+    const { rerender } = render(<FlightHud snap={weak} />);
+    const mark = screen.getByTestId('hud-grade');
+    expect(mark).toHaveTextContent('FRACA · faixa');
+    expect(mark).toHaveClass('grade-pop', 'text-amber-400');
+    useGameStore.setState((s) => ({ settings: { ...s.settings, reduceFlashes: true } }));
+    rerender(<FlightHud snap={weak} />);
+    expect(screen.getByTestId('hud-grade')).toHaveClass('grade-fade');
+    rerender(<FlightHud snap={snap({ lastGrade: { grade: 'PERFECT', axis: null, seq: 5 } })} />);
+    expect(screen.getByTestId('hud-grade')).toHaveTextContent(/^PERFEITA$/);
+  });
+
+  it('velocidade no solo acima do plano fica âmbar e depois vermelha; a seta de altura aparece fora da zona Perfeita', () => {
+    const { rerender } = render(<FlightHud snap={snap({ groundSpeedMs: 11, planSpeedMs: 10 })} />);
+    expect(within(screen.getByTestId('hud-ground-speed')).getByText('11,0 m/s')).toHaveClass(
+      'text-amber-300',
+    );
+    rerender(<FlightHud snap={snap({ groundSpeedMs: 12, planSpeedMs: 10 })} />);
+    expect(within(screen.getByTestId('hud-ground-speed')).getByText('12,0 m/s')).toHaveClass(
+      'text-rose-400',
+    );
+    expect(screen.queryByTestId('hud-climb')).not.toBeInTheDocument();
+    rerender(<FlightHud snap={snap({ corridorDeltaM: 4.4, corridorTolM: 3 })} />);
+    expect(screen.getByTestId('hud-climb')).toHaveTextContent('▲ +4 m');
+    rerender(<FlightHud snap={snap({ corridorDeltaM: -6, corridorTolM: 3 })} />);
+    expect(screen.getByTestId('hud-climb')).toHaveTextContent('▼ −6 m');
+  });
+
+  it('boletim da linha recusada na curva: letra, contagem e "REVOO NECESSÁRIO"', () => {
+    render(
+      <FlightHud
+        snap={snap({
+          phase: 'TURN',
+          lineReport: {
+            lineNumber: 3,
+            pass: 0,
+            score: 0.32,
+            letter: 'D',
+            counts: [1, 2, 6, 6],
+            accepted: false,
+          },
+        })}
+      />,
+    );
+    const card = screen.getByTestId('hud-line-report');
+    expect(card).toHaveAttribute('data-accepted', 'false');
+    expect(card).toHaveTextContent('LINHA 3 · D');
+    expect(card).toHaveTextContent('1 perfeitas · 2 boas · 6 fracas · 6 rejeitadas');
+    expect(card).toHaveTextContent('REVOO NECESSÁRIO');
   });
 });
 
@@ -305,6 +390,47 @@ describe('PostFlightDialog', () => {
   it('RTH: a confirmação aparece no HUD com os glyphs', () => {
     render(<FlightHud snap={snap({ rthConfirm: true })} />);
     expect(screen.getByTestId('hud-rth-confirm')).toHaveTextContent('Retornar à base?');
+  });
+
+  it('a nota de cada linha voada, com "revoar" nas recusadas, e a execução da missão', () => {
+    withMission(true);
+    const passes = [
+      {
+        lineIndex: 0,
+        pass: 0,
+        sortie: 0,
+        counts: [15, 0, 0, 0] as [number, number, number, number],
+        complete: true,
+      },
+      {
+        lineIndex: 1,
+        pass: 0,
+        sortie: 0,
+        counts: [0, 0, 10, 5] as [number, number, number, number],
+        complete: true,
+      },
+    ];
+    act(() =>
+      useGameStore.setState((s) => ({
+        mission: {
+          ...s.mission,
+          active: s.mission.active && { ...s.mission.active, linePasses: passes },
+        },
+      })),
+    );
+    render(
+      <PostFlightDialog
+        result={{ ...result, linePasses: passes, refly: [1] }}
+        totalLines={6}
+        energyLeft={0.6}
+      />,
+    );
+    const box = screen.getByTestId('post-execution');
+    const items = within(box).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Linha 1: S · 100 %');
+    expect(items[0]).toHaveAttribute('data-refly', 'false');
+    expect(items[1]).toHaveTextContent('Linha 2: D · 27 %revoar');
+    expect(box).toHaveTextContent('Execução da missão até aqui:');
   });
 
   it('sem dados: só "Abandonar" e "Tentar de novo" (T16 volta ao planejamento)', () => {
