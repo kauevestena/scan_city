@@ -72,7 +72,7 @@ O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NF
 | `npm run qa:flight`                                     | os quatro pilotos simulados (parado, distraído, mediano e bom) nos 18 contratos, em 3 sementes (`QA_SEEDS=<n>` muda), com a tabela de execução e as metas de desafio (REQ-NFR-010)    |
 | `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                          |
 
-Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa leva cerca de 16 minutos; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
+Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa (137 testes) leva cerca de 18 minutos no Chromium e 22 no Firefox; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
 
 ## Depuração (`?debug=1`)
 
@@ -125,5 +125,5 @@ O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](sp
 
 O roteiro dos testes que só uma pessoa faz (Firefox e Edge, controle real, FPS com GPU, som e campanha jogada) está em [`specs/qa-manual.md`](specs/qa-manual.md).
 
-- **Firefox:** a suíte E2E inteira (135 testes) passa no Firefox 155 (`npm run e2e:firefox`) e o jogo publicado também ([OQ-014](specs/open-questions.md), resolvida); o toque humano (aparência, som, controle de verdade) segue no roteiro.
+- **Firefox:** a suíte E2E inteira (137 testes) passa no Firefox 155 (`npm run e2e:firefox`) e o jogo publicado também ([OQ-014](specs/open-questions.md), resolvida); o toque humano (aparência, som, controle de verdade) segue no roteiro.
 - **GPU:** os FPS foram medidos em Chromium sem GPU, com raster por software ([OQ-013](specs/open-questions.md)).

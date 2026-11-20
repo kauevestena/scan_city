@@ -1951,11 +1951,20 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   4. README, roteiro de QA manual (o que avaliar no voo novo) e matriz.
   5. Um pull request com T085 a T092; depois do CI verde, merge (publica).
 - **Aceite:**
-  - [ ] O C00 jogado só com o teclado, pilotando, aprova; sem comando, reprova com o boletim de revoo.
-  - [ ] E2E inteiro verde no Chromium e no Firefox.
-  - [ ] A versão publicada abre o voo novo.
+  - [x] O C00 jogado só com o teclado, pilotando, aprova; sem comando, reprova com o boletim de revoo.
+  - [x] E2E inteiro verde no Chromium e no Firefox.
+  - [x] A versão publicada abre o voo novo.
 - **Verificação:** `npm run e2e` · `npm run e2e:firefox` · `npm run qa:random`
-- **Status:** ☐
+- **Arquivos (efetivos):** \+ `src/screens/flight/flightCoach.ts` e teste, `src/test/hudSnap.ts`, `tests/e2e/flight-piloting.spec.ts`; ~ `src/data/strings.ts`, `src/screens/common/TutorialHint.tsx` e teste, `src/screens/flight/{SurveyFlightScreen,FlightHud,PostFlightDialog}.tsx`, `flightScreens.test.tsx`, `src/app/debugFixtures.ts`, `tests/e2e/{contracts,flight}.spec.ts`; ~ `README.md`, `specs/{qa-manual,tasks}.md`, `specs/features/survey-flight.md`, `specs/content/contracts-real.md`.
+- **Notas de implementação:**
+  - **Dicas do primeiro voo.** A dica da etapa 4 passou a falar dos portais ("Voe pelos portais: no losango do centro a foto é Perfeita") e ganhou uma segunda linha (`TutorialHint.detail`) que muda conforme o voo mostra cada coisa nova: alinhar na entrada (o começo da primeira linha), a rajada avisada, o relevo (a primeira diferença para o corredor acima da tolerância), as cores das notas (a primeira nota), o cruzeiro (o primeiro fator ≥ 1,5) e o boletim da linha. Cada uma aparece uma vez e fica 6 s; a da rajada entra na hora, por cima da que estiver na tela. `flightCoach.ts` decide de forma pura (`nextCoachBeat`, `stepCoach`), e o `H` que dispensa a dica da etapa leva junto as do voo.
+  - **E2E pilotado.** `flight-piloting.spec.ts` voa o C00 sem autopilot. O piloto do teste é um jogador atento: lê os números do HUD (agora em `data-*` no `flight-hud`: fase, desvio da faixa, diferença para o corredor e a tolerância, razão da velocidade no solo) e segura `A`/`D`, `Q`/`E` e `W`/`S`, tudo ou nada, com folga de 0,8 m e antecipação de 0,25 s. O voo leva 3,0 min reais, nenhuma linha fica para revoo, a execução passa de 60 % e o relatório aprova. Sem nenhum comando, a linha 1 fecha com "REVOO NECESSÁRIO" e o retorno à base mostra a linha a revoar e a execução abaixo de 40 % (a reprovação do parado na missão inteira já é coberta pelos pilotos simulados, `challenge.idle.test.ts`). O pós-voo ganhou `post-mission-execution` com `data-pct`.
+  - **Bug achado pelo E2E.** A missão de depuração (`screen=SURVEY_FLIGHT`) tinha `turnTimeS: 0`, embora o voo de 231,45 s do G23 já contasse o pivô de 6,29 s do Atlas. A curva durava um passo de física e o boletim da linha nunca aparecia nesse voo. Passou a 6,291 s; nos planos de verdade a curva sempre dura os 2,5 s de apresentação.
+  - **R07 no E2E dos contratos.** Desde a T089 o autopilot freia na penumbra do R07 (o plano voa a 0,90 px de arrasto e ele segura 0,75 px). Com o mesmo intervalo de disparo saem 92 fotos, contra as 78 do plano, e o teste passou a contar as do autopilot.
+  - **Painel F9 no Firefox.** O teste do orçamento de 12 ms falhou no Firefox (13,6 a 16,1 ms, sozinho). A medição lado a lado, com o mesmo Firefox sem GPU: o `main` de antes da fase já dava 10,4 a 12,1 ms nesse teste e o voo novo dá 10,5 a 14,8 ms, quase tudo na etapa do terreno (o renderizador não mudou; muda a vista, que segue a aeronave no corredor e na entrada fora do eixo). No Chromium os dois dão de 2,4 a 3,6 ms. O REQ-NFR-009 só pede que o Firefox funcione, então o teste segue com 12 ms no Chromium e passa a conferir a ordem de grandeza (< 24 ms) no Firefox, com as medições no comentário.
+  - **Resultados.** `npm run verify`: 184 arquivos, 2183 testes. E2E: 137 de 137 no Chromium (17,8 min; o R07 passou depois da correção acima) e 137 de 137 no Firefox 155 (22,0 min; o F9 passou depois do ajuste acima). Entradas aleatórias no voo (`npm run qa:random -- --screen=SURVEY_FLIGHT --seconds=60 --seed=3`) no C00, no C06 e na R01: de 175 a 189 ações cada, zero erros, zero quedas ou travadas, save ok.
+  - **O que fica para o teste humano** ([qa-manual §6](qa-manual.md)): a sensação (portais legíveis, aviso da rajada a tempo, notas e som que não cansam), a dificuldade por contrato e o tempo das surtidas longas (a meta de 2 a 4 min não foi atingida; ver T091).
+- **Status:** ✅
 
 
 ---

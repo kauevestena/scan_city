@@ -1,6 +1,6 @@
 # Roteiro de QA manual
 
-> O que só uma pessoa consegue verificar: o toque humano no **Firefox e no Edge**, o **controle de verdade**, o **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1996 testes de unidade, os 135 testes E2E no Chromium **e no Firefox 155** (`npm run e2e` e `npm run e2e:firefox`, inclusive acessibilidade, teclado e controle emulado), o jogo publicado e um teste de entradas aleatórias (`npm run qa:random`); ver da T079 à T083 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§9).
+> O que só uma pessoa consegue verificar: o toque humano no **Firefox e no Edge**, o **controle de verdade**, o **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 2183 testes de unidade, os 137 testes E2E no Chromium **e no Firefox 155** (`npm run e2e` e `npm run e2e:firefox`, inclusive acessibilidade, teclado e controle emulado), o jogo publicado e um teste de entradas aleatórias (`npm run qa:random`); ver da T079 à T083 e a T092 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§9).
 
 ---
 
