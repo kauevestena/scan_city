@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { TIRE_REPAIR_TAPS, TOW_COST } from '@/data/fieldEvents';
 import { InputManager } from '@/input/InputManager';
 import { useGameStore } from '@/state/store';
@@ -119,10 +119,13 @@ describe('WorldMapScreen com eventos', () => {
     const runtime = createFieldEventRuntime();
     render(<WorldMapScreen eventRuntime={runtime} />);
     act(() => void runtime.trigger('CATTLE'));
-    await frames(300);
-    const running = runtime.state;
-    expect(running).toMatchObject({ id: 'CATTLE' });
-    expect((running as { remainingS: number }).remainingS).toBeLessThan(3);
+    // Sem pausa, o laço do mapa desconta o tempo. Espera o timer andar, em vez de um tempo
+    // fixo: com a máquina carregada (o CI), 300 ms podem passar sem nenhum quadro.
+    await waitFor(
+      () => expect((runtime.state as { remainingS: number }).remainingS).toBeLessThan(3),
+      { timeout: 5000 },
+    );
+    expect(runtime.state).toMatchObject({ id: 'CATTLE' });
 
     act(() => get().setPaused(true));
     await frames(50);
