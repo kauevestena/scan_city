@@ -26,7 +26,7 @@ O progresso é salvo no `localStorage` do navegador (autosave ao trocar de tela)
 1. **Escritório (`OFFICE`)**: a sede, com nove pontos de interação. A **Garagem** vende aeronaves, sensores, veículos, equipamento e pintura; o **Poleiro do Atlas** cuida do milho e da câmera do pombo; a **Mesa da Equipe** contrata e demite; o **Quadro de Carreira** guarda habilidades, perfil e visual; a **Estante de Relíquias** guarda os souvenirs; a **Workstation** processa as missões; o **Laboratório** abre os infográficos; a **Mesa Holográfica** abre o Museu; e a **Porta** leva ao mapa.
 2. **Mapa (`WORLD_MAP`)**: mundo aberto 2D. Cada marcador é um contrato; entre num e aceite o briefing.
 3. **Campo (`FIELD_SETUP`)**: pontos de apoio (GCPs) com a Estação Total do Avô, plano de voo, calibração e checklist.
-4. **Voo (`SURVEY_FLIGHT`)**: voo arcade 2.5D sobre o relevo, com RGB ou LiDAR, vento, bateria e eventos.
+4. **Voo (`SURVEY_FLIGHT`)**: voo 2.5D sobre o relevo, pelos portais do corredor de cada linha. Cada foto ganha nota (faixa, altura e avanço), as rajadas avisadas empurram a aeronave, a linha mal voada volta para revoo e a execução do voo entra no relatório; RGB ou LiDAR, vento, bateria e eventos.
 5. **Processamento (`PROCESSING_RESULTS`)**: SfM no notebook, relatório de qualidade e produtos (ortofoto, MDS, MDT, NDVI e nuvem 3D).
 6. **Museu (`HOLO_TABLE_VIEW`)**: a mesa 3D mostra cada setor mapeado, na dimensão real ou no Multiverso.
 7. **Laboratório (`INFOGRAPHIC_LAB`)**: infográficos interativos de óptica e GSD, estereoscopia, dossel e shutter.
@@ -45,7 +45,7 @@ Teclado e mouse, ou controle Xbox/PS5 (Gamepad API, layout `standard`). A tela *
 | Foto manual, ação do mini-game    | `Espaço`                  | `X` / `□`                    |
 | Trocar RGB ↔ LiDAR, Real ↔ Fendas | `Tab` (ou `1` `2` no voo) | `Y` / `△`                    |
 | Retorno à base (voo)              | `R`                       | `B` / `○`                    |
-| Acelerar o tempo (voo)            | `T`                       | `RB` / `R1`                  |
+| Cruzeiro automático (voo)         | `T`                       | `RB` / `R1`                  |
 | Trocar de veículo (mapa)          | `V`                       | `LB` / `L1`                  |
 | Trocar de aba                     | `Q` / `E`                 | `LB` / `RB`                  |
 | Dispensar a dica do tutorial      | `H`                       | `View` / `Create`            |
@@ -69,6 +69,7 @@ O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NF
 | `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                                                                                                       |
 | `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                                                                                         |
 | `npm run qa:random`                                     | entradas aleatórias (teclado, mouse e controle) contra o `npm run preview`, procurando erro, queda e travada; com `--soak` mede a memória (opções no topo de `scripts/qa-random.mjs`) |
+| `npm run qa:flight`                                     | os quatro pilotos simulados (parado, distraído, mediano e bom) nos 18 contratos, em 3 sementes (`QA_SEEDS=<n>` muda), com a tabela de execução e as metas de desafio (REQ-NFR-010)    |
 | `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                          |
 
 Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa leva cerca de 16 minutos; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
@@ -84,7 +85,8 @@ Os parâmetros abaixo só valem com `debug=1`; sem ele a URL é ignorada.
 | `seed=<n>`          | seed global (eventos e rival)                                                                                           |
 | `screen=<ScreenId>` | abre a tela direto com um payload de teste; `UIKIT` abre a galeria de componentes e `SOUNDBOARD` a mesa de som          |
 | `contract=<id>`     | contrato usado pelos payloads de teste (por exemplo `C03` ou `R04`)                                                     |
-| `autopilot=1`       | o voo segue o plano sozinho e libera o tempo ×8                                                                         |
+| `autopilot=1`       | o voo segue o plano sozinho (é o piloto "bom" das metas de desafio) e libera o tempo ×8                                 |
+| `calm=1`            | voo sem rajadas e sem erro de entrada de faixa, para testar o resto sem pilotar                                         |
 | `unlockAll=1`       | todos os contratos disponíveis e todos os itens possuídos                                                               |
 | `money=<n>`         | saldo inicial em reais                                                                                                  |
 

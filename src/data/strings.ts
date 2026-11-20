@@ -836,9 +836,22 @@ export const STRINGS = {
       { before: 'Encoste no marcador e aperte', action: 'INTERACT', after: '' },
       { before: 'Clique para cravar ao menos 3 GCPs', action: null, after: '' },
       { before: 'Observe o GSD mudar com a altura', action: null, after: '' },
-      { before: 'Mantenha-se na linha — fotos saem sozinhas', action: null, after: '' },
+      {
+        before: 'Voe pelos portais: no losango do centro a foto é Perfeita',
+        action: null,
+        after: '',
+      },
       { before: 'Veja o mapa de calor: verde = ≥ 5 fotos', action: null, after: '' },
     ],
+    /** Dicas do primeiro voo, uma de cada vez, quando o voo mostra o que cada uma explica. */
+    flightCoach: {
+      ENTRY: 'Alinhe já na entrada: a linha começa fora do eixo e o primeiro portal vale nota',
+      GUST: 'Rajada avisada! Comece a empurrar contra a seta antes de ela chegar',
+      RELIEF: 'O corredor acompanha o relevo: suba (Q) ou desça (E) com a seta',
+      GRADE: 'Cada portal dá uma nota: verde Perfeita, ciano Boa, âmbar Fraca, vermelho Rejeitada',
+      CRUISE: 'Na reta tranquila o cruzeiro acelera o tempo; ele solta sozinho na hora do perigo',
+      REPORT: 'O boletim dá a nota da linha; abaixo de 50 % ela é refeita no fim da surtida',
+    },
   },
   holo: {
     title: 'Mesa Holográfica — Museu da Terra',

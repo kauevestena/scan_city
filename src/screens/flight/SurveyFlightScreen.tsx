@@ -25,6 +25,10 @@ import { createTerrain } from '@/world/terrain/createTerrain';
 import { FlightHud } from './FlightHud';
 import { PostFlightDialog } from './PostFlightDialog';
 import { completeTutorialStep, TutorialHint } from '../common/TutorialHint';
+import { useFlightCoach } from './flightCoach';
+
+/** A etapa do tutorial dirigido do C00 que cabe ao voo. */
+const FLIGHT_TUTORIAL_STEP = 3;
 
 /** Aceleração do autopilot de depuração (survey-flight §5.14: o debug permite ×8). */
 export const AUTOPILOT_TIME_SCALE = 8;
@@ -106,7 +110,7 @@ function createEngine(
       lidarLoop = null;
       ambience.stop();
       useGameStore.getState().endSortie(result);
-      completeTutorialStep(3);
+      completeTutorialStep(FLIGHT_TUTORIAL_STEP);
       onEnd(result);
     },
   });
@@ -155,6 +159,9 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
     () => new FlightAmbience(AudioEngine.get(), getAircraft(mission.plan.params.aircraftId).kind),
   );
   const [engine] = useState(() => createEngine(mission, setHud, setResult, ambience));
+  // As dicas do primeiro voo só valem enquanto a dica da etapa do voo está na tela.
+  const coaching = useGameStore((s) => s.flags.tutorialStep === FLIGHT_TUTORIAL_STEP);
+  const coach = useFlightCoach(hud, coaching && !result);
   const autopilot = getDebugFlags().autopilot;
 
   // FIRE chega como ação discreta: disparo manual.
@@ -229,7 +236,11 @@ function Flight({ mission, onNewSortie }: { mission: MissionData; onNewSortie: (
         data-testid="flight-canvas"
       />
       {hud && <FlightHud snap={hud} rift={getContract(mission.contractId).dimension === 'RIFT'} />}
-      <TutorialHint step={3} className="absolute top-28 left-1/2 -translate-x-1/2" />
+      <TutorialHint
+        step={FLIGHT_TUTORIAL_STEP}
+        detail={coach ? STRINGS.tutorial.flightCoach[coach] : null}
+        className="absolute top-28 left-1/2 -translate-x-1/2"
+      />
       {result && (
         <PostFlightDialog
           onNewSortie={onNewSortie}

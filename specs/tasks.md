@@ -1917,7 +1917,6 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 
     | Contrato | Surtida (min) |
     | :-- | :-: |
-    | Contrato | Surtida do mediano: jogo → real (min) |
     | C00 | 3,60 → 2,86 |
     | C01 | 0,76–7,42 → 0,76–6,66 |
     | C05 | 2,09–8,09 → 1,93–7,20 |

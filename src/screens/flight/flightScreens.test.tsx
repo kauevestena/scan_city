@@ -3,7 +3,8 @@ import { createDebugMission } from '@/app/debugFixtures';
 import { AudioEngine } from '@/audio/AudioEngine';
 import type { LoopHandle, LoopId, MotorVariant } from '@/audio/sfx';
 import { resetDebugFlagsCache } from '@/app/debugFlags';
-import { makeAlert, type FlightHudSnapshot } from '@/engines/flight/hudPublisher';
+import { makeAlert } from '@/engines/flight/hudPublisher';
+import { snap } from '@/test/hudSnap';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { FlightHud } from './FlightHud';
@@ -11,71 +12,6 @@ import { PostFlightDialog } from './PostFlightDialog';
 import { SurveyFlightScreen } from './SurveyFlightScreen';
 
 const get = () => useGameStore.getState();
-
-function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
-  return {
-    phase: 'RUN',
-    aircraftName: 'Pombo Atlas',
-    sensorName: 'Câmera de Peito do Avô',
-    lineIndex: 3,
-    nLines: 6,
-    lineProgress: 0.62,
-    crossTrackM: 2.1,
-    outOfLane: false,
-    altM: 65,
-    aglM: 60,
-    speedMs: 10.4,
-    windCrossMs: 1.2,
-    crabDeg: 0,
-    timeScale: 1,
-    energy: 0.74,
-    energyUnit: 'CORN',
-    cornLeft: 8,
-    timeLeftS: 1112,
-    rthAlert: false,
-    emGlitch: false,
-    rthConfirm: false,
-    hull: 2,
-    hullMax: 3,
-    rtk: 'NONE',
-    activeSensor: 'RGB',
-    gsdCm: 2.52,
-    gsdOk: true,
-    pRealPct: 58,
-    qEstPct: 60,
-    photos: 43,
-    photosPlanned: 96,
-    flashes: 43,
-    blurPx: 0.2,
-    alerts: [makeAlert('OVERLAP', 58), makeAlert('OUT_OF_LANE')],
-    groundSpeedMs: 10.4,
-    planSpeedMs: 10,
-    corridorDeltaM: 0.5,
-    corridorTolM: 3,
-    grade: 'GOOD',
-    lastGrade: null,
-    streak: 0,
-    passScore: null,
-    passLetter: null,
-    refly: false,
-    gust: null,
-    windRelDeg: 90,
-    cruise: { on: false, factor: 1 },
-    lineReport: null,
-    minimap: {
-      lines: [
-        [
-          { u: 0, v: 0 },
-          { u: 240, v: 0 },
-        ],
-      ],
-      shots: [{ u: 10, v: 0 }],
-      pos: { u: 20, v: 0 },
-      heading: 0,
-    },
-    ...over,
-  };
-}
 
 beforeEach(() => {
   resetGameStore();
@@ -574,6 +510,23 @@ describe('SurveyFlightScreen — som de ambiente (T076)', () => {
     expect(loops.filter((l) => l.id === 'MOTOR' || l.id === 'WIND').every((l) => l.stopped)).toBe(
       true,
     );
+  });
+
+  it('no primeiro voo do C00 a dica do voo ganha a linha do momento: alinhar na entrada', async () => {
+    spyLoops();
+    startFlight();
+    act(() => get().setFlags({ tutorialStep: 3 }));
+    render(<SurveyFlightScreen />);
+    expect(screen.getByTestId('tutorial-hint')).toHaveTextContent('Voe pelos portais');
+    // Depois da decolagem, já na primeira linha.
+    await waitFor(
+      () => expect(screen.getByTestId('tutorial-hint-detail')).toHaveTextContent('Alinhe já'),
+      { timeout: 8000 },
+    );
+    // Dispensar a dica da etapa leva junto as do voo.
+    fireEvent.keyDown(window, { key: 'h', code: 'KeyH' });
+    expect(screen.queryByTestId('tutorial-hint')).not.toBeInTheDocument();
+    expect(get().flags.tutorialStep).toBe(4);
   });
 
   it('a pausa cala o motor e o vento; retomar os devolve', async () => {

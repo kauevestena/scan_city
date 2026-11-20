@@ -137,7 +137,11 @@ export function PostFlightDialog({
                 ))}
               </ul>
               {execution !== null && (
-                <p className="mt-1 text-xs text-slate-400">
+                <p
+                  className="mt-1 text-xs text-slate-400"
+                  data-testid="post-mission-execution"
+                  data-pct={Math.round(execution * 100)}
+                >
                   {P.missionExecution(Math.round(execution * 100))}
                 </p>
               )}

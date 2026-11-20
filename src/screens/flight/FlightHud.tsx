@@ -103,6 +103,12 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
       data-testid="flight-hud"
       data-glitch={glitch}
       data-rift={rift}
+      // O que o jogador lê no HUD, em números: o E2E pilota pelo teclado com eles.
+      data-phase={snap.phase}
+      data-cross-track={snap.crossTrackM.toFixed(2)}
+      data-corridor-delta={snap.corridorDeltaM.toFixed(2)}
+      data-corridor-tol={snap.corridorTolM.toFixed(2)}
+      data-speed-ratio={ratio.toFixed(3)}
     >
       {rift && (
         // Moldura de fenda: um filete violeta em volta de todo o HUD (contracts-rifts §1).

@@ -22,6 +22,18 @@ describe('TutorialHint (tutorial dirigido do C00)', () => {
     expect(hint.querySelector('[data-glyph-action="INTERACT"]')).not.toBeNull();
   });
 
+  it('a dica pode levar a linha do momento embaixo (as do voo), e some com ela', () => {
+    act(() => get().setFlags({ tutorialStep: 3 }));
+    const { rerender } = render(<TutorialHint step={3} detail="Rajada avisada!" />);
+    const hint = screen.getByTestId('tutorial-hint');
+    expect(hint).toHaveTextContent('Voe pelos portais');
+    expect(screen.getByTestId('tutorial-hint-detail')).toHaveTextContent('Rajada avisada!');
+    rerender(<TutorialHint step={3} detail={null} />);
+    expect(screen.queryByTestId('tutorial-hint-detail')).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'h', code: 'KeyH' });
+    expect(screen.queryByTestId('tutorial-hint')).not.toBeInTheDocument();
+  });
+
   it('"Entendi" avança a etapa; cada dica aparece uma vez', () => {
     render(<TutorialHint step={0} />);
     fireEvent.click(screen.getByRole('button', { name: 'Entendi' }));

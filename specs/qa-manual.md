@@ -1,6 +1,6 @@
 # Roteiro de QA manual
 
-> O que só uma pessoa consegue verificar: o toque humano no **Firefox e no Edge**, o **controle de verdade**, o **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1996 testes de unidade, os 135 testes E2E no Chromium **e no Firefox 155** (`npm run e2e` e `npm run e2e:firefox`, inclusive acessibilidade, teclado e controle emulado), o jogo publicado e um teste de entradas aleatórias (`npm run qa:random`); ver da T079 à T083 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§8).
+> O que só uma pessoa consegue verificar: o toque humano no **Firefox e no Edge**, o **controle de verdade**, o **FPS com GPU**, o **som** e a **campanha jogada**. O resto já passou: 1996 testes de unidade, os 135 testes E2E no Chromium **e no Firefox 155** (`npm run e2e` e `npm run e2e:firefox`, inclusive acessibilidade, teclado e controle emulado), o jogo publicado e um teste de entradas aleatórias (`npm run qa:random`); ver da T079 à T083 em [tasks.md](tasks.md). Cada seção termina com uma tabela para anotar o resultado. Quem fecha uma pendência atualiza a pergunta aberta ([OQ-013](open-questions.md), [OQ-014](open-questions.md)) e a matriz de rastreabilidade (§9).
 
 ---
 
@@ -27,6 +27,7 @@
    | `screen=<TELA>` | abre a tela direto: `OFFICE`, `WORLD_MAP`, `FIELD_SETUP`, `SURVEY_FLIGHT`, `PROCESSING_RESULTS`, `HOLO_TABLE_VIEW`, `INFOGRAPHIC_LAB`, `UIKIT`, `SOUNDBOARD` |
    | `contract=<id>` | contrato das telas de campo, voo e processamento (`C00` a `C06`, `R01` a `R11`) |
    | `autopilot=1` | o voo segue o plano sozinho (liga o tempo ×8) |
+   | `calm=1` | voo sem rajadas e sem erro de entrada de faixa (não use na §6) |
    | `seed=<n>` | seed global (eventos e rival) |
 
 4. **Se algo falhar**, anote: a URL, os passos, o que esperava, o que viu, os erros do console (F12) e, se puder, o save (`localStorage.getItem('scan-city-save')`, depois de `Esc → Salvar agora`).
@@ -163,7 +164,9 @@ Os testes tocam todos os efeitos e confirmam que não há erro; **ninguém ouviu
 | `LEVEL_UP` | subir de nível | arpejo de quatro notas subindo | ☐ |
 | `COLLECT` | anel (R01) e marco geodésico | "blip" que sobe depressa | ☐ |
 | `DENIED` | compra negada, ação inválida | dois toques graves e secos | ☐ |
-| `STAGE_DONE` | etapa do pipeline concluída | duas notas curtas, a segunda mais aguda | ☐ |
+| `STAGE_DONE` | etapa do pipeline concluída; linha aceita no voo | duas notas curtas, a segunda mais aguda | ☐ |
+| `GRADE` | foto com nota Boa ou Perfeita no voo | um "plim" curto; numa sequência sobe de tom pela escala pentatônica | ☐ |
+| `GRADE_MISS` | foto com nota Fraca ou Rejeitada | um "tum" grave que desce | ☐ |
 
 **Loops** (um botão liga e desliga cada um; o motor tem três variantes: Multirrotor, Asa fixa e Atlas)
 
@@ -184,7 +187,32 @@ Os testes tocam todos os efeitos e confirmam que não há erro; **ninguém ouviu
 
 ---
 
-## 6. Campanha jogada
+## 6. Voo com desafio (Fase 1 do replanejamento)
+
+O primeiro teste humano achou o voo sem desafio ([ADR-029](decisions.md)). A Fase 1 (T084 a T092) faz a pilotagem valer: portais do corredor, nota por foto, rajadas avisadas, revoo da linha mal voada e cruzeiro automático. Os pilotos simulados confirmam as metas (`npm run qa:flight`: o parado reprova em tudo, o mediano e o bom aprovam em tudo), mas **só uma pessoa diz se ficou divertido**. As Fases 2 e 3 só serão especificadas depois deste teste.
+
+**Como jogar:** sem `autopilot` e sem `calm`. O C00 pelo caminho normal, com o jogo zerado, para ver as dicas do primeiro voo; os outros direto no voo, com `/?debug=1&skipIntro=1&screen=SURVEY_FLIGHT&contract=<id>` (o plano de referência do contrato). Bons para comparar: **C00** (tutorial), **C02** (vento forte, linhas longas), **C04** (relevo da mina), **C06** (rajadas fortes da costa), **R01** e **R09** (fendas, mais arcade).
+
+**O que avaliar**
+
+- [ ] **Portais:** dá para ver para onde ir? O losango do centro (a nota Perfeita) é legível sobre qualquer terreno?
+- [ ] **Entrada da linha:** cada linha começa fora do eixo de propósito. Alinhar a tempo do primeiro portal parece justo?
+- [ ] **Rajadas:** o aviso (a seta e a contagem na biruta, 1,5 s antes) dá tempo de reagir? A rajada empurra o bastante para pedir ação, sem ser injusta?
+- [ ] **Relevo:** a seta SUBA ▲ / DESÇA ▼ e o corredor que acompanha o terreno se entendem?
+- [ ] **Notas e som:** a marca da nota a cada foto, a sequência que sobe de tom e o som do erro. Ajudam ou cansam depois de alguns minutos?
+- [ ] **Boletim e revoo:** quando a linha volta ("REVOO NECESSÁRIO"), dá para entender por quê (qual eixo errou)?
+- [ ] **Cruzeiro (`T`):** acelera na reta tranquila e solta sozinho no perigo (rajada, obstáculo, alerta). A surtida fica num tempo bom? A meta era de 2 a 4 minutos e **não foi atingida** nos contratos longos (o C02 dá uns 7 minutos de tempo real): anote se isso pesa.
+- [ ] **Parado não passa:** soltar os controles numa linha a reprova; o relatório explica a execução baixa?
+- [ ] **Dificuldade:** os contratos reais puxam para a simulação e as fendas para o arcade. Algum frustra ou fica fácil demais?
+- [ ] **Primeiro voo do C00:** as dicas (alinhar na entrada, a rajada, o relevo, a nota, o cruzeiro, o boletim) aparecem na hora certa e se entendem?
+
+| Contrato | Execução no pós-voo | Divertido (1–5) | Difícil (1–5) | Notas |
+| :--- | :-: | :-: | :-: | :--- |
+| ___ | ___ % | ☐ | ☐ | |
+
+---
+
+## 7. Campanha jogada
 
 O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automáticos só percorrem os caminhos certos. O que interessa aqui é a **sensação**: o que um teste não mede.
 
@@ -193,7 +221,7 @@ O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automátic
 **O que avaliar**
 
 - [ ] **Início:** a carta do avô, as cinco dicas do tutorial e o primeiro voo se entendem sem ajuda?
-- [ ] **Voo manual:** os controles respondem bem (velocidade, deriva, altura, foto, retorno à base); o vento, a bateria e os obstáculos pedem atenção sem frustrar?
+- [ ] **Voo manual:** os controles respondem bem (velocidade, deriva, altura, foto, retorno à base); o vento, a bateria e os obstáculos pedem atenção sem frustrar? (O voo em si tem a §6.)
 - [ ] **Relatório:** quando reprova, dá para entender **por quê** (GSD, sobreposição, pontos de apoio, RMSE, PEC-PCD)? As fórmulas aparecem de um jeito que ensina?
 - [ ] **Economia:** os preços da Garagem, da equipe e das habilidades contra o que os contratos pagam; a MegaMap (contraproposta e roubo de contrato); a renda do museu.
 - [ ] **Variedade:** cada contrato tem cara própria (terreno, regra especial, clima); as fendas têm o clima paródico esperado (moldura violeta no HUD, anomalias).
@@ -207,7 +235,7 @@ O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automátic
 
 ---
 
-## 7. Aparência e conforto
+## 8. Aparência e conforto
 
 - [ ] Em 1280 × 720 e em 1920 × 1080 nada se sobrepõe no HUD do voo, na barra superior, nos painéis e no relatório.
 - [ ] Os textos sobre os canvases (HUD, rótulos da mesa, mapa-múndi) são legíveis sobre qualquer terreno.
@@ -217,7 +245,7 @@ O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automátic
 
 ---
 
-## 8. Fechando as pendências
+## 9. Fechando as pendências
 
 - **Achou algo no Firefox, no Chrome ou no Edge (§1 e §2):** anote o navegador e a versão e abra uma tarefa nova (abaixo); o REQ-NFR-009 está ✅ pela suíte E2E, e uma falha humana o reabre.
 - **FPS (§4) abaixo da meta:** anote a máquina e as etapas do F9 e abra uma pergunta nova; a OQ-013 fica com a Resolução "medido em ___".
