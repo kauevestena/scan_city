@@ -1,7 +1,16 @@
 import { act, render, screen } from '@testing-library/react';
 import { useRef } from 'react';
+import { useGameStore } from '@/state/store';
+import { createFakeRaf } from '@/test/fakeRaf';
+import { resetGameStore } from '@/test/resetStore';
 import { currentDpr, setupCanvas } from './canvas';
-import { useCanvas } from './useCanvas';
+import { WINDOW_MS } from './renderScale';
+import {
+  renderScaleOf,
+  resetRememberedScales,
+  useCanvas,
+  type AdaptiveResolution,
+} from './useCanvas';
 
 function setDpr(value: number) {
   Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true });
@@ -68,9 +77,9 @@ describe('useCanvas', () => {
     }
   }
 
-  function Probe() {
+  function Probe({ adaptive }: { adaptive?: AdaptiveResolution }) {
     const ref = useRef<HTMLCanvasElement>(null);
-    const surface = useCanvas(ref);
+    const surface = useCanvas(ref, adaptive);
     return (
       <div
         ref={(el) => {
@@ -122,6 +131,74 @@ describe('useCanvas', () => {
 
     unmount();
     expect(disconnected).toBe(1);
+  });
+
+  describe('resolução adaptativa (ADR-033)', () => {
+    const FLIGHT: AdaptiveResolution = { kind: 'flight', floor: 0.75 };
+    let raf: ReturnType<typeof createFakeRaf>;
+    let now = 0;
+    /** Quadros de `frameMs` por `durationMs`, pelo rAF falso. */
+    const frames = (frameMs: number, durationMs: number) =>
+      act(() => {
+        for (let t = 0; t < durationMs; t += frameMs) raf.frame((now += frameMs));
+      });
+
+    beforeEach(() => {
+      resetGameStore();
+      resetRememberedScales();
+      raf = createFakeRaf();
+      now = 0;
+      vi.stubGlobal('requestAnimationFrame', raf.raf);
+      vi.stubGlobal('cancelAnimationFrame', raf.caf);
+    });
+
+    it('começa no DPR da tela (Alta), desce quando o quadro fica lento e o canvas marca a escala', () => {
+      setDpr(2);
+      const { unmount } = render(<Probe adaptive={FLIGHT} />);
+      const canvas = screen.getByTestId<HTMLCanvasElement>('canvas');
+      expect(canvas.width).toBe(1600);
+      expect(canvas.dataset.renderScale).toBe('2.00');
+      // 30 FPS por uma janela: um degrau (2 → 1,6), e o buffer encolhe; o tamanho lógico fica.
+      frames(1000 / 30, WINDOW_MS + 40);
+      expect(canvas.dataset.renderScale).toBe('1.60');
+      expect(canvas.width).toBe(1280);
+      expect(screen.getByRole('status')).toHaveTextContent('800x450@1.6');
+      // O painel F9 lê a escala em uso.
+      expect(renderScaleOf('flight')).toBeCloseTo(1.6, 9);
+      expect(renderScaleOf('holo')).toBeNull();
+      unmount();
+      // Desmontar para o laço do governador.
+      expect(raf.pending).toBe(0);
+    });
+
+    it('a escala que se segurou é lembrada: a próxima visita já começa nela', () => {
+      setDpr(2);
+      const first = render(<Probe adaptive={FLIGHT} />);
+      frames(1000 / 30, WINDOW_MS + 40);
+      first.unmount();
+      render(<Probe adaptive={FLIGHT} />);
+      expect(screen.getByTestId<HTMLCanvasElement>('canvas').dataset.renderScale).toBe('1.60');
+    });
+
+    it('a qualidade limita o teto: Baixa fica em 1 px de buffer por px de CSS', () => {
+      setDpr(2);
+      act(() => useGameStore.getState().setSetting('quality', 'LOW'));
+      render(<Probe adaptive={FLIGHT} />);
+      const canvas = screen.getByTestId<HTMLCanvasElement>('canvas');
+      expect(canvas.width).toBe(800);
+      expect(canvas.dataset.renderScale).toBe('1.00');
+      act(() => useGameStore.getState().setSetting('quality', 'HIGH'));
+      expect(canvas.width).toBe(1600);
+    });
+
+    it('sem a opção, nada muda: DPR inteiro e sem data-render-scale', () => {
+      setDpr(2);
+      render(<Probe />);
+      const canvas = screen.getByTestId<HTMLCanvasElement>('canvas');
+      frames(1000 / 20, 3000);
+      expect(canvas.width).toBe(1600);
+      expect(canvas.dataset.renderScale).toBeUndefined();
+    });
   });
 
   it('funciona sem ResizeObserver (só com o evento resize)', () => {

@@ -308,6 +308,8 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - `fillStyle` com cache de strings por cor quantizada (64 níveis);
   - objetos fora do frustum descartados antes da ordenação.
 - **Contador interno de tempo por etapa** (terreno, objetos, HUD), exibido no painel `F9`.
+- **Quads vizinhos de mesma cor de uma faixa num polígono só** (`QuadStrip`, [ADR-033](../decisions.md)): um `fill` por trecho, com o avanço de 1 px na borda de perto e na ponta da direita; o brilho da água vem depois do último trecho da faixa.
+- **Resolução adaptativa** ([ADR-033](../decisions.md)): a escala do buffer do canvas fica entre 0,75 e o teto da qualidade (Alta: o DPR; Média: 1,5; Baixa: 1), descendo um degrau quando a janela de 1,5 s fecha abaixo de 54 FPS (e só se a descida ajudar) e subindo depois de 3 s a 58 FPS ou mais. O `F9` mostra a escala.
 
 ### 5.19 Corredor e portais (REQ-FLT-025)
 - **Perfil:** ao começar cada linha, o motor calcula `corridorProfile` ([domain-math §10.3](../design/domain-math.md)) com a elevação ao longo do eixo da linha, `H`, a velocidade do plano, a razão de subida da aeronave e o teto. O perfil não muda durante a passada.

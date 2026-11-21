@@ -1980,14 +1980,21 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Passos:**
   1. Medir a capacidade (mediana e p95 de ms por quadro, sem vsync) do voo (C01, C03, R04, C06, R09), da mesa (18 setores) e do mapa, a DPR 1 e 2, sem GPU e com o canvas acelerado (SwiftShader), e separar o custo por camada num quadro congelado (pausa).
   2. Terreno: quads vizinhos de mesma cor de uma faixa num polígono só (`QuadStrip`).
-  3. Objetos: menos chamadas por objeto pequeno na tela (tronco, sombra e copa).
-  4. Resolução adaptativa nos canvases pesados (voo e mesa): teto do DPR por qualidade e um governador que baixa e sobe a escala pelo tempo de quadro; o HUD (DOM) segue nítido.
+  3. Avaliar cortes de raster no voo (névoa só onde o terreno não chega, detalhe por tamanho nas árvores) e ficar só com o que a medição mostrar.
+  4. Resolução adaptativa nos canvases pesados (voo e mesa): teto do DPR por qualidade e um governador que baixa e sobe a escala pelo tempo de quadro; o HUD (DOM) segue nítido; o F9 mostra a escala.
   5. ADR-033 com as medições; specs, testes e E2E; PR e merge.
 - **Aceite:**
   - [ ] A DPR 2, o voo na C03 e na R04 e a mesa com os 18 setores ficam a ≥ 55 FPS (vsync de 60 Hz) no ambiente de medição sem GPU.
-  - [ ] A DPR 1 nenhuma cena fica mais lenta que antes (capacidade, mediana sem vsync).
+  - [ ] A DPR 1 nenhuma cena fica mais lenta que antes (FPS com vsync e capacidade, no ruído da medição).
   - [ ] O `verify` e o E2E inteiro seguem verdes.
-- **Verificação:** `npm run verify` · `npm run e2e` · medição do passo 1 antes e depois
+- **Verificação:** `npm run verify` · `npm run e2e` · `npm run e2e:firefox` · as medições do passo 1 antes e depois
+- **Arquivos (efetivos):** \+ `src/engines/renderScale.ts` e teste, `src/engines/flight/terrainStrip.ts` e teste; ~ `src/engines/useCanvas.ts`, `src/engines/canvas.test.tsx`, `src/engines/flight/{terrainRenderer,FlightEngine}.ts` e testes, `src/screens/flight/SurveyFlightScreen.tsx`, `src/screens/holo/HoloTableScreen.tsx`, `src/app/PerfSection.tsx` e teste, `tests/e2e/viewports.spec.ts`; ~ `specs/{decisions,requirements,tasks,qa-manual}.md`, `specs/features/{survey-flight,holo-table}.md`.
+- **Notas de implementação:**
+  - **Onde o quadro vai.** O JS do motor é pequeno (1,5 a 3,6 ms no voo); o resto é a rasterização do canvas, que cresce com os pixels: a DPR 2 o voo na C03 e na R04 ia a 27–30 ms por quadro (34 a 37 FPS). O trace do Chromium mostra a thread principal ~100 % ocupada, metade no `Commit` (o raster do canvas) e um terço no `requestAnimationFrame`; o GC é pequeno (~25 ms em 4 s). Os quadros mais lentos (p95 ≈ 2 × mediana) são só cenas mais densas (floresta), com JS e raster crescendo juntos.
+  - **O que entrou:** a resolução adaptativa (o ganho grande, nas telas de alta densidade) e a fusão dos quads de mesma cor (o ganho no canvas acelerado). Os números, o método e o que foi descartado estão na [ADR-033](decisions.md).
+  - **O que foi medido e descartado:** a névoa só onde o terreno não chega (sem ganho além do ruído) e o detalhe por tamanho nas árvores (as copas da C03 têm mediana de 10 px de raio; nada a cortar). O A/B foi feito num quadro congelado, com chaves temporárias que não entraram no código.
+  - **A medição tem ruído grande neste ambiente:** a mesma versão do `main` deu 9,4 e 10,4 ms de mediana na C03 em duas rodadas seguidas. Por isso o A/B alterna base e variante no mesmo quadro congelado, e a comparação com o `main` foi feita lado a lado (duas rodadas alternadas, dentro do ruído).
+  - **A economia de energia do Chrome** limita a 30 Hz em notebook na bateria: o governador veria "30 FPS" e desceria à toa. Por isso uma descida só fica se ajudou (5 % de FPS na janela seguinte); senão a escala volta e as descidas param por 30 s.
 - **Status:** ☐
 
 
