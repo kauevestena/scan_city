@@ -32,6 +32,7 @@
 | F9 | Polimento | T075–T079 | **M4** — release: zero placeholders, performance, acessibilidade |
 | — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
 | F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
+| F11 | Desempenho depois do voo com desafio | T093 | FPS: menos chamadas de desenho e resolução que se adapta à máquina, antes do teste humano da Fase 1 |
 
 ## Grafo de dependências (resumo)
 
@@ -1967,6 +1968,28 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **O que fica para o teste humano** ([qa-manual §6](qa-manual.md)): a sensação (portais legíveis, aviso da rajada a tempo, notas e som que não cansam), a dificuldade por contrato e o tempo das surtidas longas (a meta de 2 a 4 min não foi atingida; ver T091).
 - **Status:** ✅
 
+---
+
+# F11 — Desempenho
+
+> Antes do teste humano da Fase 1, o usuário pediu para melhorar a taxa de quadros. A T077 ([ADR-024](decisions.md)) mediu tudo a DPR 1 e num Chromium sem GPU; o canvas, porém, usa o `devicePixelRatio` inteiro, e um notebook com escala de 150 % ou 200 % desenha 2,25 a 4 vezes mais pixels.
+
+### T093 — FPS do voo e da mesa: menos chamadas de desenho e resolução adaptativa
+- **Fase:** F11 · **Depende de:** T092 · **REQs:** REQ-NFR-001
+- **Spec:** [ADR-033](decisions.md), [survey-flight §5.18](features/survey-flight.md), [holo-table §5.7](features/holo-table.md)
+- **Passos:**
+  1. Medir a capacidade (mediana e p95 de ms por quadro, sem vsync) do voo (C01, C03, R04, C06, R09), da mesa (18 setores) e do mapa, a DPR 1 e 2, sem GPU e com o canvas acelerado (SwiftShader), e separar o custo por camada num quadro congelado (pausa).
+  2. Terreno: quads vizinhos de mesma cor de uma faixa num polígono só (`QuadStrip`).
+  3. Objetos: menos chamadas por objeto pequeno na tela (tronco, sombra e copa).
+  4. Resolução adaptativa nos canvases pesados (voo e mesa): teto do DPR por qualidade e um governador que baixa e sobe a escala pelo tempo de quadro; o HUD (DOM) segue nítido.
+  5. ADR-033 com as medições; specs, testes e E2E; PR e merge.
+- **Aceite:**
+  - [ ] A DPR 2, o voo na C03 e na R04 e a mesa com os 18 setores ficam a ≥ 55 FPS (vsync de 60 Hz) no ambiente de medição sem GPU.
+  - [ ] A DPR 1 nenhuma cena fica mais lenta que antes (capacidade, mediana sem vsync).
+  - [ ] O `verify` e o E2E inteiro seguem verdes.
+- **Verificação:** `npm run verify` · `npm run e2e` · medição do passo 1 antes e depois
+- **Status:** ☐
+
 
 ---
 
@@ -2104,7 +2127,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md) | T059, T060–T070, T079 | ✅ |
 | REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
-| REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077 | ✅ |
+| REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093 | ☐ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |

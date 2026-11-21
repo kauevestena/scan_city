@@ -8,12 +8,10 @@ import {
   bandDistance,
   buildDrawList,
   contourInterval,
-  extendQuad,
   fogDistance,
   fogFactor,
   gridElevation,
   type GroundSample,
-  QUAD_OVERLAP_PX,
   quantizedColor,
   renderTerrain,
   sampleGrid,
@@ -23,6 +21,23 @@ import {
 } from './terrainRenderer';
 
 const palette = createTerrain(C00).palette;
+
+/**
+ * Cores dos trechos de quads vizinhos da mesma cor, na ordem da lista: um trecho acaba quando a
+ * faixa ou a cor muda (as cenas de teste não descartam quads no meio de uma faixa).
+ */
+function colorRuns(quads: ReturnType<typeof buildDrawList>): string[] {
+  const out: string[] = [];
+  let band = -1;
+  let color = '';
+  for (const q of quads) {
+    if (q.type !== 'QUAD') continue;
+    if (q.band !== band || q.color !== color) out.push(q.color);
+    band = q.band;
+    color = q.color;
+  }
+  return out;
+}
 
 /** Cena sintética: plano a 0 m com um morro de 80 m entre Z = 150 e 250 m. */
 function scene(over: Partial<TerrainScene> = {}): TerrainScene {
@@ -225,9 +240,11 @@ describe('curvas de nível em lote', () => {
     expect(strokes).toBeGreaterThan(0);
     expect(strokes).toBeLessThanOrEqual(2 * bands);
     expect(strokes).toBeLessThan(contours);
-    // Um `fill` por quad e cada segmento continua no caminho: 1 moveTo por quad e 1 por curva.
-    expect(vi.mocked(ctx.fill).mock.calls.length).toBe(quads.length);
-    expect(vi.mocked(ctx.moveTo).mock.calls.length).toBe(quads.length + contours);
+    // Um `fill` por trecho de mesma cor e cada segmento continua no caminho: 1 moveTo por trecho
+    // e 1 por curva.
+    const runs = colorRuns(quads).length;
+    expect(vi.mocked(ctx.fill).mock.calls.length).toBe(runs);
+    expect(vi.mocked(ctx.moveTo).mock.calls.length).toBe(runs + contours);
   });
 
   it('as curvas de uma faixa saem antes dos objetos dela, que as cobrem', () => {
@@ -279,29 +296,21 @@ describe('céu e sprites', () => {
 });
 
 describe('quads sem contorno (survey-flight §5.18)', () => {
-  it('a borda de baixo e a da direita avançam QUAD_OVERLAP_PX sobre o vizinho; as outras ficam', () => {
-    // perto-esq, perto-dir, longe-dir, longe-esq (perto = embaixo na tela).
-    const p = Float64Array.from([10, 100, 40, 100, 38, 90, 12, 90]);
-    const q = extendQuad(p, new Float64Array(8));
-    const o = QUAD_OVERLAP_PX;
-    expect(o).toBeGreaterThanOrEqual(1);
-    expect([...q]).toEqual([10, 100 + o, 40 + o, 100 + o, 38 + o, 90, 12, 90]);
-    // O quad original não muda: ele é reaproveitado pelas curvas de nível e pelo brilho.
-    expect([...p]).toEqual([10, 100, 40, 100, 38, 90, 12, 90]);
-  });
-
-  it('cada quad é um `fill` com a sua cor e nenhum `stroke` por quad', () => {
+  it('cada trecho de quads vizinhos da mesma cor é um `fill` com a cor dele, sem `stroke`', () => {
     const s = scene({ quality: 'MEDIUM', elevation: () => 0 });
     const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
     const styles: unknown[] = [];
     vi.mocked(ctx.fill).mockImplementation(() => styles.push(ctx.fillStyle));
     renderTerrain(ctx, s);
     const quads = buildDrawList(s).filter((c) => c.type === 'QUAD');
-    expect(styles).toHaveLength(quads.length);
+    const runs = colorRuns(quads);
+    // Bem menos `fill` que quads (no plano, quase uma cor por faixa).
+    expect(styles).toHaveLength(runs.length);
+    expect(runs.length).toBeLessThan(quads.length / 4);
     // O canvas guarda a cor em hexadecimal; a lista de comandos, em `rgb(r,g,b)`.
     const hex = (rgb: string) =>
       '#' + (rgb.match(/\d+/g) ?? []).map((v) => Number(v).toString(16).padStart(2, '0')).join('');
-    expect(styles).toEqual(quads.map((c) => (c.type === 'QUAD' ? hex(c.color) : '')));
+    expect(styles).toEqual(runs.map(hex));
     // Plano sem relevo: não há curva de nível, então nenhum traço.
     expect(vi.mocked(ctx.stroke)).not.toHaveBeenCalled();
   });
