@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FLIGHT_STAGE, PERF, setPerfEnabled } from '@/engines/perf';
 import { activeSections, PerfSection } from './PerfSection';
 
+// A resolução adaptativa do voo (ADR-033) está em 0,82: o painel a mostra na seção do voo.
+vi.mock('@/engines/useCanvas', () => ({
+  renderScaleOf: (kind: string) => (kind === 'flight' ? 0.82 : null),
+}));
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -57,6 +62,7 @@ describe('PerfSection', () => {
     expect(flight.textContent).toContain('3,00 ms');
     expect(flight.textContent).toContain('terreno (quads e curvas)');
     expect(flight.textContent).toContain('5,00 ms');
+    expect(screen.getByTestId('perf-render-scale')).toHaveTextContent('Resolução do canvas ×0,82');
     expect(screen.queryByText(/Sem quadros/)).toBeNull();
 
     unmount();

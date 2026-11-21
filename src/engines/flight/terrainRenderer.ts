@@ -18,6 +18,7 @@ import {
   type FlightCamera,
   type Quality,
 } from './projection';
+import { QuadStrip } from './terrainStrip';
 import { COVER_HEAT, thermalColor } from './thermal';
 
 /** Sol do voo: azimute 135° (§5.3); a elevação vem da iluminação. */
@@ -552,41 +553,40 @@ function strokeSegments(ctx: CanvasRenderingContext2D, segs: number[], style: st
  * pintada de longe para perto e, em cada faixa, da esquerda para a direita, então o vizinho cobre
  * esse avanço por cima: a emenda de antisserrilhado entre os dois some sem precisar de contorno.
  */
-export const QUAD_OVERLAP_PX = 1;
-
 /**
- * Cantos do quad `p` (x, y × 4, na ordem perto-esquerda, perto-direita, longe-direita,
- * longe-esquerda; `perto` fica embaixo na tela) com o avanço de `QUAD_OVERLAP_PX` na borda de baixo
- * (a da faixa mais perto, pintada depois) e na da direita (a da coluna seguinte). As bordas de cima
- * e da esquerda ficam onde estão. Escreve em `out` e o devolve.
+ * Avanço da borda de perto (a de baixo, coberta pela faixa mais perto) e da ponta da direita (a
+ * do trecho seguinte) de cada trecho de quads, em px: esconde a emenda sem `stroke`.
  */
-export function extendQuad(p: Float64Array, out: Float64Array): Float64Array {
-  out[0] = p[0] as number;
-  out[1] = (p[1] as number) + QUAD_OVERLAP_PX;
-  out[2] = (p[2] as number) + QUAD_OVERLAP_PX;
-  out[3] = (p[3] as number) + QUAD_OVERLAP_PX;
-  out[4] = (p[4] as number) + QUAD_OVERLAP_PX;
-  out[5] = p[5] as number;
-  out[6] = p[6] as number;
-  out[7] = p[7] as number;
-  return out;
-}
+export const QUAD_OVERLAP_PX = 1;
+/** O maior número de colunas de uma faixa (Alta tem 48). */
+const MAX_COLS = 128;
+/** Trecho de quads da mesma cor em curso, reaproveitado entre os quadros. */
+const STRIP = new QuadStrip(MAX_COLS, QUAD_OVERLAP_PX);
+/** Cantos dos quads de água com brilho, da faixa em curso. */
+const GLINTS = new Float64Array(MAX_COLS * 8);
 
 /**
- * Desenha o terreno, os objetos e os alvos da missão. Ganhos de custo (survey-flight §5.18),
- * medidos no navegador sem GPU: (1) o `stroke` por quad (que escondia as emendas) saiu, trocado
- * pelo avanço de `QUAD_OVERLAP_PX` sobre o vizinho; (2) as curvas de nível de uma faixa saem num
- * traço só por estilo, depois dos quads dela e antes dos seus objetos (um `stroke` por segmento
- * custava caro nos relevos íngremes, R01); (3) objetos, sombras e alvos assentam na elevação da
- * própria grade, sem reavaliar o relevo.
+ * Desenha o terreno, os objetos e os alvos da missão. Ganhos de custo (survey-flight §5.18): (1) o
+ * `stroke` por quad (que escondia as emendas) saiu, trocado pelo avanço de `QUAD_OVERLAP_PX` sobre
+ * o vizinho; (2) os quads vizinhos de mesma cor de uma faixa saem num polígono só (`QuadStrip`,
+ * ADR-033), e o brilho da água espera o fim da faixa; (3) as curvas de nível de uma faixa saem
+ * num traço só por estilo, depois dos quads dela e antes dos seus objetos (um `stroke` por
+ * segmento custava caro nos relevos íngremes, R01); (4) objetos, sombras e alvos assentam na
+ * elevação da própria grade, sem reavaliar o relevo.
  */
 export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene): void {
   ctx.lineWidth = 1;
   const minor: number[] = [];
   const master: number[] = [];
   let band = -1;
-  const extended = new Float64Array(8);
+  // Brilhos da água da faixa, desenhados por cima dela depois do último trecho.
+  let glints = 0;
   const flush = () => {
+    STRIP.flush(ctx);
+    for (let k = 0; k < glints; k++) {
+      drawGlint(ctx, GLINTS.subarray(k * 8, k * 8 + 8), scene.timeS);
+    }
+    glints = 0;
     strokeSegments(ctx, minor, CONTOUR_MINOR);
     strokeSegments(ctx, master, CONTOUR_MASTER);
   };
@@ -596,15 +596,7 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
         flush();
         band = b;
       }
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      const q = extendQuad(p, extended);
-      ctx.moveTo(q[0] as number, q[1] as number);
-      ctx.lineTo(q[2] as number, q[3] as number);
-      ctx.lineTo(q[4] as number, q[5] as number);
-      ctx.lineTo(q[6] as number, q[7] as number);
-      ctx.closePath();
-      ctx.fill();
+      STRIP.push(ctx, p, color);
     },
     contour: (_band, x1, y1, x2, y2, isMaster) => {
       (isMaster ? master : minor).push(x1, y1, x2, y2);
@@ -613,7 +605,11 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
       flush();
       drawShadow(ctx, o, s, lengthM, ground);
     },
-    glint: (_band, _z, p, timeS) => drawGlint(ctx, p, timeS),
+    glint: (_band, _z, p) => {
+      if ((glints + 1) * 8 > GLINTS.length) return;
+      GLINTS.set(p, glints * 8);
+      glints++;
+    },
     object: (_band, o, s, ground) => {
       flush();
       drawSceneObject(ctx, o, {

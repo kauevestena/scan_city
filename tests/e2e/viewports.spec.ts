@@ -67,7 +67,11 @@ async function overflowing(page: Page): Promise<string[]> {
   });
 }
 
-/** Canvases visíveis (menos os de arte de pixel) cujo buffer não é `tamanho CSS × DPR`. */
+/**
+ * Canvases visíveis (menos os de arte de pixel) cujo buffer não é `tamanho CSS × DPR`. O voo e a
+ * mesa têm resolução adaptativa (ADR-033): o buffer segue a escala que o canvas marca em
+ * `data-render-scale`, que fica entre 0,75 e o DPR.
+ */
 async function dprMismatches(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const dpr = window.devicePixelRatio;
@@ -78,11 +82,16 @@ async function dprMismatches(page: Page): Promise<string[]> {
       // Arte de pixel de 1 px por tile (o minimapa, 160 × 100): o navegador amplia sem suavizar
       // (`image-rendering: pixelated`), então um buffer maior não mudaria nada na tela.
       if (getComputedStyle(c).imageRendering === 'pixelated') continue;
-      const w = Math.round(c.clientWidth * dpr);
-      const h = Math.round(c.clientHeight * dpr);
+      const id = c.getAttribute('data-testid') ?? c.className;
+      const adaptive = c.dataset.renderScale;
+      const scale = adaptive === undefined ? dpr : Number(adaptive);
+      if (adaptive !== undefined && !(scale >= 0.75 && scale <= dpr + 1e-6)) {
+        found.push(`${id}: escala adaptativa ${adaptive} fora de [0,75; ${dpr}]`);
+      }
+      const w = Math.round(c.clientWidth * scale);
+      const h = Math.round(c.clientHeight * scale);
       if (Math.abs(c.width - w) > 1 || Math.abs(c.height - h) > 1) {
-        const id = c.getAttribute('data-testid') ?? c.className;
-        found.push(`${id}: buffer ${c.width}×${c.height}, esperado ${w}×${h} (DPR ${dpr})`);
+        found.push(`${id}: buffer ${c.width}×${c.height}, esperado ${w}×${h} (escala ${scale})`);
       }
     }
     return found;
@@ -147,7 +156,7 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-test.describe('DPR 2: o buffer dos canvases é o tamanho CSS vezes o DPR', () => {
+test.describe('DPR 2: o buffer dos canvases é o tamanho CSS vezes o DPR (ou a escala adaptativa)', () => {
   test.use({ viewport: VIEWPORTS[0], deviceScaleFactor: 2 });
 
   for (const testId of [

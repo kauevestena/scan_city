@@ -107,7 +107,7 @@ O requisito: **≥ 55 FPS** (média de 10 s) a 1280 × 720, DPR 1, qualidade **A
 
 **Como medir**
 
-1. Janela do navegador em 1280 × 720 (ou o mais perto que der) e zoom de 100 %. Confira o DPR no console: `window.devicePixelRatio` (o requisito é **1**; numa tela com escala de 200 % o canvas tem quatro vezes mais pixels, e vale anotar o DPR e medir uma vez também em escala 100 %).
+1. Janela do navegador em 1280 × 720 (ou o mais perto que der) e zoom de 100 %. Confira o DPR no console: `window.devicePixelRatio` (o requisito é **1**; numa tela com escala de 150 % ou 200 % o voo e a mesa baixam sozinhos a resolução do canvas quando o quadro fica lento, [ADR-033](decisions.md): anote o DPR e a escala que o F9 mostra em "Resolução do canvas", e meça uma vez também em escala 100 %).
 2. `Esc → Configurações → Qualidade gráfica → Alta`.
 3. Abra a cena, **feche o painel F9** (aberto, ele liga os contadores por etapa) e cole no console:
 
@@ -128,7 +128,7 @@ O requisito: **≥ 55 FPS** (média de 10 s) a 1280 × 720, DPR 1, qualidade **A
    ```
 
    (O contador "N FPS" no canto é uma média de 1 s; serve para ver a tendência.)
-4. Com a medição feita, `F9` mostra o tempo de cada etapa em ms contra o orçamento (**voo 12 ms, mesa 10 ms**): anote as etapas que passarem de 2 ms.
+4. Com a medição feita, `F9` mostra o tempo de cada etapa em ms contra o orçamento (**voo 12 ms, mesa 10 ms**) e a resolução do canvas: anote as etapas que passarem de 2 ms e a escala (×1 é a resolução cheia a DPR 1).
 
 **Cenas** (todas em `http://localhost:4173`; a coluna da ADR é a medição sem GPU, em Alta, com vsync de 60 Hz; num monitor de 120 ou 144 Hz o número pode passar de 60)
 
@@ -140,9 +140,9 @@ O requisito: **≥ 55 FPS** (média de 10 s) a 1280 × 720, DPR 1, qualidade **A
 | Mesa, Real e Multiverso | `/?debug=1&skipIntro=1&screen=HOLO_TABLE_VIEW`; `F9` → **Mapear tudo (museu)**; `F9`; meça cada modo (`1`, `2`, `3`) nas duas dimensões (`Tab`) | ≥ 55 | 58,8 a 59,9 |
 | Mapa-múndi andando | `/?debug=1&skipIntro=1&screen=WORLD_MAP`; segure `D` ou `→` e vá mudando de direção durante a medição | ≥ 58 | 60,0 |
 
-| Máquina (CPU, GPU) | Navegador | DPR | C01 | C03 | R04 | Mesa (pior de 6) | Mapa | Notas |
-| :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :--- |
-| ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | |
+| Máquina (CPU, GPU) | Navegador | DPR | C01 | C03 | R04 | Mesa (pior de 6) | Mapa | Escala do F9 (voo / mesa) | Notas |
+| :--- | :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :--- |
+| ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | |
 
 ---
 

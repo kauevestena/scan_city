@@ -542,12 +542,19 @@ export class FlightEngine implements Simulation {
   }
 
   attach(surface: CanvasSurface): void {
+    const resized =
+      !this.surface ||
+      this.surface.width !== surface.width ||
+      this.surface.height !== surface.height;
     this.surface = surface;
-    this.weather = new WeatherParticles(
-      this.opts.mission.plan.params.lighting,
-      surface.width,
-      surface.height,
-    );
+    // A resolução adaptativa troca só a escala do buffer: a chuva segue onde estava.
+    if (resized || !this.weather) {
+      this.weather = new WeatherParticles(
+        this.opts.mission.plan.params.lighting,
+        surface.width,
+        surface.height,
+      );
+    }
   }
 
   /** Ao começar cada linha, o Atlas sorteia (seedado) uma distração. */

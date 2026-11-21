@@ -376,3 +376,17 @@ describe('FlightEngine — contador de tempo por etapa (survey-flight §5.18)', 
     expect(PERF.flight.frameCount).toBe(0);
   });
 });
+
+describe('FlightEngine — resolução adaptativa (ADR-033)', () => {
+  it('trocar só a escala do buffer não reinicia a chuva; mudar o tamanho, sim', () => {
+    const { e } = engine();
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    e.attach({ ctx, width: 1280, height: 720, dpr: 2 });
+    const weather = e['weather'];
+    expect(weather).not.toBeNull();
+    e.attach({ ctx, width: 1280, height: 720, dpr: 1.6 });
+    expect(e['weather']).toBe(weather);
+    e.attach({ ctx, width: 1024, height: 576, dpr: 1.6 });
+    expect(e['weather']).not.toBe(weather);
+  });
+});

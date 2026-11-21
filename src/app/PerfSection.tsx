@@ -1,6 +1,7 @@
 import { Gauge } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { acquirePerf, PERF, PERF_BUDGET_MS, type StageReading } from '@/engines/perf';
+import { renderScaleOf } from '@/engines/useCanvas';
 import { formatNumber } from '@/lib/format';
 import { cx } from '@/ui';
 
@@ -12,6 +13,8 @@ interface Section {
   totalMs: number;
   budgetMs: number;
   stages: StageReading[];
+  /** Escala do buffer do canvas (resolução adaptativa, ADR-033), nos que têm. */
+  renderScale: number | null;
 }
 
 /** As seções com quadros novos desde a leitura anterior: só a tela que está rodando aparece. */
@@ -28,6 +31,7 @@ export function activeSections(seen: Map<string, number>): Section[] {
         totalMs: timer.totalMs,
         budgetMs: PERF_BUDGET_MS[key],
         stages: timer.readings(),
+        renderScale: renderScaleOf(key),
       });
     }
     seen.set(key, frames);
@@ -84,6 +88,11 @@ export function PerfSection() {
                 </span>
               </div>
             ))}
+            {sec.renderScale !== null && (
+              <p className="mt-1 font-mono text-xs text-slate-400" data-testid="perf-render-scale">
+                Resolução do canvas ×{formatNumber(sec.renderScale, 2)}
+              </p>
+            )}
           </div>
         );
       })}

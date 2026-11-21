@@ -24,6 +24,12 @@ import { Button } from '@/ui';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { HoloControls } from './HoloControls';
 import { SectorCard } from './SectorCard';
+
+/**
+ * Resolução adaptativa da mesa (ADR-033): tira o excesso das telas de alta densidade, até 1 px de
+ * buffer por px de CSS; abaixo disso quem age é a queda de qualidade da própria mesa.
+ */
+const HOLO_RESOLUTION = { kind: 'holo', floor: 1 } as const;
 import { WingsPanel } from './WingsPanel';
 
 const H = STRINGS.holo;
@@ -47,7 +53,7 @@ const goBack = () => useGameStore.getState().goTo('OFFICE');
 export function HoloTableScreen() {
   useInputContext('HOLO');
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const surface = useCanvas(canvasRef);
+  const surface = useCanvas(canvasRef, HOLO_RESOLUTION);
   const sectors = useGameStore((s) => s.museum.sectors);
   const featured = useGameStore((s) => s.museum.featured);
   const contracts = useGameStore((s) => s.contracts);

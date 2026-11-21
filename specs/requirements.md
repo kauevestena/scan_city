@@ -66,7 +66,7 @@ Se o navegador recusar o armazenamento (`localStorage` bloqueado pelos cookies o
 - habilitar o painel `F9` e as galerias `?screen=UIKIT` e `?screen=SOUNDBOARD`.
 - *Aceite:* `?debug=1&screen=SURVEY_FLIGHT&autopilot=1` abre um voo com missão de teste que se completa sozinho.
 
-**REQ-CORE-008: Game loop e Canvas.** O sistema deve executar as simulações com `requestAnimationFrame`, limitando `dt` a 50 ms e usando sub-passos de no máximo 1/60 s. Os Canvas devem escalar por `devicePixelRatio` e responder a redimensionamento.
+**REQ-CORE-008: Game loop e Canvas.** O sistema deve executar as simulações com `requestAnimationFrame`, limitando `dt` a 50 ms e usando sub-passos de no máximo 1/60 s. Os Canvas devem escalar por `devicePixelRatio` (ou pela escala adaptativa do voo e da mesa, ADR-033) e responder a redimensionamento.
 - *Aceite:* um teste do hook com rAF mockado verifica o clamp e a contagem de sub-passos.
 
 **REQ-CORE-009: Novo jogo.** Quando o jogador escolher "Novo jogo" no menu de pausa e confirmar no modal in-app, o sistema deve apagar o save (após backup) e reiniciar no `OFFICE` com o estado inicial de [progression §1](features/progression.md).
@@ -650,8 +650,8 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 
 ## NFR — Não funcionais
 
-**REQ-NFR-001: Performance.** O sistema deve manter ≥ 55 FPS (média de 10 s) a 1280 × 720, DPR 1, com qualidade "Alta", no voo 2.5D e na mesa holográfica, e ≥ 58 FPS no mapa-múndi. O perfil de referência é uma CPU de notebook de 4 núcleos (2020+) com Chrome atual. As qualidades "Média" e "Baixa" reduzem as faixas e colunas do terreno.
-- *Aceite:* overlay de FPS no debug + teste de performance manual documentado em T077.
+**REQ-NFR-001: Performance.** O sistema deve manter ≥ 55 FPS (média de 10 s) a 1280 × 720, DPR 1, com qualidade "Alta", no voo 2.5D e na mesa holográfica, e ≥ 58 FPS no mapa-múndi. O perfil de referência é uma CPU de notebook de 4 núcleos (2020+) com Chrome atual. As qualidades "Média" e "Baixa" reduzem as faixas e colunas do terreno e o teto da resolução do canvas. Em telas de alta densidade (DPR > 1), o voo e a mesa ajustam sozinhos a resolução do canvas pelo tempo de quadro (ADR-033), sem tocar no HUD.
+- *Aceite:* overlay de FPS no debug + teste de performance manual documentado em T077 e T093; testes do governador de resolução.
 
 **REQ-NFR-002: Qualidade de build.** O projeto deve compilar com TypeScript `strict` e ESLint sem erros, e `npm run build` deve gerar `dist/` funcional.
 - *Aceite:* CI local (`npm run verify`).
@@ -659,7 +659,7 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 **REQ-NFR-003: Cobertura de testes.** `src/domain/` e `src/lib/` devem ter cobertura ≥ 90 % de linhas, e o projeto todo ≥ 60 %.
 - *Aceite:* `npm run test:coverage` com thresholds configurados no Vitest.
 
-**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR.
+**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR; o do voo e o da mesa podem baixar a escala do buffer quando o quadro fica lento (resolução adaptativa, ADR-033) e marcam a escala em uso.
 - *Aceite:* E2E com dois viewports.
 
 **REQ-NFR-005: Zero placeholders.** O código não deve conter `TODO`, `FIXME`, `XXX`, funções vazias nem o `DebugScreenShell` acessível fora do debug.
