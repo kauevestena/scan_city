@@ -2,16 +2,27 @@ import { getAircraft } from '@/data/catalog';
 import { CONTRACTS } from '@/data/contracts';
 import { mulberry32 } from '@/lib/rng';
 import {
+  COUNTER_INPUT,
+  COUNTER_LATE_LIMIT_S,
+  COUNTER_PUSH_FACTOR,
+  COUNTER_WINDOW_S,
   ENTRY_OFFSET_FRACTION,
   GUST_BEFORE_END_S,
+  GUST_HOLD_S,
   GUST_MIN_LATERAL,
   GUST_EXTRA_MS,
   GUST_MIN_PEAK_MS,
   GUST_PEAK_FACTOR,
   GUST_RAMP_S,
   GUST_WARN_S,
+  counterWeight,
   entryOffsetM,
   gustCount,
+  gustSide,
+  initialCounter,
+  judgeCounter,
+  stepCounter,
+  type CounterState,
   gustDurationS,
   gustEnvelope,
   gustPushAt,
@@ -26,12 +37,12 @@ const DEG = Math.PI / 180;
 const WIND = { meanMs: 4, gustMs: 3, directionDeg: 90 };
 
 describe('golden values', () => {
-  it('G29 — rajadas por linha: 1 em 12 s, 3 em 30 s, 6 em 75 s (o máximo)', () => {
-    expect(gustCount(12)).toBe(1);
-    expect(gustCount(30)).toBe(3);
-    expect(gustCount(75)).toBe(6);
+  it('G29 — rajadas por linha: 1 em 7 s, 5 em 35 s, 9 em 63 s (o máximo)', () => {
+    expect(gustCount(7)).toBe(1);
+    expect(gustCount(35)).toBe(5);
+    expect(gustCount(63)).toBe(9);
     expect(gustCount(0)).toBe(1);
-    expect(gustCount(600)).toBe(6);
+    expect(gustCount(600)).toBe(9);
   });
 
   it('G30 — o que a aeronave corrige no lead-in: 24 m (multirrotor) e 20,0 m (asa fixa)', () => {
@@ -87,16 +98,15 @@ describe('planGusts', () => {
           expect(g.startS - GUST_WARN_S).toBeGreaterThanOrEqual(previousEnd);
           previousEnd = g.startS + gustDurationS(g);
           expect(g.rampS).toBe(GUST_RAMP_S);
-          expect(g.holdS).toBeGreaterThanOrEqual(1.5);
-          expect(g.holdS).toBeLessThan(2.5);
+          expect(g.holdS).toBeGreaterThanOrEqual(GUST_HOLD_S[0]);
+          expect(g.holdS).toBeLessThan(GUST_HOLD_S[1]);
         }
       }
     }
   });
 
   it('linha curta: a quantidade cai até caber; com janela vazia, uma rajada logo após a entrada', () => {
-    // 20 s de linha com 3 s de lead-in: janela de 12 s, só cabe uma.
-    // 16 s de linha com 3 s de lead-in: janela de 8 s, só cabe uma (cada uma pede 6 s).
+    // 16 s de linha com 3 s de lead-in: janela de 8 s, só cabe uma (cada uma pede 5 s).
     expect(gustCount(16)).toBe(2);
     expect(planGusts(mulberry32(3), WIND, 0, 16, 3)).toHaveLength(1);
     const tight = planGusts(mulberry32(3), WIND, 0, 6, 3);
@@ -104,7 +114,7 @@ describe('planGusts', () => {
     expect(tight[0]?.startS).toBe(4);
   });
 
-  it('força de pico: max(4, rajada + 2) × [0,8, 1,3), também em contrato sem vento', () => {
+  it('força de pico: max(5, rajada + 3) × [0,8, 1,3), também em contrato sem vento', () => {
     for (const wind of [WIND, { meanMs: 0, gustMs: 0, directionDeg: 0 }]) {
       const base = Math.max(GUST_MIN_PEAK_MS, wind.gustMs + GUST_EXTRA_MS);
       for (let seed = 1; seed <= 100; seed++) {
@@ -141,6 +151,16 @@ describe('planGusts', () => {
         expect(Math.abs(g.angleRad - Math.PI / 2)).toBeLessThanOrEqual(50 * DEG + 1e-9);
       }
     }
+    // Sem vento, as rajadas de uma passada vêm de uma direção sorteada para ela: o comprimento
+    // médio do vetor resultante das direções fica alto (com direções ao acaso seria ~0,33).
+    let coherence = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const g = planGusts(mulberry32(seed), { meanMs: 0, gustMs: 0, directionDeg: 0 }, 0, 63, 3);
+      const sx = g.reduce((a, x) => a + Math.cos(x.angleRad), 0);
+      const sy = g.reduce((a, x) => a + Math.sin(x.angleRad), 0);
+      coherence += Math.hypot(sx, sy) / g.length / 200;
+    }
+    expect(coherence).toBeGreaterThan(0.75);
     const calm = { meanMs: 0, gustMs: 0, directionDeg: 0 };
     const quadrants = new Set<string>();
     for (let seed = 1; seed <= 200; seed++) {
@@ -151,7 +171,7 @@ describe('planGusts', () => {
     expect(quadrants.size).toBe(4);
   });
 
-  it('todo contrato tem rajada com pico ≥ 4 m/s × 0,8', () => {
+  it('todo contrato tem rajada com pico ≥ 5 m/s × 0,8', () => {
     for (const c of CONTRACTS) {
       const gusts = planGusts(mulberry32(c.seed), c.wind, 0.5, 60, 3);
       expect(gusts.length).toBeGreaterThanOrEqual(1);
@@ -184,6 +204,13 @@ describe('envelope, empurrão e aviso', () => {
     expect(two.alongMs).toBeCloseTo(8 * Math.cos(Math.PI / 6), 9);
   });
 
+  it('os pesos do contragolpe reduzem só a rajada cortada', () => {
+    const other: Gust = { ...gust, angleRad: -Math.PI / 6 };
+    const cut = gustPushAt([gust, other], 11, [COUNTER_PUSH_FACTOR, 1]);
+    expect(cut.lateralMs).toBeCloseTo(2 * COUNTER_PUSH_FACTOR - 2, 9);
+    expect(gustPushAt([gust], 11, [])).toEqual(gustPushAt([gust], 11));
+  });
+
   it('o aviso vale de 1,5 s antes até o fim do sopro', () => {
     const later: Gust = { ...gust, startS: 30 };
     expect(gustWarningAt([gust, later], 8.4)).toBeNull();
@@ -194,6 +221,56 @@ describe('envelope, empurrão e aviso', () => {
     expect(gustWarningAt([gust, later], 13)).toBeNull();
     expect(gustWarningAt([gust, later], 29)?.gust).toBe(later);
     expect(gustWarningAt([], 10)).toBeNull();
+  });
+});
+
+describe('contragolpe', () => {
+  const gust: Gust = { startS: 10, rampS: 0.25, holdS: 1.5, peakMs: 5, angleRad: Math.PI / 2 };
+  const DT = 1 / 60;
+
+  /** Roda o julgamento do aviso ao limite com o comando `countering(t)`. */
+  function run(countering: (t: number) => boolean): CounterState {
+    let st = initialCounter();
+    for (let t = 7; t <= gust.startS + COUNTER_LATE_LIMIT_S + 0.1 && !st.result; t += DT) {
+      st = stepCounter(st, gust, t, countering(t));
+    }
+    return st;
+  }
+
+  it('lado da rajada pelo seno do ângulo', () => {
+    expect(gustSide(gust)).toBe(1);
+    expect(gustSide({ ...gust, angleRad: -2 })).toBe(-1);
+  });
+
+  it('a janela: cedo antes de −0,3 s, no tempo até +0,2 s, tarde depois', () => {
+    expect(judgeCounter(COUNTER_WINDOW_S[0] - 0.01)).toBe('EARLY');
+    expect(judgeCounter(COUNTER_WINDOW_S[0])).toBe('PERFECT');
+    expect(judgeCounter(0)).toBe('PERFECT');
+    expect(judgeCounter(COUNTER_WINDOW_S[1])).toBe('PERFECT');
+    expect(judgeCounter(COUNTER_WINDOW_S[1] + 0.01)).toBe('LATE');
+  });
+
+  it('o começo do comando é o que conta: no tempo, cedo, tarde e sem reação', () => {
+    expect(run((t) => t >= 9.9).result).toBe('PERFECT');
+    expect(run((t) => t >= 9).result).toBe('EARLY');
+    expect(run((t) => t >= 10.5).result).toBe('LATE');
+    expect(run(() => false).result).toBe('MISS');
+  });
+
+  it('segurar desde antes da frente não vale; soltar e tocar de novo no tempo vale', () => {
+    expect(run(() => true).result).toBe('EARLY');
+    expect(run((t) => t < 9.5 || t >= 9.95).result).toBe('PERFECT');
+  });
+
+  it('julgada, não muda mais', () => {
+    const done: CounterState = { ...initialCounter(), result: 'LATE' };
+    expect(stepCounter(done, gust, 10, true)).toBe(done);
+  });
+
+  it('só a rajada cortada no tempo perde força', () => {
+    expect(counterWeight('PERFECT')).toBe(COUNTER_PUSH_FACTOR);
+    for (const r of ['EARLY', 'LATE', 'MISS', null] as const) expect(counterWeight(r)).toBe(1);
+    expect(COUNTER_INPUT).toBeGreaterThan(0);
   });
 });
 

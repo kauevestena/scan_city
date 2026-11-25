@@ -40,6 +40,35 @@ export const AUTOPILOT_LOOKAHEAD_S = 0.5;
 /** Antecipação da rajada: o autopilot olha o empurrão este tempo à frente. */
 export const AUTOPILOT_GUST_LEAD_S = 0.4;
 
+/**
+ * Contragolpe do autopilot (survey-flight §5.13): até este instante (s de simulação, em relação
+ * ao início da rajada) ele segura o comando contra ela abaixo do limiar; daí até
+ * `AUTOPILOT_COUNTER_UNTIL_S`, comando cheio contra ela. O começo cai no meio da janela.
+ */
+export const AUTOPILOT_COUNTER_AT_S = -0.1;
+export const AUTOPILOT_COUNTER_UNTIL_S = 0.1;
+
+/**
+ * O contragolpe do piloto bom: com a rajada `deltaS` segundos da chegada (negativo: ainda vem),
+ * segura o comando contra ela abaixo de `threshold` até `AUTOPILOT_COUNTER_AT_S` e depois o
+ * dá inteiro por um instante. `against` é o sinal do comando que vai contra a rajada.
+ */
+export function autopilotCounter(
+  input: FlightInput,
+  deltaS: number,
+  against: -1 | 1,
+  warnS: number,
+  threshold: number,
+): FlightInput {
+  if (deltaS < -warnS || deltaS >= AUTOPILOT_COUNTER_UNTIL_S) return input;
+  if (deltaS < AUTOPILOT_COUNTER_AT_S) {
+    const limit = 0.8 * threshold;
+    const moveX = against > 0 ? Math.min(input.moveX, limit) : Math.max(input.moveX, -limit);
+    return { ...input, moveX };
+  }
+  return { ...input, moveX: against };
+}
+
 /** O arrasto que o autopilot aceita no plano antes de frear: folga para a rajada de cauda. */
 export const AUTOPILOT_MAX_BLUR_PX = 0.75;
 

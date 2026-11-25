@@ -1,3 +1,4 @@
+import { FLIGHT_TEMPO } from './tempo';
 import { CATALOG } from '@/data/catalog';
 import { C00 } from '@/data/contracts';
 import { buildFlightPlan } from '@/domain/flightPlanner';
@@ -416,7 +417,8 @@ describe('cruzeiro automático no motor (survey-flight §5.14)', () => {
     run(e, 9);
     expect(e.timeWarp).toBeGreaterThan(1);
     expect(e.snapshot().cruise).toMatchObject({ on: true });
-    expect(e.snapshot().timeScale).toBe(e.timeWarp);
+    expect(e.snapshot().timeScale).toBe(e.timeScale);
+    expect(e.timeScale).toBeCloseTo(FLIGHT_TEMPO * e.timeWarp, 9);
     // O prédio em u = 400: a menos de 150 m à frente e no eixo, o cruzeiro cai a ×1.
     for (let t = 0; t < 60 && 400 - e.pos().u > 140; t += 1 / 60) e.update(1 / 60);
     run(e, 0.1);

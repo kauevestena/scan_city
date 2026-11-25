@@ -1,6 +1,7 @@
 /**
- * A execução do voo no HUD (survey-flight §4 e §5.21): a nota da passada e a sequência, a
- * marca de cada amostra, a biruta com a rajada e o boletim da linha durante a curva.
+ * A execução do voo no HUD (survey-flight §4, §5.13 e §5.21): a nota da passada e a sequência,
+ * a marca de cada amostra e de cada contragolpe, a biruta com a rajada e o boletim da linha
+ * durante a curva.
  */
 import { STRINGS } from '@/data/strings';
 import type { FlightHudSnapshot } from '@/engines/flight/hudPublisher';
@@ -69,9 +70,43 @@ export function GradeMark({ snap, calm }: { snap: FlightHudSnapshot; calm: boole
   );
 }
 
-/** Biruta: para onde o vento sopra em relação à aeronave; na rajada, cresce e fica âmbar. */
+/** Cores da marca do contragolpe; sem reação, não há marca (o empurrão já diz tudo). */
+export const COUNTER_CLASS: Readonly<Record<'PERFECT' | 'EARLY' | 'LATE', string>> = {
+  PERFECT: 'text-emerald-300',
+  EARLY: 'text-amber-300',
+  LATE: 'text-amber-300',
+};
+
+/**
+ * A marca do último contragolpe ("NO TEMPO!", "CEDO", "TARDE"), acima da marca da nota, do lado
+ * de onde a rajada veio. Some como a marca da nota.
+ */
+export function CounterMark({ snap, calm }: { snap: FlightHudSnapshot; calm: boolean }) {
+  const c = snap.counter;
+  if (!c || c.result === 'MISS' || snap.phase !== 'RUN') return null;
+  return (
+    <span
+      key={c.seq}
+      data-testid="hud-counter"
+      data-result={c.result}
+      className={cx(
+        'absolute top-[48%] -translate-x-1/2 font-mono text-xl font-black tracking-widest drop-shadow',
+        c.side > 0 ? 'left-[44%]' : 'left-[56%]',
+        COUNTER_CLASS[c.result],
+        calm ? 'grade-fade' : 'grade-pop',
+      )}
+    >
+      {T.counter[c.result]}
+    </span>
+  );
+}
+
+/**
+ * Biruta: para onde o vento sopra em relação à aeronave. Só a rajada que já sopra a faz girar,
+ * crescer e ficar âmbar: o aviso da rajada é só a frente de vento na cena (ADR-034).
+ */
 export function Windsock({ snap, calm }: { snap: FlightHudSnapshot; calm: boolean }) {
-  const gust = snap.gust;
+  const gust = snap.gust?.active ? snap.gust : null;
   const deg = Math.round(gust ? (gust.side > 0 ? 90 : -90) : snap.windRelDeg);
   return (
     <svg
@@ -79,14 +114,14 @@ export function Windsock({ snap, calm }: { snap: FlightHudSnapshot; calm: boolea
       role="img"
       aria-label={T.windsock(deg)}
       data-testid="hud-windsock"
-      data-gust={gust ? (gust.active ? 'active' : 'warned') : 'none'}
+      data-gust={gust ? 'active' : 'none'}
       className={cx(
         'size-7',
         gust ? 'text-amber-400' : 'text-slate-300',
         gust && !calm && 'animate-pulse',
       )}
     >
-      <g transform={`rotate(${deg}) scale(${gust?.active ? 1.25 : 1})`}>
+      <g transform={`rotate(${deg}) scale(${gust ? 1.25 : 1})`}>
         <path d="M0 -9 L5 -1 L1.8 -1 L1.8 9 L-1.8 9 L-1.8 -1 L-5 -1 Z" fill="currentColor" />
       </g>
     </svg>

@@ -127,6 +127,9 @@ const level = (alpha: number) => Math.max(1, Math.round(alpha * ALPHA_LEVELS));
  * por nível de transparência: poucas chamadas de `stroke` por quadro, qualquer que seja o
  * número de portais (o raster sem GPU paga caro por traço).
  */
+/** Os portais mais perto ganham um halo (um traço largo e translúcido por baixo). */
+export const GLOW_GATES = 3;
+
 export function drawCorridor(
   ctx: CanvasRenderingContext2D,
   list: readonly GateDraw[],
@@ -134,10 +137,35 @@ export function drawCorridor(
   reduceFlashes: boolean,
   width: number,
   height: number,
+  timeS = 0,
 ): void {
   if (list.length === 0) return;
   const rgb = (list[0] as GateDraw).rgb;
   ctx.save();
+  // Halo dos portais mais perto, num traço só; o próximo pulsa devagar (parado com reduceFlashes).
+  const near = list.slice(-GLOW_GATES);
+  const pulse = reduceFlashes ? 0.5 : 0.5 + 0.5 * Math.sin(timeS * 5);
+  ctx.lineWidth = 9;
+  ctx.strokeStyle = `rgba(${rgb}, ${(0.07 + 0.05 * pulse).toFixed(3)})`;
+  ctx.beginPath();
+  for (const g of near) {
+    ctx.rect(g.outer.x0, g.outer.y0, g.outer.x1 - g.outer.x0, g.outer.y1 - g.outer.y0);
+  }
+  ctx.stroke();
+  // O núcleo do próximo portal: o losango da nota Perfeita levemente aceso.
+  const next = list.find((g) => g.next);
+  if (next) {
+    const cx = (next.inner.x0 + next.inner.x1) / 2;
+    const cy = (next.inner.y0 + next.inner.y1) / 2;
+    ctx.fillStyle = `rgba(${rgb}, ${(0.06 + 0.08 * pulse).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(cx, next.inner.y0);
+    ctx.lineTo(next.inner.x1, cy);
+    ctx.lineTo(cx, next.inner.y1);
+    ctx.lineTo(next.inner.x0, cy);
+    ctx.closePath();
+    ctx.fill();
+  }
   // Trilho: liga os cantos de baixo dos portais vizinhos, num traço só.
   ctx.lineWidth = 1;
   ctx.strokeStyle = `rgba(${rgb}, 0.12)`;
@@ -211,8 +239,9 @@ export interface Streak {
 const frac = (k: number, a: number, b: number) => Math.abs(Math.sin(k * a) * b) % 1;
 
 /**
- * Riscos de vento (survey-flight §5.13): traços que cruzam a tela no sentido da rajada,
- * poucos e fracos no aviso, mais e mais fortes no sopro. Com `reduceFlashes`, o alfa não pisca.
+ * Riscos de vento (survey-flight §5.13): traços que cruzam a tela no sentido da rajada que
+ * sopra (o aviso é a frente de vento, em `gustRenderer`). `strength` (0–1) afina a rajada
+ * cortada pelo contragolpe. Com `reduceFlashes`, o alfa não pisca.
  */
 export function gustStreaks(
   width: number,
@@ -221,10 +250,11 @@ export function gustStreaks(
   gust: GustView,
   tS: number,
   reduceFlashes: boolean,
+  strength = 1,
 ): Streak[] {
-  const count = gust.active ? GUST_STREAKS : Math.round(GUST_STREAKS * 0.4);
+  const count = Math.round((gust.active ? GUST_STREAKS : GUST_STREAKS * 0.4) * strength);
   const speed = gust.active ? 900 : 500;
-  const base = gust.active ? 0.35 : 0.18;
+  const base = (gust.active ? 0.35 : 0.18) * (0.5 + 0.5 * strength);
   const out: Streak[] = [];
   for (let k = 0; k < count; k++) {
     const h1 = frac(k + 1, 12.9898, 43758.5453);
@@ -248,10 +278,11 @@ export function drawGustStreaks(
   gust: GustView,
   tS: number,
   reduceFlashes: boolean,
+  strength = 1,
 ): void {
   // Um traço por nível de transparência (o raster sem GPU paga caro por traço).
   const levels = new Map<number, Streak[]>();
-  for (const st of gustStreaks(width, height, horizonY, gust, tS, reduceFlashes)) {
+  for (const st of gustStreaks(width, height, horizonY, gust, tS, reduceFlashes, strength)) {
     const k = level(st.alpha * 2);
     const group = levels.get(k);
     if (group) group.push(st);

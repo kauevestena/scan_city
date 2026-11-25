@@ -175,10 +175,12 @@ export function flyMission(contract: Contract, pilot: PilotKind, seed = 1): Flow
         e.requestRth();
         e.requestRth();
       }
-      // Um quadro de 60 Hz: o cruzeiro (fracionário) dá quantos passos de física ele tem.
-      steps += e.timeWarp;
+      // Um quadro de 60 Hz: o ritmo do voo vezes o cruzeiro (fracionário) dá quantos passos de
+      // física ele tem; cada passo vale 1/(60·escala) s de tempo real para o piloto.
+      const scale = e.timeScale;
+      steps += scale;
       while (steps >= 1 && !ended()) {
-        medium?.tick();
+        medium?.tick(PILOT_STEP_S / scale);
         e.update(PILOT_STEP_S);
         t += PILOT_STEP_S;
         steps -= 1;

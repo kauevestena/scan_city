@@ -6,7 +6,7 @@ import { formatDuration, formatNumber, formatPct } from '@/lib/format';
 import type { AoiPoint } from '@/types';
 import { useGameStore } from '@/state/store';
 import { cx, ProgressBar } from '@/ui';
-import { ExecutionStrip, GradeMark, LineReportCard, Windsock } from './ExecutionHud';
+import { CounterMark, ExecutionStrip, GradeMark, LineReportCard, Windsock } from './ExecutionHud';
 
 const T = STRINGS.flight;
 
@@ -209,7 +209,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
                     : 'border-cyan-400 bg-slate-950/80 text-cyan-200',
               )}
             >
-              {T.alerts[a.id](a.value, a.side)}
+              {T.alerts[a.id](a.value)}
             </span>
           ))}
           {snap.rthConfirm && (
@@ -223,6 +223,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
             </span>
           )}
           <GradeMark snap={snap} calm={reduceFlashes} />
+          <CounterMark snap={snap} calm={reduceFlashes} />
           <LineReportCard snap={snap} />
           {phaseLabel && (
             <span

@@ -397,11 +397,12 @@ export const STRINGS = {
       rtkLevel: 'Base RTK nivelada: FIX mais estável',
       imuTitle: 'Calibrar a IMU',
       imuHelp:
-        'Siga o ponto âmbar com o cursor ciano por 12 s (mouse ou analógico). Quanto mais colado no guia, menor a deriva do giroscópio.',
+        'Siga o ponto âmbar com o cursor ciano por 20 s (mouse ou analógico); o guia espera 2 s antes de partir. Ficar dentro do halo já é ótimo: quanto mais colado, menor a deriva do giroscópio.',
       imuStart: 'Calibrar IMU',
       imuRetry: 'Calibrar de novo',
       imuCanvas: 'Curva em forma de 8 para calibrar a IMU',
       imuTime: (s: string) => `Tempo: ${s} s`,
+      imuReady: (s: string) => `Prepare-se: ${s}`,
       imuDone: 'Calibração concluída.',
       imuScore: (pct: string) => `IMU: ${pct} %`,
       imuDefault: 'Sem calibrar: o padrão é 0 %.',
@@ -561,6 +562,8 @@ export const STRINGS = {
       REJECTED: 'REJEITADA',
     },
     axes: { lateral: 'faixa', vertical: 'altura', advance: 'avanço' },
+    /** Marca do contragolpe na rajada (survey-flight §5.13). */
+    counter: { PERFECT: 'NO TEMPO!', EARLY: 'CEDO', LATE: 'TARDE' },
     lineReport: {
       title: (n: number, letter: string) => `LINHA ${n} · ${letter}`,
       counts: (c: readonly [number, number, number, number]) =>
@@ -582,12 +585,6 @@ export const STRINGS = {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
       RTH: () => 'RTH RECOMENDADO',
       DETECTED: () => 'DETECTADO!',
-      GUST: (inS?: number, side?: number) => {
-        const label = (side ?? 1) < 0 ? '◀ RAJADA' : 'RAJADA ▶';
-        return inS !== undefined && inS > 0
-          ? `${label} em ${inS.toFixed(1).replace('.', ',')} s`
-          : label;
-      },
       OFF_ALTITUDE: (deltaM?: number) =>
         (deltaM ?? 0) > 0
           ? `SUBA ▲ ${Math.round(deltaM ?? 0)} m`
@@ -846,7 +843,7 @@ export const STRINGS = {
     /** Dicas do primeiro voo, uma de cada vez, quando o voo mostra o que cada uma explica. */
     flightCoach: {
       ENTRY: 'Alinhe já na entrada: a linha começa fora do eixo e o primeiro portal vale nota',
-      GUST: 'Rajada avisada! Comece a empurrar contra a seta antes de ela chegar',
+      GUST: 'Frente de vento vindo do lado! Toque contra ela no instante em que chegar: no tempo, ela quase não empurra',
       RELIEF: 'O corredor acompanha o relevo: suba (Q) ou desça (E) com a seta',
       GRADE: 'Cada portal dá uma nota: verde Perfeita, ciano Boa, âmbar Fraca, vermelho Rejeitada',
       CRUISE: 'Na reta tranquila o cruzeiro acelera o tempo; ele solta sozinho na hora do perigo',

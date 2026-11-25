@@ -237,14 +237,24 @@ describe('FlightEngine — energia, RTH e múltiplas surtidas (§5.12)', () => {
     expect(beeps).toBe(3);
   });
 
-  it('RTH pede confirmação (3 s): 2º acionamento confirma, o tempo ou o cancelamento desistem', () => {
+  it('RTH pede confirmação (3 s reais): 2º acionamento confirma, o tempo ou o cancelamento desistem', () => {
     const { e } = setup();
     expect(e.requestRth()).toBe('IGNORED');
     run(e, 3);
     expect(e.requestRth()).toBe('ASK');
     expect(e.rthConfirming).toBe(true);
     expect(e.snapshot().rthConfirm).toBe(true);
-    run(e, 3.1);
+    // A janela é de tempo real: no ritmo do voo, passa mais tempo simulado.
+    let realS = 0;
+    while (realS < 2.9) {
+      realS += 1 / 60 / e.timeScale;
+      e.update(1 / 60);
+    }
+    expect(e.rthConfirming).toBe(true);
+    while (realS < 3.1) {
+      realS += 1 / 60 / e.timeScale;
+      e.update(1 / 60);
+    }
     expect(e.rthConfirming).toBe(false);
     expect(e.requestRth()).toBe('ASK');
     e.cancelRth();
