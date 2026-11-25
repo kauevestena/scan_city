@@ -106,72 +106,78 @@ function makeCanvas(w: number, h: number): Canvas2D | null {
  * (a câmera inclina) e altura para o horizonte descer até o da decolagem: a animação da
  * decolagem só desloca a cópia, sem repintar.
  */
+/** Um bitmap do céu pronto e onde o horizonte fica nele. */
+interface SkyBitmap {
+  canvas: Canvas2D;
+  horizonAt: number;
+  margin: number;
+  scale: number;
+}
+
+/** Bitmaps guardados: as linhas em zigue-zague alternam dois rumos (e dois sóis). */
+export const SKY_CACHE = 2;
+
 export class SkyPainter {
-  private cache: Canvas2D | null = null;
-  private key = '';
-  /** Onde o horizonte fica no bitmap, e a folga. */
-  private horizonAt = 0;
-  private margin = 0;
-  private cacheScale = 1;
-  /** Quantas vezes o bitmap foi pintado (testes: a cópia não repinta). */
+  private readonly cache = new Map<string, SkyBitmap>();
+  /** Quantas vezes um bitmap foi pintado (testes: a cópia não repinta). */
   repaints = 0;
 
-  /** Copia o céu (pintando o bitmap se a tela, a luz ou o rumo mudaram). */
+  /** Copia o céu (pintando o bitmap se a tela, a escala, a luz ou o rumo são novos). */
   paint(ctx: CanvasRenderingContext2D, s: SkyInput): void {
     const sunKey = s.sun ? `${s.sun.x.toFixed(2)},${s.sun.z.toFixed(2)}` : 'none';
     const scale = s.scale ?? 1;
     const key = `${s.width}x${s.height}@${scale.toFixed(2)}|${s.lighting}|${sunKey}|${s.quality}|${rgb(s.palette.skyTop)}|${rgb(s.palette.fog)}`;
-    if (key !== this.key || !this.cache) {
-      this.key = key;
-      this.render(s);
-    }
-    const dy = s.horizonY - this.horizonAt;
-    if (this.cache) {
-      const k = this.cacheScale;
-      const t = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
-      if (t && t.b === 0 && t.c === 0 && Math.abs(t.a - k) < 1e-6 && Math.abs(t.d - k) < 1e-6) {
-        // Sem inclinação: cópia em pixels inteiros do buffer, sem reamostrar (o caminho rápido do
-        // raster sem GPU; um deslocamento fracionário reamostraria a tela toda).
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.drawImage(this.cache, Math.round(t.e - this.margin * k), Math.round(t.f + dy * k));
-        ctx.restore();
-      } else {
-        ctx.drawImage(this.cache, -this.margin, dy, this.cache.width / k, this.cache.height / k);
-      }
+    let bmp = this.cache.get(key) ?? null;
+    if (bmp) {
+      // O usado por último fica no fim (o mais antigo é o primeiro a sair).
+      this.cache.delete(key);
+      this.cache.set(key, bmp);
     } else {
+      bmp = this.render(s);
+      if (bmp) {
+        this.cache.set(key, bmp);
+        while (this.cache.size > SKY_CACHE) {
+          const oldest = this.cache.keys().next().value as string;
+          this.cache.delete(oldest);
+        }
+      }
+    }
+    if (!bmp) {
       // Sem `document` (testes de motor puro): o gradiente direto, sem bitmap.
-      paintSky(
-        ctx,
-        s,
-        s.horizonY,
-        -overscanPx(s.width),
-        s.width + 2 * overscanPx(s.width),
-        s.height,
-      );
+      const m = overscanPx(s.width);
+      paintSky(ctx, s, s.horizonY, -m, s.width + 2 * m, s.height);
+      return;
+    }
+    const dy = s.horizonY - bmp.horizonAt;
+    const k = bmp.scale;
+    const t = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
+    if (t && t.b === 0 && t.c === 0 && Math.abs(t.a - k) < 1e-6 && Math.abs(t.d - k) < 1e-6) {
+      // Sem inclinação: cópia em pixels inteiros do buffer, sem reamostrar (o caminho rápido do
+      // raster sem GPU; um deslocamento fracionário reamostraria a tela toda).
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(bmp.canvas, Math.round(t.e - bmp.margin * k), Math.round(t.f + dy * k));
+      ctx.restore();
+    } else {
+      ctx.drawImage(bmp.canvas, -bmp.margin, dy, bmp.canvas.width / k, bmp.canvas.height / k);
     }
   }
 
-  private render(s: SkyInput): void {
+  private render(s: SkyInput): SkyBitmap | null {
     const m = overscanPx(s.width);
     // O horizonte mais baixo é o da decolagem; o bitmap cobre da folga de cima à de baixo nele.
-    this.horizonAt = m + HORIZON_TAKEOFF * s.height;
-    this.margin = m;
+    const horizonAt = m + HORIZON_TAKEOFF * s.height;
     const w = s.width + 2 * m;
-    const h = this.horizonAt + (1 - 0.3) * s.height + m;
+    const h = horizonAt + (1 - 0.3) * s.height + m;
     const k = clamp(s.scale ?? 1, 0.5, 3);
-    this.cacheScale = k;
     const c = makeCanvas(w * k, h * k);
-    this.cache = c;
     const g = c?.getContext('2d') ?? null;
-    if (!c || !g) {
-      this.cache = null;
-      return;
-    }
+    if (!c || !g) return null;
     this.repaints++;
     g.scale(k, k);
     g.translate(m, 0);
-    paintSky(g, s, this.horizonAt, -m, w, h);
+    paintSky(g, s, horizonAt, -m, w, h);
+    return { canvas: c, horizonAt, margin: m, scale: k };
   }
 }
 

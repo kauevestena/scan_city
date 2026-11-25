@@ -270,8 +270,8 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 **REQ-FLD-010: Mini-game de nivelamento.** Onde o jogador iniciar "Nivelar instrumento", o sistema deve executar o mini-game da bolha de nível ([field-setup §5.4](features/field-setup.md)). Ele produz `levelScore ∈ [0,1]`, que reduz o σ dos GCPs e, com RTK, melhora a solução RTK.
 - *Aceite:* teste unitário da função de pontuação. E2E com input simulado.
 
-**REQ-FLD-011: Mini-game de calibração da IMU.** Onde o jogador iniciar "Calibrar IMU", o sistema deve executar o mini-game do "8" (lemniscata). Ele produz `imuScore ∈ [0,1]`, que reduz a deriva e o ruído LiDAR.
-- *Aceite:* teste unitário da pontuação.
+**REQ-FLD-011: Mini-game de calibração da IMU.** Onde o jogador iniciar "Calibrar IMU", o sistema deve executar o mini-game do "8" (lemniscata), inteiro dentro do canvas em qualquer largura de painel, com 2 s de preparação antes de o guia partir. Ele produz `imuScore ∈ [0,1]`, que reduz a deriva e o ruído LiDAR.
+- *Aceite:* teste unitário da pontuação, da preparação e da escala do desenho.
 
 **REQ-FLD-012: Modos especiais de voo.** Onde a aeronave suportar, o sistema deve permitir ativar:
 - **Terrain Following** (aeronaves com `terrainFollowing`);
@@ -354,11 +354,11 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 
 **REQ-FLT-013: Vento e térmicas.** O sistema deve aplicar o vento em duas partes ([ADR-030](decisions.md)):
 - o **vento médio** é compensado pela aeronave (sem deriva lateral constante; a velocidade no solo do plano é mantida dentro dos limites de velocidade no ar) e custa energia;
-- as **rajadas**, de 1 a 3 por linha, sorteadas pela seed da missão, empurram a aeronave de lado e mudam a velocidade no solo conforme o `driftFactor`, e são avisadas 1,5 s antes (alerta com o lado, biruta no HUD e riscos no ar);
+- as **rajadas**, de 1 a 9 por linha (uma a cada 7 s), sorteadas pela seed da missão, empurram a aeronave de lado e mudam a velocidade no solo conforme o `driftFactor`. O aviso é **só visual** ([ADR-034](decisions.md)): uma frente de vento varre a cena do lado de onde a rajada vem e chega à aeronave no instante do empurrão, 1,5 s (simulados) depois de aparecer. O **contragolpe**, um comando contra a rajada que começa de 0,3 s antes a 0,2 s depois da chegada, corta a rajada a 20 % ("NO TEMPO!"); cedo ou tarde, ela empurra inteira;
 - as térmicas localizadas empurram verticalmente.
 
 O HUD mostra o vento, o *crab angle* necessário e a velocidade no solo.
-- *Aceite:* testes unitários (o golden value do crab é 19,47°; a agenda de rajadas é determinística pela seed; toda rajada tem ≥ 50 % da força na transversal; todo contrato tem rajada ≥ 2 m/s).
+- *Aceite:* testes unitários (o golden value do crab é 19,47°; a agenda de rajadas é determinística pela seed; toda rajada tem ≥ 70 % da força na transversal; todo contrato tem rajada ≥ 4 m/s; o contragolpe no tempo corta a rajada e o cedo, o tarde e a falta dele não).
 
 **REQ-FLT-014: Energia e RTH.** O sistema deve drenar a bateria (ou o milho, no caso de Atlas) conforme [domain-math §7](design/domain-math.md):
 - Quando a energia restante ficar abaixo da necessária para voltar × 1,2, ou abaixo de 20 %, emite o bip RTH e o alerta "RTH RECOMENDADO".
@@ -391,7 +391,7 @@ O HUD mostra o vento, o *crab angle* necessário e a velocidade no solo.
 - GSD ao vivo, p real e q estimado;
 - fotos e blur;
 - densidade LiDAR, casco, minimapa e dicas de controle com glyphs;
-- a execução (REQ-FLT-029): a nota da última amostra, a sequência, a execução da linha, a velocidade no solo com o alvo, a seta do alvo de altura, a biruta com o aviso de rajada e o estado do cruzeiro.
+- a execução (REQ-FLT-029): a nota da última amostra, a sequência, a execução da linha, a velocidade no solo com o alvo, a seta do alvo de altura, a marca do contragolpe, a biruta com a rajada que sopra e o estado do cruzeiro.
 - *Aceite:* teste RTL do HUD a partir de um snapshot.
 
 **REQ-FLT-019: Fim da surtida e da missão.** Quando a última linha terminar ou o RTH concluir, o sistema deve exibir o diálogo pós-voo:
@@ -417,7 +417,7 @@ O diálogo mostra a nota de cada linha voada e as linhas a revoar (REQ-FLT-027).
 - marcar as fotos daquele trecho com `rtk = 'FLOAT'`.
 - *Aceite:* teste unitário de `rtkStatusAt()`.
 
-**REQ-FLT-023: Cruzeiro automático.** Enquanto a aeronave estiver estável no corredor (faixa, altura e avanço em Boa ou melhor por 1 s) e nada pedir atenção, o sistema deve acelerar o tempo sozinho, com sub-passos de física, até um fator que cresce com a duração da linha (×2 a ×6). Ele volta a ×1 no instante em que houver rajada ativa ou avisada, obstáculo a < 150 m à frente no corredor, alerta crítico, holofote próximo, distração do Atlas, pico elétrico, corredor que sobe ou desce à frente (sem TF) ou curva. `TIME_WARP` liga e desliga o cruzeiro ([ADR-031](decisions.md)).
+**REQ-FLT-023: Ritmo e cruzeiro automático.** Na decolagem e nas linhas, o tempo simulado corre 1,75 vez o real (o ritmo do voo, [ADR-034](decisions.md)). Enquanto a aeronave estiver estável no corredor (faixa, altura e avanço em Boa ou melhor por 1 s) e nada pedir atenção, o sistema deve acelerar o tempo sozinho, por cima do ritmo, com sub-passos de física, até um fator que cresce com a duração real da linha (×2 a ×4). Ele volta a ×1 no instante em que houver rajada ativa, avisada ou a 0,5 s de ser avisada, obstáculo a < 150 m à frente no corredor, alerta crítico, holofote próximo, distração do Atlas, pico elétrico, corredor que sobe ou desce à frente (sem TF) ou curva. `TIME_WARP` liga e desliga o cruzeiro ([ADR-031](decisions.md)).
 - *Aceite:* teste unitário das condições de entrada e de queda para ×1, e do fator máximo por duração de linha.
 
 **REQ-FLT-024: Detecção furtiva e alvos especiais.** Onde o contrato definir holofotes (`SEARCHLIGHTS`), se a aeronave permanecer > 1,5 s em um cone de holofote, então o sistema marca `detected = true`. Onde definir `FEATURE_TARGETS`, registra os alvos especiais cobertos por dados suficientes (≥ 3 fotos ou ≥ 50 pts/m² na célula).

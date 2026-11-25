@@ -425,6 +425,18 @@ describe('cruzeiro automático no motor (survey-flight §5.14)', () => {
     expect(e.timeWarp).toBe(1);
   });
 
+  it('na curva o cruzeiro volta a ×1, e o tempo corre só no ritmo da fase', () => {
+    const { e } = arena({}, { autopilot: true });
+    let accelerated = false;
+    for (let t = 0; t < 400 && e.phase !== 'TURN' && e.phase !== 'LANDING'; t += 1 / 60) {
+      e.update(1 / 60);
+      if (e.timeWarp > 1) accelerated = true;
+    }
+    expect(accelerated).toBe(true);
+    expect(e.timeWarp).toBe(1);
+    expect(e.timeScale).toBe(1);
+  });
+
   it('TIME_WARP desliga e religa o cruzeiro; fora do RUN e com alerta crítico fica em ×1', () => {
     const { e } = arena({}, { autopilot: true });
     expect(e.cycleTimeWarp()).toBe(false);

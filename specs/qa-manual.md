@@ -197,14 +197,19 @@ O primeiro teste humano achou o voo sem desafio ([ADR-029](decisions.md)). A Fas
 
 - [ ] **Portais:** dá para ver para onde ir? O losango do centro (a nota Perfeita) é legível sobre qualquer terreno?
 - [ ] **Entrada da linha:** cada linha começa fora do eixo de propósito. Alinhar a tempo do primeiro portal parece justo?
-- [ ] **Rajadas:** o aviso (a seta e a contagem na biruta, 1,5 s antes) dá tempo de reagir? A rajada empurra o bastante para pedir ação, sem ser injusta?
+- [ ] **Rajadas ([ADR-034](decisions.md)):** a frente de vento (a cortina com riscos que vem do lado da rajada) se vê bem sobre qualquer céu e terreno, sem alerta escrito? Dá para ler de que lado ela vem e quando chega?
+- [ ] **Contragolpe:** tocar contra a rajada no instante em que a frente chega dá "NO TEMPO!" e quase não empurra. A janela (~0,29 s) parece justa: difícil, mas não sorte? "CEDO" e "TARDE" ajudam a acertar da próxima vez? O som (`GUST_CUT` / `GUST_HIT`) e o tranco da tela se entendem?
+- [ ] **Ritmo:** o voo ×1,75 ficou mais rápido sem ficar injusto? O mundo passando (riscos de velocidade, nuvens baixas, rastros das asas) dá a sensação de velocidade?
+- [ ] **Visual:** o céu (sol, raios, mar de nuvens), a inclinação da câmera nas curvas e o halo dos portais. Com "Reduzir flashes e tremores", a câmera fica reta e sem tranco?
+- [ ] **Sem GPU:** numa máquina sem aceleração, o F9 mostra o degrau de detalhe descer (a inclinação sai primeiro) e o FPS se segura? Anote o degrau e a escala em que ficou.
 - [ ] **Relevo:** a seta SUBA ▲ / DESÇA ▼ e o corredor que acompanha o terreno se entendem?
 - [ ] **Notas e som:** a marca da nota a cada foto, a sequência que sobe de tom e o som do erro. Ajudam ou cansam depois de alguns minutos?
 - [ ] **Boletim e revoo:** quando a linha volta ("REVOO NECESSÁRIO"), dá para entender por quê (qual eixo errou)?
-- [ ] **Cruzeiro (`T`):** acelera na reta tranquila e solta sozinho no perigo (rajada, obstáculo, alerta). A surtida fica num tempo bom? A meta era de 2 a 4 minutos e **não foi atingida** nos contratos longos (o C02 dá uns 7 minutos de tempo real): anote se isso pesa.
+- [ ] **Cruzeiro (`T`):** acelera na reta tranquila e solta sozinho no perigo (rajada, obstáculo, alerta). A surtida fica num tempo bom? Com o ritmo ×1,75 a do mediano vai de 0,5 a 6,7 minutos reais (eram até 10): anote se ainda pesa.
 - [ ] **Parado não passa:** soltar os controles numa linha a reprova; o relatório explica a execução baixa?
 - [ ] **Dificuldade:** os contratos reais puxam para a simulação e as fendas para o arcade. Algum frustra ou fica fácil demais?
-- [ ] **Primeiro voo do C00:** as dicas (alinhar na entrada, a rajada, o relevo, a nota, o cruzeiro, o boletim) aparecem na hora certa e se entendem?
+- [ ] **Primeiro voo do C00:** as dicas (alinhar na entrada, a frente de vento e o contragolpe, o relevo, a nota, o cruzeiro, o boletim) aparecem na hora certa e se entendem?
+- [ ] **IMU (campo, aba Calibração):** o "8" cabe inteiro no painel, o guia espera 2 s e anda numa velocidade que dá para seguir com o mouse e com o analógico?
 
 | Contrato | Execução no pós-voo | Divertido (1–5) | Difícil (1–5) | Notas |
 | :--- | :-: | :-: | :-: | :--- |

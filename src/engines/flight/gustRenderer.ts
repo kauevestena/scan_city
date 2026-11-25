@@ -19,7 +19,7 @@ export const GUST_FRONT_FAR_M = 360;
 export const GUST_FRONT_BELOW_M = 45;
 export const GUST_FRONT_ABOVE_M = 28;
 /** Riscos de vento junto da frente. */
-export const GUST_FRONT_STREAKS = 26;
+export const GUST_FRONT_STREAKS = 34;
 /** Duração (tempo real) do tranco ou do corte na chegada. */
 export const GUST_IMPACT_S = 0.4;
 /** Tranco lateral máximo da tela quando a rajada bate sem contragolpe (px). */
@@ -80,20 +80,22 @@ export function buildGustFront(i: GustFrontInput): GustFrontDraw | null {
     const h3 = frac(k + 1, 39.425, 24634.633);
     const Z = GUST_FRONT_NEAR_M + 10 + (GUST_FRONT_FAR_M * 0.7 - 10) * h1 * h1;
     const alt = lo + (hi - lo) * h2;
-    const run = ((i.timeS * (1.2 + h3) + h3) % 1) * 10;
-    const x0 = frontX + i.side * (run - 2);
-    const x1 = x0 + i.side * (4 + 6 * h2);
+    const run = ((i.timeS * (1.2 + h3) + h3) % 1) * 12;
+    const x0 = frontX + i.side * (run - 3);
+    const x1 = x0 + i.side * (6 + 8 * h2);
+    // Um pouco inclinados (o ar rodopiando), uns subindo, outros descendo.
+    const tilt = (h3 - 0.5) * 3;
     const p0 = projectAbs(x0, alt, Z, i.cam);
-    const p1 = projectAbs(x1, alt, Z, i.cam);
+    const p1 = projectAbs(x1, alt + tilt, Z, i.cam);
     if (p0 && p1) streaks.push(p0.x, p0.y, p1.x, p1.y);
   }
   return {
     progress,
     frontX,
     sheet,
-    sheetAlpha: 0.05 + 0.13 * progress,
+    sheetAlpha: 0.1 + 0.2 * progress,
     streaks,
-    streakAlpha: 0.25 + 0.45 * progress,
+    streakAlpha: 0.35 + 0.5 * progress,
   };
 }
 
@@ -122,7 +124,8 @@ export function drawGustFront(ctx: CanvasRenderingContext2D, f: GustFrontDraw): 
   }
   if (f.streaks.length > 0) {
     ctx.strokeStyle = `rgba(248, 250, 252, ${f.streakAlpha.toFixed(3)})`;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     for (let k = 0; k < f.streaks.length; k += 4) {
       ctx.moveTo(f.streaks[k] as number, f.streaks[k + 1] as number);

@@ -13,7 +13,7 @@ export const CRUISE_ARM_S = 1;
 export const CRUISE_RAMP_PER_S = 4;
 /**
  * Fator máximo: uma unidade a cada tantos segundos **reais** de linha, de ×2 a ×4 (sobre o ritmo
- * ×2, o mundo chega a ×8, a velocidade do autopilot de depuração).
+ * ×1,75, o mundo chega a ×7, perto do ×8 do autopilot de depuração).
  */
 export const CRUISE_SECONDS_PER_STEP = 12;
 export const CRUISE_MIN_MAX = 2;

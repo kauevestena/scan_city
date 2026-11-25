@@ -4,7 +4,7 @@
  * - **parado:** nenhum comando (só o RTH quando o alarme toca, que o voo faz por fora);
  * - **mediano:** enxerga a faixa, a altura e a velocidade no solo com 0,35 s de atraso,
  *   comanda tudo ou nada (como num teclado), com folga, e de vez em quando se distrai por 1 s.
- *   Os tempos dele são **reais** (ADR-034): no ritmo ×2 do voo, 0,35 s de reação são 0,7 s de
+ *   Os tempos dele são **reais** (ADR-034): no ritmo ×1,75 do voo, 0,35 s de reação são 0,61 s de
  *   simulação. Ele tenta o contragolpe em cada frente de vento que vê, com erro de tempo;
  * - **bom:** o autopilot de depuração (não passa por aqui);
  * - **distraído:** o mediano que só pilota na entrada de cada linha (até 2 s depois do início

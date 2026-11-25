@@ -57,10 +57,16 @@ test('o painel F9 mostra o tempo por etapa do voo, dentro do orçamento de 12 ms
   // sem GPU e sem janela rasteriza o canvas por software umas 4 vezes mais devagar e já ficava
   // no limite antes do voo com desafio (10,4 a 12,1 ms; 10,5 a 14,8 ms com ele, a mesma etapa
   // do terreno); ali o requisito é só funcionar (REQ-NFR-009), então vale a ordem de grandeza.
-  const head = (await perf.locator('p').first().textContent()) ?? '';
-  const total = Number((/([\d,]+) ms \/ 12,0 ms/.exec(head)?.[1] ?? 'NaN').replace(',', '.'));
-  expect(total).toBeGreaterThan(0);
-  expect(total).toBeLessThan(browserName === 'firefox' ? 24 : 12);
+  // A média móvel começa nos primeiros quadros, que pintam o bitmap do céu uma vez (ADR-034):
+  // o que vale é o quadro em regime, depois que ela assenta.
+  const total = async () => {
+    const head = (await perf.locator('p').first().textContent()) ?? '';
+    return Number((/([\d,]+) ms \/ 12,0 ms/.exec(head)?.[1] ?? 'NaN').replace(',', '.'));
+  };
+  expect(await total()).toBeGreaterThan(0);
+  await expect
+    .poll(total, { timeout: 8000, intervals: [500] })
+    .toBeLessThan(browserName === 'firefox' ? 24 : 12);
   // Fechar o painel desliga a medição: o contador para de ganhar quadros.
   await page.keyboard.press('F9');
   await expect(perf).toBeHidden();

@@ -29,8 +29,11 @@ import { useFlightCoach } from './flightCoach';
 
 /** A etapa do tutorial dirigido do C00 que cabe ao voo. */
 const FLIGHT_TUTORIAL_STEP = 3;
-/** Resolução adaptativa do voo (ADR-033): pode descer até 0,75 px de buffer por px de CSS. */
-const FLIGHT_RESOLUTION = { kind: 'flight', floor: 0.75 } as const;
+/**
+ * Resolução adaptativa do voo (ADR-033): pode descer até 0,75 px de buffer por px de CSS. O céu
+ * cobre o canvas inteiro, então o contexto é opaco (ADR-034).
+ */
+const FLIGHT_RESOLUTION = { kind: 'flight', floor: 0.75, opaque: true } as const;
 
 /** Aceleração do autopilot de depuração (survey-flight §5.14: o debug permite ×8). */
 export const AUTOPILOT_TIME_SCALE = 8;

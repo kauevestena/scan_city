@@ -47,8 +47,8 @@ export const GUST_MIN_SLOT_S = GUST_FOOTPRINT_S + 1;
 
 /**
  * Janela do contragolpe em relação ao início da rajada (s de simulação): o comando contra a
- * rajada que começa dentro dela corta o empurrão. Ao ritmo do voo (×2) são de 0,15 s antes a
- * 0,1 s depois da chegada, em tempo real: 250 ms.
+ * rajada que começa dentro dela corta o empurrão. No ritmo do voo (×1,75) são de 0,17 s antes a
+ * 0,11 s depois da chegada, em tempo real: 0,29 s.
  */
 export const COUNTER_WINDOW_S = [-0.3, 0.2] as const;
 /** Sem contragolpe até este tempo depois do início, a rajada é julgada (tarde ou sem reação). */

@@ -206,6 +206,8 @@ export const RTH_CONFIRM_S = 3;
 export const RTH_BEEP_S = 1.5;
 /** Lote de disparos enviados ao store (§6). */
 export const SHOT_BATCH = 10;
+/** Folga (m) do corte dos objetos à vista: móveis e objetos largos fora do trapézio. */
+const VISIBLE_PAD_M = 60;
 /** Suavização do X da câmera por quadro (a 60 FPS). */
 const CAM_FOLLOW = 0.1;
 
@@ -381,8 +383,7 @@ export class FlightEngine implements Simulation {
   /** As rajadas que já começaram a soprar nesta passada. */
   private gustsHit = 0;
   private counterSeq = 0;
-  private lastCounter: { result: CounterResult; side: -1 | 1; seq: number; atS: number } | null =
-    null;
+  private lastCounter: { result: CounterResult; side: -1 | 1; seq: number } | null = null;
   /** A última rajada que bateu: o tranco na tela e o rastro (tempo real). */
   private gustImpact: { side: -1 | 1; cut: boolean; atS: number } | null = null;
   /** O céu pintado num bitmap (só repinta com a tela, a luz ou o rumo). */
@@ -530,7 +531,7 @@ export class FlightEngine implements Simulation {
   }
 
   /**
-   * Tempo simulado por segundo real agora: o ritmo da fase (×2 na decolagem e nas linhas)
+   * Tempo simulado por segundo real agora: o ritmo da fase (×1,75 na decolagem e nas linhas)
    * vezes o cruzeiro. O `GameLoop` lê este valor.
    */
   get timeScale(): number {
@@ -557,7 +558,7 @@ export class FlightEngine implements Simulation {
       this.counters[i] = next;
       if (before.result === null && next.result !== null) {
         this.gustWeights[i] = counterWeight(next.result);
-        this.lastCounter = { result: next.result, side, seq: ++this.counterSeq, atS: this.realT };
+        this.lastCounter = { result: next.result, side, seq: ++this.counterSeq };
         this.opts.onCounter?.({ result: next.result, side });
       }
     }
@@ -694,6 +695,11 @@ export class FlightEngine implements Simulation {
   setPhase(phase: FlightPhase): void {
     if (phase === 'RUN' && this.phase !== 'RUN' && this.phase !== 'RETURNING')
       this.beginLineAtlas();
+    // Fora da linha o cruzeiro não vale (REQ-FLT-023): a curva, com o boletim, corre em ×1.
+    if (phase !== 'RUN') {
+      this.cruise = initialCruise();
+      this.timeWarp = 1;
+    }
     this.phase = phase;
     this.phaseT = 0;
     this.opts.onPhase?.(phase);
@@ -1453,13 +1459,7 @@ export class FlightEngine implements Simulation {
       passLetter: samples > 0 ? gradeLetter(passScore(this.pass.counts)) : null,
       refly: this.pass.pass > 0,
       gust: this.gustNow(),
-      counter: this.lastCounter
-        ? {
-            result: this.lastCounter.result,
-            side: this.lastCounter.side,
-            seq: this.lastCounter.seq,
-          }
-        : null,
+      counter: this.lastCounter ? { ...this.lastCounter } : null,
       windRelDeg: (Math.atan2(windLateral, windAlong) * 180) / Math.PI,
       cruise: { on: this.cruiseOn, factor: this.timeWarp },
       lineReport:
@@ -1607,7 +1607,7 @@ export class FlightEngine implements Simulation {
 
     const at = (X: number, Z: number) => aoiPoint(frame, s0 + Z, X);
     const objects: SceneObject[] = [];
-    for (const o of terrain.objects) {
+    for (const o of this.visibleCandidates(cam)) {
       const r = toRun(frame, o);
       const Z = r.s - s0;
       if (Z < -20 || Z > cam.zFar) continue;
@@ -1789,6 +1789,27 @@ export class FlightEngine implements Simulation {
     }
     ctx.restore();
     PERF.flight.endFrame();
+  }
+
+  /**
+   * Os objetos que podem estar à vista: os do intervalo de `u` coberto pelo trapézio visível
+   * (da câmera ao alcance, com a meia largura de cada ponta), com folga para os móveis. Numa
+   * linha ao longo de `u` o intervalo é estreito e a mata de 4 mil copas não é percorrida
+   * inteira a cada quadro; numa linha ao longo de `v`, ele cobre a área toda, como antes.
+   */
+  private visibleCandidates(cam: FlightCamera): readonly WorldObject[] {
+    const f = this.frame;
+    let uMin = Infinity;
+    let uMax = -Infinity;
+    for (const Z of [-20, cam.zFar]) {
+      const half = halfWidthAt(Math.max(Z, 1), cam);
+      for (const X of [cam.camX - half, cam.camX + half]) {
+        const u = aoiPoint(f, this.ac.s + Z, X).u;
+        uMin = Math.min(uMin, u);
+        uMax = Math.max(uMax, u);
+      }
+    }
+    return this.opts.terrain.objectsInRange(uMin - VISIBLE_PAD_M, uMax + VISIBLE_PAD_M);
   }
 
   /** Manchas dos holofotes no chão: elipses amarelas translúcidas. */

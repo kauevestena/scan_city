@@ -10,8 +10,11 @@ import { projectAbs, type FlightCamera } from './projection';
 export const TRAIL_S = 0.55;
 /** Pontos guardados no máximo. */
 export const TRAIL_POINTS = 40;
-/** O rastro não chega mais perto da câmera que isto (profundidade, m). */
-export const TRAIL_MIN_DEPTH_M = 6;
+/**
+ * O rastro não chega mais perto da câmera que isto (profundidade, m): de perto ele mergulharia
+ * para a borda de baixo da tela.
+ */
+export const TRAIL_MIN_DEPTH_M = 22;
 
 /** Meia envergadura (m) de onde saem os rastros, por tipo de aeronave. */
 export const HALF_SPAN_M: Readonly<Record<AircraftKind, number>> = {
