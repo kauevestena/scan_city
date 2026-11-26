@@ -3,7 +3,7 @@ import { C00 } from '@/data/contracts';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { drawAircraft, drawGroundShadow } from './aircraftSprite';
 import { makeCamera } from './projection';
-import { drawSky } from './sky';
+import { paintSky } from './atmosphere';
 import {
   bandDistance,
   buildDrawList,
@@ -274,8 +274,19 @@ describe('curvas de nível em lote', () => {
 describe('céu e sprites', () => {
   it('desenham sem erro para cada aeronave e iluminação', () => {
     const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
-    drawSky(ctx, 1280, 720, 252, palette, 'GOLDEN_HOUR');
-    drawSky(ctx, 1280, 720, 252, palette, 'SUN_HIGH');
+    for (const lighting of ['GOLDEN_HOUR', 'SUN_HIGH', 'OVERCAST'] as const) {
+      const sky = {
+        width: 1280,
+        height: 720,
+        horizonY: 252,
+        focalPx: 914,
+        palette,
+        lighting,
+        sun: lighting === 'OVERCAST' ? null : { x: 0.2, z: 0.9, up: 0.14 },
+        quality: 'HIGH' as const,
+      };
+      paintSky(ctx, sky, 252, -80, 1440, 720);
+    }
     expect(ctx.createLinearGradient).toHaveBeenCalled();
     for (const id of ['ATLAS', 'DRONE_T1', 'VTOL_T3'] as const) {
       drawAircraft(ctx, {

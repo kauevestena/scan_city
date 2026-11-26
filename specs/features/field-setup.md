@@ -143,10 +143,11 @@ Os dois mini-games são opcionais. Cada um pode ser repetido; vale a melhor pont
 - Com o `GNSS_RTK_KIT` e uma aeronave RTK, o texto acrescenta "Base RTK nivelada: FIX mais estável".
 
 **Calibração da IMU (lemniscata), REQ-FLD-011:**
-- **Canvas** de 480 × 300: curva de Bernoulli `x = a·cos t / (1 + sin² t)`, `y = a·sin t·cos t / (1 + sin² t)`, com `a = 200 px`.
-- **Ponto-guia** percorre 2 voltas em 12 s. O cursor do jogador é o mouse, ou o analógico integrado (velocidade de 350 px/s).
-- **Pontuação:** `imuScore = clamp(1 − mean(d)/40, 0, 1)`, onde `d` é a distância cursor–guia amostrada a 30 Hz.
-- **Visual:** rastro do cursor em ciano e o do guia em âmbar, mais a leitura de "deriva giroscópica" (°/h), que cai conforme a pontuação.
+- **Canvas** de 480 × 300 (coordenadas do jogo): curva de Bernoulli `x = a·cos t / (1 + sin² t)`, `y = a·sin t·cos t / (1 + sin² t)`, com `a = 200 px`. O desenho **escala e centra** para caber no canvas do painel, qualquer que seja a largura dele (antes ele saía do quadro num painel mais estreito que 480 px, [ADR-034](../decisions.md)); o ponteiro do mouse é convertido para as coordenadas do jogo. Ao abrir, a tela rola até o jogo caber inteiro. O nivelamento (360 × 360) escala do mesmo jeito.
+- **Preparação** de 2 s: o guia espera no ponto de partida, com um anel que fecha sobre ele, e nada é amostrado; o cursor já se mexe. O texto mostra "Prepare-se: N".
+- **Ponto-guia** percorre 2 voltas em 20 s depois da preparação. O cursor do jogador é o mouse, ou o analógico integrado (velocidade de 350 px/s).
+- **Pontuação:** `imuScore = clamp(1 − mean(d)/60, 0, 1)`, onde `d` é a distância cursor–guia amostrada a 30 Hz (600 amostras).
+- **Visual:** rastro do cursor em ciano e o do guia em âmbar, um halo âmbar translúcido de 20 px em volta do guia (a zona boa), mais a leitura de "deriva giroscópica" (°/h), que cai conforme a pontuação.
 
 ### 5.5 Aba 4 — Checklist e decolagem
 - `predictRequirements(plan, contract, groundPoints, inventory)` mostra um `ChecklistItem` por requisito, com o valor previsto e a severidade.

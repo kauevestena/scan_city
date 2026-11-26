@@ -17,6 +17,7 @@ import { createTerrain } from '@/world/terrain/createTerrain';
 import {
   FlightEngine,
   type FlightEngineOptions,
+  type CounterEvent,
   type GradeEvent,
   type LineReport,
   type SortieResult,
@@ -50,6 +51,7 @@ function engine(m: MissionData, over: Partial<FlightEngineOptions> = {}) {
   const results: SortieResult[] = [];
   const reports: LineReport[] = [];
   const grades: GradeEvent[] = [];
+  const counters: CounterEvent[] = [];
   const e = new FlightEngine({
     mission: m,
     contract: C00,
@@ -67,9 +69,10 @@ function engine(m: MissionData, over: Partial<FlightEngineOptions> = {}) {
     onSortieEnd: (r) => results.push(r),
     onLinePass: (r) => reports.push(r),
     onGrade: (g) => grades.push(g),
+    onCounter: (c) => counters.push(c),
     ...over,
   });
-  return { e, results, reports, grades };
+  return { e, results, reports, grades, counters };
 }
 
 function fly(e: FlightEngine, maxS = 1200) {
@@ -169,27 +172,67 @@ describe('determinismo e erro de entrada', () => {
 });
 
 describe('rajadas no voo', () => {
-  it('o alerta vem 1,5 s antes, com o lado; depois a rajada empurra a aeronave', () => {
+  type Inner = { pass: { gusts: Array<{ startS: number; angleRad: number }> }; lineT: number };
+
+  it('o aviso é só a frente na cena (sem alerta escrito); depois a rajada empurra a aeronave', () => {
     const m = mission();
     const { e } = engine(m, { autopilot: false });
     // Decolagem até o RUN.
     while (e.phase !== 'RUN') e.update(1 / 60);
-    const gust = (e as unknown as { pass: { gusts: Array<{ startS: number; angleRad: number }> } })
-      .pass.gusts[0]!;
+    const gust = (e as unknown as Inner).pass.gusts[0]!;
     const side = Math.sin(gust.angleRad) < 0 ? -1 : 1;
     // Até um pouco antes do aviso: nada.
     for (let t = 0; t < gust.startS - GUST_WARN_S - 0.1; t += 1 / 60) e.update(1 / 60);
     expect(e.gustNow()).toBeNull();
-    expect(e.alertList().map((a) => a.id)).not.toContain('GUST');
     for (let t = 0; t < 0.2; t += 1 / 60) e.update(1 / 60);
-    const warned = e.alertList().find((a) => a.id === 'GUST');
-    expect(warned?.side).toBe(side);
-    expect(warned?.value ?? 0).toBeGreaterThan(0);
     expect(e.snapshot().gust).toMatchObject({ side, active: false });
+    expect(e.alertList().map((a) => a.id)).not.toContain('GUST');
     const x0 = e.ac.x;
     for (let t = 0; t < GUST_WARN_S + 1.5; t += 1 / 60) e.update(1 / 60);
     expect(e.snapshot().gust?.active).toBe(true);
     expect(Math.sign(e.ac.x - x0)).toBe(side);
+    // Sem nenhum comando, a rajada sai julgada como "sem reação" e a marca não aparece.
+    for (let t = 0; t < 1; t += 1 / 60) e.update(1 / 60);
+    expect(e.snapshot().counter?.result).toBe('MISS');
+  });
+
+  /**
+   * Voa até a primeira rajada com um comando contra ela que começa `deltaS` (simulação) depois
+   * do início dela, e devolve quanto a aeronave andou para o lado do empurrão.
+   */
+  function pushWithCounter(deltaS: number | null): { pushedM: number; result?: string } {
+    const m = mission();
+    let moveX = 0;
+    const input = { axis: (a: string) => (a === 'MOVE_X' ? moveX : 0) };
+    const { e, counters } = engine(m, { autopilot: false, input });
+    while (e.phase !== 'RUN') e.update(1 / 60);
+    const inner = e as unknown as Inner;
+    const gust = inner.pass.gusts[0]!;
+    const side = Math.sin(gust.angleRad) < 0 ? -1 : 1;
+    while (inner.lineT < gust.startS - 1.2) e.update(1 / 60);
+    const x0 = e.ac.x;
+    // Um toque de 0,1 s contra a rajada no instante pedido.
+    while (inner.lineT < gust.startS + 2.5) {
+      const d = inner.lineT - gust.startS;
+      moveX = deltaS !== null && d >= deltaS && d < deltaS + 0.1 ? -side : 0;
+      e.update(1 / 60);
+    }
+    return { pushedM: (e.ac.x - x0) * side, result: counters.at(-1)?.result };
+  }
+
+  it('o contragolpe no tempo corta a rajada; cedo ou tarde, ela empurra inteira', () => {
+    const none = pushWithCounter(null);
+    const perfect = pushWithCounter(-0.1);
+    const early = pushWithCounter(-0.8);
+    const late = pushWithCounter(0.6);
+    expect(perfect.result).toBe('PERFECT');
+    expect(early.result).toBe('EARLY');
+    expect(late.result).toBe('LATE');
+    expect(none.pushedM).toBeGreaterThan(1);
+    // O toque de 0,1 s anda um pouco contra; o que sobra do empurrão é bem menor.
+    expect(perfect.pushedM).toBeLessThan(none.pushedM * 0.4);
+    expect(early.pushedM).toBeGreaterThan(none.pushedM * 0.7);
+    expect(late.pushedM).toBeGreaterThan(none.pushedM * 0.7);
   });
 });
 

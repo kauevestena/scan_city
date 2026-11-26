@@ -157,15 +157,23 @@ export interface BubbleColors {
   bg: string;
 }
 
+/**
+ * Desenha o nível num canvas de `sizePx` px lógicos de lado: a cena de 360 × 360 escala para
+ * caber (o painel pode ser mais estreito que o canvas do jogo).
+ */
 export function drawBubble(
   ctx: CanvasRenderingContext2D,
   sim: BubbleSim,
   colors: BubbleColors,
+  sizePx: number = BUBBLE_CANVAS_PX,
 ): void {
   const c = BUBBLE_CANVAS_PX / 2;
-  ctx.clearRect(0, 0, BUBBLE_CANVAS_PX, BUBBLE_CANVAS_PX);
+  ctx.clearRect(0, 0, sizePx, sizePx);
   ctx.fillStyle = colors.bg;
-  ctx.fillRect(0, 0, BUBBLE_CANVAS_PX, BUBBLE_CANVAS_PX);
+  ctx.fillRect(0, 0, sizePx, sizePx);
+  const k = sizePx > 0 ? sizePx / BUBBLE_CANVAS_PX : 1;
+  ctx.save();
+  ctx.scale(k, k);
   ctx.lineWidth = 2;
   ctx.strokeStyle = colors.ring;
   ctx.beginPath();
@@ -187,4 +195,5 @@ export function drawBubble(
   ctx.arc(c + sim.pos.x, c + sim.pos.y, BUBBLE_RADIUS_PX, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
+  ctx.restore();
 }

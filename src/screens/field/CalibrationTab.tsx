@@ -16,6 +16,7 @@ import {
   LEMNISCATE_CANVAS_H,
   LEMNISCATE_CANVAS_W,
   LEMNISCATE_DURATION_S,
+  LEMNISCATE_READY_S,
   LemniscateSim,
   type LemniscateColors,
 } from '@/engines/field/minigames/lemniscate';
@@ -181,7 +182,7 @@ function BubbleGame({ seed, onFinish }: BubbleGameProps) {
         }
       },
       render() {
-        drawBubble(ctx, sim, BUBBLE_COLORS);
+        drawBubble(ctx, sim, BUBBLE_COLORS, Math.min(surface.width, surface.height));
       },
     };
   }, [surface, sim]);
@@ -245,7 +246,9 @@ function ImuGame({ onFinish }: ImuGameProps) {
   const surface = useCanvas(canvasRef);
   const [sim] = useState(() => new LemniscateSim());
   const [elapsedS, setElapsedS] = useState(0);
+  const [readyS, setReadyS] = useState(LEMNISCATE_READY_S);
   const [liveScore, setLiveScore] = useState(0);
+  const hostRef = useRef<HTMLDivElement>(null);
   const pointer = useRef<Vec2 | null>(null);
   const finished = useRef(false);
   const onFinishRef = useRef(onFinish);
@@ -272,7 +275,7 @@ function ImuGame({ onFinish }: ImuGameProps) {
         }
       },
       render() {
-        drawLemniscate(ctx, sim, LEMNISCATE_COLORS);
+        drawLemniscate(ctx, sim, LEMNISCATE_COLORS, surface.width, surface.height);
       },
     };
   }, [surface, sim]);
@@ -280,10 +283,16 @@ function ImuGame({ onFinish }: ImuGameProps) {
   useEffect(() => {
     const id = window.setInterval(() => {
       setElapsedS(sim.elapsedS);
+      setReadyS(sim.phase === 'READY' ? sim.readyLeftS : 0);
       setLiveScore(sim.score);
     }, 100);
     return () => window.clearInterval(id);
   }, [sim]);
+
+  // O jogo abre embaixo do nivelamento: rola até ele caber inteiro na tela.
+  useEffect(() => {
+    hostRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, []);
 
   const toLocal = (e: React.PointerEvent<HTMLCanvasElement>): Vec2 => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -295,7 +304,7 @@ function ImuGame({ onFinish }: ImuGameProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2" data-testid="imu-game">
+    <div className="flex flex-col gap-2" data-testid="imu-game" ref={hostRef}>
       <div
         className="w-full overflow-hidden rounded-md border border-slate-700"
         style={{ aspectRatio: `${LEMNISCATE_CANVAS_W} / ${LEMNISCATE_CANVAS_H}` }}
@@ -315,7 +324,11 @@ function ImuGame({ onFinish }: ImuGameProps) {
         />
       </div>
       <div className="flex items-center justify-between font-mono text-xs text-slate-300">
-        <span>{C.imuTime(formatNumber(elapsedS, 1))}</span>
+        <span data-testid="imu-time">
+          {readyS > 0
+            ? C.imuReady(formatNumber(Math.ceil(readyS), 0))
+            : C.imuTime(formatNumber(elapsedS, 1))}
+        </span>
         <span className="text-amber-300">
           {C.gyroDrift(formatNumber(gyroDriftDegPerHour(liveScore), 1))}
         </span>

@@ -10,7 +10,7 @@ const mediumScores: number[] = [];
 
 describe('o jogador mediano', () => {
   it.each(CONTRACTS.map((c) => [c.id, c] as const))(
-    '%s: aprovado, com execução de pelo menos 0,7',
+    '%s: aprovado, com execução de pelo menos 0,65',
     (_id, contract) => {
       const f = flyMission(contract, 'MEDIUM');
       expect(

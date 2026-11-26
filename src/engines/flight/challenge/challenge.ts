@@ -5,8 +5,11 @@
 import { MIN_EXECUTION } from '@/data/contracts/common';
 
 export const CHALLENGE = {
-  /** O mediano aprova em todos os contratos com pelo menos esta execução. */
-  mediumMinExecution: 0.7,
+  /**
+   * O mediano aprova em todos os contratos com pelo menos esta execução (0,7 até a ADR-034; no
+   * ritmo ×1,75 o voo ficou mais difícil de propósito, e a meta guarda folga sobre o mínimo 0,6).
+   */
+  mediumMinExecution: 0.65,
   /** A nota média do mediano não fica abaixo da usada na simulação da campanha (0,8). */
   mediumMeanScore: 0.8,
   /** O bom aprova com pelo menos esta execução e sem nenhuma linha recusada. */

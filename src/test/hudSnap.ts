@@ -48,6 +48,7 @@ export function snap(over: Partial<FlightHudSnapshot> = {}): FlightHudSnapshot {
     passLetter: null,
     refly: false,
     gust: null,
+    counter: null,
     windRelDeg: 90,
     cruise: { on: false, factor: 1 },
     lineReport: null,

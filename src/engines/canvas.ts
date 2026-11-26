@@ -20,6 +20,11 @@ export function setupCanvas(
   cssWidth: number,
   cssHeight: number,
   dpr: number = currentDpr(),
+  /**
+   * O canvas cobre tudo o que desenha (o voo): sem canal alfa, o navegador não mistura o canvas
+   * com a página a cada quadro (ADR-034). Só vale na primeira obtenção do contexto.
+   */
+  opaque = false,
 ): CanvasSurface | null {
   const width = Math.max(1, Math.floor(cssWidth));
   const height = Math.max(1, Math.floor(cssHeight));
@@ -28,7 +33,7 @@ export function setupCanvas(
   if (canvas.width !== bufferWidth) canvas.width = bufferWidth;
   if (canvas.height !== bufferHeight) canvas.height = bufferHeight;
 
-  const ctx = canvas.getContext('2d');
+  const ctx = opaque ? canvas.getContext('2d', { alpha: false }) : canvas.getContext('2d');
   if (!ctx) return null;
   // Redimensionar o buffer zera o estado do contexto; a escala é reaplicada sempre.
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

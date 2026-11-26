@@ -1999,6 +1999,33 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Status:** ✅
 
 
+### T094 — Voo mais rápido, rajadas visuais com contragolpe, atmosfera épica, FPS sem GPU e IMU que cabe na tela
+- **Fase:** F11 · **Depende de:** T093 · **REQs:** REQ-FLT-013, REQ-FLT-023, REQ-FLT-029, REQ-FLD-011, REQ-NFR-001, REQ-NFR-007, REQ-NFR-010
+- **Spec:** [ADR-034](decisions.md), [survey-flight §4, §5.5, §5.6, §5.13, §5.14, §5.16–§5.19](features/survey-flight.md), [domain-math §5.1](design/domain-math.md), [field-setup §5.4](features/field-setup.md), [audio](design/audio.md)
+- **Passos:**
+  1. Medir o ponto de partida: os quatro pilotos simulados (execução e tempo real da surtida) e o FPS do voo sem GPU (C01, C03, R04; DPR 1 e 2; com e sem vsync; tempo por etapa no F9).
+  2. Ritmo do voo (`tempo.ts`) e cruzeiro por cima dele, em tempo real; pilotos simulados em tempo real; calibrar o ritmo e as rajadas pelas metas da ADR-032 com 3 sementes.
+  3. Rajadas mais curtas, frequentes e fortes, com a direção de cada passada; aviso só visual (a frente de vento) e o contragolpe com a marca e os sons; o autopilot faz o contragolpe.
+  4. Atmosfera: céu num bitmap, névoa do horizonte, nuvens baixas, riscos de velocidade, rastros das asas, halo dos portais, inclinação da câmera e vinheta.
+  5. FPS: canvas opaco, objetos à vista pelo intervalo de `u`, degraus de detalhe (F9); A/B de cada efeito com a escala presa.
+  6. IMU: desenho que escala para o painel, preparação, guia mais lento e tolerância maior.
+  7. ADR-034, specs, testes e E2E do voo.
+- **Aceite:**
+  - [x] O piloto parado reprova em todos os contratos; o distraído reprova em pelo menos 15 de 18; o mediano aprova em todos com execução ≥ 0,65; o bom aprova com execução ≥ 0,9 e nenhuma linha recusada (3 sementes).
+  - [x] A rajada não tem alerta escrito; a frente de vento aparece do lado de onde ela vem e chega no instante do empurrão; o contragolpe no tempo corta a rajada a 20 %, e cedo, tarde ou sem reação, não.
+  - [x] A surtida do mediano fica mais curta em tempo real que antes, em todo contrato.
+  - [x] Sem GPU, a DPR 1, o voo na C03 e na R04 fica mais rápido que antes, com os efeitos novos (FPS com vsync).
+  - [x] O "8" da IMU cabe inteiro no canvas em qualquer largura de painel.
+  - [x] O `verify` e o E2E do voo seguem verdes.
+- **Verificação:** `npm run verify` · `npm run qa:flight` · `npx playwright test tests/e2e/flight*.spec.ts tests/e2e/field.spec.ts` · as medições do passo 1 antes e depois
+- **Arquivos (efetivos):** \+ `src/engines/flight/{tempo,gustRenderer,atmosphere,trails,detailLevel}.ts` e testes; ~ `src/domain/{gusts,minigameScoring}.ts` e testes, `src/engines/flight/{FlightEngine,autopilot,cruise,corridorRenderer,hudPublisher,terrainRenderer}.ts` e testes, `src/engines/{canvas,useCanvas}.ts`, `src/engines/field/minigames/{lemniscate,bubble}.ts` e teste, `src/screens/flight/{SurveyFlightScreen,FlightHud,ExecutionHud}.tsx` e teste, `src/screens/field/CalibrationTab.tsx`, `src/app/PerfSection.tsx`, `src/audio/sfx.ts`, `src/data/strings.ts`, `src/test/{pilots,flyMission,hudSnap}.ts`, `src/engines/flight/challenge/challenge.ts`; ~ `specs/{decisions,requirements,tasks,qa-manual}.md`, `specs/features/{survey-flight,field-setup}.md`, `specs/design/{domain-math,audio}.md`, `README.md`.
+- **Notas de implementação:**
+  - **O ritmo é o que pesa no mediano, não as rajadas.** Com as rajadas novas, o mediano no ritmo ×1 ficava em 0,77–0,95; no ×2, em 0,53–0,73 (reprovava); só ×1,5 e ×1,75 cabiam nas metas. A diferença é o atraso de reação, que no ritmo ×2 vira 0,7 s de simulação e faz o comando "tudo ou nada" passar da faixa inteira. Por isso o mediano ganhou a antecipação de 0,15 s (tempo real) na faixa e na altura, e a meta dele caiu para 0,65 (ADR-034).
+  - **Rajadas que se anulavam.** Na R10 (sem vento) e na R07 (vento paralelo às faixas), as rajadas caíam ora de um lado, ora do outro, e o distraído ficava perto do mediano. Uma direção por passada (e um lado para as quase paralelas) resolveu: o distraído da R10 caiu de 0,71 para 0,42 e o da R07 de 0,59 para 0,36.
+  - **O que custa no raster sem GPU** (A/B na C03 com a escala presa em 1, mediana de ms por quadro): a cópia do céu num deslocamento fracionário custava ~7 ms (reamostra a tela toda); em pixels inteiros, nada. A inclinação da câmera custa ~7 ms (os troncos viram polígonos girados); nuvens baixas e vinheta, ~3,6 ms juntas. Daí os degraus de detalhe: a inclinação sai primeiro.
+  - **Resultados:** pilotos com 3 sementes: parado 0/54, distraído 3/54, mediano 54/54 (0,68 a 0,96), bom 54/54 (0,95 a 1,00, nenhuma linha recusada); a surtida do mediano caiu de 0,76–10,3 para 0,45–6,7 minutos reais. FPS com vsync, DPR 1: C01 60,1 → 58,8; C03 47,3 → 56,1; R04 52,6 → 58,0; DPR 2: C03 47,1 → 53,8. JS do motor na C03: 9,4 → 6,0 ms.
+- **Status:** ✅
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2055,7 +2082,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
 | REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ✅ |
-| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038 | ✅ |
+| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038, T094 | ✅ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
@@ -2070,7 +2097,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
-| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090 | ✅ |
+| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090, T094 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
@@ -2080,13 +2107,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
 | REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
-| REQ-FLT-023 | Cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091 | ✅ |
+| REQ-FLT-023 | Ritmo e cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091, T094 | ✅ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
 | REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ✅ |
 | REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ✅ |
-| REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090 | ✅ |
+| REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090, T094 | ✅ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ✅ |
@@ -2135,13 +2162,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md) | T059, T060–T070, T079 | ✅ |
 | REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
-| REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093 | ✅ |
+| REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093, T094 | ✅ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ✅ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
-| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078 | ✅ |
+| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078, T094 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
-| REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089 | ✅ |
+| REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089, T094 | ✅ |

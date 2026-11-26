@@ -94,6 +94,11 @@ export interface TerrainScene {
   timeS: number;
   objects: readonly SceneObject[];
   marks: readonly GroundMark[];
+  /**
+   * Folga (px) além das bordas de cima e de baixo em que os quads ainda são desenhados: a câmera
+   * inclinada mostra um pouco além delas. Padrão: 0.
+   */
+  cullMarginPx?: number;
 }
 
 export type DrawCommand =
@@ -269,7 +274,9 @@ function traverse(scene: TerrainScene, sink: Sink): void {
   PERF.flight.enter(FLIGHT_STAGE.OBJECTS);
   const { n, m } = g;
   const ground: GroundFn = (X, Z) => gridElevation(g, scene.cam, X, Z);
-  const H = scene.cam.height;
+  const cull = scene.cullMarginPx ?? 0;
+  const top = -cull;
+  const H = scene.cam.height + cull;
   const zFog = fogDistance(scene.lighting);
   const interval = contourInterval(scene.reliefM);
   const pts = new Float64Array(8);
@@ -327,7 +334,7 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       const y10 = g.sy[k10] as number;
       const y11 = g.sy[k11] as number;
       if (
-        (y00 < 0 && y01 < 0 && y10 < 0 && y11 < 0) ||
+        (y00 < top && y01 < top && y10 < top && y11 < top) ||
         (y00 > H && y01 > H && y10 > H && y11 > H)
       ) {
         continue;

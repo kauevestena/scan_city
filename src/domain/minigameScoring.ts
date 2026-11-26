@@ -43,10 +43,10 @@ export function scoreBubble(samples: readonly BubbleSample[]): number {
 }
 
 /** Distância média cursor–guia (px) em que o `imuScore` chega a 0. */
-export const LEMNISCATE_ZERO_PX = 40;
+export const LEMNISCATE_ZERO_PX = 60;
 
 /**
- * Score da IMU em [0, 1]: `clamp(1 − mean(d)/40)`, com `d` a distância cursor–guia (px)
+ * Score da IMU em [0, 1]: `clamp(1 − mean(d)/60)`, com `d` a distância cursor–guia (px)
  * amostrada a 30 Hz. Sem amostras: 0.
  */
 export function scoreLemniscate(distancesPx: readonly number[]): number {

@@ -12,6 +12,8 @@ export interface AdaptiveResolution {
   kind: 'flight' | 'holo';
   /** Menor escala aceita (px de buffer por px de CSS). */
   floor: number;
+  /** O desenho cobre o canvas inteiro: contexto sem canal alfa (mais barato de compor). */
+  opaque?: boolean;
 }
 
 /** A última escala de cada canvas adaptativo nesta sessão. */
@@ -43,6 +45,7 @@ export function useCanvas(
   const governor = useRef<RenderScaleGovernor | null>(null);
   const kind = adaptive?.kind;
   const floor = adaptive?.floor;
+  const opaque = adaptive?.opaque === true;
 
   // O governador: mede o intervalo entre quadros e troca a escala quando ele pede.
   useEffect(() => {
@@ -87,7 +90,7 @@ export function useCanvas(
     const measure = () => {
       const dpr = scale ?? currentDpr();
       // Área de conteúdo do pai (sem borda): é o espaço que o canvas ocupa.
-      const next = setupCanvas(canvas, host.clientWidth, host.clientHeight, dpr);
+      const next = setupCanvas(canvas, host.clientWidth, host.clientHeight, dpr, opaque);
       if (kind !== undefined) canvas.dataset.renderScale = dpr.toFixed(2);
       setSurface((prev) =>
         prev &&
@@ -110,7 +113,7 @@ export function useCanvas(
       window.removeEventListener('resize', measure);
       observer?.disconnect();
     };
-  }, [ref, scale, kind]);
+  }, [ref, scale, kind, opaque]);
 
   return surface;
 }

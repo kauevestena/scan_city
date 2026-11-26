@@ -180,28 +180,38 @@ stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): Air
   - Com TF: o AGL-alvo é ajustado pelos gatilhos, e a altitude persegue `terrainFollowTargetAlt` limitada a `climbRateMs`.
 - **Limites:** `alt` é limitada a `[elev + 2, elev + min(hMaxM, ceilingM)]`. Colidir com o terreno ainda é possível se a subida for insuficiente diante de um relevo abrupto.
 
-### 5.1 Rajadas e entrada de faixa (`gusts.ts`, [ADR-030](../decisions.md))
+### 5.1 Rajadas, contragolpe e entrada de faixa (`gusts.ts`, [ADR-030](../decisions.md), [ADR-034](../decisions.md))
 
 ```ts
 interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; angleRad: number }
 //   tempos em segundos desde o início da linha; ângulo em relação ao sentido da linha
 //   (0 = de cauda, +π/2 = empurra para a direita)
-gustCount(lineDurationS): number                         // clamp(round(T/10), 1, 6)
+gustCount(lineDurationS): number                         // clamp(round(T/7), 1, 9)
 windRelativeRad(directionDeg, dir, right): number        // θ₀: para onde o vento sopra, em relação à linha
 planGusts(rng, wind, windRelRad, lineDurationS, leadInS): Gust[]
 gustEnvelope(gust, tS): number                           // 0..1: sobe em rampS, patamar de holdS, desce em rampS
-gustPushAt(gusts, tS): { lateralMs: number; alongMs: number }   // Σ peak·env·(sen θ, cos θ)
+gustPushAt(gusts, tS, weights?): { lateralMs: number; alongMs: number }   // Σ peak·env·peso·(sen θ, cos θ)
 gustWarningAt(gusts, tS): { gust: Gust; inS: number } | null    // rajada avisada (inS > 0) ou em curso (inS ≤ 0)
+gustSide(gust): -1 | 1                                   // para onde empurra
+stepCounter(state, gust, tS, countering): CounterState   // um passo do contragolpe
+judgeCounter(deltaS): 'PERFECT' | 'EARLY' | 'LATE'       // pelo começo do comando, em relação à chegada
+counterWeight(result): number                            // 0,2 no 'PERFECT'; 1 nos outros
 maxCorrectableM(aircraft, speedMs, timeS): number
 entryOffsetM(rng, spacingM, maxCorrectableM): number     // com sinal
 ```
 
 **Agenda de rajadas** (por passada de linha, com a seed da missão):
 - `T = lengthM / v_plano` e `t_in = aoiStartS / v_plano`. Há `n = gustCount(T)` rajadas.
-- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais. Cada rajada ocupa no máximo `F = 5 s` (as duas rampas, o patamar mais longo e o aviso) e começa num instante uniforme nos primeiros `parte − F` segundos da sua parte: uma rajada e o aviso da seguinte nunca se cruzam. Se a janela tiver menos de `6·n` s (`F` mais 1 s de calma por rajada), `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
-- `rampS = 0,5`, `holdS = U(1,5, 2,5)` e `peakMs = max(4, gustMs + 2)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 4 m/s, e a do contrato soma 2 m/s.
-- **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). Com vento médio ≥ 1 m/s, `θ = θ₀ + U(−50°, +50°)`; sem vento, `θ = U(−180°, 180°)`. Se `|sen θ| < 0,7`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,7`, mantendo os sinais (com `sen θ = 0`, o lado é sorteado): toda rajada tem pelo menos 70 % da força na transversal.
-- **Aviso:** `GUST_WARN_S = 1,5` s antes do início.
+- A janela de início `[t_in + 1, T − 4]` é dividida em `n` partes iguais. Cada rajada ocupa no máximo `F = 4 s` (as duas rampas, o patamar mais longo e o aviso) e começa num instante uniforme nos primeiros `parte − F` segundos da sua parte: uma rajada e o aviso da seguinte nunca se cruzam. Se a janela tiver menos de `5·n` s (`F` mais 1 s de calma por rajada), `n` cai até caber (mínimo 1); com janela vazia, a rajada única começa em `t_in + 1`.
+- `rampS = 0,25`, `holdS = U(1,2, 2)` e `peakMs = max(5, gustMs + 3)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 5 m/s, e a do contrato soma 3 m/s.
+- **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). O centro da passada é `θ₀` com vento médio ≥ 1 m/s, ou `U(−180°, 180°)` sorteado uma vez para a passada sem vento; cada rajada sai em `θ = centro + U(−50°, +50°)`. Se `|sen θ| < 0,7`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,7`, mantendo o sinal do cosseno e tombando para o lado da passada: o do centro, se `|sen(centro)| ≥ 0,1`, ou um lado sorteado uma vez para a passada. Toda rajada tem pelo menos 70 % da força na transversal, e as de uma passada empurram para o mesmo lado (sem isso, com vento paralelo às faixas ou sem vento, elas se anulavam para quem larga o controle).
+- **Aviso:** `GUST_WARN_S = 1,5` s antes do início: a frente de vento aparece na cena (survey-flight §5.13).
+
+**Contragolpe** (por rajada, a cada passo, com `countering = MOVE_X · −lado > 0,5`):
+- Antes do aviso, só guarda o comando. Do aviso em diante, o **começo** de um comando contra a rajada (falso no passo anterior, verdadeiro neste) em `δ = t − startS ≤ 1 s` é julgado: `δ < −0,3` → `EARLY`; `−0,3 ≤ δ ≤ 0,2` → `PERFECT`; `δ > 0,2` → `LATE`.
+- Sem começo até `δ > 1 s`: `EARLY` se o jogador já segurava contra quando o aviso abriu (segurar desde antes não vale como começo), senão `MISS`.
+- Julgada, não muda mais. O peso do empurrão da rajada (`gustPushAt`) é `0,2` no `PERFECT` e `1` nos outros; ele vale para o resto da rajada (a parte lateral e a de proa ou de cauda).
+- Os tempos são simulados; no ritmo ×1,75 do voo, a janela `PERFECT` tem 0,29 s reais.
 
 **Entrada de faixa:**
 - `maxCorrectableM`: o deslocamento lateral que a aeronave faz, parando no fim, em `timeS`. Multirrotor e ave: `lateralSpeedMaxMs·t`. Asa fixa, com `a = v²/R` e `vmax = v·sen 30°`: `a·t²/4` se `t ≤ 2·vmax/a`; senão `vmax·(t − vmax/a)`.
@@ -557,7 +567,7 @@ rollCounterOffer(rng, rivalChanceMod): boolean   // p = 0,20 · rivalChanceMod
 | G26 | `gradeSample` (faixa) | S = 30 m, altura e avanço perfeitos, `x` = 1,4 / 2,9 / 7,4 / 7,6 m | Perfeita / Boa / Fraca / Rejeitada |
 | G27 | `passScore` / `gradeLetter` | contagem [10, 5, 3, 2] | 0,76 → **B** |
 | G28 | `missionExecution` | 2 linhas de 16 amostras; linha 0 com passada completa de nota 0,9; linha 1 sem passada | E = 0,45 |
-| G29 | `gustCount` | T = 12 / 30 / 75 s | 1 / 3 / 6 |
+| G29 | `gustCount` | T = 7 / 35 / 63 s | 1 / 5 / 9 |
 | G30 | `maxCorrectableM` | multirrotor (lateral 8 m/s), t = 3 s; asa fixa (v = 22 m/s, R = 80 m), t = 80/22 s | 24 m; 20,0 m |
 | G31 | nota com execução | base 0,9; E = 1 / 0,65 | 0,900 / 0,711 |
 | G32 | `corridorProfile` | relevo plano a 100 m com degrau de +30 m em s = 200 m; H = 60, v = 10, subida 3 m/s | 160 m em s ≤ 37 m; 173,2 m em s = 100 m; 190 m em s ≥ 180 m |

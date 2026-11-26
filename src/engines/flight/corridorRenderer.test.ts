@@ -79,16 +79,23 @@ describe('buildCorridorDrawList (survey-flight §5.19)', () => {
       closePath: () => undefined,
       rect: () => undefined,
       stroke: () => undefined,
+      fill: () => calls.push('fill'),
+      fillStyle: '',
       strokeRect: () => calls.push('rect'),
       set strokeStyle(v: string) {
         calls.push(v);
       },
-      lineWidth: 1,
+      set lineWidth(v: number) {
+        calls.push(`lw ${v}`);
+      },
     } as unknown as CanvasRenderingContext2D;
     const list = buildCorridorDrawList(input());
     const flash = { gateS: 90, grade: 'WEAK' as const, ageS: 0.1 };
     drawCorridor(ctx, list, flash, false, 1280, 720);
     expect(calls.some((c) => c.startsWith('rgba(251, 191, 36'))).toBe(true);
+    // O halo dos portais de perto (traço largo) e o núcleo aceso do próximo.
+    expect(calls).toContain('lw 9');
+    expect(calls).toContain('fill');
     calls.length = 0;
     drawCorridor(ctx, list, flash, true, 1280, 720);
     expect(calls.some((c) => c.startsWith('rgba(251, 191, 36'))).toBe(false);

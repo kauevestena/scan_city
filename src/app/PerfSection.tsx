@@ -1,6 +1,7 @@
 import { Gauge } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { acquirePerf, PERF, PERF_BUDGET_MS, type StageReading } from '@/engines/perf';
+import { flightDetailLevel } from '@/engines/flight/detailLevel';
 import { renderScaleOf } from '@/engines/useCanvas';
 import { formatNumber } from '@/lib/format';
 import { cx } from '@/ui';
@@ -15,6 +16,8 @@ interface Section {
   stages: StageReading[];
   /** Escala do buffer do canvas (resolução adaptativa, ADR-033), nos que têm. */
   renderScale: number | null;
+  /** Degrau de detalhe do voo (ADR-034); `null` nas outras telas. */
+  detail: number | null;
 }
 
 /** As seções com quadros novos desde a leitura anterior: só a tela que está rodando aparece. */
@@ -32,6 +35,7 @@ export function activeSections(seen: Map<string, number>): Section[] {
         budgetMs: PERF_BUDGET_MS[key],
         stages: timer.readings(),
         renderScale: renderScaleOf(key),
+        detail: key === 'flight' ? flightDetailLevel() : null,
       });
     }
     seen.set(key, frames);
@@ -91,6 +95,11 @@ export function PerfSection() {
             {sec.renderScale !== null && (
               <p className="mt-1 font-mono text-xs text-slate-400" data-testid="perf-render-scale">
                 Resolução do canvas ×{formatNumber(sec.renderScale, 2)}
+              </p>
+            )}
+            {sec.detail !== null && (
+              <p className="font-mono text-xs text-slate-400" data-testid="perf-detail">
+                Degrau de detalhe {sec.detail} de 3
               </p>
             )}
           </div>

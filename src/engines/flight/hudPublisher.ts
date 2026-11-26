@@ -3,6 +3,7 @@
  * prioridade (§5.17): no máximo 2 visíveis.
  */
 import type { GradeAxis } from '@/domain/execution';
+import type { CounterResult } from '@/domain/gusts';
 import type { AoiPoint, GradeCounts, RtkStatus, ShotGrade } from '@/types';
 
 export type FlightPhase =
@@ -12,7 +13,6 @@ export type FlightAlertId =
   | 'CRASH_IMMINENT'
   | 'RTH'
   | 'DETECTED'
-  | 'GUST'
   | 'WIND_LIMIT'
   | 'OFF_ALTITUDE'
   | 'SPEED_LIMITED'
@@ -30,13 +30,10 @@ export interface FlightAlert {
   priority: number;
   level: 'critical' | 'warn' | 'info';
   /**
-   * Valor exibido: o overlap em %; na rajada, os segundos até ela começar (≤ 0 quando já
-   * sopra); na altura, quanto falta subir (positivo) ou descer; na velocidade limitada, o
-   * sinal do vento (negativo de proa, positivo de cauda).
+   * Valor exibido: o overlap em %; na altura, quanto falta subir (positivo) ou descer; na
+   * velocidade limitada, o sinal do vento (negativo de proa, positivo de cauda).
    */
   value?: number;
-  /** Lado para onde a rajada empurra. */
-  side?: -1 | 1;
 }
 
 /** Prioridades de survey-flight §5.17: o que pede ação agora vem antes do que é só estado. */
@@ -44,7 +41,6 @@ const PRIORITY: Readonly<Record<FlightAlertId, [number, FlightAlert['level']]>> 
   CRASH_IMMINENT: [1, 'critical'],
   RTH: [2, 'critical'],
   DETECTED: [3, 'critical'],
-  GUST: [4, 'warn'],
   ATLAS_DISTRACTED: [4, 'info'],
   WIND_LIMIT: [5, 'warn'],
   OUT_OF_LANE: [6, 'warn'],
@@ -59,15 +55,9 @@ const PRIORITY: Readonly<Record<FlightAlertId, [number, FlightAlert['level']]>> 
 
 export const MAX_ALERTS = 2;
 
-export function makeAlert(id: FlightAlertId, value?: number, side?: -1 | 1): FlightAlert {
+export function makeAlert(id: FlightAlertId, value?: number): FlightAlert {
   const [priority, level] = PRIORITY[id];
-  return {
-    id,
-    priority,
-    level,
-    ...(value === undefined ? {} : { value }),
-    ...(side === undefined ? {} : { side }),
-  };
+  return { id, priority, level, ...(value === undefined ? {} : { value }) };
 }
 
 /** Os alertas mais urgentes, no máximo 2. */
@@ -137,8 +127,13 @@ export interface FlightHudSnapshot {
   passLetter: string | null;
   /** A passada em curso é um revoo. */
   refly: boolean;
-  /** Rajada avisada (`inS` > 0) ou em curso, com o lado para onde empurra. */
+  /**
+   * Rajada avisada (`inS` > 0: a frente de vento está na cena) ou em curso, com o lado para onde
+   * empurra. O HUD não escreve o aviso (ADR-034): a biruta só reage ao sopro.
+   */
   gust: { side: -1 | 1; inS: number; active: boolean } | null;
+  /** O último contragolpe julgado; `seq` muda a cada um, para a marca na tela. */
+  counter: { result: CounterResult; side: -1 | 1; seq: number } | null;
   /** Para a biruta: para onde o vento sopra, em relação à aeronave (0 = de cauda, 90 = para a direita). */
   windRelDeg: number;
   /** Cruzeiro automático: ligado pelo jogador e o fator de tempo do momento. */

@@ -17,7 +17,9 @@ export type SfxId =
   | 'DENIED'
   | 'STAGE_DONE'
   | 'GRADE'
-  | 'GRADE_MISS';
+  | 'GRADE_MISS'
+  | 'GUST_CUT'
+  | 'GUST_HIT';
 
 export type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 
@@ -38,6 +40,8 @@ export const SFX_IDS: readonly SfxId[] = [
   'STAGE_DONE',
   'GRADE',
   'GRADE_MISS',
+  'GUST_CUT',
+  'GUST_HIT',
 ];
 export const LOOP_IDS: readonly LoopId[] = ['LIDAR_HUM', 'MOTOR', 'WIND', 'PROCESSING'];
 
@@ -325,6 +329,31 @@ export const SFX: Record<SfxId, (v: Voice) => number> = {
     osc.frequency.setValueAtTime(220 * v.pitch, v.t0);
     osc.frequency.exponentialRampToValueAtTime(140 * v.pitch, v.t0 + 0.12);
     return 0.12;
+  },
+
+  // Contragolpe no tempo: o vento rasgado (ruído agudo e curto) e um brilho que sobe.
+  GUST_CUT: (v) => {
+    const g = gainNode(v.ctx, 0, v.out);
+    env(g.gain, v.t0, { a: 0.004, d: 0.14, peak: 0.16 });
+    const f = filterNode(v.ctx, 'bandpass', 2400, g, 1.2);
+    f.frequency.setValueAtTime(1600, v.t0);
+    f.frequency.exponentialRampToValueAtTime(4200, v.t0 + 0.14);
+    noiseNode(v, f, v.t0, v.t0 + 0.16);
+    const { osc } = tone(v, 'triangle', 880, v.t0 + 0.02, { a: 0.002, d: 0.16, peak: 0.18 });
+    osc.frequency.setValueAtTime(880 * v.pitch, v.t0 + 0.02);
+    osc.frequency.exponentialRampToValueAtTime(1760 * v.pitch, v.t0 + 0.12);
+    return 0.2;
+  },
+
+  // A rajada bateu sem contragolpe: um sopro grave que desce.
+  GUST_HIT: (v) => {
+    const g = gainNode(v.ctx, 0, v.out);
+    env(g.gain, v.t0, { a: 0.01, d: 0.3, peak: 0.22 });
+    const f = filterNode(v.ctx, 'lowpass', 900, g, 0.7);
+    f.frequency.setValueAtTime(900, v.t0);
+    f.frequency.exponentialRampToValueAtTime(250, v.t0 + 0.3);
+    noiseNode(v, f, v.t0, v.t0 + 0.32);
+    return 0.32;
   },
 };
 

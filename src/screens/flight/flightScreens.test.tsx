@@ -132,21 +132,31 @@ describe('FlightHud — execução do voo (REQ-FLT-029)', () => {
     expect(screen.getByTestId('hud-execution')).toHaveTextContent('REVOO');
   });
 
-  it('rajada avisada: alerta com o lado e a contagem, biruta âmbar', () => {
-    render(
-      <FlightHud
-        snap={snap({
-          gust: { side: 1, inS: 1.2, active: false },
-          alerts: [makeAlert('GUST', 1.2, 1)],
-        })}
-      />,
+  it('rajada avisada: nada escrito e biruta quieta; soprando, a biruta gira para o lado', () => {
+    const { rerender } = render(
+      <FlightHud snap={snap({ gust: { side: 1, inS: 1.2, active: false }, alerts: [] })} />,
     );
-    expect(
-      within(screen.getByTestId('hud-alerts')).getByText('RAJADA ▶ em 1,2 s'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/RAJADA/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('hud-windsock')).toHaveAttribute('data-gust', 'none');
+    rerender(<FlightHud snap={snap({ gust: { side: 1, inS: -0.3, active: true }, alerts: [] })} />);
     const sock = screen.getByTestId('hud-windsock');
-    expect(sock).toHaveAttribute('data-gust', 'warned');
+    expect(sock).toHaveAttribute('data-gust', 'active');
     expect(sock).toHaveAccessibleName('Biruta: vento a 90° do rumo');
+  });
+
+  it('contragolpe: "NO TEMPO!" em verde, cedo e tarde em âmbar; sem reação, sem marca', () => {
+    const { rerender } = render(
+      <FlightHud snap={snap({ counter: { result: 'PERFECT', side: 1, seq: 1 } })} />,
+    );
+    const mark = screen.getByTestId('hud-counter');
+    expect(mark).toHaveTextContent('NO TEMPO!');
+    expect(mark).toHaveClass('text-emerald-300', 'grade-pop');
+    rerender(<FlightHud snap={snap({ counter: { result: 'LATE', side: -1, seq: 2 } })} />);
+    expect(screen.getByTestId('hud-counter')).toHaveTextContent('TARDE');
+    rerender(<FlightHud snap={snap({ counter: { result: 'EARLY', side: -1, seq: 3 } })} />);
+    expect(screen.getByTestId('hud-counter')).toHaveTextContent('CEDO');
+    rerender(<FlightHud snap={snap({ counter: { result: 'MISS', side: -1, seq: 4 } })} />);
+    expect(screen.queryByTestId('hud-counter')).not.toBeInTheDocument();
   });
 
   it('nota Fraca pela faixa: a marca mostra a nota e o eixo; com reduceFlashes, sem subir', () => {

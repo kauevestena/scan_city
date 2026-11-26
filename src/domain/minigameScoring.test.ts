@@ -53,15 +53,15 @@ describe('scoreBubble', () => {
 });
 
 describe('scoreLemniscate', () => {
-  it('cursor exatamente sobre o guia dá 1; a 40 px dá 0', () => {
-    expect(scoreLemniscate(Array(360).fill(0))).toBe(1);
-    expect(scoreLemniscate(Array(360).fill(40))).toBe(0);
-    expect(scoreLemniscate(Array(360).fill(200))).toBe(0);
+  it('cursor exatamente sobre o guia dá 1; a 60 px dá 0', () => {
+    expect(scoreLemniscate(Array(600).fill(0))).toBe(1);
+    expect(scoreLemniscate(Array(600).fill(60))).toBe(0);
+    expect(scoreLemniscate(Array(600).fill(200))).toBe(0);
   });
 
-  it('é linear na distância média: 10 px dão 0,75; 20 px dão 0,5', () => {
-    expect(scoreLemniscate(Array(10).fill(10))).toBeCloseTo(0.75, 10);
-    expect(scoreLemniscate([0, 40])).toBeCloseTo(0.5, 10);
+  it('é linear na distância média: 15 px dão 0,75; 30 px dão 0,5', () => {
+    expect(scoreLemniscate(Array(10).fill(15))).toBeCloseTo(0.75, 10);
+    expect(scoreLemniscate([0, 60])).toBeCloseTo(0.5, 10);
   });
 
   it('sem amostras: 0', () => {

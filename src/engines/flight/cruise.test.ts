@@ -22,11 +22,11 @@ const OK: CruiseContext = {
 };
 
 describe('cruzeiro automático (survey-flight §5.14)', () => {
-  it('fator máximo pela duração da linha: ×3 numa de 30 s, ×6 numa de 75 s, entre ×2 e ×6', () => {
+  it('fator máximo pela duração real da linha: ×3 numa de 30 s, ×4 numa de 75 s, entre ×2 e ×4', () => {
     expect(cruiseMaxFor(30)).toBe(3);
-    expect(cruiseMaxFor(75)).toBe(6);
+    expect(cruiseMaxFor(75)).toBe(4);
     expect(cruiseMaxFor(5)).toBe(2);
-    expect(cruiseMaxFor(600)).toBe(6);
+    expect(cruiseMaxFor(600)).toBe(4);
   });
 
   it('cada condição, sozinha, impede o cruzeiro', () => {

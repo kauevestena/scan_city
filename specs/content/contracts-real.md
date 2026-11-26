@@ -85,7 +85,7 @@ Cada bloco abaixo se converte 1:1 num objeto `Contract` ([data-model §4](../des
 1. no mapa, "Encoste no marcador e aperte [INTERACT]";
 2. no campo, "Clique para cravar ao menos 3 GCPs";
 3. no plano, "Observe o GSD mudar com a altura";
-4. no voo, "Voe pelos portais: no losango do centro a foto é Perfeita", com uma segunda linha que muda conforme o voo mostra cada coisa nova, uma vez só: alinhar na entrada, a rajada avisada, o relevo (subir e descer com a seta), as cores das notas, o cruzeiro e o boletim da linha ([survey-flight §8](../features/survey-flight.md));
+4. no voo, "Voe pelos portais: no losango do centro a foto é Perfeita", com uma segunda linha que muda conforme o voo mostra cada coisa nova, uma vez só: alinhar na entrada, a frente de vento e o contragolpe, o relevo (subir e descer com a seta), as cores das notas, o cruzeiro e o boletim da linha ([survey-flight §8](../features/survey-flight.md));
 5. no processamento, "Veja o mapa de calor: verde = ≥ 5 fotos".
 
 ---
