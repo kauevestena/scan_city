@@ -85,7 +85,7 @@ Ao entrar vindo do voo (`outcome = 'QUEUED'`), mostra o toast "Dados salvos. Lev
   - marcadores ◆ pulsantes (cor por status: ciano disponível, cinza bloqueado, emerald concluído, rosa roubado com o ícone "MM");
   - portais das fendas (anel violeta girando com 8 partículas);
   - partículas de chuva (evento `SUDDEN_RAIN`);
-  - **a sede** (`landmarks.ts`): um prédio de vidro por cima do quarteirão da porta `O` (8 tiles de largura, 3 de altura), com a faixa "GEOSURVEY", janelas acesas, a antena GNSS no telhado, o mastro com a luz vermelha piscando e a porta âmbar com um anel que pulsa. Com "Reduzir flashes e tremores", a luz fica acesa e o anel parado;
+  - **a sede** (`landmarks.ts`): um escritório pequeno de vidro por cima do quarteirão da porta `O` (3 tiles de largura, 2 de altura: a GeoSurvey é uma empresa pequena), com a faixa "GEOSURVEY", janelas acesas, a antena GNSS no telhado, o mastro com a luz vermelha piscando e a porta âmbar com um anel que pulsa. Com "Reduzir flashes e tremores", a luz fica acesa e o anel parado;
   - a seta da navegação GNSS (§5.6).
 - **Avatar** por modo de locomoção, nas cores da skin:
   - A pé: círculo + corpo;

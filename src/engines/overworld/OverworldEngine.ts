@@ -283,7 +283,7 @@ export class OverworldEngine implements Simulation {
     const calm = this.opts.reduceFlashes?.() ?? false;
     // A sede, por cima do quarteirão dela (dá para achá-la de longe).
     const door = this.map.door;
-    if (door.x >= x0 - 6 && door.x <= x1 + 6 && door.y >= y0 - 1 && door.y <= y1 + 5) {
+    if (door.x >= x0 - 3 && door.x <= x1 + 3 && door.y >= y0 - 1 && door.y <= y1 + 3) {
       drawHeadquarters(ctx, door, this.timeS, !calm);
     }
     for (const m of this.opts.markers()) {

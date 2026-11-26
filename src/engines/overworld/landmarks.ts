@@ -9,9 +9,12 @@ import { TILE_PX } from './tileRenderer';
 
 type Ctx = CanvasRenderingContext2D;
 
-/** Pegada da sede em tiles, em relação à porta: 4 tiles para cada lado e 3 para cima. */
-export const HQ_HALF_TILES = 4;
-export const HQ_HEIGHT_TILES = 3;
+/**
+ * Pegada da sede em tiles, em relação à porta: um escritório pequeno, 1,5 tile para cada lado
+ * e 2 para cima (a GeoSurvey é uma empresa pequena).
+ */
+export const HQ_HALF_TILES = 1.5;
+export const HQ_HEIGHT_TILES = 2;
 
 /** Retângulo da sede em px de mundo (o prédio; a porta fica no meio da borda de baixo). */
 export function hqRect(door: { x: number; y: number }): {
@@ -22,7 +25,7 @@ export function hqRect(door: { x: number; y: number }): {
 } {
   const T = TILE_PX;
   return {
-    x: (door.x - HQ_HALF_TILES) * T + T / 2,
+    x: (door.x + 0.5 - HQ_HALF_TILES) * T,
     y: (door.y - HQ_HEIGHT_TILES) * T + 4,
     w: HQ_HALF_TILES * 2 * T,
     h: HQ_HEIGHT_TILES * T - 4,
@@ -48,8 +51,8 @@ export function drawHeadquarters(
   ctx.fillStyle = '#155e75';
   ctx.fillRect(r.x, r.y, r.w, 6);
   ctx.fillStyle = 'rgba(103, 232, 249, 0.55)';
-  for (let wy = r.y + 30; wy < r.y + r.h - 12; wy += 12) {
-    for (let wx = r.x + 6; wx < r.x + r.w - 8; wx += 14) {
+  for (let wy = r.y + 25; wy < r.y + r.h - 10; wy += 11) {
+    for (let wx = r.x + 6; wx < r.x + r.w - 8; wx += 12) {
       // A coluna da porta fica livre.
       if (Math.abs(wx + 4 - (door.x * T + T / 2)) < 14) continue;
       ctx.fillRect(wx, wy, 8, 6);
@@ -57,14 +60,14 @@ export function drawHeadquarters(
   }
   // Faixa do nome.
   ctx.fillStyle = '#22d3ee';
-  ctx.fillRect(r.x + 8, r.y + 10, r.w - 16, 14);
+  ctx.fillRect(r.x + 4, r.y + 9, r.w - 8, 11);
   ctx.fillStyle = '#082f49';
-  ctx.font = 'bold 11px sans-serif';
+  ctx.font = 'bold 9px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(STRINGS.world.hqSign, r.x + r.w / 2, r.y + 17.5);
+  ctx.fillText(STRINGS.world.hqSign, r.x + r.w / 2, r.y + 15);
   // Antena GNSS no telhado (o prato e o mastro) e o mastro com a luz.
-  const dishX = r.x + 22;
+  const dishX = r.x + 14;
   const dishY = r.y - 2;
   ctx.strokeStyle = '#e2e8f0';
   ctx.lineWidth = 2;
@@ -74,28 +77,28 @@ export function drawHeadquarters(
   ctx.stroke();
   ctx.fillStyle = '#f8fafc';
   ctx.beginPath();
-  ctx.ellipse(dishX, dishY - 10, 11, 6, -0.4, 0, Math.PI * 2);
+  ctx.ellipse(dishX, dishY - 9, 8, 4.5, -0.4, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#94a3b8';
   ctx.beginPath();
-  ctx.arc(dishX + 2, dishY - 11, 2, 0, Math.PI * 2);
+  ctx.arc(dishX + 1.5, dishY - 10, 1.5, 0, Math.PI * 2);
   ctx.fill();
-  const mastX = r.x + r.w - 18;
+  const mastX = r.x + r.w - 10;
   ctx.strokeStyle = '#cbd5e1';
   ctx.beginPath();
   ctx.moveTo(mastX, r.y);
-  ctx.lineTo(mastX, r.y - 22);
+  ctx.lineTo(mastX, r.y - 16);
   ctx.stroke();
   const on = !animate || Math.floor(timeS * 1.5) % 2 === 0;
   ctx.fillStyle = on ? '#f43f5e' : '#7f1d1d';
   ctx.beginPath();
-  ctx.arc(mastX, r.y - 23, 3, 0, Math.PI * 2);
+  ctx.arc(mastX, r.y - 17, 2.5, 0, Math.PI * 2);
   ctx.fill();
   // A porta acesa, com um anel que pulsa.
   const dx = door.x * T + T / 2;
   const dy = door.y * T + T / 2;
   ctx.fillStyle = '#fbbf24';
-  ctx.fillRect(dx - 7, r.y + r.h - 16, 14, 16);
+  ctx.fillRect(dx - 6, r.y + r.h - 13, 12, 13);
   const k = animate ? (timeS * 0.8) % 1 : 0.5;
   ctx.strokeStyle = `rgba(251, 191, 36, ${(0.8 * (1 - k)).toFixed(3)})`;
   ctx.lineWidth = 2;
