@@ -2026,6 +2026,20 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **Resultados:** pilotos com 3 sementes: parado 0/54, distraído 3/54, mediano 54/54 (0,68 a 0,96), bom 54/54 (0,95 a 1,00, nenhuma linha recusada); a surtida do mediano caiu de 0,76–10,3 para 0,45–6,7 minutos reais. FPS com vsync, DPR 1: C01 60,1 → 58,8; C03 47,3 → 56,1; R04 52,6 → 58,0; DPR 2: C03 47,1 → 53,8. JS do motor na C03: 9,4 → 6,0 ms.
 - **Status:** ✅
 
+### T095 — A sede com identidade no mapa e a navegação GNSS até a próxima missão
+- **Fase:** F11 · **Depende de:** T094 · **REQs:** REQ-WLD-001, REQ-WLD-007, REQ-INP-003, REQ-INP-004
+- **Spec:** [world-map §5.2 e §5.6](features/world-map.md), [input](design/input.md)
+- **Passos:**
+  1. A sede desenhada por cima do quarteirão da porta: prédio de vidro com a faixa "GEOSURVEY", a antena GNSS, o mastro com a luz e a porta acesa; no minimapa, um ícone próprio.
+  2. Navegação GNSS: `nextMissionMarker` e `bearingTo` (puros), a seta em volta do avatar, a linha no minimapa e a leitura no HUD.
+  3. `TOGGLE_GNSS` (`G`, `RB`/`R1`), o botão no mapa e o interruptor em Configurações (`settings.gnssNav`, ligado por padrão).
+- **Aceite:**
+  - [x] A sede se distingue dos outros quarteirões no mapa e no minimapa.
+  - [x] Com a navegação ligada, a seta e a leitura levam à primeira missão disponível da aba; `G` as desliga e liga, e o ajuste é salvo.
+  - [x] O `verify` e o E2E do mapa seguem verdes.
+- **Verificação:** `npm run verify` · `npx playwright test tests/e2e/world.spec.ts tests/e2e/gamepad.spec.ts tests/e2e/keyboard-only.spec.ts`
+- **Status:** ✅
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2045,8 +2059,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CORE-009 | Novo jogo | [architecture](design/architecture.md), [progression](features/progression.md) | T006, T075 | ✅ |
 | REQ-INP-001 | Teclado e mouse | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
 | REQ-INP-002 | Detecção de gamepad | [input](design/input.md) | T008 | ✅ |
-| REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008 | ✅ |
-| REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008 | ✅ |
+| REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008, T095 | ✅ |
+| REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008, T095 | ✅ |
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
@@ -2064,13 +2078,13 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ✅ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ✅ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
-| REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021 | ✅ |
+| REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021, T095 | ✅ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-004 | Seletor de dimensão | [contracts-rifts](content/contracts-rifts.md), [input](design/input.md), [world-map](features/world-map.md) | T059 | ✅ |
 | REQ-WLD-005 | Briefing de contrato | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-WLD-006 | Eventos de campo | [catalog](content/catalog.md), [world-map](features/world-map.md) | T019, T040 | ✅ |
-| REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021 | ✅ |
+| REQ-WLD-007 | Retorno à sede | [world-map](features/world-map.md) | T021, T095 | ✅ |
 | REQ-WLD-008 | Marcadores bloqueados | [world-map](features/world-map.md) | T022 | ✅ |
 | REQ-FLD-001 | Vista de satélite da AOI | [terrain](design/terrain.md), [field-setup](features/field-setup.md) | T017, T023 | ✅ |
 | REQ-FLD-002 | Colocação de GCPs e CPs | [catalog](content/catalog.md), [field-setup](features/field-setup.md) | T023, T039 | ✅ |

@@ -10,6 +10,7 @@ export function defaultSettings(): Settings {
     quality: 'HIGH',
     reduceFlashes: false,
     showFps: false,
+    gnssNav: true,
   };
 }
 

@@ -1052,6 +1052,19 @@ export const STRINGS = {
     tabs: { REAL: 'Contratos do Mundo Real', RIFT: 'Fendas Dimensionais' },
     vehicle: (name: string) => `Veículo: ${name}`,
     enterHq: 'Entrar na sede',
+    /** Faixa no prédio da sede, no mapa. */
+    hqSign: 'GEOSURVEY',
+    /** Navegação GNSS até a próxima missão (world-map §5.6). */
+    gnss: {
+      label: 'GNSS',
+      on: 'Navegação GNSS ligada',
+      off: 'Navegação GNSS desligada',
+      toggle: 'Ligar ou desligar a navegação GNSS',
+      readout: (contract: string, tiles: number, compass: string) =>
+        `${contract} · ${tiles} tiles · ${compass}`,
+      arrived: (contract: string) => `${contract} · você chegou`,
+      none: 'Nenhuma missão disponível nesta aba',
+    },
     viewContract: (title: string) => `Ver contrato "${title}"`,
     minimap: 'Minimapa',
     queuedToast: 'Dados salvos. Leve-os à Workstation no escritório',
@@ -1126,6 +1139,7 @@ export const STRINGS = {
     muted: 'Mudo',
     reduceFlashes: 'Reduzir flashes e tremores',
     showFps: 'Mostrar FPS',
+    gnssNav: 'Navegação GNSS no mapa (seta até a próxima missão)',
     on: 'Ligado',
     off: 'Desligado',
     quality: 'Qualidade gráfica',
@@ -1146,6 +1160,7 @@ export const STRINGS = {
       TOGGLE_DIMENSION: 'Trocar de dimensão',
       CYCLE_VEHICLE: 'Trocar de veículo',
       TIME_WARP: 'Acelerar o tempo',
+      TOGGLE_GNSS: 'Navegação GNSS (mapa)',
       UI_CONFIRM: 'Confirmar',
       UI_BACK: 'Voltar',
       UI_TAB_PREV: 'Aba anterior',

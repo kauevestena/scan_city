@@ -86,6 +86,8 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       INTERACT: { keys: ['Space', ...ENTER], pad: [PAD.A] },
       TOGGLE_DIMENSION: { keys: ['Tab'], pad: [PAD.Y] },
       CYCLE_VEHICLE: { keys: ['KeyV'], pad: [PAD.LB] },
+      // Navegação GNSS até a próxima missão (world-map §5.6).
+      TOGGLE_GNSS: { keys: ['KeyG'], pad: [PAD.RB] },
       DISMISS_HINT: HINT,
       PAUSE: PAUSE_DIRECT,
     },

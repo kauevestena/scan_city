@@ -21,6 +21,9 @@ import type { Dimension } from '@/types';
 import { Tabs, type TabDef } from '@/ui';
 import { activeDimension, markerViews, type MarkerView } from '@/world/overworld/markers';
 import { WORLD_MAP } from '@/world/overworld/tiles';
+import { bearingTo, nextMissionMarker } from '@/world/overworld/navigation';
+import { CONTRACTS, getContract } from '@/data/contracts';
+import { InputGlyph } from '@/input/InputGlyph';
 import { BriefingModal } from './BriefingModal';
 import { rollFieldEvent } from '@/domain/fieldEvents';
 import { mulberry32 } from '@/lib/rng';
@@ -68,6 +71,14 @@ function currentMarkers(): readonly MarkerView[] {
   return markerCache.views;
 }
 
+const CAMPAIGN_ORDER = CONTRACTS.map((c) => c.id);
+
+/** A próxima missão da aba (navegação GNSS), ou `null` com a navegação desligada. */
+function navMarker(): MarkerView | null {
+  if (!useGameStore.getState().settings.gnssNav) return null;
+  return nextMissionMarker(currentMarkers(), CAMPAIGN_ORDER);
+}
+
 const skinColors = (): SkinColors =>
   characterColors(useGameStore.getState().inventory.equipped.character);
 
@@ -112,6 +123,7 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
       reduceFlashes: () => useGameStore.getState().settings.reduceFlashes,
       onHint: (text) => setHint({ text, id: performance.now() }),
       onTargetChange: setTarget,
+      navTarget: navMarker,
       blocked: () => runtime.blocking,
       rain: () => runtime.rainActive,
       // Um sorteio por tile inteiro, com o RNG de (save, distância percorrida).
@@ -147,6 +159,12 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
           const { world: w, setDimensionTab } = useGameStore.getState();
           if (w.discoveredRifts.length === 0) setHint({ text: W.noRifts, id: performance.now() });
           else setDimensionTab(activeDimension(w) === 'RIFT' ? 'REAL' : 'RIFT');
+          return;
+        }
+        if (e.action === 'TOGGLE_GNSS') {
+          const { settings, setSetting } = useGameStore.getState();
+          setSetting('gnssNav', !settings.gnssNav);
+          setHint({ text: settings.gnssNav ? W.gnss.off : W.gnss.on, id: performance.now() });
           return;
         }
         if (e.action === 'CYCLE_VEHICLE') {
@@ -227,6 +245,7 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
             engine.avatar,
             WORLD_MAP.door,
             performance.now() / 1000,
+            navMarker(),
           );
         }
       },
@@ -262,6 +281,7 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
         </span>
       </div>
 
+      <GnssReadout engine={engine} />
       <MarkerLayer target={target} />
       <TutorialHint step={0} className="absolute top-16 left-1/2 -translate-x-1/2" />
 
@@ -297,5 +317,62 @@ export function WorldMapScreen({ eventRuntime }: { eventRuntime?: FieldEventRunt
       <FieldEventModal runtime={runtime} />
       {briefing && <BriefingModal contractId={briefing} onClose={() => setBriefing(null)} />}
     </main>
+  );
+}
+
+/**
+ * O botão e a leitura da navegação GNSS (world-map §5.6): liga e desliga a seta, e mostra a
+ * próxima missão com a distância e o rumo. Lê a posição do avatar a 4 Hz.
+ */
+function GnssReadout({ engine }: { engine: OverworldEngine }) {
+  const on = useGameStore((s) => s.settings.gnssNav);
+  const [text, setText] = useState('');
+  useEffect(() => {
+    if (!on) return;
+    const read = () => {
+      const m = navMarker();
+      if (!m) {
+        setText(W.gnss.none);
+        return;
+      }
+      const name = getContract(m.contractId).title;
+      const b = bearingTo(engine.avatar, m);
+      setText(
+        b.arrived
+          ? W.gnss.arrived(name)
+          : W.gnss.readout(name, Math.round(b.distanceTiles), b.compass),
+      );
+    };
+    read();
+    const id = window.setInterval(read, 250);
+    return () => window.clearInterval(id);
+  }, [on, engine]);
+  return (
+    <div className="pointer-events-none absolute top-16 right-3 flex flex-col items-end gap-1">
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={W.gnss.toggle}
+        data-testid="world-gnss-toggle"
+        onClick={() => useGameStore.getState().setSetting('gnssNav', !on)}
+        className={
+          'pointer-events-auto flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold tracking-widest ' +
+          (on
+            ? 'border-cyan-400 bg-slate-950/85 text-cyan-300'
+            : 'border-slate-600 bg-slate-950/70 text-slate-400')
+        }
+      >
+        <InputGlyph action="TOGGLE_GNSS" />
+        {W.gnss.label}
+      </button>
+      {on && (
+        <span
+          className="rounded-lg bg-slate-950/85 px-3 py-1 font-mono text-xs text-cyan-200"
+          data-testid="world-gnss-readout"
+        >
+          {text}
+        </span>
+      )}
+    </div>
   );
 }

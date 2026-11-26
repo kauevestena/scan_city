@@ -23,6 +23,8 @@ import {
   TILE_PX,
 } from './tileRenderer';
 import { drawAvatar, type SkinColors } from './vehicleSprites';
+import { drawHeadquarters, drawNavArrow } from './landmarks';
+import { bearingTo } from '@/world/overworld/navigation';
 
 /** Zoom de câmera em 1280 px de largura (≈ 27 × 14 tiles visíveis). */
 export const BASE_ZOOM = 1.5;
@@ -57,6 +59,8 @@ export interface OverworldEngineOptions {
   reduceFlashes?: () => boolean;
   /** O alvo de `INTERACT` mudou (porta, marcador ou nada). */
   onTargetChange?: (target: InteractTarget | null) => void;
+  /** Destino da navegação GNSS (tile), ou `null` com ela desligada ou sem missão. */
+  navTarget?: () => { x: number; y: number } | null;
 }
 
 /** O que um `INTERACT` acionaria: a porta da sede ou um marcador. */
@@ -277,6 +281,11 @@ export class OverworldEngine implements Simulation {
     const y1 = Math.min(this.map.height - 1, Math.ceil(top + view.h));
     drawWater(ctx, this.map, x0, y0, x1, y1, this.timeS);
     const calm = this.opts.reduceFlashes?.() ?? false;
+    // A sede, por cima do quarteirão dela (dá para achá-la de longe).
+    const door = this.map.door;
+    if (door.x >= x0 - 6 && door.x <= x1 + 6 && door.y >= y0 - 1 && door.y <= y1 + 5) {
+      drawHeadquarters(ctx, door, this.timeS, !calm);
+    }
     for (const m of this.opts.markers()) {
       if (m.x >= x0 - 1 && m.x <= x1 + 1 && m.y >= y0 - 1 && m.y <= y1 + 1)
         drawMarker(ctx, m, this.timeS, !calm);
@@ -288,6 +297,15 @@ export class OverworldEngine implements Simulation {
       skin: this.opts.skin(),
       moving: this.moving,
     });
+    // A seta da navegação GNSS em volta do avatar, apontando para a próxima missão.
+    const nav = this.opts.navTarget?.() ?? null;
+    if (nav) {
+      const b = bearingTo(this.avatar, nav);
+      if (!b.arrived) {
+        const at = { x: this.avatar.x * TILE_PX, y: this.avatar.y * TILE_PX };
+        drawNavArrow(ctx, at, b.angleRad, this.timeS, !calm);
+      }
+    }
     ctx.restore();
     PERF.world.enter(WORLD_STAGE.ATMOSPHERE);
     if (this.opts.dimension?.() === 'RIFT') {

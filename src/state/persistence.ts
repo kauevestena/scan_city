@@ -327,6 +327,7 @@ export function loadSettings(storage: KeyValueStorage = browserStorage()): Setti
       : defaults.quality,
     reduceFlashes: isBool(parsed.reduceFlashes) ? parsed.reduceFlashes : defaults.reduceFlashes,
     showFps: isBool(parsed.showFps) ? parsed.showFps : defaults.showFps,
+    gnssNav: isBool(parsed.gnssNav) ? parsed.gnssNav : defaults.gnssNav,
   };
 }
 

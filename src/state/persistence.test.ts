@@ -326,6 +326,7 @@ describe('settings', () => {
       JSON.stringify({ masterVolume: 7, sfxVolume: 'alto', quality: 'ULTRA', showFps: true }),
     );
     expect(loadSettings()).toEqual({ ...defaultSettings(), masterVolume: 1, showFps: true });
+    expect(defaultSettings().gnssNav).toBe(true);
   });
 });
 
