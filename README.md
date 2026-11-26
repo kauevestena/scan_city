@@ -47,6 +47,7 @@ Teclado e mouse, ou controle Xbox/PS5 (Gamepad API, layout `standard`). A tela *
 | Retorno à base (voo)              | `R`                       | `B` / `○`                    |
 | Cruzeiro automático (voo)         | `T`                       | `RB` / `R1`                  |
 | Trocar de veículo (mapa)          | `V`                       | `LB` / `L1`                  |
+| Navegação GNSS (mapa)             | `G`                       | `RB` / `R1`                  |
 | Trocar de aba                     | `Q` / `E`                 | `LB` / `RB`                  |
 | Dispensar a dica do tutorial      | `H`                       | `View` / `Create`            |
 | Orbitar e dar zoom (mesa, nuvem)  | mouse, setas, `+` `−`     | Analógico direito, `RT` `LT` |

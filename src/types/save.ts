@@ -41,6 +41,8 @@ export interface Settings {
   quality: 'LOW' | 'MEDIUM' | 'HIGH';
   reduceFlashes: boolean;
   showFps: boolean;
+  /** Navegação GNSS no mapa-múndi: a seta até a próxima missão (world-map §5.6). */
+  gnssNav: boolean;
 }
 
 export type Facing = 'N' | 'S' | 'E' | 'W';

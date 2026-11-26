@@ -11,6 +11,7 @@ export type ButtonAction =
   | 'TOGGLE_DIMENSION'
   | 'CYCLE_VEHICLE'
   | 'TIME_WARP'
+  | 'TOGGLE_GNSS'
   | 'UI_UP'
   | 'UI_DOWN'
   | 'UI_LEFT'

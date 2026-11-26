@@ -12,7 +12,7 @@
 export type AxisAction = 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'LOOK_X' | 'LOOK_Y' | 'ZOOM';
 export type ButtonAction =
   | 'INTERACT' | 'FIRE' | 'TOGGLE_SENSOR' | 'RTH' | 'PAUSE'
-  | 'TOGGLE_DIMENSION' | 'CYCLE_VEHICLE' | 'TIME_WARP'
+  | 'TOGGLE_DIMENSION' | 'CYCLE_VEHICLE' | 'TIME_WARP' | 'TOGGLE_GNSS'
   | 'UI_UP' | 'UI_DOWN' | 'UI_LEFT' | 'UI_RIGHT' | 'UI_CONFIRM' | 'UI_BACK' | 'UI_TAB_PREV' | 'UI_TAB_NEXT'
   | 'DISMISS_HINT'
   | 'MODE_1' | 'MODE_2' | 'MODE_3';
@@ -42,6 +42,7 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 | `PAUSE` | Pausar / menu | `Esc` ou `M` | `Menu` (botão 9) | `Options` (9) |
 | `TOGGLE_DIMENSION` **[ADIÇÃO]** | Mapa e mesa: Real ↔ Fendas | `Tab` | `Y` (3) | `△` (3) |
 | `CYCLE_VEHICLE` **[ADIÇÃO]** | Mapa: trocar o modo de locomoção | `V` | `LB` (4) | `L1` (4) |
+| `TOGGLE_GNSS` **[ADIÇÃO]** | Mapa: liga e desliga a navegação GNSS até a próxima missão ([world-map §5.6](../features/world-map.md)) | `G` | `RB` (5) | `R1` (5) |
 | `TIME_WARP` **[ADIÇÃO]** | Voo: liga e desliga o cruzeiro automático ([ADR-031](../decisions.md)) | `T` | `RB` (5) | `R1` (5) |
 | `LOOK_X/Y` **[ADIÇÃO]** | Mesa/nuvem 3D: orbitar | arrastar com o mouse / setas | Analógico dir. (eixos 2/3) | idem |
 | `ZOOM` **[ADIÇÃO]** | Mesa/nuvem 3D: zoom | roda do mouse / `+` `−` | `RT`/`LT` | `R2`/`L2` |
@@ -133,6 +134,7 @@ detectFamily(id: string): 'XBOX' | 'PLAYSTATION' | 'GENERIC'
 | ALT_UP / ALT_DOWN | `Q` / `E` | `RT` / `LT` | `R2` / `L2` |
 | TIME_WARP | `T` | `RB` | `R1` |
 | CYCLE_VEHICLE | `V` | `LB` | `L1` |
+| TOGGLE_GNSS | `G` | `RB` | `R1` |
 | TOGGLE_DIMENSION | `Tab` | `Y` | `△` |
 | MOVE | `WASD` | `L` (analógico) | `L` |
 

@@ -109,6 +109,12 @@ export function SettingsPanel() {
         onChange={(v) => setSetting('showFps', v)}
         testId="setting-show-fps"
       />
+      <SwitchRow
+        label={P.gnssNav}
+        checked={settings.gnssNav}
+        onChange={(v) => setSetting('gnssNav', v)}
+        testId="setting-gnss-nav"
+      />
     </div>
   );
 }

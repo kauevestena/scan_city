@@ -19,6 +19,7 @@ const ROWS: readonly Row[] = [
   'TOGGLE_DIMENSION',
   'CYCLE_VEHICLE',
   'TIME_WARP',
+  'TOGGLE_GNSS',
   'UI_CONFIRM',
   'UI_BACK',
   'UI_TAB_PREV',
