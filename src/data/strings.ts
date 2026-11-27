@@ -893,7 +893,8 @@ export const STRINGS = {
     /** Dicas do primeiro voo, uma de cada vez, quando o voo mostra o que cada uma explica. */
     flightCoach: {
       ENTRY: 'Alinhe já na entrada: a linha começa fora do eixo e o primeiro portal vale nota',
-      GUST: 'Frente de vento vindo do lado! Toque contra ela no instante em que chegar: no tempo, ela quase não empurra',
+      GUST: 'Frente de vento chegando! Toque contra ela no instante em que chegar (A/D de lado; Q/E se vier de cima ou de baixo): no tempo, ela quase não empurra',
+      TURN: 'A curva é sua: faça a manobra quando a seta do portal chegar (o cursor na faixa acesa). Fora da hora, a aeronave arremete e volta',
       RELIEF: 'O corredor acompanha o relevo: suba (Q) ou desça (E) com a seta',
       GRADE: 'Cada portal dá uma nota: verde Perfeita, ciano Boa, âmbar Fraca, vermelho Rejeitada',
       CRUISE: 'Na reta tranquila o cruzeiro acelera o tempo; ele solta sozinho na hora do perigo',

@@ -40,7 +40,7 @@ export const DIFFICULTY: Readonly<Record<FlightDifficulty, DifficultyParams>> = 
   MEDIUM: {
     tempo: 1.75,
     gustPeriodS: 7,
-    verticalGustShare: 0.25,
+    verticalGustShare: 0.2,
     draftPeriodS: 22,
     turnWindow: { earlyS: 0.45, lateS: 0.3 },
     paymentFactor: 1,

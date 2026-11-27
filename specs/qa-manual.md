@@ -210,10 +210,16 @@ O primeiro teste humano achou o voo sem desafio ([ADR-029](decisions.md)). A Fas
 - [ ] **Dificuldade:** os contratos reais puxam para a simulação e as fendas para o arcade. Algum frustra ou fica fácil demais?
 - [ ] **Primeiro voo do C00:** as dicas (alinhar na entrada, a frente de vento e o contragolpe, o relevo, a nota, o cruzeiro, o boletim) aparecem na hora certa e se entendem?
 - [ ] **IMU (campo, aba Calibração):** o "8" cabe inteiro no painel, o guia espera 2 s e anda numa velocidade que dá para seguir com o mouse e com o analógico?
+- [ ] **Vento vertical ([ADR-035](decisions.md)):** a lâmina da rajada vertical (que desce do céu ou sobe do chão) se lê tão bem quanto a de lado? O contragolpe em `Q`/`E` no instante da chegada sai natural? As correntes verticais (riscos lentos subindo ou descendo) pedem a mão sem cansar?
+- [ ] **Movimento vertical:** subir e descer aparecem na tela (a aeronave sai do lugar no quadro)? A subida mais rápida dá conta das rajadas?
+- [ ] **Troca de faixa:** o portal da curva (a seta âmbar) e o aviso com as teclas aparecem a tempo? O acorde `W`+`E`+`D` (`W`+`A`+`Q`) e a sequência `D` → `E` → `W` funcionam no seu teclado? A janela parece justa na fácil, na média e na difícil? A arremetida e o retorno automático na terceira curva perdida se entendem? No controle, o analógico na diagonal com o gatilho do lado sai fácil?
+- [ ] **Dificuldade:** o seletor do checklist explica o que muda e quanto paga? A fácil fica tranquila, a média como antes (mais o vertical) e a difícil desafia sem frustrar?
+- [ ] **C01 com o Atlas:** com o pombo a 75–80 m, o voo passa por cima de todos os prédios e o contrato aprova?
+- [ ] **Chão:** a estrada de terra do C00 e as estradas da C02 ficam contínuas, sem quadrados marrons nem pontos soltos? As divisas (campo, mata, solo da mina) ficam em diagonal, sem escada?
 
-| Contrato | Execução no pós-voo | Divertido (1–5) | Difícil (1–5) | Notas |
-| :--- | :-: | :-: | :-: | :--- |
-| ___ | ___ % | ☐ | ☐ | |
+| Contrato | Dificuldade | Execução no pós-voo | Divertido (1–5) | Difícil (1–5) | Notas |
+| :--- | :-: | :-: | :-: | :-: | :--- |
+| ___ | ___ | ___ % | ☐ | ☐ | |
 
 ---
 

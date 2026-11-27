@@ -158,6 +158,7 @@ Os dois mini-games são opcionais. Cada um pode ser repetido; vale a melhor pont
   - `nLines < 1`;
   - Atlas sem milho (papo 0 e estoque 0).
 - **Avisos** (âmbar): requisitos previstos ✗, baterias insuficientes ("O voo precisará de N surtidas") e vento acima da tolerância.
+- **Dificuldade do voo** ([ADR-035](../decisions.md), [survey-flight §5.22](survey-flight.md)): um grupo de três opções (`role="radiogroup"`, cada uma um `radio` alcançável pelo foco), com o que muda e o efeito no pagamento: **Fácil** ("Mais lento e só vento horizontal; janela da curva folgada.", pagamento −20 %), **Média** ("Ritmo normal, com rajadas e correntes verticais de vez em quando.", pagamento normal, marcada por padrão) e **Difícil** ("Mais rápido, rajadas verticais frequentes e janela da curva curta.", pagamento +25 %). A escolha vai para `mission.difficulty` (`setFlightDifficulty`) e vale para todas as surtidas.
 - **"DECOLAR ▶"** (glyph `INTERACT`), habilitado sem bloqueantes:
   1. calcula `sigmaM` dos pontos;
   2. muda `mission.status = 'IN_FLIGHT'`;
@@ -174,7 +175,7 @@ Os dois mini-games são opcionais. Cada um pode ser repetido; vale a melhor pont
 - Mudar a aeronave invalida sensor e lente → o jogo escolhe o primeiro compatível e mostra um toast.
 - Tentar colocar mais pontos que o máximo → recusa com "Limite do instrumento (8)".
 - `MAGIC_FOG`: as estatísticas RGB mostram o aviso "Fotos RGB inúteis na névoa: use LiDAR".
-- Com Atlas, `H` máx. 80. Se o teto do contrato for menor, prevalece o teto.
+- Com Atlas, `H` máx. 120 ([ADR-035](../decisions.md); eram 80). Se o teto do contrato for menor, prevalece o teto.
 - Asa fixa com `S < 2R`: o tempo de curva aumenta, conforme a fórmula. A tooltip explica "curva em gota".
 
 ## 8. Critérios de aceite
@@ -184,8 +185,9 @@ Os dois mini-games são opcionais. Cada um pode ser repetido; vale a melhor pont
 - **Dado** o C05 com DRONE_T1 e o slider H em 55 m ou mais, **quando** observar, **então** o GSD previsto passa de 1,5 cm (1,508 cm a 55 m) e o requisito `MAX_GSD_CM` fica ✗. A faixa ≥ 55 m do slider aparece em âmbar.
 - **Dado** o mini-game de bolha com a bolha mantida no centro, **quando** terminar, **então** `levelScore ≥ 0,9`.
 - **Dado** um plano sem bloqueantes, **quando** apertar Decolar, **então** a tela vai para `SURVEY_FLIGHT` e `mission.status = 'IN_FLIGHT'`.
+- **Dado** o checklist, **quando** o jogador escolher "Difícil", **então** a opção fica marcada, a missão grava `difficulty = 'HARD'` e o HUD do voo mostra "DIFÍCIL".
 
 ## 9. Testes
 - **Unitário:** `isAccessible` (cada motivo, união de veículos, `PAINT_MARKERS`), `buildFlightPlan` (padrões, malha cruzada, LiDAR primário), `validatePlan`, `predictRequirements` (cada `check.type`), pontuação dos mini-games (funções puras: `scoreBubble(samples)` e `scoreLemniscate(samples)`).
 - **RTL:** sliders com limites e faixas de aviso; troca de aeronave reseta o sensor; checklist.
-- **E2E:** `field.spec.ts` cobre o C00: sugestão automática de GCPs → plano padrão → decolar.
+- **E2E:** `field.spec.ts` cobre o C00: sugestão automática de GCPs → plano padrão → dificuldade difícil → decolar.

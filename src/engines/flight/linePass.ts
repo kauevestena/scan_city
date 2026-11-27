@@ -91,7 +91,7 @@ export function beginLinePass(i: LinePassInput): LinePassState {
   const durationS = frame.lengthM / speed;
   // Na passada, o ar sobe ou desce para um lado só: as correntes e as rajadas verticais juntas.
   const verticalDir: -1 | 1 = rng.fork('vertical').next() < 0.5 ? -1 : 1;
-  // As correntes primeiro: a rajada que cruzaria uma delas fica de lado.
+  // As correntes primeiro: rajada vertical não cai em cima de uma.
   const drafts = i.calm
     ? []
     : planDrafts(rng.fork('drafts'), durationS, leadInS, i.difficulty.draftPeriodS, verticalDir);

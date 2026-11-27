@@ -35,7 +35,19 @@ test('C00: sugestão automática de GCPs → plano padrão → checklist → dec
 
   await page.getByRole('tab', { name: '4 · Checklist' }).click();
   await expect(page.getByTestId('checklist-requirements').getByRole('listitem')).toHaveCount(7);
+  // A dificuldade do voo (ADR-035): a média vem marcada; a difícil paga mais e vai para o voo.
+  const difficulty = page.getByRole('radiogroup', { name: 'Dificuldade do voo' });
+  await expect(difficulty.getByRole('radio', { name: /Média/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await difficulty.getByRole('radio', { name: /Difícil/ }).click();
+  await expect(difficulty.getByRole('radio', { name: /Difícil/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await page.getByTestId('takeoff').click();
   await expect(page.getByTestId('survey-flight-screen')).toBeVisible();
   await expect(page.getByTestId('flight-hud')).toBeVisible();
+  await expect(page.getByTestId('hud-difficulty')).toHaveText('DIFÍCIL');
 });

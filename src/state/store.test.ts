@@ -160,6 +160,13 @@ describe('mission', () => {
     expect(() => get().startMission('C99', 1)).toThrow(RangeError);
   });
 
+  it('setFlightDifficulty grava a dificuldade na missão ativa (ADR-035)', () => {
+    get().startMission('C00', 1);
+    expect(get().mission.active?.difficulty).toBeUndefined();
+    get().setFlightDifficulty('EASY');
+    expect(get().mission.active?.difficulty).toBe('EASY');
+  });
+
   it('updatePlan recalcula o plano; setGroundPoints troca os pontos', () => {
     const mission = get().startMission('C00', 1);
     get().updatePlan({

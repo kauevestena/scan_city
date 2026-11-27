@@ -1,6 +1,7 @@
 import { GUST_WARN_S } from '@/domain/gusts';
 import {
   buildGustFront,
+  buildVerticalGustFront,
   drawGustCut,
   drawGustFront,
   GUST_FRONT_START_M,
@@ -8,6 +9,8 @@ import {
   GUST_JOLT_PX,
   gustFrontX,
   gustJoltPx,
+  VERTICAL_FRONT_START_M,
+  verticalFrontAlt,
 } from './gustRenderer';
 import { makeCamera } from './projection';
 
@@ -70,5 +73,43 @@ describe('frente de vento', () => {
     const c = ctx2d();
     drawGustCut(c, 640, 600, 1, GUST_IMPACT_S, false);
     expect(c.arc).not.toHaveBeenCalled();
+  });
+});
+
+describe('frente da rajada vertical (ADR-035)', () => {
+  it('a lâmina desce do céu (rajada que desce) ou sobe do chão e chega na altitude da aeronave', () => {
+    expect(verticalFrontAlt(100, -1, GUST_WARN_S)).toBeCloseTo(100 + VERTICAL_FRONT_START_M, 9);
+    expect(verticalFrontAlt(100, 1, GUST_WARN_S)).toBeCloseTo(100 - VERTICAL_FRONT_START_M, 9);
+    expect(verticalFrontAlt(100, 1, 0)).toBeCloseTo(100, 9);
+  });
+
+  it('só existe no aviso; os riscos correm para onde ela empurra', () => {
+    const base = { side: -1 as const, aircraftX: 0, aircraftAlt: 100, cam, timeS: 1 };
+    expect(buildVerticalGustFront({ ...base, inS: 0 })).toBeNull();
+    expect(buildVerticalGustFront({ ...base, inS: GUST_WARN_S + 0.1 })).toBeNull();
+    const down = buildVerticalGustFront({ ...base, inS: 0.5 });
+    expect(down?.sheet).not.toBeNull();
+    const s = down?.streaks ?? [];
+    expect(s.length).toBeGreaterThan(0);
+    // Desce: na tela, y cresce do começo para o fim do risco.
+    for (let k = 0; k < s.length; k += 4)
+      expect(s[k + 3] as number).toBeGreaterThan(s[k + 1] as number);
+    const up = buildVerticalGustFront({ ...base, side: 1, inS: 0.5 });
+    const u = up?.streaks ?? [];
+    for (let k = 0; k < u.length; k += 4)
+      expect(u[k + 3] as number).toBeLessThan(u[k + 1] as number);
+  });
+
+  it('o arco do corte da rajada vertical fica em cima (a que desce) ou embaixo (a que sobe)', () => {
+    const top = ctx2d();
+    drawGustCut(top, 100, 100, -1, 0.1, false, 'VERTICAL');
+    const [, , , a0, a1] = (top.arc as unknown as { mock: { calls: number[][] } }).mock
+      .calls[0] as number[];
+    expect(((a0 as number) + (a1 as number)) / 2).toBeCloseTo(-Math.PI / 2, 9);
+    const bottom = ctx2d();
+    drawGustCut(bottom, 100, 100, 1, 0.1, false, 'VERTICAL');
+    const [, , , b0, b1] = (bottom.arc as unknown as { mock: { calls: number[][] } }).mock
+      .calls[0] as number[];
+    expect(((b0 as number) + (b1 as number)) / 2).toBeCloseTo(Math.PI / 2, 9);
   });
 });

@@ -8,12 +8,17 @@ import {
   bandDistance,
   buildDrawList,
   contourInterval,
+  coverPatches,
   fogDistance,
   fogFactor,
   gridElevation,
+  majorityCover,
+  PATCH_MIN_PX,
+  patchOutline,
   type GroundSample,
   quantizedColor,
   renderTerrain,
+  roadPiece,
   sampleGrid,
   shadeFor,
   sunInRunFrame,
@@ -443,5 +448,104 @@ describe('grade: elevação e cobertura de uma vez, buffers reaproveitados', () 
     expect(moved).toBe(high);
     // A coluna do meio da primeira faixa está no X da câmera.
     expect(moved.x[24] as number).toBeCloseTo(50, 6);
+  });
+});
+
+describe('divisas de cobertura sem escada de quadrados (ADR-035)', () => {
+  it('a base do quad é a cobertura da maioria; no empate, a do primeiro canto', () => {
+    expect(majorityCover(['GRASS', 'ROAD', 'GRASS', 'GRASS'])).toBe('GRASS');
+    expect(majorityCover(['ROAD', 'ROAD', 'GRASS', 'GRASS'])).toBe('ROAD');
+    expect(majorityCover(['GRASS', 'CROP', 'ROAD', 'SAND'])).toBe('GRASS');
+  });
+
+  it('um canto diferente vira triângulo; dois vizinhos, meio quad; dois opostos, dois triângulos', () => {
+    expect(coverPatches(['GRASS', 'ROAD', 'GRASS', 'GRASS'], 'GRASS')).toEqual([
+      { cover: 'ROAD', corners: [1] },
+    ]);
+    expect(coverPatches(['ROAD', 'ROAD', 'GRASS', 'GRASS'], 'GRASS')).toEqual([
+      { cover: 'ROAD', corners: [0, 1] },
+    ]);
+    // O par que dá a volta (canto 3 e canto 0) sai na ordem em volta.
+    expect(coverPatches(['ROAD', 'GRASS', 'GRASS', 'ROAD'], 'GRASS')).toEqual([
+      { cover: 'ROAD', corners: [3, 0] },
+    ]);
+    expect(coverPatches(['ROAD', 'GRASS', 'ROAD', 'GRASS'], 'GRASS')).toEqual([
+      { cover: 'ROAD', corners: [0] },
+      { cover: 'ROAD', corners: [2] },
+    ]);
+    expect(coverPatches(['GRASS', 'GRASS', 'GRASS', 'GRASS'], 'GRASS')).toEqual([]);
+  });
+
+  it('o pedaço é cortado nos meios das arestas do canto', () => {
+    // Quad 00 (0,10), 01 (10,10), 11 (10,0), 10 (0,0).
+    const pts = new Float64Array([0, 10, 10, 10, 10, 0, 0, 0]);
+    const out = new Float64Array(8);
+    expect(patchOutline(pts, [0], out)).toBe(3);
+    expect([...out.slice(0, 6)]).toEqual([0, 5, 0, 10, 5, 10]);
+    expect(patchOutline(pts, [0, 1], out)).toBe(4);
+    expect([...out]).toEqual([0, 5, 0, 10, 10, 10, 10, 5]);
+  });
+
+  it('na grade, a divisa vira pedaços (perto) ou um tom misturado (longe), nunca a escada', () => {
+    const striped = scene({
+      elevation: () => 0,
+      cover: (X) => (Math.abs(X - 3) < 8 ? 'ROAD' : 'GRASS'),
+    });
+    const list = buildDrawList(striped);
+    const patches = list.filter((c) => c.type === 'PATCH');
+    expect(patches.length).toBeGreaterThan(0);
+    // Os pedaços só aparecem nos quads altos na tela (perto); cada um tem 1 ou 2 cantos.
+    for (const p of patches) {
+      expect(p.type === 'PATCH' && (p.corners === 1 || p.corners === 2)).toBe(true);
+    }
+    expect(PATCH_MIN_PX).toBeGreaterThan(0);
+    // Sem divisa, nenhum pedaço.
+    expect(buildDrawList(scene({ elevation: () => 0 })).some((c) => c.type === 'PATCH')).toBe(
+      false,
+    );
+  });
+});
+
+describe('estradas como faixas contínuas (ADR-035)', () => {
+  it('o pedaço do trecho na faixa: cortado no Z dela, com a meia largura de cada lado', () => {
+    const piece = roadPiece({ X: 0, Z: 0 }, { X: 0, Z: 100 }, 3, 20, 30);
+    expect(piece).toEqual([
+      { X: -3, Z: 20 },
+      { X: -3, Z: 30 },
+      { X: 3, Z: 30 },
+      { X: 3, Z: 20 },
+    ]);
+    expect(roadPiece({ X: 0, Z: 0 }, { X: 0, Z: 10 }, 3, 20, 30)).toBeNull();
+    // Trecho paralelo às faixas: entra inteiro se estiver nela.
+    expect(roadPiece({ X: -10, Z: 25 }, { X: 10, Z: 25 }, 2, 20, 30)).toHaveLength(4);
+    expect(roadPiece({ X: -10, Z: 35 }, { X: 10, Z: 35 }, 2, 20, 30)).toBeNull();
+  });
+
+  it('a estrada atravessa as faixas em pedaços, por cima do chão de cada faixa', () => {
+    const roads = [
+      {
+        halfWidthM: 3,
+        points: [
+          { X: 8, Z: 2 },
+          { X: -20, Z: 600 },
+        ],
+      },
+    ];
+    const list = buildDrawList(scene({ elevation: () => 0, roads }));
+    const pieces = list.filter((c) => c.type === 'ROAD');
+    expect(pieces.length).toBeGreaterThan(10);
+    // Cada pedaço vem depois dos quads da faixa dele.
+    for (let k = 0; k < list.length; k++) {
+      const c = list[k];
+      if (c?.type !== 'ROAD') continue;
+      let lastQuad = -1;
+      list.forEach((q, i) => {
+        if (q.type === 'QUAD' && q.band === c.band) lastQuad = i;
+      });
+      expect(k).toBeGreaterThan(lastQuad);
+    }
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    renderTerrain(ctx, scene({ elevation: () => 0, roads }));
+    expect(ctx.fill).toHaveBeenCalled();
   });
 });

@@ -169,7 +169,7 @@ terrainFollowTargetAlt(sampler, u, v, speedMs, aglTargetM, dir): number
 stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): AircraftState
 ```
 
-**`stepAircraft`** (todos os limites vêm de `Aircraft`). O ambiente (`FlightEnv`) traz três empurrões do vento, já multiplicados por `driftFactor` e pelo modificador de deriva: `meanAlongMs` (o vento médio ao longo da linha; positivo de cauda), `gustAlongMs` e `gustLateralMs` (§5.1). Só os das rajadas levam o fator de `STRONG_WIND` (×2 acima da tolerância da aeronave, [ADR-030](../decisions.md)).
+**`stepAircraft`** (todos os limites vêm de `Aircraft`). O ambiente (`FlightEnv`) traz quatro empurrões do vento, já multiplicados por `driftFactor` e pelo modificador de deriva: `meanAlongMs` (o vento médio ao longo da linha; positivo de cauda), `gustAlongMs`, `gustLateralMs` e `gustVerticalMs` (a rajada vertical mais a corrente vertical, positivo para cima; §5.1). Só os das rajadas e correntes levam o fator de `STRONG_WIND` (×2 acima da tolerância da aeronave, [ADR-030](../decisions.md)).
 - **Velocidade no solo:** `v` é a velocidade no solo comandada. `v += clamp(target − v, ±accelMs2·dt)`, onde `target` vem de `MOVE_Y`: −1 → `lo`, 0 → `cruise`, +1 → `hi`, com `lo = max(0,5, vMin + meanAlong)`, `hi = max(lo, vMax + meanAlong)` e `cruise = clamp(v_plano, lo, hi)`. A aeronave mantém a velocidade no solo do plano contra o vento médio enquanto a velocidade no ar couber em `[vMin, vMax]`.
 - **Avanço:** `gs = max(0,5, v + gustAlong)` e `s += gs·dt`. `gs` (a velocidade no solo de fato) é a que vai para as fotos, para o blur e para a densidade LiDAR. A velocidade no ar, usada na energia (§7), é `v − meanAlong`.
 - **Lateral:** `x += (vLat + gustLateral)·dt`. O vento médio transversal é compensado pela aeronave (o *crab*), sem deriva.
@@ -178,19 +178,24 @@ stepAircraft(state: AircraftState, input: FlightInput, env: FlightEnv, dtS): Air
 - **Vertical:**
   - Sem TF: `vz = (ALT_UP − ALT_DOWN)·climbRateMs + thermal`.
   - Com TF: o AGL-alvo é ajustado pelos gatilhos, e a altitude persegue `terrainFollowTargetAlt` limitada a `climbRateMs`.
-- **Limites:** `alt` é limitada a `[elev + 2, elev + min(hMaxM, ceilingM)]`. Colidir com o terreno ainda é possível se a subida for insuficiente diante de um relevo abrupto.
+  - O empurrão vertical (`vDrift = gustVerticalMs`) soma por cima: `alt += (vz + vDrift)·dt`. `vz` segue sendo o comando (é ele que entra na energia); com TF, o laço do TF corrige o que o empurrão tira do lugar (em regime, o erro é `vDrift / 2`).
+- **Limites:** `alt` é limitada a `[elev + 2, elev + min(hMaxM, ceilingM)]` (o piso barra só a descida, comandada ou empurrada). Colidir com o terreno ainda é possível se a subida for insuficiente diante de um relevo abrupto.
 
 ### 5.1 Rajadas, contragolpe e entrada de faixa (`gusts.ts`, [ADR-030](../decisions.md), [ADR-034](../decisions.md))
 
 ```ts
-interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; angleRad: number }
+interface Gust { startS: number; rampS: number; holdS: number; peakMs: number; angleRad: number; vertical?: -1 | 1 }
 //   tempos em segundos desde o início da linha; ângulo em relação ao sentido da linha
-//   (0 = de cauda, +π/2 = empurra para a direita)
-gustCount(lineDurationS): number                         // clamp(round(T/7), 1, 9)
+//   (0 = de cauda, +π/2 = empurra para a direita); `vertical`: a rajada sobe (+1) ou desce (−1)
+interface Draft { startS: number; rampS: number; holdS: number; peakMs: number; dir: -1 | 1 }   // corrente vertical
+gustCount(lineDurationS, periodS = 7): number            // clamp(round(T/período), 1, 9)
 windRelativeRad(directionDeg, dir, right): number        // θ₀: para onde o vento sopra, em relação à linha
-planGusts(rng, wind, windRelRad, lineDurationS, leadInS): Gust[]
+planGusts(rng, wind, windRelRad, lineDurationS, leadInS, { periodS?, verticalShare?, verticalDir? }): Gust[]
+planDrafts(rng, lineDurationS, leadInS, periodS | null, dir?): Draft[]
 gustEnvelope(gust, tS): number                           // 0..1: sobe em rampS, patamar de holdS, desce em rampS
-gustPushAt(gusts, tS, weights?): { lateralMs: number; alongMs: number }   // Σ peak·env·peso·(sen θ, cos θ)
+draftEnvelope(draft, tS) / draftPushAt(drafts, tS): number   // Σ peak·env·dir (m/s, positivo para cima)
+gustAxis(gust): 'LATERAL' | 'VERTICAL';  gustDir(gust): -1 | 1   // de lado: o lado; na vertical: +1 sobe
+gustPushAt(gusts, tS, weights?): { lateralMs, alongMs, verticalMs }   // de lado: Σ peak·env·peso·(sen θ, cos θ); vertical: Σ peak·env·peso·dir
 gustWarningAt(gusts, tS): { gust: Gust; inS: number } | null    // rajada avisada (inS > 0) ou em curso (inS ≤ 0)
 gustSide(gust): -1 | 1                                   // para onde empurra
 stepCounter(state, gust, tS, countering): CounterState   // um passo do contragolpe
@@ -206,16 +211,48 @@ entryOffsetM(rng, spacingM, maxCorrectableM): number     // com sinal
 - `rampS = 0,25`, `holdS = U(1,2, 2)` e `peakMs = max(5, gustMs + 3)·U(0,8, 1,3)`: todo contrato tem rajada de pelo menos 5 m/s, e a do contrato soma 3 m/s.
 - **Direção:** `θ₀ = windRelativeRad(...)` é o ângulo, em relação à linha, do sentido para onde o vento sopra (`directionDeg + 180°`). O centro da passada é `θ₀` com vento médio ≥ 1 m/s, ou `U(−180°, 180°)` sorteado uma vez para a passada sem vento; cada rajada sai em `θ = centro + U(−50°, +50°)`. Se `|sen θ| < 0,7`, `θ` é levado ao ângulo mais próximo com `|sen θ| = 0,7`, mantendo o sinal do cosseno e tombando para o lado da passada: o do centro, se `|sen(centro)| ≥ 0,1`, ou um lado sorteado uma vez para a passada. Toda rajada tem pelo menos 70 % da força na transversal, e as de uma passada empurram para o mesmo lado (sem isso, com vento paralelo às faixas ou sem vento, elas se anulavam para quem larga o controle).
 - **Aviso:** `GUST_WARN_S = 1,5` s antes do início: a frente de vento aparece na cena (survey-flight §5.13).
+- **Período e rajadas verticais** ([ADR-035](../decisions.md)): o período vem da dificuldade (7 s; 5,5 s na difícil, §5.3). Com `verticalShare > 0`, depois de sortear as rajadas de lado, as **verticais** saem das que não cruzam uma corrente (com os avisos das duas), cada uma com a chance `min(1, share·n / livres)`, para a fração da passada ficar na pedida quando couber (o sorteio só acontece com a fração positiva: a agenda só de lado não muda). Vão para o lado vertical da passada (`verticalDir`, o mesmo das correntes, sorteado uma vez por passada com a seed `"…:vertical"`), com a mesma força (`VERTICAL_GUST_FACTOR = 1`).
+- **Correntes verticais** (`planDrafts`): `n = floor(T / período)` (nenhuma com período nulo), reduzido até cada uma ter `DRAFT_FOOTPRINT_S + 1` s na janela `[t_in + 1, T − 4]`; a janela é dividida em partes iguais e cada corrente começa, com o aviso de `DRAFT_WARN_S = 1` s, num instante uniforme da sua parte. `rampS = 0,8`, `holdS = U(2,5, 4)`, `peakMs = U(2, 3,5)`, todas com a direção da passada.
 
 **Contragolpe** (por rajada, a cada passo, com `countering = MOVE_X · −lado > 0,5`):
 - Antes do aviso, só guarda o comando. Do aviso em diante, o **começo** de um comando contra a rajada (falso no passo anterior, verdadeiro neste) em `δ = t − startS ≤ 1 s` é julgado: `δ < −0,3` → `EARLY`; `−0,3 ≤ δ ≤ 0,2` → `PERFECT`; `δ > 0,2` → `LATE`.
 - Sem começo até `δ > 1 s`: `EARLY` se o jogador já segurava contra quando o aviso abriu (segurar desde antes não vale como começo), senão `MISS`.
 - Julgada, não muda mais. O peso do empurrão da rajada (`gustPushAt`) é `0,2` no `PERFECT` e `1` nos outros; ele vale para o resto da rajada (a parte lateral e a de proa ou de cauda).
 - Os tempos são simulados; no ritmo ×1,75 do voo, a janela `PERFECT` tem 0,29 s reais.
+- Na rajada vertical, `countering` é `ALT_UP > 0,5` contra a que desce e `ALT_DOWN > 0,5` contra a que sobe; o resto é igual.
 
 **Entrada de faixa:**
 - `maxCorrectableM`: o deslocamento lateral que a aeronave faz, parando no fim, em `timeS`. Multirrotor e ave: `lateralSpeedMaxMs·t`. Asa fixa, com `a = v²/R` e `vmax = v·sen 30°`: `a·t²/4` se `t ≤ 2·vmax/a`; senão `vmax·(t − vmax/a)`.
 - `entryOffsetM = ±min(U(0,30, 0,40)·S, 0,9·maxCorrectable)`, com o lado sorteado, e `timeS = t_in + 2 s` (as primeiras amostras da AOI ainda podem sair fora; sem essa folga a asa fixa, lenta de lado e com lead-in curto, entraria quase alinhada).
+
+### 5.2 Manobra de troca de faixa (`turnManeuver.ts`, [ADR-035](../decisions.md))
+
+```ts
+type TurnSide = -1 | 1;   type TurnResult = 'ON_TIME' | 'EARLY' | 'LATE' | 'WRONG_SIDE'
+interface TurnWindow { earlyS: number; lateS: number }        // segundos reais antes e depois do portal
+stepManeuver(state, { forward, lateral, turnLeft, turnRight }, realS): { state, done: TurnSide | 'BOTH' | null }
+judgeTurn(done, required, toGateS, window): TurnResult
+turnSideTo(end, right, nextStart): TurnSide                   // sinal de (nextStart − end)·right; 0 → +1
+windowCenterS(window) = (earlyS − lateS) / 2
+```
+
+- **Toques:** `fwd = forward > 0,5`, `right = lateral > 0,5`, `left = lateral < −0,5`, `keyRight = turnRight > 0,5`, `keyLeft = turnLeft > 0,5`.
+- **Acorde** do lado `L`: `fwd ∧ lado_L ∧ tecla_L` verdadeiro agora e falso no passo anterior.
+- **Sequência** do lado `L`: o toque (borda de subida) de `lado_L` começa (passo 1); o de `tecla_L` em até `SEQUENCE_GAP_S = 0,6` s avança (passo 2); o de `fwd` em até 0,6 s completa. Toques fora de ordem são ignorados; a espera maior que 0,6 s recomeça.
+- **Julgamento:** lado diferente do pedido (ou os dois) → `WRONG_SIDE`; `toGateS > earlyS` → `EARLY`; `toGateS < −lateS` → `LATE`; senão `ON_TIME`.
+
+### 5.3 Dificuldade do voo (`difficulty.ts`, [ADR-035](../decisions.md))
+
+| | `EASY` | `MEDIUM` (padrão) | `HARD` |
+| :--- | :-: | :-: | :-: |
+| `tempo` (ritmo nas linhas) | 1,3 | 1,75 | 2,1 |
+| `gustPeriodS` | 7 | 7 | 5,5 |
+| `verticalGustShare` | 0 | 0,2 | 0,45 |
+| `draftPeriodS` | — | 22 | 13 |
+| `turnWindow` (`earlyS` / `lateS`) | 0,9 / 0,6 | 0,45 / 0,3 | 0,25 / 0,15 |
+| `paymentFactor` (`D` em §12.1) | 0,8 | 1 | 1,25 |
+
+`missionDifficulty(m) = m.difficulty ?? 'MEDIUM'`.
 
 ---
 
@@ -467,7 +504,7 @@ O plano de referência é a média da elevação na borda da AOI.
 ## 12. Economia e progressão
 
 ### 12.1 Pagamento (`economy.ts`)
-$$total = \max\left(0,\ \mathrm{round}\left(base \cdot r \cdot Q \cdot R \cdot G \cdot E\right) - staffCost - penalties\right)$$
+$$total = \max\left(0,\ \mathrm{round}\left(base \cdot r \cdot Q \cdot R \cdot G \cdot D \cdot E\right) - staffCost - penalties\right)$$
 
 | Símbolo | Definição |
 | :-: | :--- |
@@ -475,6 +512,7 @@ $$total = \max\left(0,\ \mathrm{round}\left(base \cdot r \cdot Q \cdot R \cdot G
 | `Q` | qualityFactor: crítico → 0,10; senão `(0,6 + 0,4·score) · Π(MAJOR falho ×0,85, MINOR falho ×0,95) + (classe atingida melhor que a exigida ? 0,10 : 0) + bônus de pilotagem (E ≥ 0,90 ? 0,10 : E ≥ 0,80 ? 0,05 : 0)`. O bônus só vale em missão com dado de execução |
 | `R` | rivalFactor (1 ou 0,85) |
 | `G` | modificador `contractPayment` (1,25 com GES_1) |
+| `D` | fator da dificuldade do voo da missão: 0,8 (fácil), 1 (média, e missão sem escolha) ou 1,25 (difícil) ([ADR-035](../decisions.md)) |
 | `E` | `1 + Σ paymentBonus·qtd` (equipe) |
 | `staffCost` | `Σ costPerContract·qtd` (cobrado em toda missão processada) |
 | `penalties` | `Σ preço·repairCostPct` por queda de aeronave |

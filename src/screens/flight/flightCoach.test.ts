@@ -14,8 +14,26 @@ const report = {
 
 describe('dicas do primeiro voo (tutorial do C00)', () => {
   it('uma dica para cada coisa nova que o voo mostra, cada uma com texto', () => {
-    const beats: CoachBeat[] = ['ENTRY', 'GUST', 'RELIEF', 'GRADE', 'CRUISE', 'REPORT'];
+    const beats: CoachBeat[] = ['ENTRY', 'GUST', 'TURN', 'RELIEF', 'GRADE', 'CRUISE', 'REPORT'];
     for (const b of beats) expect(STRINGS.tutorial.flightCoach[b].length).toBeGreaterThan(20);
+  });
+
+  it('a primeira curva armada puxa a dica da curva na hora (ADR-035)', () => {
+    const seen = new Set<CoachBeat>(['ENTRY']);
+    const armed = snap({
+      ...quiet,
+      turn: { side: 1, toGateS: 1.4, window: { earlyS: 0.45, lateS: 0.3 }, judged: null },
+    });
+    expect(nextCoachBeat(armed, seen)).toBe('TURN');
+    // Urgente: substitui a dica que estiver na tela.
+    const shown = stepCoach({ beat: 'ENTRY', at: 0 }, armed, seen, 100);
+    expect(shown?.beat).toBe('TURN');
+    // Julgada, a curva não puxa mais nada.
+    const judged = snap({
+      ...quiet,
+      turn: { side: 1, toGateS: 0.1, window: { earlyS: 0.45, lateS: 0.3 }, judged: 'ON_TIME' },
+    });
+    expect(nextCoachBeat(judged, new Set<CoachBeat>(['ENTRY']))).toBeNull();
   });
 
   it('a primeira, no começo da linha, é alinhar na entrada', () => {

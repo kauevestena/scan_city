@@ -46,8 +46,8 @@ Inclui uma IMU tática (já embutida no modelo de ruído de [domain-math §4.3](
 | vMin / vCruise / vMax (m/s) | 4 / 10 / 16 | 1 / 8 / 15 | 1 / 10 / 18 | 14 / 20 / 28 |
 | Aceleração (m/s²) | 3 | 4 | 5 | 3 |
 | Vel. lateral máx (m/s) | 6 | 8 | 9 | — (v²/R) |
-| Subida (m/s) | 3 | 4 | 5 | 4 |
-| H AGL mín–máx (m) | 20–80 | 20–120 | 20–120 | 60–300 |
+| Subida (m/s) | 5 | 6 | 7 | 6 |
+| H AGL mín–máx (m) | 20–120 | 20–120 | 20–120 | 60–300 |
 | Autonomia | 600 s (10 milhos × 60 s) | 720 s (12 min) | 2100 s (35 min) | 5400 s (90 min) |
 | Energia | CORN | BATTERY | BATTERY | BATTERY |
 | Baterias reserva/missão | — (estoque de milho) | 2 | 3 | 1 |
@@ -65,6 +65,7 @@ Inclui uma IMU tática (já embutida no modelo de ruído de [domain-math §4.3](
 | Exige possuir | — | — | DRONE_T1 | DRONE_T2 |
 | Custo de reparo após queda | 0 % ("Atlas descansa") | 15 % | 12 % | 10 % |
 
+- **Subida e teto do Atlas ([ADR-035](../decisions.md)):** as razões de subida cresceram (Atlas 3 → 5, T1 4 → 6, T2 5 → 7, VTOL 4 → 6 m/s), para a aeronave responder às rajadas e correntes verticais, e o Atlas sobe até 120 m (eram 80 m): no C01 ele voa acima dos prédios.
 - **Combo Condor (T2):** a compra adiciona `DRONE_T2`, `CAM_45MP_FF`, `LENS_35` e `GNSS_RTK_KIT`. Itens já possuídos são ignorados, sem reembolso.
 - **RTK efetivo:** a aeronave precisa de `rtk = true` **e** o jogador precisa possuir o `GNSS_RTK_KIT`. Sem o kit, o RTK fica `NONE`.
 

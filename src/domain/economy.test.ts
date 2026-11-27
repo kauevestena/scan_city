@@ -54,6 +54,20 @@ describe('computePayment (domain-math §12.1)', () => {
     expect(crew.totalBRL).toBe(Math.round(brl(12_000) * 1.36) - brl(500 + 3_600) - brl(900));
   });
 
+  it('a dificuldade do voo multiplica o bruto: a fácil paga menos, a difícil mais (ADR-035)', () => {
+    const base = payment({
+      staff: { INTERN: 0, JUNIOR_ENG: 0 },
+      contractPaymentMod: 1,
+      qualityFactor: 1,
+    });
+    expect(computePayment(base)).toMatchObject({ difficultyFactor: 1, totalBRL: brl(12_000) });
+    expect(computePayment({ ...base, difficultyFactor: 0.8 }).totalBRL).toBe(brl(9_600));
+    expect(computePayment({ ...base, difficultyFactor: 1.25 })).toMatchObject({
+      difficultyFactor: 1.25,
+      totalBRL: brl(15_000),
+    });
+  });
+
   it('nunca fica negativo: o que não couber é perdoado', () => {
     expect(
       computePayment(payment({ qualityFactor: 0.1, penaltiesBRL: brl(50_000) })).totalBRL,

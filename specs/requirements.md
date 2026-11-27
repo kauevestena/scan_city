@@ -310,9 +310,10 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - `MOVE_X` → deslocamento lateral (limitado pelo raio de curva em asa fixa);
 - `ALT_UP/ALT_DOWN` → taxa de subida e descida.
 - Tudo respeitando os limites da aeronave.
-- *Aceite:* testes unitários da física (`stepAircraft`).
+- A câmera segue a altitude da aeronave com atraso (0,35 s, no máximo 4 m): a subida e a descida aparecem na tela ([ADR-035](decisions.md)).
+- *Aceite:* testes unitários da física (`stepAircraft`) e do seguimento da câmera.
 
-**REQ-FLT-005: Linhas como corridas.** O sistema deve tratar cada linha de voo como uma corrida para frente: início antes da AOI (*lead-in*) e fim depois dela (*lead-out*), com indicador de desvio lateral. Ao fim de cada linha, executa a curva automática animada até a próxima linha, alternando o sentido. A linha seguinte começa com o erro de entrada do REQ-FLT-028.
+**REQ-FLT-005: Linhas como corridas.** O sistema deve tratar cada linha de voo como uma corrida para frente: início antes da AOI (*lead-in*) e fim depois dela (*lead-out*), com indicador de desvio lateral. Ao fim de cada linha, a curva até a próxima é feita pelo jogador (REQ-FLT-031); na manobra no tempo, a curva é animada e a linha seguinte começa com o erro de entrada do REQ-FLT-028.
 - *Aceite:* o autopilot completa as N linhas do plano em sequência.
 
 **REQ-FLT-006: Câmera RGB.** Enquanto o sensor ativo for uma câmera e a aeronave estiver dentro da AOI (± uma base), o sistema deve:
@@ -354,7 +355,9 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 
 **REQ-FLT-013: Vento e térmicas.** O sistema deve aplicar o vento em duas partes ([ADR-030](decisions.md)):
 - o **vento médio** é compensado pela aeronave (sem deriva lateral constante; a velocidade no solo do plano é mantida dentro dos limites de velocidade no ar) e custa energia;
-- as **rajadas**, de 1 a 9 por linha (uma a cada 7 s), sorteadas pela seed da missão, empurram a aeronave de lado e mudam a velocidade no solo conforme o `driftFactor`. O aviso é **só visual** ([ADR-034](decisions.md)): uma frente de vento varre a cena do lado de onde a rajada vem e chega à aeronave no instante do empurrão, 1,5 s (simulados) depois de aparecer. O **contragolpe**, um comando contra a rajada que começa de 0,3 s antes a 0,2 s depois da chegada, corta a rajada a 20 % ("NO TEMPO!"); cedo ou tarde, ela empurra inteira;
+- as **rajadas**, de 1 a 9 por linha (uma a cada 7 s; 5,5 s na dificuldade difícil), sorteadas pela seed da missão, empurram a aeronave de lado e mudam a velocidade no solo conforme o `driftFactor`. O aviso é **só visual** ([ADR-034](decisions.md)): uma frente de vento varre a cena do lado de onde a rajada vem e chega à aeronave no instante do empurrão, 1,5 s (simulados) depois de aparecer. O **contragolpe**, um comando contra a rajada que começa de 0,3 s antes a 0,2 s depois da chegada, corta a rajada a 20 % ("NO TEMPO!"); cedo ou tarde, ela empurra inteira;
+- uma parte das rajadas (nenhuma na fácil, 20 % na média, 45 % na difícil) **sobe ou desce** ([ADR-035](decisions.md)): a frente é uma lâmina que desce do céu ou sobe do chão, e o contragolpe é dado com `ALT_UP` (contra a que desce) ou `ALT_DOWN` (contra a que sobe);
+- as **correntes verticais** (uma a cada 22 s de linha na média, 13 s na difícil, nenhuma na fácil) sobem ou descem por alguns segundos, sem contragolpe; numa passada, as rajadas verticais e as correntes vão para o mesmo lado;
 - as térmicas localizadas empurram verticalmente.
 
 O HUD mostra o vento, o *crab angle* necessário e a velocidade no solo.
@@ -411,13 +414,13 @@ O diálogo mostra a nota de cada linha voada e as linhas a revoar (REQ-FLT-027).
 - água especular sob `SUN_HIGH`: brilho, e as fotos sobre água não geram tie points.
 - *Aceite:* testes unitários das regras de cobertura.
 
-**REQ-FLT-022: Perda de RTK em cânions urbanos.** Onde o contrato tiver `URBAN_CANYON_RTK_LOSS`, enquanto a aeronave estiver entre prédios > 60 m com < 40 m de afastamento lateral, o sistema deve:
+**REQ-FLT-022: Perda de RTK em cânions urbanos.** Onde o contrato tiver `URBAN_CANYON_RTK_LOSS`, enquanto a aeronave estiver entre prédios > 45 m com < 40 m de afastamento lateral, o sistema deve:
 - mudar o RTK para `FLOAT`;
 - exibir "RTK FLOAT — multipercurso GNSS";
 - marcar as fotos daquele trecho com `rtk = 'FLOAT'`.
 - *Aceite:* teste unitário de `rtkStatusAt()`.
 
-**REQ-FLT-023: Ritmo e cruzeiro automático.** Na decolagem e nas linhas, o tempo simulado corre 1,75 vez o real (o ritmo do voo, [ADR-034](decisions.md)). Enquanto a aeronave estiver estável no corredor (faixa, altura e avanço em Boa ou melhor por 1 s) e nada pedir atenção, o sistema deve acelerar o tempo sozinho, por cima do ritmo, com sub-passos de física, até um fator que cresce com a duração real da linha (×2 a ×4). Ele volta a ×1 no instante em que houver rajada ativa, avisada ou a 0,5 s de ser avisada, obstáculo a < 150 m à frente no corredor, alerta crítico, holofote próximo, distração do Atlas, pico elétrico, corredor que sobe ou desce à frente (sem TF) ou curva. `TIME_WARP` liga e desliga o cruzeiro ([ADR-031](decisions.md)).
+**REQ-FLT-023: Ritmo e cruzeiro automático.** Na decolagem e nas linhas, o tempo simulado corre o ritmo da dificuldade vezes o real (×1,3 na fácil, ×1,75 na média, ×2,1 na difícil; [ADR-034](decisions.md), [ADR-035](decisions.md)). Enquanto a aeronave estiver estável no corredor (faixa, altura e avanço em Boa ou melhor por 1 s) e nada pedir atenção, o sistema deve acelerar o tempo sozinho, por cima do ritmo, com sub-passos de física, até um fator que cresce com a duração real da linha (×2 a ×4). Ele volta a ×1 no instante em que houver rajada ativa, avisada ou a 0,5 s de ser avisada, obstáculo a < 150 m à frente no corredor, alerta crítico, holofote próximo, distração do Atlas, pico elétrico, corrente vertical, corredor que sobe ou desce à frente (sem TF) ou a menos de 3,5 s da curva. `TIME_WARP` liga e desliga o cruzeiro ([ADR-031](decisions.md)).
 - *Aceite:* teste unitário das condições de entrada e de queda para ×1, e do fator máximo por duração de linha.
 
 **REQ-FLT-024: Detecção furtiva e alvos especiais.** Onde o contrato definir holofotes (`SEARCHLIGHTS`), se a aeronave permanecer > 1,5 s em um cone de holofote, então o sistema marca `detected = true`. Onde definir `FEATURE_TARGETS`, registra os alvos especiais cobertos por dados suficientes (≥ 3 fotos ou ≥ 50 pts/m² na célula).
@@ -446,6 +449,20 @@ Foto borrada (> 1 px) é Rejeitada. As fotos da margem de entrada (antes do iní
 - o boletim da linha durante a curva (letra de S a D, contagem por nota e "revoo" quando recusada);
 - com "Reduzir flashes e tremores", as marcas aparecem sem piscar.
 - *Aceite:* teste RTL do HUD e do boletim; teste do motor (eventos de nota e de fim de passada).
+
+**REQ-FLT-030: Dificuldade do voo.** O sistema deve oferecer, no checklist do planejamento e antes da decolagem, três dificuldades para a missão, com a média marcada ([ADR-035](decisions.md)):
+- **fácil:** ritmo ×1,3, só vento horizontal (sem rajadas nem correntes verticais), janela da curva de 0,9 s antes a 0,6 s depois do portal; paga ×0,8;
+- **média:** ritmo ×1,75, rajadas verticais (20 %) e correntes verticais de vez em quando, janela de 0,45 s antes a 0,3 s depois; paga ×1;
+- **difícil:** ritmo ×2,1, rajadas mais frequentes e mais verticais (45 %), correntes a cada 13 s, janela de 0,25 s antes a 0,15 s depois; paga ×1,25.
+- A escolha vale para todas as surtidas da missão, aparece no HUD e entra no pagamento como uma linha do detalhamento. A missão sem escolha (save antigo, missão sintética) vale como média.
+- *Aceite:* teste unitário da tabela e do pagamento; RTL do seletor; E2E escolhe a difícil e a vê no HUD; os pilotos simulados medem as três.
+
+**REQ-FLT-031: Troca de faixa pela manobra.** Quando os dados de uma linha fecharem e houver outra linha na fila, o sistema não deve trocar de faixa sozinho ([ADR-035](decisions.md)). Ele deve:
+- mostrar o portal da curva (uma seta para o lado da próxima faixa, no fim da linha) e, no HUD, o aviso com as teclas e a barra da janela;
+- aceitar a manobra: no teclado, `W`+`E`+`D` segurados juntos para a direita (`W`+`A`+`Q` para a esquerda) ou a sequência `D` → `E` → `W` (`A` → `Q` → `W`), cada toque em até 0,6 s do anterior; no controle, o analógico para a frente e para o lado com o gatilho do lado (`RT` à direita, `LT` à esquerda);
+- julgar o instante da manobra em relação ao portal: dentro da janela da dificuldade, a curva começa; antes dela ("cedo"), do lado errado ou sem manobra até ela fechar ("tarde"), a aeronave arremete, gasta a energia da volta e se aproxima de novo do portal;
+- na terceira curva perdida seguida, retornar à base sozinho (o failsafe de quem não comanda).
+- *Aceite:* teste unitário do detector (acorde e sequência) e do julgamento; teste do motor (no tempo, cedo, lado errado, arremetida e retorno automático); E2E faz a curva pelo acorde e pela sequência no teclado.
 
 ---
 

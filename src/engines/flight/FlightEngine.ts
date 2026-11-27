@@ -174,6 +174,7 @@ import {
   type FlightPhase,
 } from './hudPublisher';
 import {
+  followCameraAlt,
   halfWidthAt,
   HORIZON_CRUISE,
   HORIZON_TAKEOFF,
@@ -236,6 +237,11 @@ export const GO_AROUND_S = 2;
 export const GO_AROUND_APPROACH_S = 2.5;
 /** Curvas perdidas seguidas até o retorno automático (o failsafe de quem não comanda). */
 export const TURN_FAILSAFE_MISSES = 3;
+/**
+ * O portal da curva fica pelo menos este tempo (real, no ritmo base) depois do fim dos dados da
+ * linha: o aviso da curva aparece quando os dados fecham, e daí até a janela é "cedo".
+ */
+export const TURN_APPROACH_S = 1.5;
 export const FLASH_S = 0.08;
 export const RETURNING_S = 3;
 /** Janela para confirmar o RTH (survey-flight §5.12). */
@@ -247,13 +253,6 @@ export const SHOT_BATCH = 10;
 const VISIBLE_PAD_M = 60;
 /** Suavização do X da câmera por quadro (a 60 FPS). */
 const CAM_FOLLOW = 0.1;
-/**
- * A câmera segue a altitude da aeronave com este tempo de resposta (s reais): a subida e a
- * descida aparecem na tela (a aeronave sobe e desce no quadro), e não só no chão que se afasta.
- */
-export const CAM_ALT_TAU_S = 0.35;
-/** ...e nunca fica mais longe que isto da aeronave (m): a decolagem e as rajadas sobem rápido. */
-export const CAM_ALT_MAX_LAG_M = 4;
 
 export interface SortieResult {
   outcome: SortieOutcome;
@@ -1257,15 +1256,17 @@ export class FlightEngine implements Simulation {
 
   /**
    * A curva até a próxima linha: o lado (o da próxima faixa em relação ao fim desta) e o portal,
-   * no fim da linha, ou além dele quando a janela não caberia depois do último portal dos dados.
+   * no fim da linha, ou além dele quando o fim dos dados fica a menos de `TURN_APPROACH_S` (ou da
+   * janela inteira) do fim.
    */
   private planTurn(next: FlightLine): TurnApproach {
     const plan = this.opts.mission.plan;
     const end = aoiPoint(this.frame, this.frame.lengthM, 0);
-    const earlyM = this.diff.turnWindow.earlyS * this.diff.tempo * Math.max(1, plan.params.speedMs);
+    const lead = Math.max(TURN_APPROACH_S, this.diff.turnWindow.earlyS);
+    const leadM = lead * this.diff.tempo * Math.max(1, plan.params.speedMs);
     return {
       side: turnSideTo(end, this.frame.right, next.start),
-      gateS: Math.max(this.frame.lengthM, this.dataEndS() + earlyM),
+      gateS: Math.max(this.frame.lengthM, this.dataEndS() + leadM),
       judged: null,
     };
   }
@@ -1723,8 +1724,9 @@ export class FlightEngine implements Simulation {
   }
 
   /**
-   * A curva que vem, para o HUD e para quem pilota: antes de os dados da linha fecharem, a da
-   * próxima linha da fila (o portal no fim da linha), para o aviso aparecer com antecedência.
+   * A curva que vem, para a seta na cena e para quem pilota: antes de os dados da linha fecharem,
+   * a da próxima linha da fila, para a seta aparecer de longe (o aviso no HUD espera a curva
+   * armar, `turnNow`).
    */
   turnAhead(): FlightHudSnapshot['turn'] {
     const now = this.turnNow();
@@ -1805,7 +1807,7 @@ export class FlightEngine implements Simulation {
       counter: this.lastCounter ? { ...this.lastCounter } : null,
       windRelDeg: (Math.atan2(windLateral, windAlong) * 180) / Math.PI,
       windVerticalMs: this.push(gustWind.verticalMs),
-      turn: this.turnAhead(),
+      turn: this.turnNow(),
       lastTurn: this.lastTurn ? { ...this.lastTurn } : null,
       turnMisses: this.turnMisses,
       cruise: { on: this.cruiseOn, factor: this.timeWarp },
@@ -1884,16 +1886,8 @@ export class FlightEngine implements Simulation {
 
   /** A altitude da câmera persegue a da aeronave em tempo real, com atraso limitado. */
   private followAltitude(): void {
-    const alt = this.ac.alt;
-    if (this.camAlt === null) {
-      this.camAlt = alt;
-      this.lastAltS = this.realT;
-      return;
-    }
-    const dt = Math.max(0, this.realT - this.lastAltS);
+    this.camAlt = followCameraAlt(this.camAlt, this.ac.alt, this.realT - this.lastAltS);
     this.lastAltS = this.realT;
-    const next = this.camAlt + (alt - this.camAlt) * (1 - Math.exp(-dt / CAM_ALT_TAU_S));
-    this.camAlt = clamp(next, alt - CAM_ALT_MAX_LAG_M, alt + CAM_ALT_MAX_LAG_M);
   }
 
   render(): void {

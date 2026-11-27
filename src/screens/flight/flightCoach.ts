@@ -6,12 +6,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FlightHudSnapshot } from '@/engines/flight/hudPublisher';
 
-export type CoachBeat = 'ENTRY' | 'GUST' | 'RELIEF' | 'GRADE' | 'CRUISE' | 'REPORT';
+export type CoachBeat = 'ENTRY' | 'GUST' | 'TURN' | 'RELIEF' | 'GRADE' | 'CRUISE' | 'REPORT';
 
 /** Cada dica fica na tela por este tempo, a não ser que uma urgente a substitua. */
 export const COACH_HOLD_MS = 6000;
-/** O aviso da rajada não espera: substitui a dica que estiver na tela. */
-export const URGENT_BEATS: ReadonlySet<CoachBeat> = new Set(['GUST']);
+/** O aviso da rajada e o da curva não esperam: substituem a dica que estiver na tela. */
+export const URGENT_BEATS: ReadonlySet<CoachBeat> = new Set(['GUST', 'TURN']);
 /** O cruzeiro só vale a dica quando acelera de verdade. */
 export const COACH_CRUISE_FACTOR = 1.5;
 
@@ -22,6 +22,9 @@ export function nextCoachBeat(
 ): CoachBeat | null {
   const fresh = (b: CoachBeat) => !seen.has(b);
   if (fresh('GUST') && snap.gust !== null && snap.gust.inS > 0) return 'GUST';
+  // A primeira curva armada (ADR-035): a troca de faixa é do jogador.
+  if (fresh('TURN') && snap.phase === 'RUN' && snap.turn !== null && snap.turn.judged === null)
+    return 'TURN';
   if (fresh('REPORT') && snap.lineReport !== null) return 'REPORT';
   if (snap.phase !== 'RUN') return null;
   if (fresh('ENTRY')) return 'ENTRY';

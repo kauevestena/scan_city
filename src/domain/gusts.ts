@@ -161,13 +161,16 @@ function withMinLateral(angleRad: number, side: 1 | -1): number {
   return Math.atan2(side * GUST_MIN_LATERAL, (c < 0 ? -1 : 1) * along);
 }
 
-/** Opções da agenda: a dificuldade (período e fração vertical) e as correntes da passada. */
+/** Opções da agenda: a dificuldade (período e fração vertical), as correntes e o lado vertical. */
 export interface PlanGustOptions {
   /** Uma rajada a cada tantos segundos de linha (padrão: 7). */
   periodS?: number;
   /** Fração das rajadas que sobem ou descem (padrão: 0, só de lado). */
   verticalShare?: number;
-  /** As correntes verticais da passada: uma rajada que cruzaria uma delas fica de lado. */
+  /**
+   * As correntes verticais da passada: rajada vertical não cai em cima de uma (as duas juntas
+   * somariam um tranco fundo demais); as verticais saem das que não cruzam nenhuma.
+   */
   drafts?: readonly Draft[];
   /**
    * Para onde sobem ou descem as rajadas verticais da passada (todas para o mesmo lado, como as
@@ -176,18 +179,19 @@ export interface PlanGustOptions {
   verticalDir?: -1 | 1;
 }
 
-/** A rajada (com o aviso) cruza a corrente (com o aviso)? */
-function crossesDraft(startS: number, holdS: number, drafts: readonly Draft[]): boolean {
-  const from = startS - GUST_WARN_S;
-  const to = startS + 2 * GUST_RAMP_S + holdS;
+/** A rajada (com o aviso) cruza alguma corrente (com o aviso)? */
+function crossesDraft(gust: Gust, drafts: readonly Draft[]): boolean {
+  const from = gust.startS - GUST_WARN_S;
+  const to = gust.startS + gustDurationS(gust);
   return drafts.some((d) => from < d.startS + draftDurationS(d) && to > d.startS - DRAFT_WARN_S);
 }
 
 /**
  * Agenda de rajadas de uma passada. A janela `[leadIn + 1, T − 4]` é dividida em partes
  * iguais e cada rajada começa nos primeiros `parte − footprint` segundos da sua parte. Com
- * `verticalShare`, cada rajada sobe ou desce com essa chance (força ×1,3), a menos que cruze uma
- * corrente vertical: aí ela fica de lado (as duas no mesmo eixo, juntas, não se leriam).
+ * `verticalShare`, parte das rajadas sobe ou desce, para o lado vertical da passada (o mesmo das
+ * correntes). Elas saem só das que não cruzam uma corrente, com a chance ajustada para que a
+ * fração delas na passada seja a pedida (quando couber).
  */
 export function planGusts(
   rng: Rng,
@@ -230,11 +234,16 @@ export function planGusts(
       peakMs,
       angleRad: withMinLateral(raw, side),
     };
-    if (verticalShare > 0 && rng.next() < verticalShare && !crossesDraft(startS, holdS, drafts)) {
-      gust.vertical = verticalDir;
-      gust.peakMs = peakMs * VERTICAL_GUST_FACTOR;
-    }
     gusts.push(gust);
+  }
+  if (verticalShare > 0) {
+    const free = gusts.filter((g) => !crossesDraft(g, drafts));
+    const chance = Math.min(1, (verticalShare * gusts.length) / Math.max(1, free.length));
+    for (const g of gusts) {
+      if (rng.next() >= chance || crossesDraft(g, drafts)) continue;
+      g.vertical = verticalDir;
+      g.peakMs *= VERTICAL_GUST_FACTOR;
+    }
   }
   return gusts;
 }

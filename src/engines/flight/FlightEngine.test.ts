@@ -7,6 +7,7 @@ import { referenceParams } from '@/test/fixtures/syntheticMission';
 import type { MissionData, Shot, WorldObject } from '@/types';
 import { makeObject } from '@/world/terrain/objects';
 import { createTerrain } from '@/world/terrain/createTerrain';
+import { turnExtraS } from '@/test/turnTiming';
 import { FlightEngine, meanAoiElevation, SHOT_BATCH, type SortieResult } from './FlightEngine';
 import type { FlightHudSnapshot, FlightPhase } from './hudPublisher';
 
@@ -85,8 +86,13 @@ describe('FlightEngine — C00 com o plano de referência e autopilot (critério
     expect(phases.filter((p) => p === 'TURN')).toHaveLength(5);
     expect(phases.slice(-2)).toEqual(['LANDING', 'POST_FLIGHT']);
     // Linhas (6 × 300 m a 10 m/s) + 5 curvas de 6,29 s + decolagem (2,5 s) e pouso (2 s). O
-    // tempo de voo do plano (231,5 s) reserva 20 s para decolagem e pouso.
-    expect(result?.durationS).toBeCloseTo(180 + 5 * 6.2907 + 4.5, 0);
+    // tempo de voo do plano (231,5 s) reserva 20 s para decolagem e pouso. Em cada curva, a
+    // aproximação do portal da curva vai além do fim da linha, e o piloto bom a faz no centro da
+    // janela, um pouco antes do portal (ADR-035).
+    expect(result?.durationS).toBeCloseTo(
+      180 + 5 * 6.2907 + 4.5 + 5 * turnExtraS(mission().plan),
+      0,
+    );
     expect(e.energy).toBeGreaterThan(0);
   });
 
