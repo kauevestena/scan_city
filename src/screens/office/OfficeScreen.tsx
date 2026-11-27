@@ -39,6 +39,7 @@ function sceneState(s: GameStore, holo: OfficeSceneState['holo']): OfficeSceneSt
     souvenirColors: SOUVENIRS.filter((sv) => s.souvenirs.includes(sv.id)).map((sv) => sv.color),
     staff: s.staff,
     atlasAccessory: accessory && accessory.id !== 'ATLAS_NONE' ? accessory.colors : null,
+    ...(accessory && accessory.id !== 'ATLAS_NONE' ? { atlasAccessoryId: accessory.id } : {}),
     holo,
   };
 }

@@ -43,7 +43,7 @@ painel ──UI_BACK──▶ idle
   - Paredes de tijolos, piso de tábua e luminárias.
   - Objetos simples com aparência de pixel art: `fillRect` e gradientes.
   - Partículas de poeira na luz e a mesa holográfica com um mini-render do museu (o `soft3d` em resolução baixa, a 15 FPS).
-  - Atlas pisca e bica de tempos em tempos.
+  - Atlas, de perfil no poleiro, pisca e bica de tempos em tempos. É o mesmo pombo do voo (T097): cabeça grande com o olho laranja e a sobrancelha franzida, topete em três pontas, pescoço iridescente, as barras escuras na asa dobrada, a cauda com a ponta escura e os pés no poleiro. Cada acessório tem o seu desenho (os óculos levantados na testa, o cachecol com as pontas balançando, a mochilinha com a antena e o LED, a coroa de louros).
   - O tamanho da frota visível na garagem cresce conforme as compras: um drone, uma picape, uma van.
   - Os souvenirs aparecem na estante.
 - **Hotspots:** são `<button data-focusable>` absolutos sobre o canvas, posicionados por porcentagem a partir de `OFFICE_HOTSPOTS` em `src/data`. Cada um tem ícone lucide e rótulo, que fica visível no hover ou no foco.
