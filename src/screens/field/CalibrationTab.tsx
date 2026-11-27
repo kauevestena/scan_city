@@ -23,6 +23,7 @@ import {
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
 import { InputManager } from '@/input/InputManager';
+import { useInputContext } from '@/input/useInputContext';
 import { formatNumber } from '@/lib/format';
 import { hashString } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
@@ -152,6 +153,8 @@ interface BubbleGameProps {
 /** O canvas 360×360 do nível de bolha; roda no `GameLoop` e se desmonta ao terminar. */
 function BubbleGame({ seed, onFinish }: BubbleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Durante o jogo, o D-pad e o analógico movem a bolha em vez de navegar o foco.
+  useInputContext('MINIGAME');
   const surface = useCanvas(canvasRef);
   const [sim] = useState(() => new BubbleSim(seed));
   const [holdS, setHoldS] = useState(0);
@@ -243,6 +246,7 @@ interface ImuGameProps {
 /** O canvas 480×300 da lemniscata; o mouse (sem clicar) ou o analógico guiam o cursor. */
 function ImuGame({ onFinish }: ImuGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  useInputContext('MINIGAME');
   const surface = useCanvas(canvasRef);
   const [sim] = useState(() => new LemniscateSim());
   const [elapsedS, setElapsedS] = useState(0);
