@@ -12,7 +12,7 @@ O desenvolvimento segue **Spec-Driven Development (SDD)**: primeiro a spec, depo
 | :-: | :--- | :--- |
 | 1 | [constitution.md](constitution.md) | Regras imutáveis: stack, princípios, convenções, Definition of Done, guarda de conteúdo |
 | 2 | [product.md](product.md) | Visão, narrativa, loop de jogo, pilares e glossário técnico |
-| 3 | [requirements.md](requirements.md) | 140 requisitos `REQ-<ÁREA>-NNN` (formato EARS) com critério de aceite |
+| 3 | [requirements.md](requirements.md) | 141 requisitos `REQ-<ÁREA>-NNN` (formato EARS) com critério de aceite |
 | 4 | [design/architecture.md](design/architecture.md) | Pastas, máquina de 7 telas (16 transições), store, game loop, persistência, debug, testes |
 | 4 | [design/data-model.md](design/data-model.md) | Interfaces TypeScript canônicas |
 | 4 | [design/domain-math.md](design/domain-math.md) | Todas as fórmulas e modelos, com **25 golden values** para testes |
@@ -143,7 +143,7 @@ O código nunca diverge silenciosamente da spec.
 ## 6. Verificação desta suíte de specs
 
 Checagens feitas na conversão, que podem ser repetidas:
-- **Rastreabilidade:** os 140 REQs aparecem em ≥ 1 documento de design, feature ou conteúdo **e** em ≥ 1 tarefa. A matriz está no final de [tasks.md](tasks.md).
+- **Rastreabilidade:** os 141 REQs aparecem em ≥ 1 documento de design, feature ou conteúdo **e** em ≥ 1 tarefa. A matriz está no final de [tasks.md](tasks.md).
 - **Tarefas:** todas têm "Aceite", "Verificação" e "Status". As tarefas T053–T058 e T060–T070 herdam a verificação comum declarada no início de F7.
 - **Golden values:** recalculados de forma independente em Python. Os 18 planos de referência dos contratos atendem aos próprios requisitos de GSD, tempo de voo, baterias e acurácia prevista.
 - **Balanceamento:** a simulação manual da campanha é viável ([catalog §13](content/catalog.md)).

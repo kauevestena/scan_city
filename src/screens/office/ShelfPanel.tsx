@@ -1,4 +1,4 @@
-import { Library, X } from 'lucide-react';
+import { Library, Search, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { CONTRACTS } from '@/data/contracts';
 import { SOUVENIRS } from '@/data/souvenirs';
@@ -7,7 +7,8 @@ import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { useGameStore } from '@/state/store';
 import type { ContractProgress, Souvenir } from '@/types';
 import { Button, cx, FOCUS_RING, Panel } from '@/ui';
-import { NamedIcon } from '@/ui/iconRegistry';
+import { SouvenirThumb } from './SouvenirThumb';
+import { SouvenirViewer } from './SouvenirViewer';
 
 const S = STRINGS.office.shelf;
 
@@ -39,7 +40,11 @@ export function shelfSlots(
   });
 }
 
-/** Estante de Relíquias (office §5): grade 6 × 3 com os 18 souvenirs. */
+/**
+ * Estante de Relíquias (office §5): grade 6 × 3 com os 18 souvenirs, as miniaturas dos obtidos e
+ * o **Examinar** (office §5.1): o souvenir em tela cheia. Escolher de novo o nicho escolhido
+ * também examina.
+ */
 export function ShelfPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const owned = useGameStore((s) => s.souvenirs);
@@ -48,6 +53,7 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<string | null>(
     () => slots.find((s) => s.state === 'OBTAINED')?.souvenir.id ?? null,
   );
+  const [examining, setExamining] = useState<Souvenir | null>(null);
   useFocusNavigation(ref, { onBack: onClose, autoFocus: true });
   const current = slots.find((s) => s.souvenir.id === selected);
 
@@ -85,7 +91,11 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
                   slot.state === 'OBTAINED' ? slot.souvenir.name : `${S.slot(i + 1)}: ${slot.label}`
                 }
                 aria-pressed={selected === slot.souvenir.id}
-                onClick={() => setSelected(slot.souvenir.id)}
+                onClick={() => {
+                  if (selected === slot.souvenir.id && slot.state === 'OBTAINED') {
+                    setExamining(slot.souvenir);
+                  } else setSelected(slot.souvenir.id);
+                }}
                 className={cx(
                   'flex aspect-square w-full items-center justify-center rounded-md border bg-slate-800',
                   selected === slot.souvenir.id ? 'border-cyan-400' : 'border-slate-700',
@@ -96,7 +106,7 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
                 style={slot.state === 'OBTAINED' ? { color: slot.souvenir.color } : undefined}
               >
                 {slot.state === 'OBTAINED' ? (
-                  <NamedIcon name={slot.souvenir.icon} size={22} strokeWidth={1.75} aria-hidden />
+                  <SouvenirThumb souvenir={slot.souvenir} size={40} />
                 ) : (
                   <span className="font-mono text-lg" aria-hidden>
                     ?
@@ -116,6 +126,15 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
             <>
               <h3 className="font-semibold text-slate-100">{current.souvenir.name}</h3>
               <p className="text-sm text-slate-300">{current.souvenir.story}</p>
+              <Button
+                size="sm"
+                icon={Search}
+                className="mt-1 self-start"
+                data-testid="shelf-examine"
+                onClick={() => setExamining(current.souvenir)}
+              >
+                {S.examine}
+              </Button>
             </>
           )}
           {current && current.state !== 'OBTAINED' && (
@@ -126,6 +145,7 @@ export function ShelfPanel({ onClose }: { onClose: () => void }) {
           )}
         </section>
       </Panel>
+      {examining && <SouvenirViewer souvenir={examining} onClose={() => setExamining(null)} />}
     </div>
   );
 }

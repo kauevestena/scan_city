@@ -216,6 +216,19 @@ test.describe('contraste AA: telas com várias abas e estados', () => {
     }
   });
 
+  test('exame de souvenir: título, origem, história, contador e botões sobre a mesa', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}&souvenirs=1`);
+    await expect(page.getByTestId('office-screen')).toBeVisible();
+    await page.locator('[data-hotspot="SHELF"]').evaluate((el) => (el as HTMLElement).click());
+    await page.getByTestId('shelf-examine').evaluate((el) => (el as HTMLElement).click());
+    await expect(page.getByTestId('souvenir-viewer')).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(700);
+    expect(await contrastFindings(page, '[data-testid="souvenir-viewer"]')).toEqual([]);
+  });
+
   test('mesa holográfica: painel de alas com setores mapeados e em névoa', async ({ page }) => {
     await page.goto(`${BASE}&screen=HOLO_TABLE_VIEW`);
     await expect(page.getByTestId('holo-screen')).toBeVisible();

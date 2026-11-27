@@ -4,6 +4,7 @@
  * As cores da sala são do engine (REQ-UI-001 permite hex nos engines).
  */
 import { OFFICE_H, OFFICE_HOTSPOTS, OFFICE_W, type OfficeHotspotId } from '@/data/office';
+import { SOUVENIRS } from '@/data/souvenirs';
 import { hash2 } from '@/lib/rng';
 import type { AircraftId, HardwareId, StaffRoleId, VehicleId } from '@/types';
 import { COLORS, withAlpha } from '@/ui/tokens';
@@ -15,13 +16,14 @@ import {
   ATLAS_NECK_SHEEN,
   mixHex,
 } from '../flight/aircraftSprite';
+import { drawSouvenirFront } from '../souvenir/faceRenderer';
 
 export interface OfficeSceneState {
   aircraft: readonly AircraftId[];
   vehicles: readonly VehicleId[];
   hardware: HardwareId;
-  /** Cores dos souvenirs obtidos, na ordem da estante. */
-  souvenirColors: readonly string[];
+  /** Os souvenirs obtidos, na ordem da estante: cada um aparece em miniatura (ADR-036). */
+  souvenirIds: readonly string[];
   staff: Readonly<Record<StaffRoleId, number>>;
   /** Cores do acessório do Atlas, ou `null` sem acessório. */
   atlasAccessory: { primary: string; secondary: string } | null;
@@ -99,6 +101,34 @@ export function shelfSlots(filled: number): Array<{ x: number; y: number; filled
     y: s.y + 46 + Math.floor(i / 6) * 58,
     filled: i < filled,
   }));
+}
+
+/** A caixa de cada miniatura no nicho: em pé na prateleira, um pouco maior que o nicho vazio. */
+export function shelfThumbBox(slot: { x: number; y: number }): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  return { x: slot.x - 4, y: slot.y - 4, w: 28, h: 30 };
+}
+
+/** Desenha as miniaturas dos souvenirs obtidos num bitmap do tamanho da estante. */
+function buildShelfLayer(ids: readonly string[], scale: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const s = rect('SHELF');
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(s.w * scale);
+  canvas.height = Math.ceil(s.h * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(scale, scale);
+  ctx.translate(-s.x, -s.y);
+  shelfSlots(ids.length).forEach((slot, i) => {
+    const souvenir = SOUVENIRS.find((sv) => sv.id === ids[i]);
+    if (souvenir) drawSouvenirFront(ctx, souvenir, shelfThumbBox(slot));
+  });
+  return canvas;
 }
 
 /** Atlas pisca a cada ~4 s e bica a cada ~7 s (determinístico pelo tempo). */
@@ -358,6 +388,8 @@ export function dustParticle(i: number, timeS: number): { x: number; y: number; 
 
 export class OfficeRenderer {
   private timeS = 0;
+  /** As miniaturas da estante, num bitmap refeito só quando a coleção ou a escala mudam. */
+  private shelfLayer: { key: string; canvas: HTMLCanvasElement | null } = { key: '', canvas: null };
 
   update(dtS: number): void {
     this.timeS += dtS;
@@ -378,7 +410,7 @@ export class OfficeRenderer {
     ctx.scale(width / OFFICE_W, height / OFFICE_H);
     this.drawRoom(ctx);
     this.drawLamps(ctx);
-    this.drawShelf(ctx, state.souvenirColors);
+    this.drawShelf(ctx, state.souvenirIds);
     this.drawCareer(ctx);
     this.drawHoloTable(ctx, state.holo ?? null);
     this.drawPerch(ctx, state.atlasAccessory, state.atlasAccessoryId);
@@ -440,7 +472,7 @@ export class OfficeRenderer {
     }
   }
 
-  private drawShelf(ctx: CanvasRenderingContext2D, colors: readonly string[]): void {
+  private drawShelf(ctx: CanvasRenderingContext2D, ids: readonly string[]): void {
     const s = rect('SHELF');
     ctx.fillStyle = PAL.woodDark;
     ctx.fillRect(s.x, s.y, s.w, s.h);
@@ -450,19 +482,18 @@ export class OfficeRenderer {
       ctx.fillStyle = PAL.woodDark;
       ctx.fillRect(s.x + 8, s.y + 70 + k * 58, s.w - 16, 6);
     }
-    shelfSlots(colors.length).forEach((slot, i) => {
-      if (slot.filled) {
-        ctx.fillStyle = colors[i] as string;
-        ctx.beginPath();
-        ctx.arc(slot.x + 10, slot.y + 12, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.fillRect(slot.x + 6, slot.y + 6, 3, 3);
-      } else {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(slot.x + 3, slot.y + 4, 14, 18);
-      }
+    shelfSlots(ids.length).forEach((slot) => {
+      if (slot.filled) return;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(slot.x + 3, slot.y + 4, 14, 18);
     });
+    if (ids.length === 0) return;
+    // Pixels do buffer por px lógico (DPR × encaixe da sala): a miniatura sai nítida.
+    const m = ctx.getTransform();
+    const scale = Math.max(1, Math.min(4, Math.hypot(m.a, m.b)));
+    const key = `${ids.join(',')}@${scale.toFixed(2)}`;
+    if (this.shelfLayer.key !== key) this.shelfLayer = { key, canvas: buildShelfLayer(ids, scale) };
+    if (this.shelfLayer.canvas) ctx.drawImage(this.shelfLayer.canvas, s.x, s.y, s.w, s.h);
   }
 
   private drawCareer(ctx: CanvasRenderingContext2D): void {

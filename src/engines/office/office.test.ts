@@ -15,7 +15,7 @@ const scene = {
   aircraft: ['ATLAS'] as const,
   vehicles: ['FOOT_BIKE'] as const,
   hardware: 'OLD_LAPTOP' as const,
-  souvenirColors: [] as string[],
+  souvenirIds: [] as string[],
   staff: { INTERN: 0, JUNIOR_ENG: 0 },
   atlasAccessory: null,
 };
@@ -102,7 +102,7 @@ describe('OfficeRenderer', () => {
         aircraft: ['ATLAS', 'DRONE_T1', 'DRONE_T2', 'VTOL_T3'],
         vehicles: ['FOOT_BIKE', 'COMPACT_CAR', 'PICKUP_4X4', 'LAB_VAN'],
         hardware: 'GAMER_PC',
-        souvenirColors: ['#fde68a', '#fbbf24'],
+        souvenirIds: ['SV_NOTEBOOK', 'SV_CITY_KEY'],
         staff: { INTERN: 2, JUNIOR_ENG: 1 },
         atlasAccessory: { primary: '#dc2626', secondary: '#fecaca' },
       },
@@ -111,6 +111,31 @@ describe('OfficeRenderer', () => {
     );
     // Frota, souvenirs, equipe e acessório acrescentam desenhos.
     expect(fill.mock.calls.length - calls).toBeGreaterThan(calls);
+  });
+
+  it('a estante mostra as miniaturas dos souvenirs, num bitmap refeito só quando a coleção muda', () => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const renderer = new OfficeRenderer();
+    const created = vi.spyOn(document, 'createElement');
+    const blit = vi.spyOn(ctx, 'drawImage');
+    const shelf = OFFICE_HOTSPOTS.find((h) => h.id === 'SHELF')?.rect;
+    const withIds = (souvenirIds: string[]) => ({ ...scene, souvenirIds });
+    renderer.render(ctx, withIds(['SV_NOTEBOOK', 'SV_TILE']), 1280, 672);
+    const layers = () => created.mock.calls.filter(([tag]) => tag === 'canvas').length;
+    expect(layers()).toBe(1);
+    // O bitmap da estante vai inteiro no retângulo dela.
+    const shelfBlit = blit.mock.calls.find((c) => c[1] === shelf?.x && c[2] === shelf?.y);
+    expect(shelfBlit?.slice(1, 5)).toEqual([shelf?.x, shelf?.y, shelf?.w, shelf?.h]);
+    // Mesmo quadro de novo: nada a refazer; um souvenir novo refaz a camada.
+    renderer.render(ctx, withIds(['SV_NOTEBOOK', 'SV_TILE']), 1280, 672);
+    expect(layers()).toBe(1);
+    renderer.render(ctx, withIds(['SV_NOTEBOOK', 'SV_TILE', 'SV_CAP']), 1280, 672);
+    expect(layers()).toBe(2);
+    // Sem souvenirs, a estante não desenha camada nenhuma.
+    blit.mockClear();
+    renderer.render(ctx, withIds([]), 1280, 672);
+    expect(blit.mock.calls.some((c) => c[1] === shelf?.x)).toBe(false);
+    created.mockRestore();
   });
 });
 

@@ -178,7 +178,44 @@ export type EmblemShape = 'SHIELD' | 'CIRCLE' | 'HEXAGON' | 'DIAMOND';
 export type EmblemIcon = 'Compass' | 'Map' | 'Mountain' | 'Plane' | 'Bird' | 'Satellite' | 'Ruler' | 'Globe';
 export interface Emblem { shape: EmblemShape; icon: EmblemIcon; primary: string; secondary: string; initials: string /* ≤ 4 */ }
 
-export interface Souvenir { id: string; contractId: string; name: string; story: string; icon: string /* nome lucide */; color: string }
+// Souvenirs que se examinam (office §5.1, catalog §11.1, ADR-036)
+export type SouvenirForm = 'OBJECT' | 'BOOK';                  // um objeto que se vira | um caderno que se folheia
+export type SouvenirSurface =
+  | 'OBJECT' | 'COVER' | 'BACK_COVER'                           // desenhos próprios do souvenir
+  | 'PAGE' | 'TAG' | 'NOTE' | 'CARD' | 'LABEL' | 'PLAQUE' | 'MAP';   // papéis e placas com texto
+export type SouvenirInk = 'PENCIL' | 'INK' | 'RED' | 'PRINT' | 'ENGRAVED';   // à mão: as três primeiras
+export type SouvenirPaper = 'RULED' | 'GRID' | 'PLAIN';         // pauta da página (PAGE)
+export type SouvenirSketchId =
+  | 'SITE_SURVEY' | 'ATLAS' | 'TOTAL_STATION' | 'GSD' | 'MUSEUM' | 'IPE_FLOWER' | 'COAST_1890' | 'TRIANGULATION';
+export type SouvenirDecor =
+  | 'COFFEE_RING' | 'COFFEE_DROPS' | 'THUMBPRINT' | 'FEATHER' | 'CORN_KERNEL' | 'TAPE' | 'FOLD';
+// Medidas em px lógicos da superfície (a página tem 400 × 580); o desenho escala para a tela.
+// No texto, ~~riscado~~ e __sublinhado__.
+export type SouvenirBlock =
+  | { type: 'TITLE'; text: string; ink?: SouvenirInk }
+  | { type: 'TEXT'; text: string; ink?: SouvenirInk; size?: 'SM' | 'MD' | 'LG'; align?: 'LEFT' | 'CENTER' | 'RIGHT' }
+  | { type: 'LIST'; items: readonly string[]; ordered?: boolean; ink?: SouvenirInk }
+  | { type: 'TABLE'; columns: readonly string[]; rows: readonly (readonly string[])[]; widths: readonly number[] /* frações, soma 1 */; ink?: SouvenirInk }
+  | { type: 'FIELDS'; rows: readonly (readonly [label: string, value: string])[]; ink?: SouvenirInk }   // rótulo impresso, valor à mão
+  | { type: 'SKETCH'; sketch: SouvenirSketchId; height: number; labels?: readonly string[] }          // rótulos nos pontos do esboço
+  | { type: 'SIGNATURE'; text: string; ink?: SouvenirInk }
+  | { type: 'STAMP'; text: string }
+  | { type: 'GAP'; size: number };
+export interface SouvenirFace {
+  label: string;                  // "Capa", "Etiqueta", "Verso": rodapé e leitor de tela
+  surface: SouvenirSurface;
+  blocks: readonly SouvenirBlock[];
+  paper?: SouvenirPaper;
+  decor?: readonly SouvenirDecor[];
+  when?: 'BEFORE_FINALE' | 'AFTER_FINALE';   // versões excludentes (a contracapa com a carta do Vô)
+}
+export interface Souvenir {
+  id: string; contractId: string; name: string; story: string;
+  icon: string;                   // nome lucide: só quando o Canvas não existe (ADR-027)
+  color: string;
+  form: SouvenirForm;
+  faces: readonly SouvenirFace[]; // a primeira é o objeto (OBJECT) ou a capa (COVER)
+}
 
 export type UnlockCondition =
   | { type: 'ALWAYS' }

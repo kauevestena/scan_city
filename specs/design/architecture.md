@@ -336,6 +336,7 @@ export function createTerrain(contract: Contract): TerrainSampler;   // memoizad
 | `autopilot=1` | No voo, segue as linhas com perfeição (cross-track 0, AGL e velocidade do plano), desvia de obstáculos subindo e permite `TIME_WARP` ×8 |
 | `unlockAll=1` | Todos os contratos `AVAILABLE`, todos os itens possuídos |
 | `money=<n>` | Saldo inicial em reais |
+| `souvenirs=1` | Os 18 souvenirs na estante (para examinar todos, office §5.1, ADR-036) |
 | `skipIntro=1` | `flags.introSeen = true` |
 
 O painel `F9` mostra o estado da store (JSON resumido), os botões de transição e as ações rápidas (dar dinheiro, completar contrato, gerar missão pendente).

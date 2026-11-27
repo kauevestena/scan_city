@@ -240,6 +240,21 @@ test.describe('modais e menus', () => {
     await expect(pause).toBeHidden();
   });
 
+  test('exame de souvenir: o foco entra em Próxima, não escapa e o Esc volta ao Examinar', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}&souvenirs=1`);
+    await expect(page.getByTestId('office-screen')).toBeVisible();
+    const shelf = page.locator('[data-hotspot="SHELF"]');
+    await reach(page, shelf);
+    await page.keyboard.press('Enter');
+    const examine = page.getByTestId('shelf-examine');
+    await reach(page, examine);
+    await page.keyboard.press('Enter');
+    const viewer = page.getByRole('dialog', { name: 'Caderneta de Campo do Avô' });
+    await auditModal(page, viewer, { opener: examine });
+  });
+
   test('intro do jogo novo: cartão não dispensável, foco preso e Enter avança', async ({
     page,
   }) => {

@@ -174,11 +174,14 @@ Se `navigator.getGamepads()` não existir (contexto inseguro) ou lançar (Permis
 - O clique em Atlas toca o arrulho.
 - *Aceite:* alimentar transfere unidades do estoque para o papo até a capacidade 10.
 
-**REQ-OFF-006: Estante de Relíquias.** O sistema deve exibir uma grade com os 18 souvenirs: os obtidos com ícone e texto, os não obtidos como silhueta "???".
+**REQ-OFF-006: Estante de Relíquias.** O sistema deve exibir uma grade com os 18 souvenirs: os obtidos com a miniatura desenhada do objeto e o texto, os não obtidos como silhueta "???".
 - *Aceite:* teste RTL com 2 souvenirs obtidos.
 
 **REQ-OFF-007: Introdução narrativa.** Quando o jogo for iniciado pela primeira vez (`flags.introSeen = false`), o sistema deve exibir a sequência de 4 cartões da carta do avô e da apresentação de Atlas. Depois, mostra a dica "Vá até a porta para explorar o mapa".
 - *Aceite:* E2E de novo jogo mostra os cartões. Um segundo carregamento não mostra.
+
+**REQ-OFF-008: Examinar os souvenirs.** Quando o jogador ativar **Examinar** num souvenir obtido (na Estante ou no card do relatório), o sistema deve abrir o objeto desenhado em tela cheia com as faces dele: a Caderneta de Campo do Avô fechada, em páginas duplas que se folheiam e na contracapa (com a carta do avô depois do final); os outros 17, o objeto e o que se lê nele (verso, etiqueta, placa, bilhete). As faces devem virar com teclado, mouse e controle, e o texto delas deve chegar ao leitor de tela.
+- *Aceite:* teste RTL que folheia a caderneta da capa à contracapa e volta, por teclas e botões, e acha a carta só depois do final; E2E do nicho à caderneta e de volta, com o foco no nicho.
 
 ---
 

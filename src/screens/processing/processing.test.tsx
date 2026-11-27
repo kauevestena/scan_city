@@ -217,6 +217,14 @@ describe('ProcessingResultsScreen', () => {
       timeout: 3000,
     });
     expect(screen.getByTestId('souvenir-card')).toHaveTextContent('Caderneta de Campo do Avô');
+    // A caderneta se examina ali mesmo, na entrega (office §5.1); Esc fecha só o exame.
+    fireEvent.click(
+      within(screen.getByTestId('souvenir-card')).getByRole('button', { name: 'Examinar' }),
+    );
+    expect(screen.getByRole('dialog', { name: 'Caderneta de Campo do Avô' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { code: 'Escape' });
+    expect(screen.queryByTestId('souvenir-viewer')).not.toBeInTheDocument();
+    expect(get().session.screen).toBe('PROCESSING_RESULTS');
 
     // Enviar ao museu (T11).
     fireEvent.click(screen.getByTestId('send-museum'));

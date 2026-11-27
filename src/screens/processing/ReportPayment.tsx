@@ -1,12 +1,13 @@
-import { Award } from 'lucide-react';
+import { Award, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AudioEngine } from '@/audio/AudioEngine';
 import { SOUVENIRS } from '@/data/souvenirs';
 import { STRINGS } from '@/data/strings';
 import { formatBRL, formatNumber } from '@/lib/format';
+import { SouvenirThumb } from '@/screens/office/SouvenirThumb';
+import { SouvenirViewer } from '@/screens/office/SouvenirViewer';
 import type { QualityReport } from '@/types';
-import { MoneyText } from '@/ui';
-import { NamedIcon } from '@/ui/iconRegistry';
+import { Button, MoneyText } from '@/ui';
 
 const P = STRINGS.processing;
 /** Uma linha do pagamento a cada 250 ms (§5.8). */
@@ -42,6 +43,7 @@ export function paymentRows(p: QualityReport['payment'], pilotBonus = 0): Array<
 export function ReportPayment({ report, stolen }: { report: QualityReport; stolen: boolean }) {
   const rows = paymentRows(report.payment, report.execution?.pilotBonus ?? 0);
   const [shown, setShown] = useState(0);
+  const [examining, setExamining] = useState(false);
   const souvenir = SOUVENIRS.find((s) => s.id === report.souvenirAwarded);
 
   useEffect(() => {
@@ -87,14 +89,26 @@ export function ReportPayment({ report, stolen }: { report: QualityReport; stole
             className="flex items-center gap-3 rounded-lg border border-amber-400/60 bg-amber-400/10 p-3"
             data-testid="souvenir-card"
           >
-            <NamedIcon name={souvenir.icon} size={32} aria-hidden />
-            <div>
+            <SouvenirThumb souvenir={souvenir} size={56} />
+            <div className="flex min-w-0 flex-col items-start gap-1.5">
               <p className="flex items-center gap-1.5 text-xs tracking-widest text-amber-300 uppercase">
                 <Award size={14} aria-hidden /> {P.souvenirTitle}
               </p>
               <p className="text-sm text-slate-100">{souvenir.name}</p>
+              {/* Examinar na hora (office §5.1): a caderneta abre aqui mesmo, ao ser entregue. */}
+              <Button
+                size="sm"
+                icon={Search}
+                data-testid="souvenir-examine"
+                onClick={() => setExamining(true)}
+              >
+                {STRINGS.office.shelf.examine}
+              </Button>
             </div>
           </div>
+        )}
+        {souvenir && examining && (
+          <SouvenirViewer souvenir={souvenir} onClose={() => setExamining(false)} />
         )}
         {stolen && <p className="text-rose-300">{P.stolen}</p>}
       </section>

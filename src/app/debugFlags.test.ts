@@ -14,7 +14,7 @@ describe('parseDebugFlags', () => {
   it('lê todos os parâmetros com debug=1', () => {
     expect(
       parseDebugFlags(
-        '?debug=1&seed=42&screen=SURVEY_FLIGHT&contract=C01&autopilot=1&calm=1&difficulty=HARD&unlockAll=1&money=12345&skipIntro=1',
+        '?debug=1&seed=42&screen=SURVEY_FLIGHT&contract=C01&autopilot=1&calm=1&difficulty=HARD&unlockAll=1&money=12345&skipIntro=1&souvenirs=1',
       ),
     ).toEqual({
       debug: true,
@@ -27,6 +27,7 @@ describe('parseDebugFlags', () => {
       unlockAll: true,
       money: 12345,
       skipIntro: true,
+      souvenirs: true,
     });
   });
 
@@ -59,6 +60,12 @@ describe('applyDebugFlags', () => {
     expect(get().player.money).toBe(500_000);
     expect(get().flags.introSeen).toBe(false);
     expect(get().session.screen).toBe('OFFICE');
+  });
+
+  it('souvenirs=1 põe os 18 souvenirs na estante', () => {
+    applyDebugFlags(parseDebugFlags('?debug=1&souvenirs=1'));
+    expect(get().souvenirs).toHaveLength(18);
+    expect(get().souvenirs).toContain('SV_NOTEBOOK');
   });
 
   it('money define o saldo em reais e skipIntro marca a intro como vista', () => {

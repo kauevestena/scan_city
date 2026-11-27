@@ -20,6 +20,8 @@ export interface DebugFlags {
   /** Saldo inicial em reais. */
   money: number | null;
   skipIntro: boolean;
+  /** `souvenirs=1`: os 18 souvenirs na estante, para examinar todos (ADR-036). */
+  souvenirs: boolean;
 }
 
 export const NO_DEBUG: DebugFlags = {
@@ -33,6 +35,7 @@ export const NO_DEBUG: DebugFlags = {
   unlockAll: false,
   money: null,
   skipIntro: false,
+  souvenirs: false,
 };
 
 const DEBUG_SCREENS: readonly string[] = [...SCREEN_IDS, 'UIKIT', 'SOUNDBOARD'];
@@ -66,6 +69,7 @@ export function parseDebugFlags(search: string): DebugFlags {
     unlockAll: params.get('unlockAll') === '1',
     money: numberParam(params, 'money'),
     skipIntro: params.get('skipIntro') === '1',
+    souvenirs: params.get('souvenirs') === '1',
   };
 }
 

@@ -48,10 +48,10 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 | `LOOK_X/Y` **[ADIÇÃO]** | Mesa/nuvem 3D: orbitar | arrastar com o mouse / setas | Analógico dir. (eixos 2/3) | idem |
 | `ZOOM` **[ADIÇÃO]** | Mesa/nuvem 3D: zoom | roda do mouse / `+` `−` | `RT`/`LT` | `R2`/`L2` |
 | `MODE_1..3` **[ADIÇÃO]** | Mesa: modo de exibição | `1` `2` `3` | — (usar `FIRE`, cíclico) | — |
-| `UI_UP/DOWN/LEFT/RIGHT` | Navegar foco | setas / `Tab`, `Shift+Tab` | D-pad / analógico esq. (com repetição) | idem |
+| `UI_UP/DOWN/LEFT/RIGHT` | Navegar foco; no exame de souvenir, `UI_LEFT/RIGHT` viram a face (office §5.1) | setas / `Tab`, `Shift+Tab` | D-pad / analógico esq. (com repetição) | idem |
 | `UI_CONFIRM` | Confirmar | `Enter` / `Espaço` / clique | `A` (0) | `✕` (0) |
 | `UI_BACK` | Voltar / fechar | `Esc` / `Backspace` | `B` (1) | `○` (1) |
-| `UI_TAB_PREV/NEXT` | Trocar aba | `Q` / `E` (só em painéis com abas) | `LB`/`RB` (4/5) | `L1`/`R1` |
+| `UI_TAB_PREV/NEXT` | Trocar aba; virar a face no exame de souvenir (office §5.1) | `Q` / `E` (só em painéis com abas e no exame) | `LB`/`RB` (4/5) | `L1`/`R1` |
 | `DISMISS_HINT` **[ADIÇÃO]** | Dispensar a dica do tutorial (mapa, campo, voo, relatório) | `H` | `View` (8) | `Create` (8) |
 
 **Resolução de conflitos por contexto.** O `InputManager` recebe um `InputContext` ativo:
