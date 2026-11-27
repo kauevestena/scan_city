@@ -307,7 +307,12 @@ function drawPerchedAccessory(
       return;
     }
     case 'ATLAS_LAUREL': {
-      // Coroa de louros em volta do alto da cabeça, com a fitinha atrás.
+      // Coroa de louros: o ramo em volta do alto da cabeça, as folhas alternadas, a fitinha atrás.
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 12, -2.75, -0.65);
+      ctx.stroke();
       ctx.fillStyle = colors.primary;
       for (let k = 0; k < 7; k++) {
         const a = -2.7 + k * 0.33;
@@ -315,9 +320,9 @@ function drawPerchedAccessory(
         ctx.ellipse(
           hx + Math.cos(a) * 12,
           hy + Math.sin(a) * 12,
-          3.4,
-          1.7,
-          a + Math.PI / 2,
+          4.2,
+          1.9,
+          a + Math.PI / 2 + (k % 2 ? 0.6 : -0.6),
           0,
           Math.PI * 2,
         );

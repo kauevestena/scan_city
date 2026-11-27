@@ -153,23 +153,31 @@ function drawAtlas(ctx: CanvasRenderingContext2D, p: SpriteParams, u: number): v
   const flap = Math.sin(p.timeS * (4 + p.speedMs * 0.8));
   const lift = flap * 0.9;
   const blink = p.timeS % ATLAS_BLINK_EVERY_S < ATLAS_BLINK_S;
-  // Cauda em leque, com a ponta escura.
+  // Cauda em leque, aberta, com as penas marcadas e a ponta escura.
   ctx.fillStyle = p.colors.secondary;
   ctx.beginPath();
-  ctx.moveTo(-u * 0.2, u * 0.5);
-  ctx.lineTo(-u * 0.44, u * 1.08);
-  ctx.quadraticCurveTo(0, u * 1.3, u * 0.44, u * 1.08);
-  ctx.lineTo(u * 0.2, u * 0.5);
+  ctx.moveTo(-u * 0.16, u * 0.5);
+  ctx.lineTo(-u * 0.56, u * 1.02);
+  ctx.quadraticCurveTo(0, u * 1.36, u * 0.56, u * 1.02);
+  ctx.lineTo(u * 0.16, u * 0.5);
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = ATLAS_INK;
   ctx.beginPath();
-  ctx.moveTo(-u * 0.4, u * 0.98);
-  ctx.quadraticCurveTo(0, u * 1.2, u * 0.4, u * 0.98);
-  ctx.lineTo(u * 0.44, u * 1.08);
-  ctx.quadraticCurveTo(0, u * 1.3, -u * 0.44, u * 1.08);
+  ctx.moveTo(-u * 0.5, u * 0.92);
+  ctx.quadraticCurveTo(0, u * 1.24, u * 0.5, u * 0.92);
+  ctx.lineTo(u * 0.56, u * 1.02);
+  ctx.quadraticCurveTo(0, u * 1.36, -u * 0.56, u * 1.02);
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.lineWidth = Math.max(1, u * 0.035);
+  ctx.beginPath();
+  for (const k of [-2, -1, 0, 1, 2]) {
+    ctx.moveTo(k * u * 0.05, u * 0.62);
+    ctx.lineTo(k * u * 0.2, u * (1.12 - Math.abs(k) * 0.05));
+  }
+  ctx.stroke();
   drawAtlasWing(ctx, p, u, -1, lift);
   drawAtlasWing(ctx, p, u, 1, lift);
   // Corpo gordinho, com o dorso mais claro.
@@ -297,7 +305,12 @@ function drawAtlasAccessory(
       return;
     }
     case 'ATLAS_LAUREL': {
-      // Coroa de louros: folhas em volta da cabeça.
+      // Coroa de louros: o ramo em volta da cabeça e as folhas alternadas, em espinha.
+      ctx.strokeStyle = a.primary;
+      ctx.lineWidth = Math.max(1, u * 0.03);
+      ctx.beginPath();
+      ctx.arc(0, hy, u * 0.38, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
       ctx.fillStyle = a.primary;
       for (let k = 0; k < 7; k++) {
         const ang = Math.PI * (1.05 + (k / 6) * 0.9);
@@ -305,9 +318,9 @@ function drawAtlasAccessory(
         ctx.ellipse(
           Math.cos(ang) * u * 0.38,
           hy + Math.sin(ang) * u * 0.38,
-          u * 0.1,
-          u * 0.05,
-          ang + Math.PI / 2,
+          u * 0.13,
+          u * 0.055,
+          ang + Math.PI / 2 + (k % 2 ? 0.6 : -0.6),
           0,
           Math.PI * 2,
         );
