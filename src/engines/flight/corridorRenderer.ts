@@ -301,3 +301,77 @@ export function drawGustStreaks(
   }
   ctx.restore();
 }
+
+/** Riscos verticais de uma rajada vertical ou de uma corrente: no máximo tantos na tela. */
+export const VERTICAL_STREAKS = 34;
+
+export interface VStreak {
+  x: number;
+  y0: number;
+  y1: number;
+  alpha: number;
+}
+
+/**
+ * Riscos verticais (survey-flight §5.13, ADR-035): traços que sobem (`dir` = +1) ou descem pela
+ * tela, na rajada vertical que sopra e na corrente vertical. `strength` (0–1) afina a rajada
+ * cortada e a corrente fraca; `speed` (fração) deixa a corrente mais lenta que a rajada. Com
+ * `reduceFlashes`, o alfa não pisca.
+ */
+export function verticalStreaks(
+  width: number,
+  height: number,
+  dir: -1 | 1,
+  tS: number,
+  reduceFlashes: boolean,
+  strength = 1,
+  speed = 1,
+): VStreak[] {
+  const count = Math.round(VERTICAL_STREAKS * Math.min(1, strength + 0.2));
+  const base = 0.32 * (0.4 + 0.6 * strength);
+  const out: VStreak[] = [];
+  for (let k = 0; k < count; k++) {
+    const h1 = frac(k + 1, 12.9898, 43758.5453);
+    const h2 = frac(k + 1, 78.233, 12543.873);
+    const len = 30 + 50 * h2;
+    const span = height + len;
+    const travel = (h2 * span + tS * 700 * speed * (0.7 + 0.6 * h1)) % span;
+    // Sobe: entra por baixo; desce: entra por cima.
+    const y0 = dir > 0 ? height - travel + len : travel - len;
+    const x = width * (0.04 + 0.92 * h1);
+    const alpha = reduceFlashes ? base : base * (0.6 + 0.4 * Math.abs(Math.sin(tS * 6 + k)));
+    out.push({ x, y0, y1: y0 - dir * len, alpha });
+  }
+  return out;
+}
+
+export function drawVerticalStreaks(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  dir: -1 | 1,
+  tS: number,
+  reduceFlashes: boolean,
+  strength = 1,
+  speed = 1,
+): void {
+  const levels = new Map<number, VStreak[]>();
+  for (const st of verticalStreaks(width, height, dir, tS, reduceFlashes, strength, speed)) {
+    const k = level(st.alpha * 2);
+    const group = levels.get(k);
+    if (group) group.push(st);
+    else levels.set(k, [st]);
+  }
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  for (const [k, group] of levels) {
+    ctx.strokeStyle = `rgba(226, 232, 240, ${(k / ALPHA_LEVELS / 2).toFixed(3)})`;
+    ctx.beginPath();
+    for (const st of group) {
+      ctx.moveTo(st.x, st.y0);
+      ctx.lineTo(st.x, st.y1);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}

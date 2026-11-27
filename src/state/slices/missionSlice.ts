@@ -106,6 +106,13 @@ export const createMissionSlice: StateCreator<
         : s,
     ),
 
+  setFlightDifficulty: (difficulty) =>
+    set((s) =>
+      s.mission.active
+        ? { mission: { ...s.mission, active: { ...s.mission.active, difficulty } } }
+        : s,
+    ),
+
   setFieldEquipment: (id) =>
     set((s) => {
       const active = s.mission.active;

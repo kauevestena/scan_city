@@ -14,7 +14,7 @@ type Canyon = Extract<SpecialZone, { kind: 'RTK_CANYON' }>;
 const halfExtent = (o: WorldObject): number => Math.max(o.widthM, o.depthM) / 2;
 
 /**
- * `URBAN_CANYON_RTK_LOSS`: uma zona `RTK_CANYON` onde dois prédios mais altos que 60 m ficam a
+ * `URBAN_CANYON_RTK_LOSS`: uma zona `RTK_CANYON` onde dois prédios mais altos que 45 m ficam a
  * menos de 40 m um do outro. A zona é a caixa que cobre as duas pegadas.
  */
 export function rtkCanyonZones(

@@ -79,7 +79,7 @@ export const COUNTER_CLASS: Readonly<Record<'PERFECT' | 'EARLY' | 'LATE', string
 
 /**
  * A marca do último contragolpe ("NO TEMPO!", "CEDO", "TARDE"), acima da marca da nota, do lado
- * de onde a rajada veio. Some como a marca da nota.
+ * de onde a rajada veio (em cima ou embaixo, na rajada vertical). Some como a marca da nota.
  */
 export function CounterMark({ snap, calm }: { snap: FlightHudSnapshot; calm: boolean }) {
   const c = snap.counter;
@@ -89,9 +89,13 @@ export function CounterMark({ snap, calm }: { snap: FlightHudSnapshot; calm: boo
       key={c.seq}
       data-testid="hud-counter"
       data-result={c.result}
+      data-axis={c.axis}
       className={cx(
-        'absolute top-[48%] -translate-x-1/2 font-mono text-xl font-black tracking-widest drop-shadow',
-        c.side > 0 ? 'left-[44%]' : 'left-[56%]',
+        'absolute -translate-x-1/2 font-mono text-xl font-black tracking-widest drop-shadow',
+        // De onde a rajada veio: do lado, de baixo (a que sobe) ou de cima (a que desce).
+        c.axis === 'VERTICAL'
+          ? cx('left-1/2', c.side > 0 ? 'top-[62%]' : 'top-[38%]')
+          : cx('top-[48%]', c.side > 0 ? 'left-[44%]' : 'left-[56%]'),
         COUNTER_CLASS[c.result],
         calm ? 'grade-fade' : 'grade-pop',
       )}

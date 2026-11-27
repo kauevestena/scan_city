@@ -514,6 +514,28 @@ export const STRINGS = {
     blocking: 'Impede a decolagem',
     warnings: 'Avisos',
     takeoff: 'DECOLAR',
+    /** Dificuldade do voo, escolhida antes da decolagem (survey-flight §5.22, ADR-035). */
+    difficulty: {
+      title: 'Dificuldade do voo',
+      options: {
+        EASY: {
+          label: 'Fácil',
+          detail: 'Mais lento e só vento horizontal; janela da curva folgada.',
+        },
+        MEDIUM: {
+          label: 'Média',
+          detail: 'Ritmo normal, com rajadas e correntes verticais de vez em quando.',
+        },
+        HARD: {
+          label: 'Difícil',
+          detail: 'Mais rápido, rajadas verticais frequentes e janela da curva curta.',
+        },
+      },
+      pay: (factor: number) =>
+        factor === 1
+          ? 'pagamento normal'
+          : `pagamento ${factor > 1 ? '+' : '−'}${Math.round(Math.abs(factor - 1) * 100)} %`,
+    },
   },
   flight: {
     title: 'Voo de levantamento',
@@ -523,6 +545,7 @@ export const STRINGS = {
       TAKEOFF: 'DECOLANDO',
       RUN: '',
       TURN: 'CURVA',
+      GO_AROUND: 'ARREMETIDA',
       LANDING: 'POUSANDO',
       RETURNING: 'RETORNANDO',
       CRASHED: 'QUEDA',
@@ -564,6 +587,28 @@ export const STRINGS = {
     axes: { lateral: 'faixa', vertical: 'altura', advance: 'avanço' },
     /** Marca do contragolpe na rajada (survey-flight §5.13). */
     counter: { PERFECT: 'NO TEMPO!', EARLY: 'CEDO', LATE: 'TARDE' },
+    /** O vento vertical das rajadas e correntes, ao lado da biruta (ADR-035). */
+    verticalWind: (ms: number) =>
+      `${ms > 0 ? '▲' : '▼'} ${Math.abs(ms).toFixed(1).replace('.', ',')} m/s`,
+    verticalWindLabel: (up: boolean) => (up ? 'Corrente subindo' : 'Corrente descendo'),
+    /** Dificuldade do voo, no HUD e no checklist (survey-flight §5.22, ADR-035). */
+    difficulty: { EASY: 'FÁCIL', MEDIUM: 'MÉDIA', HARD: 'DIFÍCIL' },
+    /** A manobra de troca de faixa no fim da linha (survey-flight §5.7, ADR-035). */
+    turn: {
+      prompt: (side: -1 | 1) => (side > 0 ? 'CURVA À DIREITA ▶' : '◀ CURVA À ESQUERDA'),
+      chord: 'segure juntas',
+      sequence: 'ou toque em sequência',
+      pad: 'analógico para a frente e para o lado + gatilho do lado',
+      window: 'janela da curva',
+      result: {
+        ON_TIME: 'CURVA NO TEMPO!',
+        EARLY: 'CEDO: ARREMETENDO',
+        LATE: 'CURVA PERDIDA',
+        WRONG_SIDE: 'LADO ERRADO',
+      },
+      goAround: 'ARREMETIDA · de volta ao portal da curva',
+      misses: (n: number, max: number) => `curvas perdidas ${n}/${max}`,
+    },
     lineReport: {
       title: (n: number, letter: string) => `LINHA ${n} · ${letter}`,
       counts: (c: readonly [number, number, number, number]) =>
@@ -580,6 +625,10 @@ export const STRINGS = {
       warp: 'cruzeiro',
       noLidar: 'Sem LiDAR a bordo',
       activateCamera: 'Ative a câmera [Tab]',
+      turnFailsafe: (atlas: boolean) =>
+        atlas
+          ? 'Atlas cansou de rodar sem comando e voltou ao pombal.'
+          : 'Sem comando de curva: retorno automático à base.',
     },
     alerts: {
       CRASH_IMMINENT: () => 'QUEDA IMINENTE',
@@ -809,6 +858,7 @@ export const STRINGS = {
       quality: '× qualidade (score)',
       rival: '× rival',
       management: '× Gestão',
+      difficulty: '× dificuldade do voo',
       staff: '× equipe',
       staffCost: '− custo da equipe',
       penalties: '− reparos',

@@ -1,5 +1,6 @@
+import { DIFFICULTIES } from '@/domain/difficulty';
 import { SCREEN_IDS } from '@/state/machine';
-import type { ScreenId } from '@/types';
+import type { FlightDifficulty, ScreenId } from '@/types';
 
 /** Flags de depuração da query string (architecture §7). */
 export interface DebugFlags {
@@ -13,6 +14,8 @@ export interface DebugFlags {
   autopilot: boolean;
   /** `calm=1`: voo sem rajadas e sem erro de entrada de faixa (survey-flight §5.13). */
   calm: boolean;
+  /** `difficulty=EASY|MEDIUM|HARD`: a dificuldade do voo de teste (ADR-035). */
+  difficulty: FlightDifficulty | null;
   unlockAll: boolean;
   /** Saldo inicial em reais. */
   money: number | null;
@@ -26,6 +29,7 @@ export const NO_DEBUG: DebugFlags = {
   contract: null,
   autopilot: false,
   calm: false,
+  difficulty: null,
   unlockAll: false,
   money: null,
   skipIntro: false,
@@ -46,6 +50,7 @@ export function parseDebugFlags(search: string): DebugFlags {
   if (params.get('debug') !== '1') return NO_DEBUG;
   const screen = params.get('screen');
   const contract = params.get('contract');
+  const difficulty = params.get('difficulty');
   return {
     debug: true,
     seed: numberParam(params, 'seed'),
@@ -54,6 +59,10 @@ export function parseDebugFlags(search: string): DebugFlags {
     contract: contract !== null && contract !== '' ? contract : null,
     autopilot: params.get('autopilot') === '1',
     calm: params.get('calm') === '1',
+    difficulty:
+      difficulty !== null && (DIFFICULTIES as readonly string[]).includes(difficulty)
+        ? (difficulty as FlightDifficulty)
+        : null,
     unlockAll: params.get('unlockAll') === '1',
     money: numberParam(params, 'money'),
     skipIntro: params.get('skipIntro') === '1',

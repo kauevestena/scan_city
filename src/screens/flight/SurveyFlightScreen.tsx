@@ -107,6 +107,8 @@ function createEngine(
     onLinePass: (r) => AudioEngine.get().play(r.accepted ? 'STAGE_DONE' : 'DENIED'),
     // A rajada que bate sem contragolpe sopra grave; a cortada no tempo, o vento rasgado.
     onGustImpact: (cut) => AudioEngine.get().play(cut ? 'GUST_CUT' : 'GUST_HIT'),
+    // A curva no tempo varre o ar; cedo, tarde ou do lado errado, o som surdo da arremetida.
+    onTurn: (t) => AudioEngine.get().play(t.result === 'ON_TIME' ? 'TURN_OK' : 'GRADE_MISS'),
     onHud: (snap) => {
       // O motor segue a velocidade e o vento, o ganho do vento.
       ambience.update(snap.speedMs, snap.windCrossMs);

@@ -107,6 +107,10 @@ export const BINDINGS: Record<InputContext, ContextBindings> = {
       MOVE_Y: { keysNeg: ['KeyS'], keysPos: ['KeyW'], stick: { axis: 1, invert: true } },
       ALT_UP: { keysPos: ['KeyQ'], triggerPos: PAD.RT },
       ALT_DOWN: { keysPos: ['KeyE'], triggerPos: PAD.LT },
+      // A tecla da curva de cada lado (ADR-035): no teclado, a de cima do lado (`Q` sobre o `A`,
+      // `E` sobre o `D`); no controle, o gatilho do lado. A manobra só vale no fim da linha.
+      TURN_LEFT: { keysPos: ['KeyQ'], triggerPos: PAD.LT },
+      TURN_RIGHT: { keysPos: ['KeyE'], triggerPos: PAD.RT },
     },
   },
   FIELD: {

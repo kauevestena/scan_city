@@ -24,7 +24,7 @@ export const REPLAY_FACTOR = 0.4;
 export const CRITICAL_REPUTATION_LOSS = -10;
 export const REPLAY_MAX_REPUTATION_LOSS = -3;
 
-/** §12.1 — total = max(0, round(base·r·Q·R·G·E) − equipe − penalidades). */
+/** §12.1 — total = max(0, round(base·r·Q·R·G·D·E) − equipe − penalidades). */
 export function computePayment(
   input: PaymentInput,
   roles: readonly Pick<StaffRole, 'id' | 'paymentBonus' | 'costPerContractBRL'>[] = STAFF,
@@ -35,12 +35,14 @@ export function computePayment(
     (s, r) => s + r.costPerContractBRL * (input.staff[r.id] ?? 0),
     0,
   );
+  const difficultyFactor = input.difficultyFactor ?? 1;
   const gross = Math.round(
     input.baseBRL *
       replayFactor *
       input.qualityFactor *
       input.rivalFactor *
       input.contractPaymentMod *
+      difficultyFactor *
       staffBonus,
   );
   return {
@@ -49,6 +51,7 @@ export function computePayment(
     qualityFactor: input.qualityFactor,
     rivalFactor: input.rivalFactor,
     managementBonus: input.contractPaymentMod,
+    difficultyFactor,
     staffBonus,
     staffCostBRL,
     penaltiesBRL: input.penaltiesBRL,

@@ -348,16 +348,18 @@ describe('FlightEngine — Atlas: distração, milho e papo', () => {
   it('a distração é seedada por missão: o mesmo id repete o mesmo desvio', () => {
     // Procura uma missão que distraia o Atlas na linha 0 e confere a repetição e o alerta.
     const found: string[] = [];
+    // Ainda na linha 0 (a decolagem e 17,5 s dela): sem comando, a curva não sai e, depois da
+    // arremetida, o Atlas volta alinhado ao portal da curva.
     for (let k = 0; k < 400 && found.length < 1; k++) {
       const e = engineFor(`seed-${k}`);
-      for (let t = 0; t < 40; t += 1 / 20) e.update(1 / 20);
-      // Sem vento nem comando, só a distração tira o Atlas da linha.
+      for (let t = 0; t < 20; t += 1 / 20) e.update(1 / 20);
+      // Sem vento nem comando, a entrada, as rajadas e a distração tiram o Atlas da linha.
       if (Math.abs(e.ac.x) > 3) found.push(`seed-${k}`);
     }
     expect(found).toHaveLength(1);
     const a = engineFor(found[0] as string);
     const b = engineFor(found[0] as string);
-    for (let t = 0; t < 40; t += 1 / 20) {
+    for (let t = 0; t < 20; t += 1 / 20) {
       a.update(1 / 20);
       b.update(1 / 20);
     }

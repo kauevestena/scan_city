@@ -1,3 +1,5 @@
+import { DIFFICULTY } from '@/domain/difficulty';
+import { windowCenterS } from '@/domain/turnManeuver';
 import { CATALOG, getAircraft } from '@/data/catalog';
 import { C02 } from '@/data/contracts';
 import { buildFlightPlan } from '@/domain/flightPlanner';
@@ -73,7 +75,11 @@ describe('asa fixa no C02: as curvas levam o tempo da fórmula', () => {
     expect(result?.outcome).toBe('COMPLETED');
     expect(result?.completedLines).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     const { turnTimeS: turn, lineLengthM } = plan.stats;
-    expect(result?.durationS).toBeCloseTo((8 * lineLengthM) / 22 + 7 * turn + 4.5, 0);
+    // O piloto bom faz a manobra no centro da janela, um pouco antes do fim da linha (ADR-035):
+    // cada uma das 7 curvas começa esse tanto (tempo de simulação) antes.
+    const { turnWindow, tempo } = DIFFICULTY.MEDIUM;
+    const early = 7 * windowCenterS(turnWindow) * tempo;
+    expect(result?.durationS).toBeCloseTo((8 * lineLengthM) / 22 + 7 * turn + 4.5 - early, 0);
     // Duas centenas de fotos ± 6 %: 41 por linha.
     expect(Math.abs((result?.photos ?? 0) - plan.stats.totalPhotos)).toBeLessThanOrEqual(
       plan.stats.totalPhotos * 0.06,

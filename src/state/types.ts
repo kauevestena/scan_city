@@ -1,21 +1,22 @@
 import type {
-  StaffRoleId,
-  FieldEquipmentId,
   CentsBRL,
   ContractProgress,
   Dimension,
   Emblem,
+  FieldEquipmentId,
+  FlightDifficulty,
   GroundPoint,
   LidarBatch,
   LinePass,
   MissionData,
   PlanParams,
   QualityReport,
-  Shot,
-  SortieOutcome,
   SaveGame,
   ScreenId,
   Settings,
+  Shot,
+  SortieOutcome,
+  StaffRoleId,
   VehicleId,
 } from '@/types';
 import type { PlanOptions } from '@/domain/flightPlanner';
@@ -176,6 +177,11 @@ export interface MissionActions {
   /** Troca os parâmetros do plano da missão ativa e recalcula o plano. */
   updatePlan: (params: PlanParams, options?: PlanOptions) => void;
   setGroundPoints: (points: GroundPoint[]) => void;
+  /**
+   * Dificuldade do voo da missão ativa (survey-flight §5.22, ADR-035), escolhida no checklist
+   * antes da decolagem; vale para todas as surtidas.
+   */
+  setFlightDifficulty: (difficulty: FlightDifficulty) => void;
   /** Resultado de um mini-game de campo; vale a melhor pontuação da missão (field-setup §5.4). */
   /** Troca o instrumento de medição dos GCPs (só entre os possuídos). */
   setFieldEquipment: (id: FieldEquipmentId) => void;

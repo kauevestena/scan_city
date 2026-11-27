@@ -5,6 +5,7 @@
 import { CATALOG } from '@/data/catalog';
 import { C00 } from '@/data/contracts';
 import { plannedSamples } from '@/domain/corridor';
+import { DIFFICULTY } from '@/domain/difficulty';
 import { countSamples, missionExecution } from '@/domain/execution';
 import { buildFlightPlan } from '@/domain/flightPlanner';
 import { GUST_WARN_S } from '@/domain/gusts';
@@ -106,18 +107,25 @@ describe('o piloto bom (autopilot) no C00', () => {
 });
 
 describe('o jogador parado no C00', () => {
-  it('nenhuma linha aceita, cada uma revoada uma vez e execução < 0,4', () => {
+  it('a linha 1 volta recusada, a curva não sai e o retorno automático fecha a surtida (< 0,4)', () => {
     const m = mission();
-    const { e, results, reports } = engine(m, { autopilot: false });
+    const phases: string[] = [];
+    const { e, results, reports } = engine(m, {
+      autopilot: false,
+      onPhase: (p) => phases.push(p),
+    });
     fly(e);
     const r = results[0];
     expect(r?.completedLines).toEqual([]);
-    expect(reports.every((x) => !x.accepted)).toBe(true);
-    // As 6 linhas e o revoo de cada uma, no máximo uma vez por surtida.
-    const lines = (r?.linePasses ?? []).map((p) => `${p.lineIndex}:${p.pass}`);
-    expect(new Set(lines).size).toBe(lines.length);
-    expect((r?.linePasses ?? []).filter((p) => p.pass === 1).length).toBeGreaterThan(0);
-    for (const p of r?.linePasses ?? []) expect(p.pass).toBeLessThanOrEqual(1);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ lineNumber: 1, accepted: false });
+    // Sem a manobra, a troca de faixa nunca é automática: duas arremetidas e, na terceira curva
+    // perdida, o retorno automático (ADR-035). A linha recusada fica para outra surtida.
+    expect(phases.filter((p) => p === 'GO_AROUND')).toHaveLength(2);
+    expect(phases).not.toContain('TURN');
+    expect(r?.outcome).toBe('RTH');
+    expect(r?.refly).toEqual([0]);
+    expect((r?.linePasses ?? []).map((p) => `${p.lineIndex}:${p.pass}`)).toEqual(['0:0']);
     expect(missionExecution(r?.linePasses ?? [], plannedOf(m))).toBeLessThan(0.4);
   });
 });
@@ -155,6 +163,7 @@ describe('determinismo e erro de entrada', () => {
       contract: C00,
       elevationAlong: () => 100,
       calm: false,
+      difficulty: DIFFICULTY.MEDIUM,
     };
     const p = beginLinePass(input);
     expect(Math.abs(p.entryOffsetM) / m.plan.stats.spacingM).toBeGreaterThanOrEqual(0.3);
@@ -271,9 +280,10 @@ describe('notas, aceitação e revoo', () => {
     const { e, results, reports } = engine(m, { autopilot: false });
     const opts = (e as unknown as { opts: { autopilot: boolean } }).opts;
     opts.autopilot = auto;
+    // Assim que a linha 0 fecha (recusada), o autopilot assume e faz a curva.
     for (let t = 0; t < 1200 && e.phase !== 'POST_FLIGHT'; t += 1 / 60) {
       e.update(1 / 60);
-      if (!auto && e.phase === 'TURN') {
+      if (!auto && reports.length > 0) {
         auto = true;
         opts.autopilot = true;
       }

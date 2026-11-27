@@ -119,7 +119,7 @@ export const C00: Contract = {
   },
 };
 
-/** C01 — Metrópole Vertical (T053). O prédio mais alto da AOI tem 90 m (`URBAN_VERTICAL`). */
+/** C01 — Metrópole Vertical (T053). O prédio mais alto da AOI tem 65 m (`URBAN_VERTICAL`, ADR-035). */
 export const C01: Contract = {
   id: 'C01',
   dimension: 'REAL',
@@ -195,7 +195,7 @@ export const C01: Contract = {
     aircraft: ['DRONE_T1'],
     sensors: ['CAM_20MP_RS'],
     vehicle: 'COMPACT_CAR',
-    notes: 'Voe acima dos prédios mais altos (90 m)!',
+    notes: 'Voe acima dos prédios mais altos (65 m)!',
   },
   minVehicle: 'FOOT_BIKE',
   basePaymentBRL: brl(12_000),

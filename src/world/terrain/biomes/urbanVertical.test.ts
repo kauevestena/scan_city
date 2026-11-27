@@ -140,10 +140,10 @@ describe('createTerrain — URBAN_VERTICAL (C01)', () => {
     expect(blocks).toBeGreaterThanOrEqual(8);
   });
 
-  it('alturas de 10 + 80·r³: 10–90 m, ≥ 20 % acima de 60 m (também dentro da AOI) e um de 90 m', () => {
+  it('alturas de 10 + 55·r³: 10–65 m, ≥ 20 % acima de 45 m (também dentro da AOI) e um de 65 m', () => {
     expect(buildingHeightM(0)).toBe(10);
-    expect(buildingHeightM(1)).toBe(90);
-    expect(buildingHeightM(0.5)).toBe(20);
+    expect(buildingHeightM(1)).toBe(65);
+    expect(buildingHeightM(0.5)).toBeCloseTo(16.875, 9);
     const heights = buildings.map((b) => b.heightM);
     expect(Math.min(...heights)).toBeGreaterThanOrEqual(10);
     expect(Math.max(...heights)).toBe(TALLEST_BUILDING_M);
@@ -151,10 +151,11 @@ describe('createTerrain — URBAN_VERTICAL (C01)', () => {
     const aoi = buildings.filter(inAoi);
     expect(aoi.length).toBeGreaterThanOrEqual(30);
     expect(share(aoi)).toBeGreaterThanOrEqual(0.2);
-    // O mais alto da AOI tem exatamente 90 m e é único: a nota do briefing.
+    // O mais alto da AOI tem exatamente 65 m e é único: a nota do briefing. O Atlas, que voa até
+    // 83 m pelo GSD de 3,5 cm do contrato, passa por cima (ADR-035).
     expect(Math.max(...aoi.map((b) => b.heightM))).toBe(TALLEST_BUILDING_M);
     expect(buildings.filter((b) => b.heightM === TALLEST_BUILDING_M)).toHaveLength(1);
-    // Os baixos nunca passam de 60 m por acaso: são só os altos que formam o cânion.
+    // Os baixos nunca passam de 45 m por acaso: são só os altos que formam o cânion.
     const lowest = buildings.filter((b) => b.heightM <= TALL_MIN_M);
     expect(Math.max(...lowest.map((b) => b.heightM))).toBeLessThan(TALL_MIN_M);
   });
@@ -197,7 +198,7 @@ describe('createTerrain — URBAN_VERTICAL (C01)', () => {
     expect(slope).toBeLessThan(15);
   });
 
-  it('zonas RTK_CANYON (≥ 2): uma por par de prédios > 60 m a < 40 m, e o RTK vira FLOAT dentro', () => {
+  it('zonas RTK_CANYON (≥ 2): uma por par de prédios > 45 m a < 40 m, e o RTK vira FLOAT dentro', () => {
     expect(terrain.zones.length).toBeGreaterThanOrEqual(2);
     expect(terrain.zones.every((z) => z.kind === 'RTK_CANYON')).toBe(true);
     expect(terrain.zones).toEqual(rtkCanyonZones(buildings));
@@ -278,9 +279,9 @@ describe('createTerrain — URBAN_VERTICAL (C01)', () => {
     expect(terrain.palette.cover.ROAD.every((c) => c < 100)).toBe(true);
   });
 
-  it('o MDS sobre o prédio mais alto passa de 90 m; elevation custa < 2 µs por chamada', () => {
+  it('o MDS sobre o prédio mais alto passa de 65 m; elevation custa < 2 µs por chamada', () => {
     const tower = buildings.find((b) => b.heightM === TALLEST_BUILDING_M) as WorldObject;
-    expect(terrain.surface(tower.u, tower.v) - terrain.elevation(tower.u, tower.v)).toBe(90);
+    expect(terrain.surface(tower.u, tower.v) - terrain.elevation(tower.u, tower.v)).toBe(65);
     const start = performance.now();
     let acc = 0;
     for (let i = 0; i < 100_000; i++) acc += terrain.elevation(i % 360, (i * 7) % 240);

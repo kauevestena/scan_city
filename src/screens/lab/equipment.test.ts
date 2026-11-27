@@ -44,7 +44,7 @@ describe('"Usar valores do meu equipamento"', () => {
     expect(eq.optics.focalMm).toBeCloseTo(4.5, 9);
     expect(eq.optics.sensorWidthMm).toBe(6.17);
     expect(eq.optics.pixelUm).toBeCloseTo(1.89, 2);
-    expect(eq.optics.heightM).toBe(Math.min(WORKING_HEIGHT_M, 80));
+    expect(eq.optics.heightM).toBe(Math.min(WORKING_HEIGHT_M, getAircraft('ATLAS').hMaxM));
     expect(eq.aircraftName).toBe(getAircraft('ATLAS').name);
   });
 
@@ -81,8 +81,9 @@ describe('"Usar valores do meu equipamento"', () => {
     expect(eq.stereo.heightM).toBe(100);
   });
 
-  it('a altura respeita o teto da aeronave (Atlas: 80 m)', () => {
-    expect(equipmentValues(inventory()).stereo.heightM).toBe(80);
+  it('a altura fica na de trabalho do laboratório (100 m), abaixo do teto do Atlas (120 m)', () => {
+    expect(getAircraft('ATLAS').hMaxM).toBe(120);
+    expect(equipmentValues(inventory()).stereo.heightM).toBe(WORKING_HEIGHT_M);
   });
 });
 
@@ -92,7 +93,7 @@ describe('"Usar valores do meu equipamento": dossel e shutter', () => {
     expect(eq.payloadName).toBeNull();
     expect(eq.canopy.prrKHz).toBeUndefined();
     expect(eq.canopy.maxReturns).toBeUndefined();
-    expect(eq.canopy.heightM).toBe(80);
+    expect(eq.canopy.heightM).toBe(100);
     expect(eq.canopy.speedMs).toBe(10);
   });
 
@@ -113,8 +114,8 @@ describe('"Usar valores do meu equipamento": dossel e shutter', () => {
     const eq = equipmentValues(inventory());
     expect(eq.shutter.global).toBe(true);
     expect(eq.shutter.readoutMs).toBeUndefined();
-    // 80 m · 1,89 µm / 4,5 mm = 3,36 cm, preso na faixa do slider (0,5 a 5 cm).
-    expect(eq.shutter.gsdCm).toBeCloseTo(3.36, 1);
+    // 100 m · 1,89 µm / 4,5 mm = 4,20 cm, dentro da faixa do slider (0,5 a 5 cm).
+    expect(eq.shutter.gsdCm).toBeCloseTo(4.2, 1);
     expect(eq.shutter.speedMs).toBe(10);
   });
 

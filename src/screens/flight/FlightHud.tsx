@@ -7,6 +7,7 @@ import type { AoiPoint } from '@/types';
 import { useGameStore } from '@/state/store';
 import { cx, ProgressBar } from '@/ui';
 import { CounterMark, ExecutionStrip, GradeMark, LineReportCard, Windsock } from './ExecutionHud';
+import { DifficultyChip, GoAroundCard, TurnMark, TurnPrompt, VerticalWind } from './TurnHud';
 
 const T = STRINGS.flight;
 
@@ -109,6 +110,9 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
       data-corridor-delta={snap.corridorDeltaM.toFixed(2)}
       data-corridor-tol={snap.corridorTolM.toFixed(2)}
       data-speed-ratio={ratio.toFixed(3)}
+      data-turn-side={snap.turn?.side ?? 0}
+      data-turn-to-gate={snap.turn ? snap.turn.toGateS.toFixed(2) : ''}
+      data-turn-judged={snap.turn?.judged ?? ''}
     >
       {rift && (
         // Moldura de fenda: um filete violeta em volta de todo o HUD (contracts-rifts §1).
@@ -136,6 +140,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
           <span>{snap.sensorName}</span>
           <span className="text-slate-400">·</span>
           <span data-testid="hud-rtk">{T.rtk(snap.rtk)}</span>
+          <DifficultyChip difficulty={snap.difficulty} />
           {snap.cruise.on && snap.cruise.factor > 1.05 && (
             <span className="font-mono font-bold text-amber-400" data-testid="hud-warp">
               {T.cruise(formatNumber(snap.cruise.factor, 1))}
@@ -224,7 +229,9 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
           )}
           <GradeMark snap={snap} calm={reduceFlashes} />
           <CounterMark snap={snap} calm={reduceFlashes} />
+          <TurnMark snap={snap} calm={reduceFlashes} />
           <LineReportCard snap={snap} />
+          <GoAroundCard snap={snap} />
           {phaseLabel && (
             <span
               className="font-mono text-xs tracking-widest text-cyan-300"
@@ -236,6 +243,10 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
         </div>
       </div>
 
+      {/* A curva para a próxima faixa: perto da aeronave, acima dos painéis de baixo. */}
+      <div className="absolute bottom-44 left-1/2 -translate-x-1/2">
+        <TurnPrompt snap={snap} calm={reduceFlashes} />
+      </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-end gap-6">
           <div className="flex flex-col gap-1 rounded-lg bg-slate-950/70 px-3 py-2">
@@ -267,6 +278,7 @@ export function FlightHud({ snap, rift = false }: { snap: FlightHudSnapshot; rif
               <Readout label={T.wind} value={`${formatNumber(snap.windCrossMs, 1)} m/s`} />
               <Readout label={T.crab} value={`${formatNumber(snap.crabDeg, 0)}°`} />
               <Windsock snap={snap} calm={reduceFlashes} />
+              <VerticalWind snap={snap} />
             </div>
           </div>
           <div className="flex flex-col gap-1 rounded-lg bg-slate-950/70 px-3 py-2">

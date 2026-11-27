@@ -39,10 +39,16 @@ describe('dicas do primeiro voo (tutorial do C00)', () => {
 
   it('a rajada avisada e o boletim valem também fora da reta', () => {
     const seen = new Set<CoachBeat>(['ENTRY']);
-    const warned = { ...quiet, gust: { side: 1 as const, inS: 1.2, active: false } };
+    const warned = {
+      ...quiet,
+      gust: { side: 1 as const, axis: 'LATERAL' as const, inS: 1.2, active: false },
+    };
     expect(nextCoachBeat(snap(warned), seen)).toBe('GUST');
     // Só o aviso: a rajada que já sopra não é mais hora de antecipar.
-    const blowing = { ...quiet, gust: { side: 1 as const, inS: 0, active: true } };
+    const blowing = {
+      ...quiet,
+      gust: { side: 1 as const, axis: 'LATERAL' as const, inS: 0, active: true },
+    };
     expect(nextCoachBeat(snap(blowing), seen)).toBeNull();
     expect(nextCoachBeat(snap({ ...quiet, phase: 'TURN', lineReport: report }), seen)).toBe(
       'REPORT',
@@ -60,7 +66,7 @@ describe('dicas do primeiro voo (tutorial do C00)', () => {
     shown = stepCoach(shown, relief, seen, COACH_HOLD_MS + 1);
     expect(shown).toMatchObject({ beat: 'RELIEF', at: COACH_HOLD_MS + 1 });
     // A rajada avisada substitui a dica na hora.
-    const warned = snap({ ...quiet, gust: { side: -1, inS: 1.4, active: false } });
+    const warned = snap({ ...quiet, gust: { side: -1, axis: 'LATERAL', inS: 1.4, active: false } });
     shown = stepCoach(shown, warned, seen, COACH_HOLD_MS + 500);
     expect(shown?.beat).toBe('GUST');
     // Passado o tempo e sem nada novo, a caixa fica só com a dica da etapa.

@@ -43,6 +43,7 @@ import {
   summarizeCoverage,
   type ShotRules,
 } from './coverage';
+import { difficultyParams } from './difficulty';
 import { plannedSamples } from './corridor';
 import {
   bestCounts,
@@ -84,6 +85,8 @@ export interface PaymentInput {
   qualityFactor: number;
   rivalFactor: number;
   contractPaymentMod: number;
+  /** Fator da dificuldade do voo (0,8 fácil, 1 média, 1,25 difícil; ADR-035). Padrão: 1. */
+  difficultyFactor?: number;
   staff: Record<StaffRoleId, number>;
   penaltiesBRL: CentsBRL;
 }
@@ -480,6 +483,8 @@ export function evaluateMission(
     qualityFactor: qualityFactor(score, critical, requirements, betterClass, pilot),
     rivalFactor: mission.rivalAdjustment,
     contractPaymentMod: ctx.modifiers.contractPayment,
+    // A dificuldade escolhida antes do voo: a fácil paga menos, a difícil, mais (ADR-035).
+    difficultyFactor: difficultyParams(mission).paymentFactor,
     staff: ctx.staff,
     penaltiesBRL,
   });

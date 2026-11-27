@@ -83,6 +83,11 @@ export interface TerrainSampler {
    * uma vez por ponto da grade, sem avaliar o relevo duas vezes (survey-flight §5.18).
    */
   landCoverAt(u: number, v: number, groundM: number): LandCover;
+  /**
+   * A cobertura sob a estrada: como `landCoverAt`, sem o `ROAD`. O voo desenha as estradas como
+   * faixas contínuas por cima do relevo (survey-flight §5.3, ADR-035), e a grade pinta o chão.
+   */
+  groundCoverAt(u: number, v: number, groundM: number): LandCover;
   /** Cobertura de dossel, 0..1. */
   canopy(u: number, v: number): number;
   ndvi(u: number, v: number): number;
@@ -237,6 +242,8 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
     if (cover !== 'WATER' && roadAt(u, v)) return 'ROAD';
     return cover;
   };
+  const groundCoverAt = (u: number, v: number, groundM: number): LandCover =>
+    isRoof(u, v) ? 'ROOF' : recipe.landCover(u, v, groundM, n);
   const landCover = (u: number, v: number): LandCover => landCoverAt(u, v, elevation(u, v));
 
   // Busca binária pelo primeiro objeto com u ≥ x.
@@ -271,6 +278,7 @@ export function buildTerrain(contract: TerrainContract, recipe: BiomeRecipe): Te
     },
     landCover,
     landCoverAt,
+    groundCoverAt,
     canopy(u, v) {
       const base = recipe.canopy(u, v, landCover(u, v), n);
       const underTree = hash

@@ -195,7 +195,7 @@ describe('envelope, empurrão e aviso', () => {
   });
 
   it('o empurrão é pico · envelope · (sen θ, cos θ) e soma as rajadas', () => {
-    expect(gustPushAt([gust], 5)).toEqual({ lateralMs: 0, alongMs: 0 });
+    expect(gustPushAt([gust], 5)).toEqual({ lateralMs: 0, alongMs: 0, verticalMs: 0 });
     const push = gustPushAt([gust], 11);
     expect(push.lateralMs).toBeCloseTo(2, 9);
     expect(push.alongMs).toBeCloseTo(4 * Math.cos(Math.PI / 6), 9);
