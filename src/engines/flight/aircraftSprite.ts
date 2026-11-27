@@ -57,10 +57,8 @@ export const ATLAS_NECK = '#10b981';
 export const ATLAS_NECK_SHEEN = 'rgba(168, 85, 247, 0.7)';
 export const ATLAS_EYE = '#fb923c';
 export const ATLAS_BEAK = '#f59e0b';
-/** O Atlas pisca a cada tantos segundos, por um instante. */
-export const ATLAS_BLINK_EVERY_S = 4.2;
-export const ATLAS_BLINK_S = 0.14;
-
+/** A cera branca na base do bico. */
+export const ATLAS_CERE = '#e5e7eb';
 /** Mistura duas cores `#rrggbb` (t = 0, a primeira; 1, a segunda). */
 export function mixHex(a: string, b: string, t: number): string {
   const pa = parseInt(a.slice(1), 16);
@@ -68,31 +66,6 @@ export function mixHex(a: string, b: string, t: number): string {
   const ch = (p: number, s: number) => (p >> s) & 0xff;
   const m = (s: number) => Math.round(ch(pa, s) + (ch(pb, s) - ch(pa, s)) * t);
   return `#${((m(16) << 16) | (m(8) << 8) | m(0)).toString(16).padStart(6, '0')}`;
-}
-
-/** O olho do Atlas: íris laranja, pupila, brilho; piscando, um risco. */
-function drawEye(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, blink: boolean) {
-  if (blink) {
-    ctx.strokeStyle = ATLAS_INK;
-    ctx.lineWidth = Math.max(1, u * 0.05);
-    ctx.beginPath();
-    ctx.moveTo(x - u * 0.1, y);
-    ctx.lineTo(x + u * 0.1, y);
-    ctx.stroke();
-    return;
-  }
-  ctx.fillStyle = ATLAS_EYE;
-  ctx.beginPath();
-  ctx.arc(x, y, u * 0.11, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath();
-  ctx.arc(x, y, u * 0.062, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(x - u * 0.03, y - u * 0.035, u * 0.028, 0, Math.PI * 2);
-  ctx.fill();
 }
 
 /**
@@ -152,7 +125,6 @@ function drawAtlasWing(
 function drawAtlas(ctx: CanvasRenderingContext2D, p: SpriteParams, u: number): void {
   const flap = Math.sin(p.timeS * (4 + p.speedMs * 0.8));
   const lift = flap * 0.9;
-  const blink = p.timeS % ATLAS_BLINK_EVERY_S < ATLAS_BLINK_S;
   // Cauda em leque, aberta, com as penas marcadas e a ponta escura.
   ctx.fillStyle = p.colors.secondary;
   ctx.beginPath();
@@ -199,45 +171,31 @@ function drawAtlas(ctx: CanvasRenderingContext2D, p: SpriteParams, u: number): v
   ctx.beginPath();
   ctx.ellipse(Math.sin(p.timeS * 1.7) * u * 0.16, -u * 0.32, u * 0.22, u * 0.15, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Cabeça grande e redonda, um tom mais escuro que o corpo.
+  // Cabeça pequena e redonda, vista de cima, um tom mais escuro que o corpo (pombo de verdade:
+  // sem topete nem cara de frente).
   const hy = -u * 0.66;
   ctx.fillStyle = mixHex(p.colors.primary, ATLAS_INK, 0.22);
   ctx.beginPath();
-  ctx.arc(0, hy, u * 0.4, 0, Math.PI * 2);
+  ctx.ellipse(0, hy, u * 0.3, u * 0.34, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Topete em três pontas, para cima e para trás: o lado destemido.
-  ctx.fillStyle = ATLAS_INK;
-  ctx.beginPath();
-  for (const [bx, tx, ty] of [
-    [-0.16, -0.3, -1.22],
-    [0, 0.02, -1.32],
-    [0.16, 0.32, -1.22],
-  ] as const) {
-    ctx.moveTo(u * (bx - 0.09), hy - u * 0.28);
-    ctx.lineTo(u * tx, u * ty);
-    ctx.lineTo(u * (bx + 0.09), hy - u * 0.3);
-  }
-  ctx.fill();
-  // Pontinha do bico, à frente.
+  // Bico à frente, com a cera branca na base.
   ctx.fillStyle = ATLAS_BEAK;
   ctx.beginPath();
-  ctx.moveTo(-u * 0.07, hy - u * 0.36);
-  ctx.lineTo(u * 0.07, hy - u * 0.36);
-  ctx.lineTo(0, hy - u * 0.52);
+  ctx.moveTo(-u * 0.06, hy - u * 0.3);
+  ctx.lineTo(u * 0.06, hy - u * 0.3);
+  ctx.lineTo(0, hy - u * 0.5);
   ctx.closePath();
   ctx.fill();
-  // Olhos nos lados da cabeça, com a sobrancelha franzida.
+  ctx.fillStyle = ATLAS_CERE;
+  ctx.beginPath();
+  ctx.ellipse(0, hy - u * 0.3, u * 0.07, u * 0.04, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Os olhos ficam nos lados da cabeça: de cima, só um pontinho laranja de cada lado.
+  ctx.fillStyle = ATLAS_EYE;
   for (const s of [-1, 1] as const) {
-    const ex = s * u * 0.3;
-    const ey = hy - u * 0.02;
-    drawEye(ctx, ex, ey, u, blink);
-    ctx.strokeStyle = ATLAS_INK;
-    ctx.lineWidth = Math.max(1, u * 0.07);
-    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(ex + s * u * 0.13, ey - u * 0.2);
-    ctx.lineTo(ex - s * u * 0.11, ey - u * 0.12);
-    ctx.stroke();
+    ctx.arc(s * u * 0.27, hy - u * 0.08, u * 0.045, 0, Math.PI * 2);
+    ctx.fill();
   }
   if (p.accessory) drawAtlasAccessory(ctx, p, u, hy);
 }

@@ -1,10 +1,4 @@
-import {
-  ATLAS_BLINK_EVERY_S,
-  ATLAS_BLINK_S,
-  drawAircraft,
-  mixHex,
-  type SpriteParams,
-} from './aircraftSprite';
+import { drawAircraft, mixHex, type SpriteParams } from './aircraftSprite';
 
 const ctx2d = () => document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
 
@@ -28,15 +22,12 @@ describe('o Atlas novo (T097)', () => {
     expect(mixHex('#94a3b8', '#1e293b', 0.22)).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('olhos abertos (íris, pupila e brilho) e, de vez em quando, uma piscada', () => {
-    const open = ctx2d();
-    drawAircraft(open, atlas({ timeS: 1 }));
-    const blink = ctx2d();
-    drawAircraft(blink, atlas({ timeS: ATLAS_BLINK_EVERY_S * 3 + ATLAS_BLINK_S / 2 }));
-    const arcs = (c: CanvasRenderingContext2D) => vi.mocked(c.arc).mock.calls.length;
-    // A cabeça e os dois olhos de três círculos cada; piscando, só a cabeça.
-    expect(arcs(open)).toBe(7);
-    expect(arcs(blink)).toBe(1);
+  it('visto de cima como um pombo de verdade: sem topete nem olhos de frente, só os pontinhos dos lados', () => {
+    const c = ctx2d();
+    drawAircraft(c, atlas({ timeS: 1 }));
+    // Só os dois pontinhos dos olhos são arcos; nada de íris, pupila ou brilho.
+    expect(vi.mocked(c.arc).mock.calls).toHaveLength(2);
+    for (const call of vi.mocked(c.arc).mock.calls) expect(call[2]).toBeLessThan(2);
   });
 
   it('as asas batem: a ponta muda de lugar com o tempo', () => {

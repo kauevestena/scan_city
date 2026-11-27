@@ -2074,12 +2074,12 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Fase:** F11 · **Depende de:** T096 · **REQs:** REQ-OFF-001, REQ-OFF-005, REQ-PRG-008
 - **Spec:** [survey-flight §5.6](features/survey-flight.md), [office §4](features/office.md), [catalog §10](content/catalog.md)
 - **Passos:**
-  1. Sprite do voo (de trás): cauda em leque com a ponta escura, corpo gordinho, pescoço iridescente, asas com as barras e as rêmiges escuras, cabeça grande com o topete em três pontas, olhos laranja que piscam e a sobrancelha franzida.
+  1. Sprite do voo (de trás): cauda em leque com a ponta escura, corpo gordinho, pescoço iridescente, asas com as barras e as rêmiges escuras, cabeça pequena de pombo visto de cima, com o bico e os olhos só como pontinhos nos lados.
   2. Acessórios pelo id: óculos de aviador, cachecol com as pontas tremulando, mochilinha GPS com antena e LED, coroa de louros; sem id conhecido, a faixa no pescoço. O motor do voo recebe o id do acessório equipado.
   3. O poleiro do escritório (de perfil) com o mesmo pombo e os mesmos acessórios, nas cores da mesma paleta.
   4. Testes do desenho (piscada, batida das asas, um desenho por acessório, a bicada), specs e o roteiro de QA.
 - **Aceite:**
-  - [x] O Atlas do voo e do poleiro tem olho com brilho que pisca, sobrancelha franzida, topete, pescoço iridescente e as barras na asa.
+  - [x] No voo, o Atlas parece um pombo de verdade visto de cima (sem olhos de frente); no poleiro, tem olho com brilho que pisca, sobrancelha franzida e topete. Os dois têm pescoço iridescente e as barras na asa.
   - [x] Cada acessório tem o seu desenho, no voo e no poleiro.
   - [x] Sem gradiente novo a cada quadro (cores chapadas); a mesa holográfica segue desenhando o Atlas em miniatura.
   - [x] O `verify` segue verde.
