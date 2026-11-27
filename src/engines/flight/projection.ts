@@ -10,6 +10,8 @@ export const QUALITY: Readonly<Record<Quality, { bands: number; cols: number; zF
 };
 
 export const FOV_H_DEG = 70;
+/** Proporção de referência do enquadramento (16:9); telas mais largas não ampliam a cena. */
+export const REFERENCE_ASPECT = 16 / 9;
 export const CAMERA_OFFSET_M = 30;
 export const CAM_UP_M = 12;
 export const Z_NEAR_M = 1;
@@ -58,7 +60,11 @@ export function makeCamera(
   return {
     width,
     height,
-    focalPx: width / 2 / Math.tan(((FOV_H_DEG / 2) * Math.PI) / 180),
+    // O FOV horizontal vale para telas até 16:9. Em telas mais largas (ultrawide 21:9) o foco
+    // fica limitado pela altura: o enquadramento vertical é o mesmo do 16:9 (a aeronave continua
+    // na tela) e o que sobra de largura mostra mais cenário dos lados.
+    focalPx:
+      Math.min(width, height * REFERENCE_ASPECT) / 2 / Math.tan(((FOV_H_DEG / 2) * Math.PI) / 180),
     horizonX: width / 2,
     horizonY: horizonFrac * height,
     camX,

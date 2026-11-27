@@ -53,6 +53,14 @@ describe('projeção (§5.1)', () => {
     expect(makeCamera(1280, 720, 0, 0, 'LOW').zFar).toBe(QUALITY.LOW.zFar);
   });
 
+  it('ultrawide 21:9: o foco é limitado pela altura e a aeronave continua na tela', () => {
+    const wide = makeCamera(3440, 1440, 0, 100);
+    expect(wide.focalPx).toBeCloseTo(makeCamera(2560, 1440, 0, 100).focalPx, 9);
+    const ac = projectAbs(0, 100, 0, wide);
+    expect(ac?.y).toBeLessThan(1440);
+    expect(ac?.x).toBeCloseTo(1720, 9);
+  });
+
   it('scale = focal/(Z + 30); X à direita, altura menor fica mais abaixo', () => {
     const p = projectAbs(10, 0, 70, cam);
     expect(p?.scale).toBeCloseTo(cam.focalPx / 100, 9);
