@@ -228,12 +228,9 @@ export function SatelliteView(props: SatelliteViewProps) {
     if (reason) refuse(reason, x, y, u, v);
   };
 
-  /** Enter/Espaço com o foco no mapa: age na mira, no centro da tela (REQ-NFR-007). */
-  const onKeyDown = (e: KeyboardEvent<HTMLCanvasElement>) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (!surface || e.repeat) return;
+  /** Age na mira, no centro da tela: coloca o ponto da ferramenta ou apaga o que estiver sob ela. */
+  const actAtCrosshair = () => {
+    if (!surface) return;
     const x = surface.width / 2;
     const y = surface.height / 2;
     const { u, v } = world(x, y);
@@ -248,6 +245,23 @@ export function SatelliteView(props: SatelliteViewProps) {
       const reason = props.onPlace(u, v);
       if (reason) refuse(reason, x, y, u, v);
     }
+  };
+
+  /** Enter/Espaço com o foco no mapa: age na mira (REQ-NFR-007). */
+  const onKeyDown = (e: KeyboardEvent<HTMLCanvasElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.repeat) return;
+    actAtCrosshair();
+  };
+
+  /**
+   * O controle confirma com um `click()` sintético no elemento focado (`detail` 0); o mouse já age
+   * no `pointerdown`, e o teclado no `keydown`, então só o clique sintético age aqui.
+   */
+  const onClick = (e: MouseEvent<HTMLCanvasElement>) => {
+    if (e.detail === 0) actAtCrosshair();
   };
 
   const onWheel = (e: WheelEvent<HTMLCanvasElement>) => {
@@ -272,11 +286,13 @@ export function SatelliteView(props: SatelliteViewProps) {
         data-testid="satellite-canvas"
         role="application"
         tabIndex={0}
+        data-focusable
         aria-label={STRINGS.field.canvasLabel}
         aria-description={STRINGS.field.canvasHint}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         onKeyDown={onKeyDown}
+        onClick={onClick}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
