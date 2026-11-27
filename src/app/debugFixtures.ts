@@ -26,7 +26,7 @@ import { COSMETICS } from '@/data/cosmetics';
 import { CONTRACTS, findContract } from '@/data/contracts';
 import { referencePoints, syntheticMission } from '@/domain/referencePlan';
 import { createTerrain } from '@/world/terrain/createTerrain';
-import type { DebugFlags } from './debugFlags';
+import { getDebugFlags, type DebugFlags } from './debugFlags';
 
 /**
  * Estado e payloads de teste para depuração (architecture §7): `?screen=` e as ações rápidas do
@@ -276,7 +276,13 @@ function ensureActiveMission(store: Store, contractId: string, withData: boolean
   const current = store.getState().mission.active;
   const hasData = current !== null && current.shots.length > 0;
   if (current && current.contractId === contractId && hasData === withData) return current;
-  const mission = { ...createDebugMission(contractId, withData), status: 'IN_FLIGHT' as const };
+  const difficulty = getDebugFlags().difficulty;
+  const mission = {
+    ...createDebugMission(contractId, withData),
+    status: 'IN_FLIGHT' as const,
+    // `difficulty=`: a dificuldade do voo de teste (ADR-035).
+    ...(difficulty ? { difficulty } : {}),
+  };
   store.getState().beginMission(mission);
   prepareContractState(store, contractId);
   return mission;

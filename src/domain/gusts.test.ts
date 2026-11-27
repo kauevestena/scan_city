@@ -23,6 +23,19 @@ import {
   judgeCounter,
   stepCounter,
   type CounterState,
+  DRAFT_HOLD_S,
+  DRAFT_PEAK_MS,
+  DRAFT_RAMP_S,
+  DRAFT_WARN_S,
+  draftAt,
+  draftDurationS,
+  draftEnvelope,
+  draftPushAt,
+  gustAxis,
+  gustDir,
+  planDrafts,
+  VERTICAL_GUST_FACTOR,
+  type Draft,
   gustDurationS,
   gustEnvelope,
   gustPushAt,
@@ -195,7 +208,7 @@ describe('envelope, empurrão e aviso', () => {
   });
 
   it('o empurrão é pico · envelope · (sen θ, cos θ) e soma as rajadas', () => {
-    expect(gustPushAt([gust], 5)).toEqual({ lateralMs: 0, alongMs: 0 });
+    expect(gustPushAt([gust], 5)).toEqual({ lateralMs: 0, alongMs: 0, verticalMs: 0 });
     const push = gustPushAt([gust], 11);
     expect(push.lateralMs).toBeCloseTo(2, 9);
     expect(push.alongMs).toBeCloseTo(4 * Math.cos(Math.PI / 6), 9);
@@ -304,5 +317,99 @@ describe('entrada de faixa', () => {
       expect(Math.abs(entryOffsetM(mulberry32(seed), 90, 20))).toBeCloseTo(18, 9);
       expect(Math.abs(entryOffsetM(mulberry32(seed), 90, 0))).toBe(0);
     }
+  });
+});
+
+describe('rajadas verticais e correntes (ADR-035)', () => {
+  it('sem fração vertical, a agenda é a mesma de antes (nada a mais é sorteado)', () => {
+    const before = planGusts(mulberry32(5), WIND, 0.3, 42, 3);
+    expect(planGusts(mulberry32(5), WIND, 0.3, 42, 3, { verticalShare: 0 })).toEqual(before);
+    expect(before.every((g) => g.vertical === undefined)).toBe(true);
+  });
+
+  it('com fração vertical, parte das rajadas sobe ou desce, todas para o lado da passada', () => {
+    let vertical = 0;
+    let total = 0;
+    for (let k = 0; k < 100; k++) {
+      const gusts = planGusts(mulberry32(k), WIND, 0.3, 60, 3, {
+        verticalShare: 0.4,
+        verticalDir: -1,
+      });
+      total += gusts.length;
+      for (const g of gusts) {
+        if (g.vertical === undefined) continue;
+        vertical++;
+        expect(g.vertical).toBe(-1);
+        expect(gustAxis(g)).toBe('VERTICAL');
+        expect(gustDir(g)).toBe(-1);
+        expect(g.peakMs * (1 / VERTICAL_GUST_FACTOR)).toBeGreaterThanOrEqual(
+          GUST_MIN_PEAK_MS * GUST_PEAK_FACTOR[0] - 1e-9,
+        );
+      }
+    }
+    expect(vertical / total).toBeGreaterThan(0.3);
+    expect(vertical / total).toBeLessThan(0.5);
+  });
+
+  it('o período da dificuldade muda quantas rajadas cabem (dentro do máximo por linha)', () => {
+    expect(gustCount(30, 7)).toBe(4);
+    expect(gustCount(30, 5.5)).toBe(5);
+    expect(gustCount(600, 5.5)).toBe(9);
+  });
+
+  it('a rajada vertical empurra só na vertical, e o peso do contragolpe vale para ela', () => {
+    const up: Gust = { startS: 10, rampS: 0.5, holdS: 2, peakMs: 4, angleRad: 0, vertical: 1 };
+    expect(gustPushAt([up], 11)).toEqual({ lateralMs: 0, alongMs: 0, verticalMs: 4 });
+    expect(gustPushAt([up], 11, [COUNTER_PUSH_FACTOR]).verticalMs).toBeCloseTo(0.8, 9);
+    const down = { ...up, vertical: -1 as const };
+    expect(gustPushAt([down], 11).verticalMs).toBe(-4);
+    // A de lado segue no eixo dela.
+    const side: Gust = { ...up, vertical: undefined, angleRad: Math.PI / 2 };
+    expect(gustAxis(side)).toBe('LATERAL');
+    expect(gustDir(side)).toBe(1);
+    expect(gustPushAt([side], 11).verticalMs).toBe(0);
+  });
+
+  it('correntes: uma a cada período, nenhuma sem período ou em linha curta, todas para um lado', () => {
+    expect(planDrafts(mulberry32(1), 60, 3, null)).toEqual([]);
+    expect(planDrafts(mulberry32(1), 10, 3, 22)).toEqual([]);
+    const drafts = planDrafts(mulberry32(1), 66, 3, 22);
+    expect(drafts).toHaveLength(3);
+    const dirs = new Set(drafts.map((d) => d.dir));
+    expect(dirs.size).toBe(1);
+    expect(planDrafts(mulberry32(1), 66, 3, 22, 1).every((d) => d.dir === 1)).toBe(true);
+    let prevEnd = -Infinity;
+    for (const d of drafts) {
+      expect(d.rampS).toBe(DRAFT_RAMP_S);
+      expect(d.holdS).toBeGreaterThanOrEqual(DRAFT_HOLD_S[0]);
+      expect(d.holdS).toBeLessThanOrEqual(DRAFT_HOLD_S[1]);
+      expect(d.peakMs).toBeGreaterThanOrEqual(DRAFT_PEAK_MS[0]);
+      expect(d.peakMs).toBeLessThanOrEqual(DRAFT_PEAK_MS[1]);
+      // Dentro da janela das rajadas, sem se cruzar (com o aviso).
+      expect(d.startS - DRAFT_WARN_S).toBeGreaterThanOrEqual(3 + 1 - 1e-9);
+      expect(d.startS + draftDurationS(d)).toBeLessThanOrEqual(66 - 4 + 1e-9);
+      expect(d.startS - DRAFT_WARN_S).toBeGreaterThanOrEqual(prevEnd - 1e-9);
+      prevEnd = d.startS + draftDurationS(d);
+    }
+  });
+
+  it('o envelope da corrente sobe devagar, fica e desce; o empurrão é pico · envelope · lado', () => {
+    const d: Draft = { startS: 10, rampS: 0.8, holdS: 3, peakMs: 2.5, dir: -1 };
+    expect(draftDurationS(d)).toBeCloseTo(4.6, 9);
+    expect(draftEnvelope(d, 10)).toBe(0);
+    expect(draftEnvelope(d, 10.4)).toBeCloseTo(0.5, 9);
+    expect(draftEnvelope(d, 12)).toBe(1);
+    expect(draftEnvelope(d, 14.2)).toBeCloseTo(0.5, 9);
+    expect(draftEnvelope(d, 14.6)).toBe(0);
+    expect(draftPushAt([d], 12)).toBeCloseTo(-2.5, 9);
+    expect(draftPushAt([d, { ...d, dir: 1, startS: 11 }], 12)).toBeCloseTo(0, 9);
+  });
+
+  it('draftAt: a corrente avisada 1 s antes e a em curso; nada fora delas', () => {
+    const d: Draft = { startS: 10, rampS: 0.8, holdS: 3, peakMs: 2.5, dir: 1 };
+    expect(draftAt([d], 8.9)).toBeNull();
+    expect(draftAt([d], 9.5)).toEqual({ draft: d, inS: 0.5 });
+    expect(draftAt([d], 12)?.inS).toBeCloseTo(-2, 9);
+    expect(draftAt([d], 14.7)).toBeNull();
   });
 });

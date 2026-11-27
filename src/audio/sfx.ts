@@ -19,7 +19,8 @@ export type SfxId =
   | 'GRADE'
   | 'GRADE_MISS'
   | 'GUST_CUT'
-  | 'GUST_HIT';
+  | 'GUST_HIT'
+  | 'TURN_OK';
 
 export type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 
@@ -42,6 +43,7 @@ export const SFX_IDS: readonly SfxId[] = [
   'GRADE_MISS',
   'GUST_CUT',
   'GUST_HIT',
+  'TURN_OK',
 ];
 export const LOOP_IDS: readonly LoopId[] = ['LIDAR_HUM', 'MOTOR', 'WIND', 'PROCESSING'];
 
@@ -354,6 +356,20 @@ export const SFX: Record<SfxId, (v: Voice) => number> = {
     f.frequency.exponentialRampToValueAtTime(250, v.t0 + 0.3);
     noiseNode(v, f, v.t0, v.t0 + 0.32);
     return 0.32;
+  },
+
+  // A curva no tempo (ADR-035): o ar varrido na inclinação (ruído em passa-banda subindo devagar)
+  // e duas notas que sobem, uma quinta acima.
+  TURN_OK: (v) => {
+    const g = gainNode(v.ctx, 0, v.out);
+    env(g.gain, v.t0, { a: 0.03, d: 0.24, peak: 0.14 });
+    const f = filterNode(v.ctx, 'bandpass', 900, g, 0.9);
+    f.frequency.setValueAtTime(800, v.t0);
+    f.frequency.exponentialRampToValueAtTime(3000, v.t0 + 0.25);
+    noiseNode(v, f, v.t0, v.t0 + 0.28);
+    tone(v, 'triangle', 660, v.t0 + 0.04, { a: 0.003, d: 0.1, peak: 0.16 });
+    tone(v, 'triangle', 990, v.t0 + 0.12, { a: 0.003, d: 0.14, peak: 0.16 });
+    return 0.28;
   },
 };
 

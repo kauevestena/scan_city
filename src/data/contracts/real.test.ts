@@ -94,7 +94,8 @@ describe('C01 — Metrópole Vertical', () => {
         )
         .map((o) => o.heightM),
     );
-    expect(tallest).toBe(90);
+    // 65 m (ADR-035): o Atlas, no máximo do GSD do contrato (83 m), passa por cima de todos.
+    expect(tallest).toBe(65);
     expect(C01.recommended.notes).toContain(`${tallest} m`);
     expect(C01.recommended.notes).toMatch(/acima dos prédios mais altos/);
   });

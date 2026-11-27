@@ -1,6 +1,19 @@
 // input §1 — Ações abstratas, desacopladas dos dispositivos.
 
-export type AxisAction = 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'LOOK_X' | 'LOOK_Y' | 'ZOOM';
+/**
+ * `TURN_LEFT`/`TURN_RIGHT` (0 a 1): a tecla da curva de cada lado na manobra de troca de faixa
+ * (survey-flight §5.7, ADR-035): `Q`/`E` no teclado, `LT`/`RT` no controle.
+ */
+export type AxisAction =
+  | 'MOVE_X'
+  | 'MOVE_Y'
+  | 'ALT_UP'
+  | 'ALT_DOWN'
+  | 'TURN_LEFT'
+  | 'TURN_RIGHT'
+  | 'LOOK_X'
+  | 'LOOK_Y'
+  | 'ZOOM';
 
 export type ButtonAction =
   | 'INTERACT'

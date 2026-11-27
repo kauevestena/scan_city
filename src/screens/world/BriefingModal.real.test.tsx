@@ -29,7 +29,7 @@ describe('BriefingModal — C01 Metrópole Vertical', () => {
     expect(rules[0]).toHaveTextContent('Cânions urbanos');
     expect(rules[0]).toHaveTextContent('o RTK cai para FLOAT');
     // A nota do cliente avisa da altura do prédio mais alto.
-    expect(d.getByText('Voe acima dos prédios mais altos (90 m)!')).toBeInTheDocument();
+    expect(d.getByText('Voe acima dos prédios mais altos (65 m)!')).toBeInTheDocument();
     expect(d.getByText('240 × 360 m')).toBeInTheDocument();
     expect(d.getByText('Sol alto, Nublado, Hora dourada')).toBeInTheDocument();
     expect(d.getByTestId('briefing-payment').textContent?.replace(/\s/g, ' ')).toBe('R$ 12.000,00');

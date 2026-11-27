@@ -29,6 +29,8 @@ export function paymentRows(p: QualityReport['payment'], pilotBonus = 0): Array<
   ]);
   if (p.rivalFactor !== 1) rows.push([R.rival, factor(p.rivalFactor)]);
   if (p.managementBonus !== 1) rows.push([R.management, factor(p.managementBonus)]);
+  // A dificuldade escolhida antes do voo (ADR-035): a fácil paga menos e a difícil, mais.
+  if ((p.difficultyFactor ?? 1) !== 1) rows.push([R.difficulty, factor(p.difficultyFactor ?? 1)]);
   if (p.staffBonus !== 1) rows.push([R.staff, factor(p.staffBonus)]);
   if (p.staffCostBRL > 0) rows.push([R.staffCost, `− ${formatBRL(p.staffCostBRL)}`]);
   if (p.penaltiesBRL > 0) rows.push([R.penalties, `− ${formatBRL(p.penaltiesBRL)}`]);

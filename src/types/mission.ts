@@ -151,6 +151,12 @@ export interface LidarBatch {
 
 export type SortieOutcome = 'COMPLETED' | 'RTH' | 'CRASH' | 'ENERGY_DEPLETED' | 'ABORTED';
 
+/**
+ * Dificuldade do voo (survey-flight §5.22, ADR-035), escolhida no checklist antes da decolagem:
+ * o ritmo, as rajadas e correntes verticais, a janela da curva e o pagamento.
+ */
+export type FlightDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
 export interface MissionData {
   /** `${contractId}-${timestamp}`. */
   id: string;
@@ -158,6 +164,8 @@ export interface MissionData {
   createdAt: number;
   /** Multiplicador de pagamento (1, 0,85…). */
   rivalAdjustment: number;
+  /** Dificuldade do voo. Ausente em save antigo e em missão sintética: vale a média. */
+  difficulty?: FlightDifficulty;
   isReplay: boolean;
   plan: FlightPlan;
   groundPoints: GroundPoint[];

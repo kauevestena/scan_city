@@ -18,10 +18,10 @@ describe('rtkCanyonZones', () => {
   it('sem prédios altos, ou com um só, não há cânion', () => {
     expect(rtkCanyonZones([])).toEqual([]);
     expect(rtkCanyonZones([building(100, 80, 90)])).toEqual([]);
-    expect(rtkCanyonZones([building(100, 80, 60), building(130, 80, 60)])).toEqual([]); // 60 não é > 60
+    expect(rtkCanyonZones([building(100, 80, 45), building(130, 80, 45)])).toEqual([]); // 45 não é > 45
   });
 
-  it('só prédios > 60 m contam, e o vão entre pegadas define o cânion (< 40 m)', () => {
+  it('só prédios > 45 m contam, e o vão entre pegadas define o cânion (< 40 m)', () => {
     const near = rtkCanyonZones([building(100, 80, 70), building(139, 80, 90)]); // vão de 19 m
     expect(near).toEqual([{ kind: 'RTK_CANYON', uMin: 90, uMax: 149, vMin: 70, vMax: 90 }]);
     // Vão de exatamente 40 m: não é cânion.

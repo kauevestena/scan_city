@@ -1,15 +1,76 @@
 import { Play } from 'lucide-react';
 import { CATALOG } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
+import { DIFFICULTIES, DIFFICULTY, missionDifficulty } from '@/domain/difficulty';
 import { validatePlan } from '@/domain/flightPlanner';
 import { predictRequirements } from '@/domain/requirements';
 import { useGameStore } from '@/state/store';
-import { Button, ChecklistItem, type ChecklistStatus } from '@/ui';
+import type { FlightDifficulty } from '@/types';
+import { Button, ChecklistItem, cx, FOCUS_RING, type ChecklistStatus } from '@/ui';
 import type { FieldContext } from './useFieldContext';
 
 const F = STRINGS.field;
 
-/** Aba 4 (field-setup §5.5): requisitos previstos, bloqueantes, avisos e decolagem. */
+const D = F.difficulty;
+
+/**
+ * A dificuldade do voo (survey-flight §5.22, ADR-035): três opções com o que muda e o efeito no
+ * pagamento. A média vem marcada; a escolha vale para todas as surtidas da missão.
+ */
+function DifficultyPicker({ value }: { value: FlightDifficulty }) {
+  const set = useGameStore((s) => s.setFlightDifficulty);
+  return (
+    <section className="flex flex-col gap-1.5" data-testid="checklist-difficulty">
+      <h3
+        id="difficulty-title"
+        className="text-xs font-semibold tracking-widest text-slate-400 uppercase"
+      >
+        {D.title}
+      </h3>
+      <div role="radiogroup" aria-labelledby="difficulty-title" className="flex flex-col gap-1.5">
+        {DIFFICULTIES.map((d) => {
+          const checked = d === value;
+          return (
+            <button
+              key={d}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              data-difficulty={d}
+              onClick={() => set(d)}
+              className={cx(
+                'flex flex-col items-start rounded-lg border px-3 py-1.5 text-left',
+                FOCUS_RING,
+                checked
+                  ? 'border-cyan-400 bg-cyan-950/60 text-slate-100'
+                  : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-500',
+              )}
+            >
+              <span className="flex w-full items-baseline justify-between gap-2 text-sm font-semibold">
+                {D.options[d].label}
+                <span
+                  className={cx(
+                    'font-mono text-xs',
+                    DIFFICULTY[d].paymentFactor > 1
+                      ? 'text-emerald-300'
+                      : DIFFICULTY[d].paymentFactor < 1
+                        ? 'text-amber-300'
+                        : 'text-slate-400',
+                  )}
+                >
+                  {D.pay(DIFFICULTY[d].paymentFactor)}
+                </span>
+              </span>
+              <span className="text-xs text-slate-400">{D.options[d].detail}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** Aba 4 (field-setup §5.5): requisitos previstos, bloqueantes, avisos, dificuldade e decolagem. */
 export function ChecklistTab({ field, onTakeoff }: { field: FieldContext; onTakeoff: () => void }) {
   const inventory = useGameStore((s) => s.inventory);
   const { mission, contract, predict } = field;
@@ -62,6 +123,7 @@ export function ChecklistTab({ field, onTakeoff }: { field: FieldContext; onTake
           </ul>
         </section>
       )}
+      <DifficultyPicker value={missionDifficulty(mission)} />
       <Button
         variant="primary"
         size="lg"

@@ -1,6 +1,9 @@
 import type { FlightLine } from '@/types';
 import {
+  CAM_ALT_MAX_LAG_M,
+  CAM_ALT_TAU_S,
   CAMERA_OFFSET_M,
+  followCameraAlt,
   halfWidthAt,
   makeCamera,
   project,
@@ -70,5 +73,32 @@ describe('projeção (§5.1)', () => {
     expect(hit?.X).toBeCloseTo(12, 3);
     expect(unprojectGround(640, 10, cam, elev)).toBeNull();
     expect(halfWidthAt(70, cam)).toBeCloseTo(680 / (cam.focalPx / 100), 9);
+  });
+});
+
+describe('a câmera segue a altitude com atraso (ADR-035)', () => {
+  it('sem anterior, a da aeronave; subindo, fica para trás e a aeronave sobe na tela', () => {
+    expect(followCameraAlt(null, 60, 0.016)).toBe(60);
+    // Um passo de 1/60 s com a aeronave 2 m acima: a câmera anda só uma fração.
+    const cam = followCameraAlt(60, 62, 1 / 60);
+    expect(cam).toBeGreaterThan(60);
+    expect(cam).toBeLessThan(61);
+    // Depois de alguns tempos de resposta, alcança.
+    let c = 60;
+    for (let k = 0; k < 120; k++) c = followCameraAlt(c, 62, 1 / 60);
+    expect(c).toBeCloseTo(62, 1);
+  });
+
+  it('nunca fica mais longe que o atraso máximo (a decolagem sobe rápido)', () => {
+    expect(followCameraAlt(0, 100, 1 / 60)).toBe(100 - CAM_ALT_MAX_LAG_M);
+    expect(followCameraAlt(200, 100, 1 / 60)).toBe(100 + CAM_ALT_MAX_LAG_M);
+    expect(CAM_ALT_TAU_S).toBeGreaterThan(0);
+  });
+
+  it('com a câmera atrasada, a aeronave sobe no quadro em relação ao ponto de descanso', () => {
+    const rest = makeCamera(1280, 720, 0, 60);
+    const lagging = makeCamera(1280, 720, 0, 60 - 2);
+    const at = (cam: typeof rest) => projectAbs(0, 60, 0, cam)?.y ?? 0;
+    expect(at(lagging)).toBeLessThan(at(rest));
   });
 });

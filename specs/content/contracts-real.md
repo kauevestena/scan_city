@@ -10,7 +10,7 @@
 
 | Regra | Onde atua | Comportamento normativo |
 | :--- | :--- | :--- |
-| `URBAN_CANYON_RTK_LOSS` | Terreno, voo, acurácia | O gerador cria zonas `RTK_CANYON` onde dois prédios > 60 m distam < 40 m. Dentro delas, o `rtkStatusAt()` retorna `FLOAT` e o HUD mostra "RTK FLOAT — multipercurso GNSS". As fotos registram `rtk = 'FLOAT'` |
+| `URBAN_CANYON_RTK_LOSS` | Terreno, voo, acurácia | O gerador cria zonas `RTK_CANYON` onde dois prédios > 45 m distam < 40 m. Dentro delas, o `rtkStatusAt()` retorna `FLOAT` e o HUD mostra "RTK FLOAT — multipercurso GNSS". As fotos registram `rtk = 'FLOAT'` |
 | `HOMOGENEOUS_TEXTURE` | Acurácia, processamento | Aplica o multiplicador `texture` ([domain-math §6.3](../design/domain-math.md)). Na etapa 2 do pipeline, a visualização mostra 40 % menos tie points |
 | `DENSE_CANOPY` | Terreno, campo, cobertura | O dossel fica entre 0,90 e 0,98, com as clareiras circulares definidas pelo bioma (r = 20–35 m, dossel 0). Os GCPs só são válidos nas clareiras. Sem LiDAR, o MDT do visualizador fica "sem dados" sob o dossel |
 | `STEEP_RELIEF` | Terreno, voo | Amplitude de relevo ≥ 60 m. Bancadas ou degraus com taludes de 35–70°. Em altitude constante (sem TF), o AGL varia muito: o GSD varia e há risco de colisão |
@@ -96,14 +96,14 @@ Cada bloco abaixo se converte 1:1 num objeto `Contract` ([data-model §4](../des
 | :--- | :--- |
 | Cliente | **Prefeito Dr. Aurélio Bastos**, Prefeitura de Vila Nova. Retrato: `SHIELD` / `Landmark` / #0ea5e9 / #0f172a / "AB" |
 | Objetivo | Atualização cadastral do IPTU com **True-Ortho** do centro, sem tombamento de arranha-céus |
-| Bioma / seed | `URBAN_VERTICAL` / 2002. Grade de ruas a cada 60–80 m, quadras com prédios de 10–90 m (20 % acima de 60 m), praça central |
+| Bioma / seed | `URBAN_VERTICAL` / 2002. Grade de ruas a cada 60–80 m, quadras com prédios de 10–65 m (20 % acima de 45 m), praça central. O mais alto tem 65 m: o Atlas (até 83 m pelo GSD de 3,5 cm do contrato) passa por cima ([ADR-035](../decisions.md)) |
 | AOI | 240 × 360 m |
 | Teto / relevo | 120 m / 10 m (fora os prédios) |
 | Iluminação | `SUN_HIGH`, `OVERCAST`, `GOLDEN_HOUR` |
 | Vento | 4 / 3 / 90° |
 | Regras | `URBAN_CANYON_RTK_LOSS` |
 | Requisitos | `CRITICAL · MIN_SIDE_OVERLAP(80)` · `CRITICAL · MIN_COVERAGE_GREEN(0,80)` · `CRITICAL · ACCURACY_PEC(A, 1:1000)` · `MAJOR · MIN_FORWARD_OVERLAP(80)` · `MAJOR · MAX_GSD_CM(3,5)` · `MAJOR · MIN_GCP(5)` · `MINOR · MIN_CP(2)` |
-| Recomendado | DRONE_T1 + CAM_20MP_RS · Carro Compacto. Nota: "Voe acima dos prédios mais altos (90 m)!" |
+| Recomendado | DRONE_T1 + CAM_20MP_RS · Carro Compacto. Nota: "Voe acima dos prédios mais altos (65 m)!" |
 | Veículo mínimo | FOOT_BIKE |
 | Pagamento / XP / reputação | R$ 12.000 / 400 / +8 |
 | Souvenir | `SV_CITY_KEY` |

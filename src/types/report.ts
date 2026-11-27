@@ -80,6 +80,8 @@ export interface PaymentBreakdown {
   qualityFactor: number;
   rivalFactor: number;
   managementBonus: number;
+  /** Fator da dificuldade do voo (ADR-035). Ausente em relatório antigo: vale 1. */
+  difficultyFactor?: number;
   staffBonus: number;
   staffCostBRL: CentsBRL;
   /** Reparo de aeronave etc. */

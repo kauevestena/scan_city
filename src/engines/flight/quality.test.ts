@@ -10,7 +10,9 @@ import { FlightEngine } from './FlightEngine';
 import { makeAlert, MAX_ALERTS, topAlerts } from './hudPublisher';
 import { runFrame } from './runFrame';
 
-type Axes = Partial<Record<'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN', number>>;
+type Axes = Partial<
+  Record<'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'TURN_LEFT' | 'TURN_RIGHT', number>
+>;
 
 function setup(
   over: Partial<PlanParams> = {},

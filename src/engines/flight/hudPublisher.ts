@@ -4,10 +4,15 @@
  */
 import type { GradeAxis } from '@/domain/execution';
 import type { CounterResult } from '@/domain/gusts';
-import type { AoiPoint, GradeCounts, RtkStatus, ShotGrade } from '@/types';
+import type { TurnResult, TurnWindow } from '@/domain/turnManeuver';
+import type { AoiPoint, FlightDifficulty, GradeCounts, RtkStatus, ShotGrade } from '@/types';
 
+/**
+ * `GO_AROUND`: a arremetida, quando a curva para a próxima faixa não saiu na janela; a aeronave
+ * dá a volta e se aproxima de novo do portal da curva (survey-flight §5.7, ADR-035).
+ */
 export type FlightPhase =
-  'TAKEOFF' | 'RUN' | 'TURN' | 'LANDING' | 'RETURNING' | 'CRASHED' | 'POST_FLIGHT';
+  'TAKEOFF' | 'RUN' | 'TURN' | 'GO_AROUND' | 'LANDING' | 'RETURNING' | 'CRASHED' | 'POST_FLIGHT';
 
 export type FlightAlertId =
   | 'CRASH_IMMINENT'
@@ -127,15 +132,41 @@ export interface FlightHudSnapshot {
   passLetter: string | null;
   /** A passada em curso é um revoo. */
   refly: boolean;
+  /** Dificuldade do voo (ADR-035). */
+  difficulty: FlightDifficulty;
   /**
-   * Rajada avisada (`inS` > 0: a frente de vento está na cena) ou em curso, com o lado para onde
-   * empurra. O HUD não escreve o aviso (ADR-034): a biruta só reage ao sopro.
+   * Rajada avisada (`inS` > 0: a frente de vento está na cena) ou em curso: o eixo e para onde
+   * empurra nele (de lado, +1 direita; na vertical, +1 para cima). O HUD não escreve o aviso
+   * (ADR-034): a biruta só reage ao sopro.
    */
-  gust: { side: -1 | 1; inS: number; active: boolean } | null;
+  gust: { side: -1 | 1; axis: 'LATERAL' | 'VERTICAL'; inS: number; active: boolean } | null;
+  /** Corrente vertical avisada (`inS` > 0) ou em curso: +1 sobe, −1 desce. */
+  draft: { dir: -1 | 1; inS: number; active: boolean } | null;
   /** O último contragolpe julgado; `seq` muda a cada um, para a marca na tela. */
-  counter: { result: CounterResult; side: -1 | 1; seq: number } | null;
+  counter: {
+    result: CounterResult;
+    side: -1 | 1;
+    axis: 'LATERAL' | 'VERTICAL';
+    seq: number;
+  } | null;
   /** Para a biruta: para onde o vento sopra, em relação à aeronave (0 = de cauda, 90 = para a direita). */
   windRelDeg: number;
+  /** Empurrão vertical das rajadas e correntes em curso na aeronave (m/s, positivo para cima). */
+  windVerticalMs: number;
+  /**
+   * A curva para a próxima linha (survey-flight §5.7): o lado, quanto falta até o portal da curva
+   * (segundos reais; negativo depois dele), a janela e o julgamento.
+   */
+  turn: {
+    side: -1 | 1;
+    toGateS: number;
+    window: TurnWindow;
+    judged: TurnResult | null;
+  } | null;
+  /** A última manobra julgada; `seq` muda a cada uma, para a marca na tela. */
+  lastTurn: { result: TurnResult; side: -1 | 1; seq: number } | null;
+  /** Curvas perdidas seguidas (o retorno automático vem na terceira). */
+  turnMisses: number;
   /** Cruzeiro automático: ligado pelo jogador e o fator de tempo do momento. */
   cruise: { on: boolean; factor: number };
   /** Boletim da passada que acabou de fechar (durante a curva, o retorno e o pouso). */

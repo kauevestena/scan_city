@@ -30,7 +30,10 @@ export interface AircraftState {
   vLat: number;
   /** Empurrão lateral da rajada neste passo. */
   drift: number;
+  /** Velocidade vertical comandada (com a térmica), sem a rajada e a corrente vertical. */
   vz: number;
+  /** Empurrão vertical da rajada e da corrente neste passo (positivo para cima). */
+  vDrift: number;
   /** AGL-alvo do Terrain Following. */
   aglTargetM: number;
   climbing: boolean;
@@ -57,6 +60,11 @@ export interface FlightEnv {
   meanAlongMs: number;
   gustAlongMs: number;
   gustLateralMs: number;
+  /**
+   * Empurrão vertical da rajada vertical e da corrente em curso (m/s, positivo para cima), já
+   * com os mesmos fatores (domain-math §5.1, ADR-035). Padrão: 0.
+   */
+  gustVerticalMs?: number;
   thermalLiftMs: number;
   terrainFollowing: boolean;
   /** Elevação a `d` metros à frente, ao longo da linha (usada pelo TF). */
@@ -73,6 +81,7 @@ export function initialAircraftState(speedMs: number, altM: number): AircraftSta
     vLat: 0,
     drift: 0,
     vz: 0,
+    vDrift: 0,
     aglTargetM: altM,
     climbing: false,
   };
@@ -190,10 +199,14 @@ export function stepAircraft(
     vz = lift * a.climbRateMs + env.thermalLiftMs;
   }
 
-  let alt = state.alt + vz * dtS;
+  // A rajada vertical e a corrente empurram por cima do comando (com TF, o laço de altura do TF
+  // corrige o que elas tiram do lugar).
+  const vDrift = env.gustVerticalMs ?? 0;
+  const climbRate = vz + vDrift;
+  let alt = state.alt + climbRate * dtS;
   const floor = env.elevationM + MIN_AGL_M;
   // O piso barra só a descida: se o relevo subir mais rápido que a aeronave, ela é alcançada.
-  if (alt < floor && vz < 0) alt = Math.max(alt, Math.min(state.alt, floor));
+  if (alt < floor && climbRate < 0) alt = Math.max(alt, Math.min(state.alt, floor));
   alt = Math.min(alt, env.elevationM + ceilingAgl);
 
   return {
@@ -205,6 +218,7 @@ export function stepAircraft(
     vLat,
     drift,
     vz,
+    vDrift,
     aglTargetM,
     climbing: vz > 0,
   };

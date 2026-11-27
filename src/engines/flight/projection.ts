@@ -15,6 +15,23 @@ export const CAM_UP_M = 12;
 export const Z_NEAR_M = 1;
 export const HORIZON_CRUISE = 0.35;
 export const HORIZON_TAKEOFF = 0.62;
+/**
+ * A câmera segue a altitude da aeronave com este tempo de resposta (s reais): a subida e a
+ * descida aparecem na tela (a aeronave sobe e desce no quadro), e não só no chão que se afasta.
+ */
+export const CAM_ALT_TAU_S = 0.35;
+/** ...e nunca fica mais longe que isto da aeronave (m): a decolagem e as rajadas sobem rápido. */
+export const CAM_ALT_MAX_LAG_M = 4;
+
+/**
+ * A altitude que a câmera persegue (a da aeronave), um passo de `dtS` segundos reais depois de
+ * `prev`, com atraso limitado (survey-flight §5.1, ADR-035). Sem anterior, a da aeronave.
+ */
+export function followCameraAlt(prev: number | null, aircraftAlt: number, dtS: number): number {
+  if (prev === null) return aircraftAlt;
+  const next = prev + (aircraftAlt - prev) * (1 - Math.exp(-Math.max(0, dtS) / CAM_ALT_TAU_S));
+  return Math.min(aircraftAlt + CAM_ALT_MAX_LAG_M, Math.max(aircraftAlt - CAM_ALT_MAX_LAG_M, next));
+}
 
 export interface FlightCamera {
   width: number;

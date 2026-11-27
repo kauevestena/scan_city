@@ -50,6 +50,16 @@ export function bandDistance(
   return cam.zNear + (cam.zFar - cam.zNear) * (i / n) ** 2.2;
 }
 
+/**
+ * Uma estrada no frame do *run* (X à direita, Z à frente da aeronave), desenhada como uma faixa
+ * contínua sobre o relevo (ADR-035): a grade não pinta a estrada, então ela não vira escada de
+ * quadrados nem pontos soltos onde a grade só às vezes a pega.
+ */
+export interface GroundRoad {
+  points: ReadonlyArray<{ X: number; Z: number }>;
+  halfWidthM: number;
+}
+
 export interface GroundMark {
   id: string;
   kind: 'GCP' | 'CP';
@@ -95,6 +105,11 @@ export interface TerrainScene {
   objects: readonly SceneObject[];
   marks: readonly GroundMark[];
   /**
+   * Estradas desenhadas como faixas, faixa do terreno a faixa (por cima do chão dela, antes dos
+   * objetos). Com elas, `sampleGround`/`cover` devem dar a cobertura sob a estrada.
+   */
+  roads?: readonly GroundRoad[];
+  /**
    * Folga (px) além das bordas de cima e de baixo em que os quads ainda são desenhados: a câmera
    * inclinada mostra um pouco além delas. Padrão: 0.
    */
@@ -103,6 +118,8 @@ export interface TerrainScene {
 
 export type DrawCommand =
   | { type: 'QUAD'; band: number; z: number; color: string }
+  | { type: 'PATCH'; band: number; z: number; color: string; corners: number }
+  | { type: 'ROAD'; band: number; z: number; color: string }
   | { type: 'GLINT'; band: number; z: number }
   | { type: 'SHADOW'; band: number; id: number; lengthM: number }
   | { type: 'CONTOUR'; band: number; master: boolean }
@@ -146,6 +163,22 @@ export function quantizedColor(r: number, g: number, b: number): string {
   return s;
 }
 
+/** As coberturas dos 4 cantos do quad em curso e o contorno de um pedaço (até 4 pontos). */
+const QUAD_COVERS: [LandCover, LandCover, LandCover, LandCover] = [
+  'GRASS',
+  'GRASS',
+  'GRASS',
+  'GRASS',
+];
+const PATCH = new Float64Array(8);
+const ROAD_PTS = new Float64Array(8);
+const RGB = new Float64Array(3);
+/**
+ * Altura na tela (px) a partir da qual um quad de cantos mistos ganha pedaços; abaixo dela (as
+ * faixas finas perto do horizonte), a média das cores.
+ */
+export const PATCH_MIN_PX = 6;
+
 /** Ordem dos cantos ao redor do quad e limite de curvas por quad (relevo muito íngreme). */
 const QUAD_ORDER = [0, 1, 2, 3] as const;
 const MAX_CONTOURS_PER_QUAD = 6;
@@ -156,6 +189,13 @@ type GroundFn = (X: number, Z: number) => number;
 
 interface Sink {
   quad(band: number, z: number, pts: Float64Array, color: string): void;
+  /**
+   * Um pedaço de outra cobertura dentro do quad (os cantos dela, cortados nos meios das
+   * arestas): `n` pontos (x, y) em `pts`.
+   */
+  patch(band: number, z: number, pts: Float64Array, n: number, color: string): void;
+  /** Um pedaço de estrada na faixa: 4 pontos (x, y) em `pts`. */
+  road(band: number, z: number, pts: Float64Array, color: string): void;
   contour(band: number, x1: number, y1: number, x2: number, y2: number, master: boolean): void;
   object(band: number, o: SceneObject, scene: TerrainScene, ground: GroundFn): void;
   shadow(
@@ -268,6 +308,130 @@ export function gridElevation(
   return near + (rowElevation(g, i + 1, X) - near) * t;
 }
 
+/** Índices dos cantos do quad em volta (00, 01, 11, 10), na ordem de `pts`. */
+const CYCLE = [0, 1, 2, 3] as const;
+
+/**
+ * A cobertura que pinta o quad inteiro: a da maioria dos cantos (no empate, a do primeiro canto
+ * empatado na ordem 00, 01, 11, 10). Os outros cantos viram pedaços por cima.
+ */
+export function majorityCover(covers: readonly LandCover[]): LandCover {
+  let best = covers[0] as LandCover;
+  let bestN = 0;
+  for (const c of covers) {
+    let n = 0;
+    for (const o of covers) if (o === c) n++;
+    if (n > bestN) {
+      best = c;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * Os pedaços de cobertura de um quad de cantos mistos (survey-flight §5.3, ADR-035): cada canto
+ * que não é da cobertura de base vira um triângulo cortado nos meios das duas arestas dele; dois
+ * cantos vizinhos da mesma cobertura viram meio quad. Assim a divisa passa pelo meio das
+ * arestas, em diagonal, no lugar da escada de quadrados de uma cor só. Devolve, para cada pedaço,
+ * a cobertura e os cantos (índices 0–3, na ordem em volta) que ele leva.
+ */
+export function coverPatches(
+  covers: readonly [LandCover, LandCover, LandCover, LandCover],
+  base: LandCover,
+): Array<{ cover: LandCover; corners: number[] }> {
+  const out: Array<{ cover: LandCover; corners: number[] }> = [];
+  const used = [false, false, false, false];
+  for (const c of CYCLE) {
+    if (used[c] || covers[c] === base) continue;
+    used[c] = true;
+    const next = (c + 1) % 4;
+    const prev = (c + 3) % 4;
+    if (!used[next] && covers[next] === covers[c]) {
+      used[next] = true;
+      out.push({ cover: covers[c], corners: [c, next] });
+    } else if (!used[prev] && covers[prev] === covers[c]) {
+      used[prev] = true;
+      out.push({ cover: covers[c], corners: [prev, c] });
+    } else {
+      out.push({ cover: covers[c], corners: [c] });
+    }
+  }
+  return out;
+}
+
+/**
+ * Contorno de um pedaço em `out` (x, y): o meio da aresta antes do primeiro canto, os cantos e o
+ * meio da aresta depois do último. Devolve o número de pontos.
+ */
+export function patchOutline(
+  pts: Float64Array,
+  corners: readonly number[],
+  out: Float64Array,
+): number {
+  const first = corners[0] as number;
+  const last = corners[corners.length - 1] as number;
+  const before = (first + 3) % 4;
+  const after = (last + 1) % 4;
+  let n = 0;
+  const mid = (a: number, b: number) => {
+    out[n * 2] = ((pts[a * 2] as number) + (pts[b * 2] as number)) / 2;
+    out[n * 2 + 1] = ((pts[a * 2 + 1] as number) + (pts[b * 2 + 1] as number)) / 2;
+    n++;
+  };
+  mid(before, first);
+  for (const c of corners) {
+    out[n * 2] = pts[c * 2] as number;
+    out[n * 2 + 1] = pts[c * 2 + 1] as number;
+    n++;
+  }
+  mid(last, after);
+  return n;
+}
+
+/**
+ * O pedaço de um trecho de estrada `a`→`b` dentro de `[z0, z1]` (frame do *run*): os quatro
+ * cantos no chão (X, Z), com a meia largura para cada lado, na ordem em volta. `null` se o
+ * trecho não passa pela faixa.
+ */
+export function roadPiece(
+  a: { X: number; Z: number },
+  b: { X: number; Z: number },
+  halfWidthM: number,
+  z0: number,
+  z1: number,
+): Array<{ X: number; Z: number }> | null {
+  const dx = b.X - a.X;
+  const dz = b.Z - a.Z;
+  let t0 = 0;
+  let t1 = 1;
+  if (Math.abs(dz) < 1e-9) {
+    if (a.Z < z0 || a.Z >= z1) return null;
+  } else {
+    const ta = (z0 - a.Z) / dz;
+    const tb = (z1 - a.Z) / dz;
+    t0 = Math.max(0, Math.min(ta, tb));
+    t1 = Math.min(1, Math.max(ta, tb));
+    if (!(t1 > t0)) return null;
+  }
+  const len = Math.hypot(dx, dz) || 1;
+  const px = (-dz / len) * halfWidthM;
+  const pz = (dx / len) * halfWidthM;
+  const x0 = a.X + dx * t0;
+  const zz0 = a.Z + dz * t0;
+  const x1 = a.X + dx * t1;
+  const zz1 = a.Z + dz * t1;
+  return [
+    { X: x0 + px, Z: zz0 + pz },
+    { X: x1 + px, Z: zz1 + pz },
+    { X: x1 - px, Z: zz1 - pz },
+    { X: x0 - px, Z: zz0 - pz },
+  ];
+}
+
+/** Quanto o pedaço de estrada de uma faixa avança sobre a de trás (fração da profundidade). */
+const ROAD_SEAM = 0.25;
+
 function traverse(scene: TerrainScene, sink: Sink): void {
   PERF.flight.enter(FLIGHT_STAGE.GRID);
   const g = sampleGrid(scene);
@@ -280,6 +444,77 @@ function traverse(scene: TerrainScene, sink: Sink): void {
   const zFog = fogDistance(scene.lighting);
   const interval = contourInterval(scene.reliefM);
   const pts = new Float64Array(8);
+  const fogColor = scene.palette.fog;
+  /**
+   * Cor final de uma cobertura no quad: a base com o sombreamento do relevo (a água ondula e a
+   * lava pulsa; na termal, a rampa de calor) e a névoa da distância, sem alocar por quad.
+   */
+  const rgbOf = (
+    cover: LandCover,
+    relief: number,
+    fog: number,
+    Zi: number,
+    Zn: number,
+    x00: number,
+    xMid: number,
+    out: Float64Array,
+  ): void => {
+    let base: Rgb = scene.palette.cover[cover];
+    let shade = relief;
+    if (cover === 'WATER') {
+      base = scene.palette.water;
+      shade = 1 + 0.06 * Math.sin(scene.timeS * 2 + Zi * 0.1 + x00 * 0.05);
+    }
+    if (cover === 'LAVA' && scene.lavaGlow) {
+      // Brilho laranja: mais claro que o resto e pulsando devagar, de ponto em ponto.
+      shade = 1.18 + 0.14 * Math.sin(scene.timeS * 2.4 + Zi * 0.08 + x00 * 0.06);
+    }
+    if (scene.thermal) {
+      // Termal: o calor da cobertura, a mancha quente do ponto e um toque do relevo.
+      const heat =
+        COVER_HEAT[cover] + scene.thermal.heatAt(xMid, (Zi + Zn) / 2) + 0.18 * (relief - 1);
+      base = thermalColor(heat);
+      shade = 1;
+    }
+    const lr = base[0] * shade;
+    const lg = base[1] * shade;
+    const lb = base[2] * shade;
+    out[0] = lr + (fogColor[0] - lr) * fog;
+    out[1] = lg + (fogColor[1] - lg) * fog;
+    out[2] = lb + (fogColor[2] - lb) * fog;
+  };
+  const colorOf = (
+    cover: LandCover,
+    relief: number,
+    fog: number,
+    Zi: number,
+    Zn: number,
+    x00: number,
+    xMid: number,
+  ): string => {
+    rgbOf(cover, relief, fog, Zi, Zn, x00, xMid, RGB);
+    return quantizedColor(RGB[0] as number, RGB[1] as number, RGB[2] as number);
+  };
+  /** A média das cores dos quatro cantos: o quad fino de longe vira um tom, não um ponto. */
+  const blendOf = (
+    relief: number,
+    fog: number,
+    Zi: number,
+    Zn: number,
+    x00: number,
+    xMid: number,
+  ): string => {
+    let r = 0;
+    let gg = 0;
+    let b = 0;
+    for (const c of QUAD_COVERS) {
+      rgbOf(c, relief, fog, Zi, Zn, x00, xMid, RGB);
+      r += RGB[0] as number;
+      gg += RGB[1] as number;
+      b += RGB[2] as number;
+    }
+    return quantizedColor(r / 4, gg / 4, b / 4);
+  };
   // Cantos do quad em volta: (x, y, elev) × 4, na ordem 00, 01, 11, 10.
   const corner = new Float64Array(12);
   const at = (i: number, j: number) => i * (m + 1) + j;
@@ -346,33 +581,19 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       const dx = (g.x[k01] as number) - (g.x[k00] as number);
       const dzdx = (e01 - e00 + e11 - e10) / (2 * Math.max(dx, 1e-6));
       const dzdz = (e10 - e00 + e11 - e01) / (2 * Math.max(Zn - Zi, 1e-6));
-      const cover = g.cover[k00] as LandCover;
-      let base: Rgb = scene.palette.cover[cover];
-      let shade = shadeFor(dzdx, dzdz, scene.sun);
-      if (cover === 'WATER') {
-        base = scene.palette.water;
-        shade = 1 + 0.06 * Math.sin(scene.timeS * 2 + Zi * 0.1 + (g.x[k00] as number) * 0.05);
-      }
-      if (cover === 'LAVA' && scene.lavaGlow) {
-        // Brilho laranja: mais claro que o resto e pulsando devagar, de ponto em ponto.
-        shade = 1.18 + 0.14 * Math.sin(scene.timeS * 2.4 + Zi * 0.08 + (g.x[k00] as number) * 0.06);
-      }
-      if (scene.thermal) {
-        // Termal: o calor da cobertura, a mancha quente do ponto e um toque do relevo.
-        const xMid = ((g.x[k00] as number) + (g.x[k01] as number)) / 2;
-        const heat =
-          COVER_HEAT[cover] + scene.thermal.heatAt(xMid, (Zi + Zn) / 2) + 0.18 * (shade - 1);
-        base = thermalColor(heat);
-        shade = 1;
-      }
-      // Cor com sombreamento e névoa, sem alocar vetores por quad (mesma conta de `mix`).
-      const fogColor = scene.palette.fog;
-      const lr = base[0] * shade;
-      const lg = base[1] * shade;
-      const lb = base[2] * shade;
-      const r = lr + (fogColor[0] - lr) * fog;
-      const gg = lg + (fogColor[1] - lg) * fog;
-      const b = lb + (fogColor[2] - lb) * fog;
+      const c00 = g.cover[k00] as LandCover;
+      const c01 = g.cover[k01] as LandCover;
+      const c11 = g.cover[k11] as LandCover;
+      const c10 = g.cover[k10] as LandCover;
+      const mixed = c00 !== c01 || c00 !== c11 || c00 !== c10;
+      QUAD_COVERS[0] = c00;
+      QUAD_COVERS[1] = c01;
+      QUAD_COVERS[2] = c11;
+      QUAD_COVERS[3] = c10;
+      const cover = mixed ? majorityCover(QUAD_COVERS) : c00;
+      const shade = shadeFor(dzdx, dzdz, scene.sun);
+      const x00 = g.x[k00] as number;
+      const xMid = (x00 + (g.x[k01] as number)) / 2;
       pts[0] = g.sx[k00] as number;
       pts[1] = y00;
       pts[2] = g.sx[k01] as number;
@@ -381,9 +602,23 @@ function traverse(scene: TerrainScene, sink: Sink): void {
       pts[5] = y11;
       pts[6] = g.sx[k10] as number;
       pts[7] = y10;
-      sink.quad(i, Zi, pts, quantizedColor(r, gg, b));
+      // Cantos de outra cobertura (survey-flight §5.3): no quad alto na tela, pedaços cortados
+      // nos meios das arestas, por cima da base (a divisa em diagonal, sem escada); no quad fino
+      // de longe, a média das cores (um tom, não um ponto solto).
+      const patched = mixed && (y00 + y01 - y10 - y11) / 2 >= PATCH_MIN_PX;
+      const color =
+        mixed && !patched
+          ? blendOf(shade, fog, Zi, Zn, x00, xMid)
+          : colorOf(cover, shade, fog, Zi, Zn, x00, xMid);
+      sink.quad(i, Zi, pts, color);
       if (cover === 'WATER' && scene.specularWater && scene.lighting === 'SUN_HIGH') {
         sink.glint(i, Zi, pts, scene.timeS);
+      }
+      if (patched) {
+        for (const p of coverPatches(QUAD_COVERS, cover)) {
+          const n = patchOutline(pts, p.corners, PATCH);
+          sink.patch(i, Zi, PATCH, n, colorOf(p.cover, shade, fog, Zi, Zn, x00, xMid));
+        }
       }
       corner[0] = pts[0] as number;
       corner[1] = y00;
@@ -433,6 +668,54 @@ function traverse(scene: TerrainScene, sink: Sink): void {
         }
       }
     }
+    // Estradas: os pedaços que passam pela faixa, por cima do chão dela e antes dos objetos. O
+    // pedaço avança um pouco sobre a faixa de trás (já pintada), para a emenda não aparecer.
+    if (scene.roads) {
+      const z1 = Zn + ROAD_SEAM * (Zn - Zi);
+      for (const road of scene.roads) {
+        for (let k = 1; k < road.points.length; k++) {
+          const a = road.points[k - 1] as { X: number; Z: number };
+          const b = road.points[k] as { X: number; Z: number };
+          if (
+            Math.max(a.Z, b.Z) + road.halfWidthM < Zi ||
+            Math.min(a.Z, b.Z) - road.halfWidthM > z1
+          ) {
+            continue;
+          }
+          const piece = roadPiece(a, b, road.halfWidthM, Zi, z1);
+          if (!piece) continue;
+          let ok = true;
+          let cx = 0;
+          let cz = 0;
+          for (let q = 0; q < 4; q++) {
+            const c = piece[q] as { X: number; Z: number };
+            const p = projectAbs(c.X, ground(c.X, c.Z), c.Z, scene.cam);
+            if (!p) {
+              ok = false;
+              break;
+            }
+            ROAD_PTS[q * 2] = p.x;
+            ROAD_PTS[q * 2 + 1] = p.y;
+            cx += c.X / 4;
+            cz += c.Z / 4;
+          }
+          if (!ok) continue;
+          // Fora da tela de lado: nada a desenhar.
+          const xs = [ROAD_PTS[0], ROAD_PTS[2], ROAD_PTS[4], ROAD_PTS[6]] as number[];
+          if (Math.max(...xs) < -cull || Math.min(...xs) > scene.cam.width + cull) continue;
+          const e = ground(cx, cz);
+          const sx = (ground(cx + 1, cz) - ground(cx - 1, cz)) / 2;
+          const sz = (ground(cx, cz + 1) - e) / 1;
+          const roadFog = fogFactor(cz, zFog);
+          sink.road(
+            i,
+            Zi,
+            ROAD_PTS,
+            colorOf('ROAD', shadeFor(sx, sz, scene.sun), roadFog, cz, cz, cx, cx),
+          );
+        }
+      }
+    }
     const items = byBand[i];
     if (items && items.length > 0) {
       PERF.flight.enter(FLIGHT_STAGE.OBJECTS);
@@ -448,6 +731,9 @@ export function buildDrawList(scene: TerrainScene): DrawCommand[] {
   const list: DrawCommand[] = [];
   traverse(scene, {
     quad: (band, z, _pts, color) => list.push({ type: 'QUAD', band, z, color }),
+    patch: (band, z, _pts, n, color) =>
+      list.push({ type: 'PATCH', band, z, color, corners: n - 2 }),
+    road: (band, z, _pts, color) => list.push({ type: 'ROAD', band, z, color }),
     contour: (band, _x1, _y1, _x2, _y2, master) => list.push({ type: 'CONTOUR', band, master }),
     object: (band, o) => list.push({ type: 'OBJECT', band, z: o.Z, id: o.id, kind: o.kind }),
     shadow: (band, o, _s, lengthM) => list.push({ type: 'SHADOW', band, id: o.id, lengthM }),
@@ -571,6 +857,14 @@ const MAX_COLS = 128;
 const STRIP = new QuadStrip(MAX_COLS, QUAD_OVERLAP_PX);
 /** Cantos dos quads de água com brilho, da faixa em curso. */
 const GLINTS = new Float64Array(MAX_COLS * 8);
+/**
+ * Pedaços de cobertura da faixa em curso (até 2 por quad, 4 pontos cada): desenhados depois do
+ * último trecho, por cima dos quads de base (cada um fica dentro do próprio quad).
+ */
+const MAX_PATCHES = MAX_COLS * 4;
+const PATCH_PTS = new Float64Array(MAX_PATCHES * 8);
+const PATCH_N = new Uint8Array(MAX_PATCHES);
+const PATCH_COLOR: string[] = new Array<string>(MAX_PATCHES).fill('');
 
 /**
  * Desenha o terreno, os objetos e os alvos da missão. Ganhos de custo (survey-flight §5.18): (1) o
@@ -588,8 +882,28 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
   let band = -1;
   // Brilhos da água da faixa, desenhados por cima dela depois do último trecho.
   let glints = 0;
+  let patches = 0;
   const flush = () => {
     STRIP.flush(ctx);
+    // Os pedaços de outra cobertura: os da mesma cor seguidos saem num `fill` só.
+    let style = '';
+    for (let k = 0; k < patches; k++) {
+      const color = PATCH_COLOR[k] as string;
+      if (color !== style) {
+        if (style !== '') ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        style = color;
+      }
+      const o = k * 8;
+      const n = PATCH_N[k] as number;
+      ctx.moveTo(PATCH_PTS[o] as number, PATCH_PTS[o + 1] as number);
+      for (let q = 1; q < n; q++)
+        ctx.lineTo(PATCH_PTS[o + q * 2] as number, PATCH_PTS[o + q * 2 + 1] as number);
+      ctx.closePath();
+    }
+    if (style !== '') ctx.fill();
+    patches = 0;
     for (let k = 0; k < glints; k++) {
       drawGlint(ctx, GLINTS.subarray(k * 8, k * 8 + 8), scene.timeS);
     }
@@ -604,6 +918,21 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, scene: TerrainScene
         band = b;
       }
       STRIP.push(ctx, p, color);
+    },
+    patch: (_band, _z, p, n, color) => {
+      if (patches >= MAX_PATCHES) return;
+      PATCH_PTS.set(p.subarray(0, n * 2), patches * 8);
+      PATCH_N[patches] = n;
+      PATCH_COLOR[patches] = color;
+      patches++;
+    },
+    // As estradas da faixa entram na mesma fila dos pedaços, depois deles.
+    road: (_band, _z, p, color) => {
+      if (patches >= MAX_PATCHES) return;
+      PATCH_PTS.set(p.subarray(0, 8), patches * 8);
+      PATCH_N[patches] = 4;
+      PATCH_COLOR[patches] = color;
+      patches++;
     },
     contour: (_band, x1, y1, x2, y2, isMaster) => {
       (isMaster ? master : minor).push(x1, y1, x2, y2);

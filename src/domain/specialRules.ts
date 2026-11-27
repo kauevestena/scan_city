@@ -10,7 +10,7 @@ import type { SpecialRuleId } from '@/types';
 /** Números normativos da spec, em um só lugar. */
 export const RULE_PARAMS = {
   /** Dois prédios mais altos que 60 m a menos de 40 m um do outro formam um cânion. */
-  rtkCanyon: { minBuildingHeightM: 60, maxGapM: 40 },
+  rtkCanyon: { minBuildingHeightM: 45, maxGapM: 40 },
   /** Na etapa 2 da esteira, 40 % menos tie points. */
   homogeneousTexture: { tiePointFactor: 0.6 },
   denseCanopy: { minCanopy: 0.9, maxCanopy: 0.98, clearingRadiusM: [20, 35] as const },

@@ -132,6 +132,15 @@ describe('teclado', () => {
     expect(input.axis('ALT_DOWN')).toBe(0);
   });
 
+  it('no voo, Q e E também são a tecla da curva de cada lado (ADR-035)', () => {
+    input.setContext('FLIGHT');
+    key('KeyE');
+    poll();
+    expect(input.axis('TURN_RIGHT')).toBe(1);
+    expect(input.axis('TURN_LEFT')).toBe(0);
+    expect(input.axis('ALT_DOWN')).toBe(1);
+  });
+
   it('blur limpa as teclas mantidas', () => {
     input.setContext('OVERWORLD');
     key('KeyD');
@@ -204,6 +213,9 @@ describe('gamepad', () => {
     poll();
     expect(input.axis('ALT_UP')).toBeCloseTo(0.5, 12);
     expect(input.axis('ALT_DOWN')).toBe(1);
+    // A tecla da curva no controle é o gatilho do mesmo lado (ADR-035).
+    expect(input.axis('TURN_RIGHT')).toBeCloseTo(0.5, 12);
+    expect(input.axis('TURN_LEFT')).toBe(1);
   });
 
   it('borda de pressed por frame nos botões', () => {

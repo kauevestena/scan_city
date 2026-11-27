@@ -36,6 +36,7 @@ describe('cruzeiro automático (survey-flight §5.14)', () => {
       { on: false },
       { steady: false },
       { gust: true },
+      { turnSoon: true },
       { solidAhead: true },
       { criticalAlert: true },
       { searchlightM: 99 },

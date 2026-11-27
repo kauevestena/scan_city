@@ -5,10 +5,13 @@
  * - **mediano:** enxerga a faixa, a altura e a velocidade no solo com 0,35 s de atraso,
  *   comanda tudo ou nada (como num teclado), com folga, e de vez em quando se distrai por 1 s.
  *   Os tempos dele são **reais** (ADR-034): no ritmo ×1,75 do voo, 0,35 s de reação são 0,61 s de
- *   simulação. Ele tenta o contragolpe em cada frente de vento que vê, com erro de tempo;
+ *   simulação. Ele tenta o contragolpe em cada frente de vento que vê (de lado com `A`/`D`, na
+ *   vertical com `Q`/`E`), com erro de tempo, e faz a manobra da curva no fim de cada linha
+ *   mirando o portal da curva, com o mesmo erro (ADR-035);
  * - **bom:** o autopilot de depuração (não passa por aqui);
  * - **distraído:** o mediano que só pilota na entrada de cada linha (até 2 s depois do início
- *   da AOI) e depois larga o controle. Não pode passar: é o voo que só exige um gesto por linha.
+ *   da AOI) e na curva do fim dela, e no meio larga o controle. Não pode passar: é o voo que só
+ *   exige um gesto por linha.
  */
 import type { FlightEngine, FlightInputSource } from '@/engines/flight/FlightEngine';
 import { mulberry32 } from '@/lib/rng';
@@ -44,6 +47,13 @@ export const MEDIUM = {
   counterSigmaS: 0.15,
   counterTapS: 0.12,
   counterReleaseS: 0.05,
+  /**
+   * A curva (ADR-035): ele vê o portal da curva chegar e marca o acorde (frente, lado e a tecla
+   * da curva) para o instante em que passa por ele, com o mesmo erro do contragolpe. Planeja
+   * quando o portal fica a este tempo (real) e segura o acorde por `turnHoldS`.
+   */
+  turnPlanAheadS: 2,
+  turnHoldS: 0.15,
 } as const;
 
 interface Observation {
@@ -71,8 +81,15 @@ export class MediumPilot implements FlightInputSource {
   private readonly rng;
   private lapseLeft = 0;
   private clockS = 0;
-  /** O toque contra a rajada que vem: o instante (relógio real) e o lado do comando. */
-  private tap: { atS: number; moveX: -1 | 1 } | null = null;
+  /**
+   * O toque contra a rajada que vem: o instante (relógio real), o eixo e o sinal do comando
+   * contra ela (de lado, o de `MOVE_X`; na vertical, +1 sobe e −1 desce).
+   */
+  private tap: { atS: number; axis: 'LATERAL' | 'VERTICAL'; against: -1 | 1 } | null = null;
+  /** A manobra da curva planejada: o instante (relógio real) e o lado. */
+  private turnPlan: { atS: number; side: -1 | 1 } | null = null;
+  /** As teclas da curva do comando de agora. */
+  private turnKeys = { left: 0, right: 0 };
   /** A frente de vento que ele já viu (para tocar uma vez por rajada). */
   private sawFront = false;
   private command = { moveX: 0, moveY: 0, altUp: 0, altDown: 0 };
@@ -109,6 +126,7 @@ export class MediumPilot implements FlightInputSource {
       (this.seen[1] as Observation).atS <= this.clockS - MEDIUM.reactionS
     )
       this.seen.shift();
+    this.turnKeys = { left: 0, right: 0 };
     if (this.lapseLeft > 0) {
       this.lapseLeft -= realDtS;
       this.command = { moveX: 0, moveY: 0, altUp: 0, altDown: 0 };
@@ -123,6 +141,9 @@ export class MediumPilot implements FlightInputSource {
     const entering = (e.line?.aoiStartS ?? 0) + 2 * plan.speedMs;
     if (!o || e.phase !== 'RUN' || (this.alignOnly && e.ac.s > entering)) {
       this.command = { moveX: 0, moveY: 0, altUp: 0, altDown: 0 };
+      // O distraído também faz a curva no fim da linha (o outro gesto da linha).
+      if (e.phase === 'RUN') this.turnChord(e);
+      else this.turnPlan = null;
       return;
     }
     // A antecipação é de tempo real: em simulação, vale o ritmo do voo vezes mais.
@@ -142,6 +163,35 @@ export class MediumPilot implements FlightInputSource {
       altDown: dzAhead < -vert ? 1 : 0,
     };
     this.counterTap(e);
+    this.turnChord(e);
+  }
+
+  /**
+   * A manobra da curva: com o portal da curva a menos de `turnPlanAheadS`, marca o acorde para o
+   * instante da passagem (com o erro de tempo); na hora, solta tudo por um instante e segura
+   * frente, lado e a tecla da curva juntos.
+   */
+  private turnChord(e: FlightEngine): void {
+    const turn = e.turnAhead();
+    if (!turn || turn.judged !== null) {
+      if (!turn) this.turnPlan = null;
+      return;
+    }
+    if (!this.turnPlan && turn.toGateS <= MEDIUM.turnPlanAheadS) {
+      this.turnPlan = {
+        atS: this.clockS + turn.toGateS + MEDIUM.counterBiasS + this.gauss() * MEDIUM.counterSigmaS,
+        side: turn.side,
+      };
+    }
+    const plan = this.turnPlan;
+    if (!plan) return;
+    const d = this.clockS - plan.atS;
+    if (d >= -MEDIUM.counterReleaseS && d < 0) {
+      this.command = { ...this.command, moveX: 0, moveY: 0 };
+    } else if (d >= 0 && d < MEDIUM.turnHoldS) {
+      this.command = { ...this.command, moveX: plan.side, moveY: 1 };
+      this.turnKeys = plan.side > 0 ? { left: 0, right: 1 } : { left: 1, right: 0 };
+    }
   }
 
   /** O contragolpe: marca o toque ao ver a frente e, na hora, solta e toca contra a rajada. */
@@ -153,16 +203,31 @@ export class MediumPilot implements FlightInputSource {
       const toImpactS = gust.inS / Math.max(1e-9, e.timeScale);
       this.tap = {
         atS: this.clockS + toImpactS + MEDIUM.counterBiasS + this.gauss() * MEDIUM.counterSigmaS,
-        moveX: gust.side > 0 ? -1 : 1,
+        axis: gust.axis,
+        against: gust.side > 0 ? -1 : 1,
       };
     }
     this.sawFront = warned;
     const tap = this.tap;
     if (!tap) return;
     const d = this.clockS - tap.atS;
-    if (d >= -MEDIUM.counterReleaseS && d < 0) this.command.moveX = 0;
-    else if (d >= 0 && d < MEDIUM.counterTapS) this.command.moveX = tap.moveX;
-    else if (d >= MEDIUM.counterTapS) this.tap = null;
+    if (d >= MEDIUM.counterTapS) {
+      this.tap = null;
+      return;
+    }
+    const release = d >= -MEDIUM.counterReleaseS && d < 0;
+    const press = d >= 0;
+    if (!release && !press) return;
+    if (tap.axis === 'LATERAL') {
+      this.command.moveX = press ? tap.against : 0;
+    } else if (tap.against > 0) {
+      // Contra a rajada que desce: sobe (`Q`); antes, solta o `Q` para o toque ser um começo novo.
+      this.command.altUp = press ? 1 : 0;
+      if (press) this.command.altDown = 0;
+    } else {
+      this.command.altDown = press ? 1 : 0;
+      if (press) this.command.altUp = 0;
+    }
   }
 
   /** Normal padrão (Box-Muller) pelo gerador seedado. */
@@ -172,10 +237,12 @@ export class MediumPilot implements FlightInputSource {
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
-  axis(a: 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN'): number {
+  axis(a: 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'TURN_LEFT' | 'TURN_RIGHT'): number {
     if (a === 'MOVE_X') return this.command.moveX;
     if (a === 'MOVE_Y') return this.command.moveY;
     if (a === 'ALT_UP') return this.command.altUp;
+    if (a === 'TURN_LEFT') return this.turnKeys.left;
+    if (a === 'TURN_RIGHT') return this.turnKeys.right;
     return this.command.altDown;
   }
 }

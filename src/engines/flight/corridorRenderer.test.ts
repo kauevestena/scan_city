@@ -8,6 +8,9 @@ import {
   GUST_STREAKS,
   MAX_GATES,
   type CorridorDrawInput,
+  drawVerticalStreaks,
+  VERTICAL_STREAKS,
+  verticalStreaks,
 } from './corridorRenderer';
 import { makeCamera } from './projection';
 
@@ -127,5 +130,23 @@ describe('riscos de vento da rajada', () => {
     const calmA = gustStreaks(1280, 720, 252, g, 3, true);
     const calmB = gustStreaks(1280, 720, 252, g, 3.7, true);
     expect(new Set([...calmA, ...calmB].map((s) => s.alpha))).toEqual(new Set([0.35]));
+  });
+});
+
+describe('riscos verticais (rajada vertical e corrente, ADR-035)', () => {
+  it('sobem ou descem pela tela; a corrente é mais fraca e mais lenta', () => {
+    const up = verticalStreaks(1280, 720, 1, 2, true);
+    expect(up.length).toBe(VERTICAL_STREAKS);
+    for (const st of up) expect(st.y1).toBeLessThan(st.y0);
+    const down = verticalStreaks(1280, 720, -1, 2, true);
+    for (const st of down) expect(st.y1).toBeGreaterThan(st.y0);
+    const weak = verticalStreaks(1280, 720, 1, 2, true, 0.2);
+    expect(weak.length).toBeLessThan(up.length);
+    expect(Math.max(...weak.map((s) => s.alpha))).toBeLessThan(Math.max(...up.map((s) => s.alpha)));
+    // Com reduceFlashes o alfa não pisca; sem, varia com o tempo.
+    expect(verticalStreaks(1280, 720, 1, 3, true)[0]?.alpha).toBe(up[0]?.alpha);
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    drawVerticalStreaks(ctx, 1280, 720, 1, 2, false);
+    expect(ctx.stroke).toHaveBeenCalled();
   });
 });

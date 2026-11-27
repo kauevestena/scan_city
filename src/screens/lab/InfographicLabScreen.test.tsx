@@ -82,12 +82,13 @@ describe('InfographicLabScreen — Óptica & GSD (REQ-LAB-001)', () => {
     expect(screen.getByTestId('equipment-note')).toHaveTextContent(
       'Equipamento: Câmera de Peito do Avô em Pombo Atlas',
     );
-    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '80');
+    // O Atlas sobe até 120 m: vale a altura de trabalho do laboratório, 100 m.
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '100');
     expect(slider('Focal f')).toHaveAttribute('aria-valuenow', '4.5');
     expect(slider('Pixel s')).toHaveAttribute('aria-valuenow', '1.89');
     expect(slider('Largura do sensor L')).toHaveAttribute('aria-valuenow', '6.2');
-    // 80 m · 1,89 µm / 4,5 mm = 3,36 cm/px.
-    expect(value('reading-gsd')).toBe('3,36 cm/px');
+    // 100 m · 1,89 µm / 4,5 mm = 4,20 cm/px.
+    expect(value('reading-gsd')).toBe('4,20 cm/px');
   });
 
   it('com o equipamento do jogo cheio, usa o full frame com a lente de 35 mm', () => {
@@ -164,10 +165,10 @@ describe('InfographicLabScreen — Estereoscopia & Paralaxe (REQ-LAB-002)', () =
     ).toBe(true);
   });
 
-  it('"Usar valores do meu equipamento": a base do par de 70 % de sobreposição, no teto do Atlas', () => {
+  it('"Usar valores do meu equipamento": a base do par de 70 % de sobreposição, na altura de trabalho', () => {
     open({ panel: 'STEREO' });
     fireEvent.click(screen.getByTestId('use-equipment'));
-    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '80');
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '100');
     expect(slider('Focal f')).toHaveAttribute('aria-valuenow', '10');
     expect(screen.getByTestId('equipment-note')).toHaveTextContent('Câmera de Peito do Avô');
   });
@@ -272,7 +273,7 @@ describe('InfographicLabScreen — LiDAR vs. Fotogrametria no Dossel (REQ-LAB-00
     expect(screen.getByTestId('equipment-note')).toHaveTextContent(
       'Equipamento: sem Pod LiDAR (só a aeronave) em Pombo Atlas',
     );
-    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '80');
+    expect(slider('Altura H')).toHaveAttribute('aria-valuenow', '100');
     expect(slider('PRR do pulso')).toHaveAttribute('aria-valuenow', '240');
     expect(slider('Velocidade v')).toHaveAttribute('aria-valuenow', '10');
   });

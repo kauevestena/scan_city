@@ -30,6 +30,12 @@ export const CRUISE_OBJECT_LATERAL_M = 15;
 export const CRUISE_SEARCHLIGHT_M = 100;
 /** Antecedência com que um pico elétrico derruba o cruzeiro. */
 export const CRUISE_SPIKE_LEAD_S = 1.5;
+/**
+ * O cruzeiro cai este tempo (real, no ritmo base) antes do fim da linha quando há outra linha:
+ * a manobra da curva acontece sempre no ritmo base, e o aviso da curva (3 s antes) já aparece
+ * com o mundo em ×1.
+ */
+export const CRUISE_TURN_LEAD_S = 3.5;
 /** Sem TF, o corredor não pode mudar mais que esta fração de H à frente. */
 export const CRUISE_CORRIDOR_CHANGE = 0.05;
 
@@ -44,8 +50,10 @@ export interface CruiseContext {
   on: boolean;
   /** A nota do instante é Boa ou Perfeita. */
   steady: boolean;
-  /** Rajada avisada (ou prestes a ser) ou em curso. */
+  /** Rajada ou corrente vertical avisada (ou prestes a ser) ou em curso. */
   gust: boolean;
+  /** A curva para a próxima linha está a menos de 3 s (ou já pedida). Padrão: falso. */
+  turnSoon?: boolean;
   /** Objeto sólido a menos de 150 m à frente, a menos de 15 m de lado. */
   solidAhead: boolean;
   criticalAlert: boolean;
@@ -66,6 +74,7 @@ export function cruiseEligible(c: CruiseContext): boolean {
     c.on &&
     c.steady &&
     !c.gust &&
+    c.turnSoon !== true &&
     !c.solidAhead &&
     !c.criticalAlert &&
     c.searchlightM >= CRUISE_SEARCHLIGHT_M &&

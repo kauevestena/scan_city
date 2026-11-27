@@ -90,8 +90,9 @@ describe('withAircraft', () => {
       speedMs: 8,
       heightM: 80,
     });
+    // O Atlas sobe até 120 m (ADR-035): acima disso, H fica presa no teto dele.
     const back = withAircraft(
-      { ...params, heightM: 120, crossGrid: true, obliqueDeg: 45 },
+      { ...params, heightM: 150, crossGrid: true, obliqueDeg: 45 },
       'ATLAS',
       { ...C00, ceilingM: 300 },
       INV,
@@ -100,7 +101,7 @@ describe('withAircraft', () => {
     expect(back.params).toMatchObject({
       aircraftId: 'ATLAS',
       sensorId: 'CAM_PIGEON',
-      heightM: 80,
+      heightM: 120,
       crossGrid: false,
     });
     expect(back.params.obliqueDeg).toBeUndefined();

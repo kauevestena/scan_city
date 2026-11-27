@@ -89,8 +89,14 @@ describe('avaliação (critérios 1 e 2)', () => {
       staffBonus: 1.2,
       staffCostBRL: 1000,
       penaltiesBRL: 500,
+      difficultyFactor: 1.25,
     });
-    expect(full).toHaveLength(8);
+    expect(full).toHaveLength(9);
+    // A dificuldade do voo (ADR-035): só aparece fora da média.
+    expect(full).toContainEqual(['× dificuldade do voo', '×1,25']);
+    expect(
+      paymentRows({ ...report.payment, difficultyFactor: 1 }).some(([k]) => k.includes('dific')),
+    ).toBe(false);
   });
 
   it('bônus de pilotagem: aparece ao lado do fator de qualidade', () => {

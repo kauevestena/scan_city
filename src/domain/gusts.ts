@@ -1,13 +1,17 @@
 /**
- * Rajadas e entrada de faixa — domain-math §5.1 (ADR-030, revisada na ADR-034). Puro e
- * determinístico pela seed.
+ * Rajadas, correntes verticais e entrada de faixa — domain-math §5.1 (ADR-030, revisada nas
+ * ADR-034 e ADR-035). Puro e determinístico pela seed.
  *
- * O vento médio é compensado pela aeronave; o que empurra são as rajadas: de 1 a 9 por linha,
- * cada uma com rampa curta, patamar e direção própria. Cada rajada chega como uma frente de
- * vento visível que varre a cena 1,5 s antes do empurrão (sem aviso escrito no HUD). Quem toca
- * contra ela no instante da chegada (o **contragolpe**) corta a rajada: ela empurra só 20 %.
- * Os tempos são segundos de simulação desde o início da linha; os ângulos são relativos ao
- * sentido da linha (0 = de cauda, +π/2 = empurra para a direita).
+ * O vento médio é compensado pela aeronave; o que empurra são as rajadas: de 1 a 9 por linha
+ * (uma a cada 7 s na dificuldade média), cada uma com rampa curta, patamar e direção própria. A
+ * maioria empurra de lado; uma parte delas (pela dificuldade) **sobe ou desce** (a térmica que
+ * estoura, a descendente que despenca). Cada rajada chega como uma frente de vento visível que
+ * varre a cena 1,5 s antes do empurrão (sem aviso escrito no HUD). Quem toca contra ela no
+ * instante da chegada (o **contragolpe**: de lado com `A`/`D`, na vertical com `Q`/`E`) corta a
+ * rajada: ela empurra só 20 %. As **correntes verticais** são mais longas e mais brandas (segundos
+ * de ar subindo ou descendo, sem contragolpe): pedem a mão no `Q`/`E` enquanto duram. Os tempos
+ * são segundos de simulação desde o início da linha; os ângulos são relativos ao sentido da linha
+ * (0 = de cauda, +π/2 = empurra para a direita).
  */
 import { clamp } from '@/lib/math';
 import type { Rng } from '@/lib/rng';
@@ -58,6 +62,22 @@ export const COUNTER_INPUT = 0.5;
 /** Fração do empurrão que sobra numa rajada cortada no tempo. */
 export const COUNTER_PUSH_FACTOR = 0.2;
 
+/**
+ * A rajada vertical sopra com a mesma força da de lado. A tolerância da altura (fração de `H`) é
+ * maior que a da faixa (fração de `S`), mas descer encolhe o GSD e aumenta o arrasto em pixels: na
+ * penumbra (R07) a mesma força já derruba as fotos pelo blur (calibrado na T096).
+ */
+export const VERTICAL_GUST_FACTOR = 1;
+
+/** Corrente vertical: rampa longa, patamar de alguns segundos e força moderada (m/s de ar). */
+export const DRAFT_RAMP_S = 0.8;
+export const DRAFT_HOLD_S = [2.5, 4] as const;
+export const DRAFT_PEAK_MS = [2, 3.5] as const;
+/** A corrente aparece na cena (os riscos verticais) este tempo antes de começar. */
+export const DRAFT_WARN_S = 1;
+/** Tempo que uma corrente ocupa no máximo, com o aviso. */
+export const DRAFT_FOOTPRINT_S = 2 * DRAFT_RAMP_S + DRAFT_HOLD_S[1] + DRAFT_WARN_S;
+
 /** Erro de entrada de faixa: fração do espaçamento `S`. */
 export const ENTRY_OFFSET_FRACTION = [0.3, 0.4] as const;
 /** O erro de entrada nunca passa desta fração do que a aeronave corrige até lá. */
@@ -77,13 +97,35 @@ export interface Gust {
   holdS: number;
   /** Força de pico do vento da rajada (m/s), antes do `driftFactor` da aeronave. */
   peakMs: number;
-  /** Para onde a rajada empurra, em relação ao sentido da linha. */
+  /** Para onde a rajada empurra, em relação ao sentido da linha (só a de lado). */
   angleRad: number;
+  /** Rajada vertical: +1 sobe, −1 desce. Ausente: a rajada empurra de lado. */
+  vertical?: -1 | 1;
 }
 
-/** Rajadas por linha: `clamp(round(T/7), 1, 9)`. */
-export function gustCount(lineDurationS: number): number {
-  return clamp(Math.round(lineDurationS / GUST_PERIOD_S), 1, GUST_MAX_PER_LINE);
+/** Corrente vertical: ar subindo (+1) ou descendo (−1) por alguns segundos, sem contragolpe. */
+export interface Draft {
+  startS: number;
+  rampS: number;
+  holdS: number;
+  /** Força de pico (m/s de ar), antes do `driftFactor` da aeronave. */
+  peakMs: number;
+  dir: -1 | 1;
+}
+
+/** Rajadas por linha: `clamp(round(T/período), 1, 9)`, com o período da dificuldade (7 s na média). */
+export function gustCount(lineDurationS: number, periodS: number = GUST_PERIOD_S): number {
+  return clamp(Math.round(lineDurationS / periodS), 1, GUST_MAX_PER_LINE);
+}
+
+/** O eixo em que a rajada empurra (e em que o contragolpe é dado). */
+export function gustAxis(gust: Gust): 'LATERAL' | 'VERTICAL' {
+  return gust.vertical === undefined ? 'LATERAL' : 'VERTICAL';
+}
+
+/** Para onde a rajada empurra no eixo dela: de lado, +1 direita; na vertical, +1 para cima. */
+export function gustDir(gust: Gust): -1 | 1 {
+  return gust.vertical ?? gustSide(gust);
 }
 
 export function gustDurationS(gust: Gust): number {
@@ -119,9 +161,37 @@ function withMinLateral(angleRad: number, side: 1 | -1): number {
   return Math.atan2(side * GUST_MIN_LATERAL, (c < 0 ? -1 : 1) * along);
 }
 
+/** Opções da agenda: a dificuldade (período e fração vertical), as correntes e o lado vertical. */
+export interface PlanGustOptions {
+  /** Uma rajada a cada tantos segundos de linha (padrão: 7). */
+  periodS?: number;
+  /** Fração das rajadas que sobem ou descem (padrão: 0, só de lado). */
+  verticalShare?: number;
+  /**
+   * As correntes verticais da passada: rajada vertical não cai em cima de uma (as duas juntas
+   * somariam um tranco fundo demais); as verticais saem das que não cruzam nenhuma.
+   */
+  drafts?: readonly Draft[];
+  /**
+   * Para onde sobem ou descem as rajadas verticais da passada (todas para o mesmo lado, como as
+   * de lado: sem isso, elas se anulariam para quem larga o controle). Padrão: sorteado.
+   */
+  verticalDir?: -1 | 1;
+}
+
+/** A rajada (com o aviso) cruza alguma corrente (com o aviso)? */
+function crossesDraft(gust: Gust, drafts: readonly Draft[]): boolean {
+  const from = gust.startS - GUST_WARN_S;
+  const to = gust.startS + gustDurationS(gust);
+  return drafts.some((d) => from < d.startS + draftDurationS(d) && to > d.startS - DRAFT_WARN_S);
+}
+
 /**
  * Agenda de rajadas de uma passada. A janela `[leadIn + 1, T − 4]` é dividida em partes
- * iguais e cada rajada começa nos primeiros `parte − footprint` segundos da sua parte.
+ * iguais e cada rajada começa nos primeiros `parte − footprint` segundos da sua parte. Com
+ * `verticalShare`, parte das rajadas sobe ou desce, para o lado vertical da passada (o mesmo das
+ * correntes). Elas saem só das que não cruzam uma corrente, com a chance ajustada para que a
+ * fração delas na passada seja a pedida (quando couber).
  */
 export function planGusts(
   rng: Rng,
@@ -129,10 +199,16 @@ export function planGusts(
   windRelRad: number,
   lineDurationS: number,
   leadInS: number,
+  opts: PlanGustOptions = {},
 ): Gust[] {
+  const verticalShare = opts.verticalShare ?? 0;
+  const drafts = opts.drafts ?? [];
+  // Sem fração vertical, nada é sorteado: a agenda só de lado fica a mesma de antes.
+  const verticalDir: -1 | 1 =
+    verticalShare > 0 ? (opts.verticalDir ?? (rng.next() < 0.5 ? -1 : 1)) : 1;
   const from = leadInS + GUST_AFTER_ENTRY_S;
   const windowS = Math.max(0, lineDurationS - GUST_BEFORE_END_S - from);
-  let n = gustCount(lineDurationS);
+  let n = gustCount(lineDurationS, opts.periodS ?? GUST_PERIOD_S);
   while (n > 1 && windowS < n * GUST_MIN_SLOT_S) n--;
   const slotS = windowS / n;
   // Sem vento médio, as rajadas da passada vêm de uma direção sorteada para a passada inteira
@@ -151,15 +227,100 @@ export function planGusts(
       Math.max(GUST_MIN_PEAK_MS, wind.gustMs + GUST_EXTRA_MS) *
       rng.range(GUST_PEAK_FACTOR[0], GUST_PEAK_FACTOR[1]);
     const raw = center + rng.range(-GUST_SPREAD_RAD, GUST_SPREAD_RAD);
-    gusts.push({
+    const gust: Gust = {
       startS,
       rampS: GUST_RAMP_S,
       holdS,
       peakMs,
       angleRad: withMinLateral(raw, side),
-    });
+    };
+    gusts.push(gust);
+  }
+  if (verticalShare > 0) {
+    const free = gusts.filter((g) => !crossesDraft(g, drafts));
+    const chance = Math.min(1, (verticalShare * gusts.length) / Math.max(1, free.length));
+    for (const g of gusts) {
+      if (rng.next() >= chance || crossesDraft(g, drafts)) continue;
+      g.vertical = verticalDir;
+      g.peakMs *= VERTICAL_GUST_FACTOR;
+    }
   }
   return gusts;
+}
+
+/** Duração da corrente: as duas rampas e o patamar. */
+export function draftDurationS(draft: Draft): number {
+  return 2 * draft.rampS + draft.holdS;
+}
+
+/**
+ * Correntes verticais de uma passada: uma a cada `periodS` segundos de linha (nenhuma com
+ * `null` ou com linha mais curta que o período), na mesma janela das rajadas, dividida em
+ * partes iguais; cada uma começa num instante uniforme da sua parte. Todas sobem ou todas
+ * descem (`dir`, ou sorteado uma vez para a passada).
+ */
+export function planDrafts(
+  rng: Rng,
+  lineDurationS: number,
+  leadInS: number,
+  periodS: number | null,
+  dir?: -1 | 1,
+): Draft[] {
+  if (periodS === null || !(periodS > 0)) return [];
+  const passDir: -1 | 1 = dir ?? (rng.next() < 0.5 ? -1 : 1);
+  const from = leadInS + GUST_AFTER_ENTRY_S;
+  const windowS = Math.max(0, lineDurationS - GUST_BEFORE_END_S - from);
+  let n = Math.floor(lineDurationS / periodS);
+  while (n > 0 && windowS < n * (DRAFT_FOOTPRINT_S + 1)) n--;
+  const slotS = n > 0 ? windowS / n : 0;
+  const drafts: Draft[] = [];
+  for (let i = 0; i < n; i++) {
+    const holdS = rng.range(DRAFT_HOLD_S[0], DRAFT_HOLD_S[1]);
+    const length = 2 * DRAFT_RAMP_S + holdS;
+    const startS =
+      from + DRAFT_WARN_S + slotS * i + rng.range(0, Math.max(0, slotS - length - DRAFT_WARN_S));
+    drafts.push({
+      startS,
+      rampS: DRAFT_RAMP_S,
+      holdS,
+      peakMs: rng.range(DRAFT_PEAK_MS[0], DRAFT_PEAK_MS[1]),
+      dir: passDir,
+    });
+  }
+  return drafts;
+}
+
+/** Envelope da corrente em `tS`: sobe em `rampS`, patamar, desce em `rampS`. */
+export function draftEnvelope(draft: Draft, tS: number): number {
+  const t = tS - draft.startS;
+  const total = draftDurationS(draft);
+  if (t <= 0 || t >= total) return 0;
+  if (t < draft.rampS) return t / draft.rampS;
+  if (t <= draft.rampS + draft.holdS) return 1;
+  return (total - t) / draft.rampS;
+}
+
+/** Vento vertical das correntes em `tS` (m/s, positivo para cima). */
+export function draftPushAt(drafts: readonly Draft[], tS: number): number {
+  let w = 0;
+  for (const d of drafts) w += d.peakMs * d.dir * draftEnvelope(d, tS);
+  return w;
+}
+
+/**
+ * A corrente avisada (os riscos aparecem `DRAFT_WARN_S` antes) ou em curso em `tS`, com o
+ * tempo até ela começar (`inS ≤ 0` quando já sopra); `null` fora delas.
+ */
+export function draftAt(
+  drafts: readonly Draft[],
+  tS: number,
+): { draft: Draft; inS: number } | null {
+  for (const d of drafts) {
+    if (tS >= d.startS - DRAFT_WARN_S && tS < d.startS + draftDurationS(d)) {
+      return { draft: d, inS: d.startS - tS };
+    }
+  }
+  return null;
 }
 
 /** Envelope da rajada em `tS`: sobe em `rampS`, patamar de `holdS`, desce em `rampS`. */
@@ -173,24 +334,30 @@ export function gustEnvelope(gust: Gust, tS: number): number {
 }
 
 /**
- * Vento das rajadas em `tS`, decomposto na transversal e ao longo da linha (m/s). `weights`
- * (opcional, um por rajada, padrão 1) reduz as rajadas cortadas pelo contragolpe.
+ * Vento das rajadas em `tS`, decomposto na transversal, ao longo da linha e na vertical (m/s;
+ * positivo para cima). `weights` (opcional, um por rajada, padrão 1) reduz as rajadas cortadas
+ * pelo contragolpe.
  */
 export function gustPushAt(
   gusts: readonly Gust[],
   tS: number,
   weights?: readonly number[],
-): { lateralMs: number; alongMs: number } {
+): { lateralMs: number; alongMs: number; verticalMs: number } {
   let lateralMs = 0;
   let alongMs = 0;
+  let verticalMs = 0;
   for (let i = 0; i < gusts.length; i++) {
     const g = gusts[i] as Gust;
     const e = gustEnvelope(g, tS) * (weights?.[i] ?? 1);
     if (e === 0) continue;
+    if (g.vertical !== undefined) {
+      verticalMs += g.peakMs * e * g.vertical;
+      continue;
+    }
     lateralMs += g.peakMs * e * Math.sin(g.angleRad);
     alongMs += g.peakMs * e * Math.cos(g.angleRad);
   }
-  return { lateralMs, alongMs };
+  return { lateralMs, alongMs, verticalMs };
 }
 
 /**

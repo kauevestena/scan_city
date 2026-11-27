@@ -2,21 +2,27 @@
 /**
  * `npm run qa:flight` (ADR-032): os quatro pilotos simulados em todos os contratos, com
  * várias sementes (`QA_SEEDS`, padrão 3). Imprime a tabela e confere as mesmas metas do
- * `verify`, agora em todas as sementes.
+ * `verify`, agora em todas as sementes. `QA_DIFFICULTY` (padrão `MEDIUM`, a das metas) voa em
+ * outra dificuldade (ADR-035): na fácil e na difícil só valem as metas do parado e do bom (o
+ * mediano e o distraído são medidos para a calibração, sem meta).
  */
 import { CONTRACTS } from '@/data/contracts';
 import { flyMission, type FlownMission } from '@/test/flyMission';
 import type { PilotKind } from '@/test/pilots';
+import type { FlightDifficulty } from '@/types';
 import { CHALLENGE } from './challenge';
 
 const SEEDS = Number(process.env.QA_SEEDS ?? 3);
+const DIFFICULTY = (process.env.QA_DIFFICULTY ?? 'MEDIUM') as FlightDifficulty;
+/** As metas do mediano e do distraído são da dificuldade média. */
+const GOALS = DIFFICULTY === 'MEDIUM';
 const PILOTS: PilotKind[] = ['IDLE', 'ALIGN', 'MEDIUM', 'GOOD'];
 
 const fmt = (n: number) => n.toFixed(2).replace('.', ',');
 const min = (rows: FlownMission[]) => Math.min(...rows.map((r) => r.execution));
 const max = (rows: FlownMission[]) => Math.max(...rows.map((r) => r.execution));
 
-it(`os pilotos simulados com ${SEEDS} sementes`, () => {
+it(`os pilotos simulados com ${SEEDS} sementes (${DIFFICULTY})`, () => {
   const out: string[] = [
     '| Contrato | Parado (E) | Distraído (E) | Mediano (E · nota) | Bom (E · nota) | Surtida do mediano: jogo → real (min) |',
     '| :-- | :-: | :-: | :-: | :-: | :-: |',
@@ -31,7 +37,7 @@ it(`os pilotos simulados com ${SEEDS} sementes`, () => {
   for (const c of CONTRACTS) {
     const by = new Map<PilotKind, FlownMission[]>();
     for (const p of PILOTS) {
-      const runs = Array.from({ length: SEEDS }, (_, i) => flyMission(c, p, i + 1));
+      const runs = Array.from({ length: SEEDS }, (_, i) => flyMission(c, p, i + 1, DIFFICULTY));
       by.set(p, runs);
       all.get(p)?.push(...runs);
     }
@@ -45,7 +51,7 @@ it(`os pilotos simulados com ${SEEDS} sementes`, () => {
       alignRuns++;
       if (!a.report.approved) alignRejected++;
       check(
-        a.execution <= m.execution - CHALLENGE.alignGap,
+        !GOALS || a.execution <= m.execution - CHALLENGE.alignGap,
         `${c.id} semente ${i + 1}: distraído ${fmt(a.execution)} perto do mediano ${fmt(m.execution)}`,
       );
     }
@@ -57,9 +63,9 @@ it(`os pilotos simulados com ${SEEDS} sementes`, () => {
       );
     });
     medium.forEach((r, i) => {
-      check(r.report.approved, `${c.id} semente ${i + 1}: mediano reprovado`);
+      check(!GOALS || r.report.approved, `${c.id} semente ${i + 1}: mediano reprovado`);
       check(
-        r.execution >= CHALLENGE.mediumMinExecution,
+        !GOALS || r.execution >= CHALLENGE.mediumMinExecution,
         `${c.id} semente ${i + 1}: mediano com ${fmt(r.execution)}`,
       );
     });
@@ -93,7 +99,7 @@ it(`os pilotos simulados com ${SEEDS} sementes`, () => {
   }
   out.push(`Distraído reprovado em ${alignRejected} de ${alignRuns} missões.`);
   check(
-    alignRejected / alignRuns >= CHALLENGE.alignMinRejected / CONTRACTS.length,
+    !GOALS || alignRejected / alignRuns >= CHALLENGE.alignMinRejected / CONTRACTS.length,
     `distraído reprovado em só ${alignRejected} de ${alignRuns}`,
   );
   if (problems.length > 0) out.push('', 'Fora das metas:', ...problems.map((p) => `- ${p}`));

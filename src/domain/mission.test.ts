@@ -78,6 +78,26 @@ describe('bônus de anéis (COLLECTIBLE_RINGS)', () => {
   });
 });
 
+describe('dificuldade do voo no pagamento (ADR-035)', () => {
+  it('a dificuldade da missão vai para o pagamento; sem ela, a média (×1)', () => {
+    const seen: number[] = [];
+    const ctx = context({
+      deps: {
+        computePayment: (input) => {
+          seen.push(input.difficultyFactor ?? 1);
+          return paymentStub(input);
+        },
+        computeRewards: (r) => ({ xp: r.xp, reputationDelta: r.reputationReward }),
+      },
+    });
+    const base = syntheticMission(C00, ctx.terrain);
+    evaluateMission(base, C00, ctx);
+    evaluateMission({ ...base, difficulty: 'EASY' }, C00, ctx);
+    evaluateMission({ ...base, difficulty: 'HARD' }, C00, ctx);
+    expect(seen).toEqual([1, 0.8, 1.25]);
+  });
+});
+
 describe('cenário golden — missão sintética do C00', () => {
   const run = (
     mission?: MissionData,

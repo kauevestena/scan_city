@@ -20,6 +20,13 @@ export const GUST_FRONT_BELOW_M = 45;
 export const GUST_FRONT_ABOVE_M = 28;
 /** Riscos de vento junto da frente. */
 export const GUST_FRONT_STREAKS = 34;
+/**
+ * Rajada vertical (ADR-035): a frente é uma lâmina horizontal que desce do céu (a que empurra
+ * para baixo) ou sobe do chão (a que empurra para cima) e chega à altitude da aeronave no
+ * instante do empurrão. Parte deste tanto acima ou abaixo, e cobre esta meia largura em X.
+ */
+export const VERTICAL_FRONT_START_M = 55;
+export const VERTICAL_FRONT_HALF_WIDTH_M = 70;
 /** Duração (tempo real) do tranco ou do corte na chegada. */
 export const GUST_IMPACT_S = 0.4;
 /** Tranco lateral máximo da tela quando a rajada bate sem contragolpe (px). */
@@ -99,6 +106,54 @@ export function buildGustFront(i: GustFrontInput): GustFrontDraw | null {
   };
 }
 
+/** Altitude da lâmina da rajada vertical `inS` antes da chegada: parte de 55 m do lado de onde vem. */
+export function verticalFrontAlt(aircraftAlt: number, dir: -1 | 1, inS: number): number {
+  const p = clamp(1 - inS / GUST_WARN_S, 0, 1);
+  return aircraftAlt - dir * VERTICAL_FRONT_START_M * (1 - p);
+}
+
+/**
+ * A frente de uma rajada vertical (`side` = +1 sobe, −1 desce): a lâmina horizontal na altitude
+ * da frente, de perto da câmera até longe, e os riscos verticais apontando para onde ela empurra.
+ * `null` fora do aviso.
+ */
+export function buildVerticalGustFront(i: GustFrontInput): GustFrontDraw | null {
+  if (!(i.inS > 0) || i.inS > GUST_WARN_S) return null;
+  const progress = clamp(1 - i.inS / GUST_WARN_S, 0, 1);
+  const alt = verticalFrontAlt(i.aircraftAlt, i.side, i.inS);
+  const x0 = i.aircraftX - VERTICAL_FRONT_HALF_WIDTH_M;
+  const x1 = i.aircraftX + VERTICAL_FRONT_HALF_WIDTH_M;
+  // Perto-esquerda, perto-direita, longe-direita, longe-esquerda.
+  const a = projectAbs(x0, alt, GUST_FRONT_NEAR_M, i.cam);
+  const b = projectAbs(x1, alt, GUST_FRONT_NEAR_M, i.cam);
+  const c = projectAbs(x1, alt, GUST_FRONT_FAR_M, i.cam);
+  const d = projectAbs(x0, alt, GUST_FRONT_FAR_M, i.cam);
+  const sheet = a && b && c && d ? ([a, b, c, d] as GustFrontDraw['sheet']) : null;
+  const streaks: number[] = [];
+  for (let k = 0; k < GUST_FRONT_STREAKS; k++) {
+    const h1 = frac(k + 1, 12.9898, 43758.5453);
+    const h2 = frac(k + 1, 78.233, 12543.873);
+    const h3 = frac(k + 1, 39.425, 24634.633);
+    const Z = GUST_FRONT_NEAR_M + 10 + (GUST_FRONT_FAR_M * 0.7 - 10) * h1 * h1;
+    const X = x0 + (x1 - x0) * h2;
+    const run = ((i.timeS * (1.2 + h3) + h3) % 1) * 10;
+    // Os riscos saem da lâmina e correm para onde ela empurra (o ar caindo ou subindo).
+    const y0 = alt + i.side * (run - 3);
+    const y1 = y0 + i.side * (5 + 7 * h3);
+    const p0 = projectAbs(X, y0, Z, i.cam);
+    const p1 = projectAbs(X + (h2 - 0.5) * 2, y1, Z, i.cam);
+    if (p0 && p1) streaks.push(p0.x, p0.y, p1.x, p1.y);
+  }
+  return {
+    progress,
+    frontX: i.aircraftX,
+    sheet,
+    sheetAlpha: 0.08 + 0.18 * progress,
+    streaks,
+    streakAlpha: 0.35 + 0.5 * progress,
+  };
+}
+
 /** Executa a frente: a cortina, as bordas e os riscos (quatro chamadas de desenho). */
 export function drawGustFront(ctx: CanvasRenderingContext2D, f: GustFrontDraw): void {
   ctx.save();
@@ -154,7 +209,8 @@ export function gustJoltPx(
 
 /**
  * O corte da rajada no tempo: um arco claro do lado de onde ela veio, em volta da aeronave,
- * que abre e some. Com `reduceFlashes`, não abre: só some.
+ * que abre e some (em cima, se ela descia; embaixo, se subia). Com `reduceFlashes`, não abre:
+ * só some.
  */
 export function drawGustCut(
   ctx: CanvasRenderingContext2D,
@@ -163,12 +219,15 @@ export function drawGustCut(
   side: -1 | 1,
   ageS: number,
   reduceFlashes: boolean,
+  axis: 'LATERAL' | 'VERTICAL' = 'LATERAL',
 ): void {
   const k = ageS / GUST_IMPACT_S;
   if (k < 0 || k >= 1) return;
   const r = reduceFlashes ? 40 : 26 + 46 * k;
-  // O arco fica do lado de onde o vento veio (o oposto do empurrão).
-  const mid = side > 0 ? Math.PI : 0;
+  // O arco fica do lado de onde o vento veio (o oposto do empurrão). Na tela, y cresce para baixo:
+  // a rajada que sobe veio de baixo (π/2) e a que desce, de cima (−π/2).
+  const mid =
+    axis === 'VERTICAL' ? (side > 0 ? Math.PI / 2 : -Math.PI / 2) : side > 0 ? Math.PI : 0;
   ctx.save();
   ctx.strokeStyle = `rgba(110, 231, 183, ${(0.85 * (1 - k)).toFixed(3)})`;
   ctx.lineWidth = 3;

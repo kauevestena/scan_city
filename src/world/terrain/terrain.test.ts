@@ -270,6 +270,22 @@ describe('createTerrain — RURAL_TUTORIAL (C00)', () => {
     }
   });
 
+  it('groundCoverAt é a cobertura sob a estrada: igual fora dela, o chão em vez de ROAD nela', () => {
+    // O voo pinta o chão com ela e desenha as estradas como faixas por cima (ADR-035).
+    const t = createTerrain(C00);
+    const elev = (u: number, v: number) => t.elevation(u, v);
+    expect(t.landCover(120, 80)).toBe('ROAD');
+    expect(t.groundCoverAt(120, 80, elev(120, 80))).not.toBe('ROAD');
+    expect(t.groundCoverAt(HOUSE.u, HOUSE.v, elev(HOUSE.u, HOUSE.v))).toBe('ROOF');
+    const rng = mulberry32(78);
+    for (let i = 0; i < 300; i++) {
+      const u = rng.range(t.bounds.uMin, t.bounds.uMax);
+      const v = rng.range(t.bounds.vMin, t.bounds.vMax);
+      const cover = t.landCover(u, v);
+      if (cover !== 'ROAD') expect(t.groundCoverAt(u, v, elev(u, v))).toBe(cover);
+    }
+  });
+
   it('distanceToRoad é 0 sobre a estrada e cresce ao se afastar', () => {
     const t = createTerrain(C00);
     expect(t.distanceToRoad(120, 80)).toBe(0);

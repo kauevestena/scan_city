@@ -25,8 +25,8 @@ O progresso é salvo no `localStorage` do navegador (autosave ao trocar de tela)
 
 1. **Escritório (`OFFICE`)**: a sede, com nove pontos de interação. A **Garagem** vende aeronaves, sensores, veículos, equipamento e pintura; o **Poleiro do Atlas** cuida do milho e da câmera do pombo; a **Mesa da Equipe** contrata e demite; o **Quadro de Carreira** guarda habilidades, perfil e visual; a **Estante de Relíquias** guarda os souvenirs; a **Workstation** processa as missões; o **Laboratório** abre os infográficos; a **Mesa Holográfica** abre o Museu; e a **Porta** leva ao mapa.
 2. **Mapa (`WORLD_MAP`)**: mundo aberto 2D. Cada marcador é um contrato; entre num e aceite o briefing.
-3. **Campo (`FIELD_SETUP`)**: pontos de apoio (GCPs) com a Estação Total do Avô, plano de voo, calibração e checklist.
-4. **Voo (`SURVEY_FLIGHT`)**: voo 2.5D sobre o relevo, pelos portais do corredor de cada linha. Cada foto ganha nota (faixa, altura e avanço), as rajadas chegam como uma frente de vento visível (o toque contra ela no instante certo, o contragolpe, corta o empurrão), a linha mal voada volta para revoo e a execução do voo entra no relatório; RGB ou LiDAR, vento, bateria e eventos.
+3. **Campo (`FIELD_SETUP`)**: pontos de apoio (GCPs) com a Estação Total do Avô, plano de voo, calibração e checklist, onde se escolhe a **dificuldade do voo** (fácil, média ou difícil: o ritmo, o vento vertical, a janela da curva e o pagamento).
+4. **Voo (`SURVEY_FLIGHT`)**: voo 2.5D sobre o relevo, pelos portais do corredor de cada linha. Cada foto ganha nota (faixa, altura e avanço), as rajadas chegam como uma frente de vento visível, de lado ou de cima e de baixo (o toque contra ela no instante certo, o contragolpe, corta o empurrão), as correntes verticais pedem a mão na altura, no fim de cada linha a **curva para a próxima faixa é feita pelo jogador** no portal da curva, a linha mal voada volta para revoo e a execução do voo entra no relatório; RGB ou LiDAR, vento, bateria e eventos.
 5. **Processamento (`PROCESSING_RESULTS`)**: SfM no notebook, relatório de qualidade e produtos (ortofoto, MDS, MDT, NDVI e nuvem 3D).
 6. **Museu (`HOLO_TABLE_VIEW`)**: a mesa 3D mostra cada setor mapeado, na dimensão real ou no Multiverso.
 7. **Laboratório (`INFOGRAPHIC_LAB`)**: infográficos interativos de óptica e GSD, estereoscopia, dossel e shutter.
@@ -35,43 +35,44 @@ O progresso é salvo no `localStorage` do navegador (autosave ao trocar de tela)
 
 Teclado e mouse, ou controle Xbox/PS5 (Gamepad API, layout `standard`). A tela **Esc → Controles** mostra os botões do dispositivo em uso.
 
-| Ação                              | Teclado                   | Controle                     |
-| :-------------------------------- | :------------------------ | :--------------------------- |
-| Mover (mapa) / pilotar (voo)      | `W A S D` ou setas        | Analógico esquerdo / D-pad   |
-| Interagir, confirmar              | `Espaço` ou `Enter`       | `A` / `✕`                    |
-| Voltar, fechar                    | `Esc` ou `Backspace`      | `B` / `○`                    |
-| Pausar                            | `Esc` ou `M`              | `Menu` / `Options`           |
-| Subir / descer altura (voo)       | `Q` / `E`                 | `RT` / `LT`                  |
-| Foto manual, ação do mini-game    | `Espaço`                  | `X` / `□`                    |
-| Trocar RGB ↔ LiDAR, Real ↔ Fendas | `Tab` (ou `1` `2` no voo) | `Y` / `△`                    |
-| Retorno à base (voo)              | `R`                       | `B` / `○`                    |
-| Cruzeiro automático (voo)         | `T`                       | `RB` / `R1`                  |
-| Trocar de veículo (mapa)          | `V`                       | `LB` / `L1`                  |
-| Navegação GNSS (mapa)             | `G`                       | `RB` / `R1`                  |
-| Trocar de aba                     | `Q` / `E`                 | `LB` / `RB`                  |
-| Dispensar a dica do tutorial      | `H`                       | `View` / `Create`            |
-| Orbitar e dar zoom (mesa, nuvem)  | mouse, setas, `+` `−`     | Analógico direito, `RT` `LT` |
+| Ação                              | Teclado                                                                                      | Controle                                            |
+| :-------------------------------- | :------------------------------------------------------------------------------------------- | :-------------------------------------------------- |
+| Mover (mapa) / pilotar (voo)      | `W A S D` ou setas                                                                           | Analógico esquerdo / D-pad                          |
+| Interagir, confirmar              | `Espaço` ou `Enter`                                                                          | `A` / `✕`                                           |
+| Voltar, fechar                    | `Esc` ou `Backspace`                                                                         | `B` / `○`                                           |
+| Pausar                            | `Esc` ou `M`                                                                                 | `Menu` / `Options`                                  |
+| Subir / descer altura (voo)       | `Q` / `E`                                                                                    | `RT` / `LT`                                         |
+| Curva para a próxima faixa (voo)  | `W`+`E`+`D` à direita, `W`+`A`+`Q` à esquerda (juntas, ou `D` → `E` → `W` / `A` → `Q` → `W`) | Analógico para a frente e para o lado + `RT` / `LT` |
+| Foto manual, ação do mini-game    | `Espaço`                                                                                     | `X` / `□`                                           |
+| Trocar RGB ↔ LiDAR, Real ↔ Fendas | `Tab` (ou `1` `2` no voo)                                                                    | `Y` / `△`                                           |
+| Retorno à base (voo)              | `R`                                                                                          | `B` / `○`                                           |
+| Cruzeiro automático (voo)         | `T`                                                                                          | `RB` / `R1`                                         |
+| Trocar de veículo (mapa)          | `V`                                                                                          | `LB` / `L1`                                         |
+| Navegação GNSS (mapa)             | `G`                                                                                          | `RB` / `R1`                                         |
+| Trocar de aba                     | `Q` / `E`                                                                                    | `LB` / `RB`                                         |
+| Dispensar a dica do tutorial      | `H`                                                                                          | `View` / `Create`                                   |
+| Orbitar e dar zoom (mesa, nuvem)  | mouse, setas, `+` `−`                                                                        | Analógico direito, `RT` `LT`                        |
 
 O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NFR-007); a tabela completa de ações está em [specs/design/input.md](specs/design/input.md).
 
 ## Scripts
 
-| Comando                                                 | O que faz                                                                                                                                                                             |
-| :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run dev`                                           | Vite em modo de desenvolvimento                                                                                                                                                       |
-| `npm run build`                                         | `tsc -b` e build de produção em `dist/`                                                                                                                                               |
-| `npm run preview`                                       | serve o `dist/`                                                                                                                                                                       |
-| `npm test`                                              | testes de unidade e de componente (Vitest + jsdom)                                                                                                                                    |
-| `npm run test:coverage`                                 | os mesmos testes com cobertura v8 e limites (global ≥ 60 %; `src/domain` e `src/lib` ≥ 90 %)                                                                                          |
-| `npm run e2e`                                           | Playwright em Chromium (constrói e serve o app na porta 4173)                                                                                                                         |
-| `npm run e2e:firefox`                                   | os mesmos testes no Firefox (REQ-NFR-009); na primeira vez, `npx playwright install firefox`                                                                                          |
-| `npm run typecheck` / `npm run lint` / `npm run format` | TypeScript estrito, ESLint (zero avisos) e Prettier                                                                                                                                   |
-| `npm run check:placeholders`                            | zero `TODO`/`FIXME`/`XXX`, funções vazias e `DebugScreenShell` em `src/` (REQ-NFR-005)                                                                                                |
-| `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                                                                                                       |
-| `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                                                                                         |
-| `npm run qa:random`                                     | entradas aleatórias (teclado, mouse e controle) contra o `npm run preview`, procurando erro, queda e travada; com `--soak` mede a memória (opções no topo de `scripts/qa-random.mjs`) |
-| `npm run qa:flight`                                     | os quatro pilotos simulados (parado, distraído, mediano e bom) nos 18 contratos, em 3 sementes (`QA_SEEDS=<n>` muda), com a tabela de execução e as metas de desafio (REQ-NFR-010)    |
-| `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                          |
+| Comando                                                 | O que faz                                                                                                                                                                                                                               |
+| :------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                           | Vite em modo de desenvolvimento                                                                                                                                                                                                         |
+| `npm run build`                                         | `tsc -b` e build de produção em `dist/`                                                                                                                                                                                                 |
+| `npm run preview`                                       | serve o `dist/`                                                                                                                                                                                                                         |
+| `npm test`                                              | testes de unidade e de componente (Vitest + jsdom)                                                                                                                                                                                      |
+| `npm run test:coverage`                                 | os mesmos testes com cobertura v8 e limites (global ≥ 60 %; `src/domain` e `src/lib` ≥ 90 %)                                                                                                                                            |
+| `npm run e2e`                                           | Playwright em Chromium (constrói e serve o app na porta 4173)                                                                                                                                                                           |
+| `npm run e2e:firefox`                                   | os mesmos testes no Firefox (REQ-NFR-009); na primeira vez, `npx playwright install firefox`                                                                                                                                            |
+| `npm run typecheck` / `npm run lint` / `npm run format` | TypeScript estrito, ESLint (zero avisos) e Prettier                                                                                                                                                                                     |
+| `npm run check:placeholders`                            | zero `TODO`/`FIXME`/`XXX`, funções vazias e `DebugScreenShell` em `src/` (REQ-NFR-005)                                                                                                                                                  |
+| `npm run check:terms`                                   | nenhum nome de franquia em `src/` (REQ-CNT-006)                                                                                                                                                                                         |
+| `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                                                                                                                                           |
+| `npm run qa:random`                                     | entradas aleatórias (teclado, mouse e controle) contra o `npm run preview`, procurando erro, queda e travada; com `--soak` mede a memória (opções no topo de `scripts/qa-random.mjs`)                                                   |
+| `npm run qa:flight`                                     | os quatro pilotos simulados (parado, distraído, mediano e bom) nos 18 contratos, em 3 sementes (`QA_SEEDS=<n>` muda), com a tabela de execução e as metas de desafio (REQ-NFR-010); `QA_DIFFICULTY=EASY\|HARD` voa em outra dificuldade |
+| `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                                                                            |
 
 Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa (137 testes) leva cerca de 18 minutos no Chromium e 22 no Firefox; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
 
@@ -88,6 +89,7 @@ Os parâmetros abaixo só valem com `debug=1`; sem ele a URL é ignorada.
 | `contract=<id>`     | contrato usado pelos payloads de teste (por exemplo `C03` ou `R04`)                                                     |
 | `autopilot=1`       | o voo segue o plano sozinho (é o piloto "bom" das metas de desafio) e libera o tempo ×8                                 |
 | `calm=1`            | voo sem rajadas e sem erro de entrada de faixa, para testar o resto sem pilotar                                         |
+| `difficulty=<d>`    | dificuldade do voo de teste: `EASY`, `MEDIUM` (padrão) ou `HARD`                                                        |
 | `unlockAll=1`       | todos os contratos disponíveis e todos os itens possuídos                                                               |
 | `money=<n>`         | saldo inicial em reais                                                                                                  |
 
@@ -118,7 +120,7 @@ specs/         a especificação (SDD): a fonte da verdade do projeto
 O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](specs/README.md) é a fonte da verdade e cada tarefa de [`specs/tasks.md`](specs/tasks.md) cita os requisitos (`REQ-*`) que atende. O mapa:
 
 - [`constitution.md`](specs/constitution.md): stack, princípios, convenções e Definition of Done;
-- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 138 requisitos;
+- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 140 requisitos;
 - [`design/`](specs/design) e [`features/`](specs/features): arquitetura, matemática do domínio, terreno, input, áudio, UI e uma spec por tela;
 - [`decisions.md`](specs/decisions.md) e [`open-questions.md`](specs/open-questions.md): decisões (ADRs) e perguntas em aberto.
 

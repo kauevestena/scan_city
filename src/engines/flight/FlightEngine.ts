@@ -6,6 +6,7 @@
 import type { Catalog } from '@/data/catalog';
 import { STRINGS } from '@/data/strings';
 import { corridorAltAt, corridorChangeAhead, GATE_HALF_HEIGHT } from '@/domain/corridor';
+import { DIFFICULTY, missionDifficulty, type DifficultyParams } from '@/domain/difficulty';
 import { drainPerSecond, rthRequired } from '@/domain/energy';
 import {
   DATA_WEIGHT,
@@ -37,9 +38,12 @@ import {
   COUNTER_INPUT,
   COUNTER_PUSH_FACTOR,
   counterWeight,
+  draftAt,
+  draftPushAt,
   GUST_WARN_S,
+  gustAxis,
+  gustDir,
   gustPushAt,
-  gustSide,
   gustWarningAt,
   initialCounter,
   stepCounter,
@@ -47,6 +51,17 @@ import {
   type CounterState,
   type Gust,
 } from '@/domain/gusts';
+import {
+  initialManeuver,
+  judgeTurn,
+  stepManeuver,
+  turnSideTo,
+  windowCenterS,
+  type ManeuverState,
+  type TurnResult,
+  type TurnSide,
+  type TurnWindow,
+} from '@/domain/turnManeuver';
 import { gsd } from '@/domain/photogrammetry';
 import { FLIGHT_STAGE, PERF } from '@/engines/perf';
 import { planEquipment } from '@/domain/requirements';
@@ -57,6 +72,7 @@ import type {
   Aircraft,
   AoiPoint,
   Contract,
+  FlightDifficulty,
   FlightLine,
   GradeCounts,
   LidarBatch,
@@ -101,6 +117,7 @@ import { beginLinePass, closeLinePass, tallyGrade, type LinePassState } from './
 import {
   CRUISE_GUST_LEAD_S,
   CRUISE_SPIKE_LEAD_S,
+  CRUISE_TURN_LEAD_S,
   cruiseEligible,
   cruiseMaxFor,
   initialCruise,
@@ -112,8 +129,10 @@ import {
   buildCorridorDrawList,
   drawCorridor,
   drawGustStreaks,
+  drawVerticalStreaks,
   GRADE_RGB,
 } from './corridorRenderer';
+import { buildTurnGate, drawTurnGate } from './turnGate';
 import { WeatherParticles } from './particles';
 import { checkCollision, hitsTerrain, isBeamOn, motionOffset } from './collision';
 import {
@@ -155,6 +174,7 @@ import {
   type FlightPhase,
 } from './hudPublisher';
 import {
+  followCameraAlt,
   halfWidthAt,
   HORIZON_CRUISE,
   HORIZON_TAKEOFF,
@@ -164,7 +184,7 @@ import {
   type Quality,
 } from './projection';
 import { aoiPoint, runFrame, toRun, type RunFrame } from './runFrame';
-import { FLIGHT_TEMPO, tempoFor } from './tempo';
+import { tempoFor } from './tempo';
 import { drawRiftParticles, drawRiftSky } from './sky';
 import {
   buildWisps,
@@ -181,9 +201,21 @@ import {
 } from './atmosphere';
 import { drawWingTrails, WingTrails } from './trails';
 import { DetailGovernor, detailFx, lowerQuality } from './detailLevel';
-import { renderTerrain, sunInRunFrame, type GroundMark, type SceneObject } from './terrainRenderer';
+import {
+  renderTerrain,
+  sunInRunFrame,
+  type GroundMark,
+  type GroundRoad,
+  type SceneObject,
+} from './terrainRenderer';
 import { drawElectricSparks } from './electricSparks';
-import { buildGustFront, drawGustCut, drawGustFront, gustJoltPx } from './gustRenderer';
+import {
+  buildGustFront,
+  buildVerticalGustFront,
+  drawGustCut,
+  drawGustFront,
+  gustJoltPx,
+} from './gustRenderer';
 import { hotSpotHeat, objectHeat, thermalColor, thermalFeatures } from './thermal';
 
 /** Degraus do desvanecimento dos pontos do LiDAR e os estilos prontos de cada retorno. */
@@ -199,6 +231,17 @@ const LIDAR_LAST_STYLES = lidarStyles('52, 211, 153');
 export const TAKEOFF_S = 2.5;
 export const LANDING_S = 2;
 export const TURN_PRESENT_MAX_S = 2.5;
+/** A arremetida (a curva que não saiu na janela) dura isto na tela, em ×1. */
+export const GO_AROUND_S = 2;
+/** Depois da arremetida, a aeronave volta este tempo (real, no ritmo base) antes do portal da curva. */
+export const GO_AROUND_APPROACH_S = 2.5;
+/** Curvas perdidas seguidas até o retorno automático (o failsafe de quem não comanda). */
+export const TURN_FAILSAFE_MISSES = 3;
+/**
+ * O portal da curva fica pelo menos este tempo (real, no ritmo base) depois do fim dos dados da
+ * linha: o aviso da curva aparece quando os dados fecham, e daí até a janela é "cedo".
+ */
+export const TURN_APPROACH_S = 1.5;
 export const FLASH_S = 0.08;
 export const RETURNING_S = 3;
 /** Janela para confirmar o RTH (survey-flight §5.12). */
@@ -260,13 +303,32 @@ export interface LineReport {
 /** O contragolpe de uma rajada foi julgado (som e marca na tela, survey-flight §5.13). */
 export interface CounterEvent {
   result: CounterResult;
-  /** Lado para onde a rajada empurra. */
+  /** Para onde a rajada empurra no eixo dela: de lado, +1 direita; na vertical, +1 para cima. */
   side: -1 | 1;
+  axis: 'LATERAL' | 'VERTICAL';
+}
+
+/** A manobra de troca de faixa foi julgada (som e marca na tela, survey-flight §5.7). */
+export interface TurnEvent {
+  result: TurnResult;
+  /** O lado da curva pedida. */
+  side: TurnSide;
+}
+
+/** A curva pedida no fim da linha: o lado, o portal e o julgamento (survey-flight §5.7). */
+interface TurnApproach {
+  side: TurnSide;
+  /** `s` do portal da curva (o fim da linha, ou um pouco além, para a janela caber depois dos dados). */
+  gateS: number;
+  judged: TurnResult | null;
 }
 
 export interface FlightInputSource {
-  axis(a: 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN'): number;
+  axis(a: 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'TURN_LEFT' | 'TURN_RIGHT'): number;
 }
+
+/** O comando lido a cada passo: o da física e as teclas da curva de cada lado. */
+type PilotInput = FlightInput & { turnLeft: number; turnRight: number };
 
 export interface FlightEngineOptions {
   mission: MissionData;
@@ -282,6 +344,8 @@ export interface FlightEngineOptions {
    * sistemas do voo). O corredor e as notas continuam valendo.
    */
   calm?: boolean;
+  /** Dificuldade do voo; padrão: a da missão (a média, se ela não tiver). */
+  difficulty?: FlightDifficulty;
   quality: () => Quality;
   reduceFlashes: () => boolean;
   colors: SpriteColors;
@@ -319,6 +383,8 @@ export interface FlightEngineOptions {
   onCounter?: (event: CounterEvent) => void;
   /** Uma rajada começou a soprar (`cut`: cortada pelo contragolpe). */
   onGustImpact?: (cut: boolean) => void;
+  /** A manobra de troca de faixa foi julgada (no tempo, cedo, tarde ou do lado errado). */
+  onTurn?: (event: TurnEvent) => void;
   now?: () => number;
 }
 
@@ -383,9 +449,34 @@ export class FlightEngine implements Simulation {
   /** As rajadas que já começaram a soprar nesta passada. */
   private gustsHit = 0;
   private counterSeq = 0;
-  private lastCounter: { result: CounterResult; side: -1 | 1; seq: number } | null = null;
+  private lastCounter: {
+    result: CounterResult;
+    side: -1 | 1;
+    axis: 'LATERAL' | 'VERTICAL';
+    seq: number;
+  } | null = null;
   /** A última rajada que bateu: o tranco na tela e o rastro (tempo real). */
-  private gustImpact: { side: -1 | 1; cut: boolean; atS: number } | null = null;
+  private gustImpact: {
+    side: -1 | 1;
+    axis: 'LATERAL' | 'VERTICAL';
+    cut: boolean;
+    atS: number;
+  } | null = null;
+  /** A dificuldade do voo e os parâmetros dela: ritmo, rajadas, correntes e janela da curva. */
+  readonly difficulty: FlightDifficulty;
+  private readonly diff: DifficultyParams;
+  /** A curva pedida no fim da linha em curso; `null` antes de os dados da linha fecharem. */
+  private turn: TurnApproach | null = null;
+  private maneuver: ManeuverState = initialManeuver();
+  /** Curvas perdidas seguidas: na terceira, o retorno automático. */
+  private turnMisses = 0;
+  private turnSeq = 0;
+  private lastTurn: { result: TurnResult; side: TurnSide; seq: number } | null = null;
+  /** As teclas da curva do último comando lido. */
+  private turnKeys = { left: 0, right: 0 };
+  /** Altitude da câmera: segue a da aeronave com atraso, e a subida e a descida aparecem na tela. */
+  private camAlt: number | null = null;
+  private lastAltS = 0;
   /** O céu pintado num bitmap (só repinta com a tela, a luz ou o rumo). */
   private readonly sky = new SkyPainter();
   /** Inclinação da câmera (rad) e o relógio real do último quadro desenhado. */
@@ -462,6 +553,8 @@ export class FlightEngine implements Simulation {
   private ended = false;
 
   constructor(private readonly opts: FlightEngineOptions) {
+    this.difficulty = opts.difficulty ?? missionDifficulty(opts.mission);
+    this.diff = DIFFICULTY[this.difficulty];
     const { aircraft } = planEquipment(opts.mission.plan, opts.catalog);
     this.aircraft = aircraft;
     this.hull = aircraft.hull;
@@ -520,6 +613,7 @@ export class FlightEngine implements Simulation {
       contract: this.opts.contract,
       elevationAlong: (s) => this.elevationAt(s, 0),
       calm: this.opts.calm === true,
+      difficulty: this.diff,
     });
   }
 
@@ -531,16 +625,30 @@ export class FlightEngine implements Simulation {
   }
 
   /**
-   * Tempo simulado por segundo real agora: o ritmo da fase (×1,75 na decolagem e nas linhas)
-   * vezes o cruzeiro. O `GameLoop` lê este valor.
+   * Tempo simulado por segundo real agora: o ritmo da fase (o da dificuldade na decolagem e nas
+   * linhas) vezes o cruzeiro. O `GameLoop` lê este valor.
    */
   get timeScale(): number {
-    return tempoFor(this.phase) * this.timeWarp;
+    return tempoFor(this.phase, this.difficulty) * this.timeWarp;
   }
 
-  /** Empurrão das rajadas em `tS` (tempo da linha), com as cortadas pelo contragolpe. */
-  private gustPush(tS: number): { lateralMs: number; alongMs: number } {
-    return gustPushAt(this.pass.gusts, tS, this.gustWeights);
+  /**
+   * Empurrão das rajadas e das correntes verticais em `tS` (tempo da linha), com as rajadas
+   * cortadas pelo contragolpe. Na vertical, a rajada e a corrente somam (nunca se cruzam).
+   */
+  private gustPush(tS: number): { lateralMs: number; alongMs: number; verticalMs: number } {
+    const g = gustPushAt(this.pass.gusts, tS, this.gustWeights);
+    return { ...g, verticalMs: g.verticalMs + draftPushAt(this.pass.drafts, tS) };
+  }
+
+  /**
+   * O comando está contra a rajada? De lado, `MOVE_X` contra o empurrão; na vertical, `ALT_UP`
+   * contra a que desce e `ALT_DOWN` contra a que sobe.
+   */
+  private countering(g: Gust): boolean {
+    const dir = gustDir(g);
+    if (gustAxis(g) === 'LATERAL') return this.input.moveX * -dir > COUNTER_INPUT;
+    return (dir > 0 ? this.input.altDown : this.input.altUp) > COUNTER_INPUT;
   }
 
   /**
@@ -553,20 +661,21 @@ export class FlightEngine implements Simulation {
     for (let i = 0; i < gusts.length; i++) {
       const g = gusts[i] as Gust;
       const before = this.counters[i] ?? initialCounter();
-      const side = gustSide(g);
-      const next = stepCounter(before, g, this.lineT, this.input.moveX * -side > COUNTER_INPUT);
+      const next = stepCounter(before, g, this.lineT, this.countering(g));
       this.counters[i] = next;
       if (before.result === null && next.result !== null) {
+        const side = gustDir(g);
+        const axis = gustAxis(g);
         this.gustWeights[i] = counterWeight(next.result);
-        this.lastCounter = { result: next.result, side, seq: ++this.counterSeq };
-        this.opts.onCounter?.({ result: next.result, side });
+        this.lastCounter = { result: next.result, side, axis, seq: ++this.counterSeq };
+        this.opts.onCounter?.({ result: next.result, side, axis });
       }
     }
     // A rajada seguinte começou a soprar: tranco (sem o contragolpe) ou rastro (cortada).
     const g = gusts[this.gustsHit];
     if (g && this.lineT >= g.startS) {
       const cut = this.counters[this.gustsHit]?.result === 'PERFECT';
-      this.gustImpact = { side: gustSide(g), cut, atS: this.realT };
+      this.gustImpact = { side: gustDir(g), axis: gustAxis(g), cut, atS: this.realT };
       this.gustsHit++;
       this.opts.onGustImpact?.(cut);
     }
@@ -693,7 +802,13 @@ export class FlightEngine implements Simulation {
   }
 
   setPhase(phase: FlightPhase): void {
-    if (phase === 'RUN' && this.phase !== 'RUN' && this.phase !== 'RETURNING')
+    // A volta ao portal depois da arremetida segue a mesma linha (a passada já fechou).
+    if (
+      phase === 'RUN' &&
+      this.phase !== 'RUN' &&
+      this.phase !== 'RETURNING' &&
+      this.phase !== 'GO_AROUND'
+    )
       this.beginLineAtlas();
     // Fora da linha o cruzeiro não vale (REQ-FLT-023): a curva, com o boletim, corre em ×1.
     if (phase !== 'RUN') {
@@ -814,7 +929,7 @@ export class FlightEngine implements Simulation {
     return rtkStatusAt(this.aircraft.rtk, this.opts.ownsRtkKit, this.opts.terrain.zones, p);
   }
 
-  private readInput(): FlightInput {
+  private readInput(): PilotInput {
     if (this.opts.autopilot) {
       const plan = this.opts.mission.plan;
       const target = this.corridorAlt(this.ac.s + AUTOPILOT_LOOKAHEAD_S * this.ac.gs);
@@ -825,12 +940,15 @@ export class FlightEngine implements Simulation {
         ? terrainFollowTargetAlt((d) => this.elevationAt(this.ac.s + d, this.ac.x), this.ac.gs, 0)
         : 0;
       // A rajada que vem (o jogador atento vê a frente): quanto o empurrão vai mudar, já contando
-      // que ele vai cortá-la no tempo.
+      // que ele vai cortá-la no tempo. Na vertical, as correntes entram junto.
       const planned = this.counters.map((c) =>
         c.result === null ? COUNTER_PUSH_FACTOR : counterWeight(c.result),
       );
+      const lead = this.lineT + AUTOPILOT_GUST_LEAD_S;
       const now = gustPushAt(this.pass.gusts, this.lineT, planned);
-      const ahead = gustPushAt(this.pass.gusts, this.lineT + AUTOPILOT_GUST_LEAD_S, planned);
+      const ahead = gustPushAt(this.pass.gusts, lead, planned);
+      const vNow = now.verticalMs + draftPushAt(this.pass.drafts, this.lineT);
+      const vAhead = ahead.verticalMs + draftPushAt(this.pass.drafts, lead);
       const input = autopilotInput({
         x: this.ac.x,
         vLat: this.ac.vLat,
@@ -846,18 +964,33 @@ export class FlightEngine implements Simulation {
         planSpeedMs: autopilotSpeedMs(plan.params.speedMs, plan.stats.blurPx, this.activeSensor),
         lateralPushChangeMs: this.push(ahead.lateralMs) - this.push(now.lateralMs),
         alongPushChangeMs: this.push(ahead.alongMs) - this.push(now.alongMs),
+        // Sem TF o autopilot compensa o empurrão vertical; com TF, o laço do TF já compensa.
+        ...(tf
+          ? {}
+          : {
+              verticalDriftMs: this.push(vNow),
+              verticalPushChangeMs: this.push(vAhead) - this.push(vNow),
+              climbRateMs: this.aircraft.climbRateMs,
+            }),
       });
+      const turn = this.autopilotTurn(input);
+      if (turn) return turn;
       // O contragolpe na rajada que vem: o começo do comando contra ela no meio da janela.
       const next = this.counters.findIndex((c) => c.result === null);
       const g = this.pass.gusts[next];
-      if (!g) return input;
-      return autopilotCounter(
-        input,
-        this.lineT - g.startS,
-        gustSide(g) > 0 ? -1 : 1,
-        GUST_WARN_S,
-        COUNTER_INPUT,
-      );
+      const keys = { turnLeft: 0, turnRight: 0 };
+      if (!g) return { ...input, ...keys };
+      return {
+        ...autopilotCounter(
+          input,
+          this.lineT - g.startS,
+          gustAxis(g),
+          gustDir(g) > 0 ? -1 : 1,
+          GUST_WARN_S,
+          COUNTER_INPUT,
+        ),
+        ...keys,
+      };
     }
     const i = this.opts.input;
     return {
@@ -865,6 +998,25 @@ export class FlightEngine implements Simulation {
       moveY: i.axis('MOVE_Y'),
       altUp: i.axis('ALT_UP'),
       altDown: i.axis('ALT_DOWN'),
+      turnLeft: i.axis('TURN_LEFT'),
+      turnRight: i.axis('TURN_RIGHT'),
+    };
+  }
+
+  /**
+   * A curva do piloto bom: com a curva pedida e ainda não julgada, faz o acorde (frente, lado e
+   * a tecla da curva) quando o portal fica a menos do centro da janela.
+   */
+  private autopilotTurn(input: FlightInput): PilotInput | null {
+    const turn = this.turn;
+    if (!turn || turn.judged !== null) return null;
+    if (this.toGateS(turn) > windowCenterS(this.diff.turnWindow)) return null;
+    return {
+      ...input,
+      moveY: 1,
+      moveX: turn.side,
+      turnLeft: turn.side < 0 ? 1 : 0,
+      turnRight: turn.side > 0 ? 1 : 0,
     };
   }
 
@@ -936,6 +1088,9 @@ export class FlightEngine implements Simulation {
           this.startLine(this.lineCursor + 1);
         }
         break;
+      case 'GO_AROUND':
+        if (this.phaseT >= GO_AROUND_S) this.reapproach();
+        break;
       case 'LANDING': {
         const k = clamp(this.phaseT / LANDING_S, 0, 1);
         const ground = this.elevationAt(this.ac.s, this.ac.x) + 1;
@@ -999,7 +1154,9 @@ export class FlightEngine implements Simulation {
 
   private stepRun(dtS: number): void {
     const plan = this.opts.mission.plan;
-    this.input = this.readInput();
+    const input = this.readInput();
+    this.input = input;
+    this.turnKeys = { left: input.turnLeft, right: input.turnRight };
     const s0 = this.ac.s;
     this.lineT += dtS;
     this.stepCounters();
@@ -1018,6 +1175,7 @@ export class FlightEngine implements Simulation {
         meanAlongMs: this.meanPush(this.alongWind),
         gustAlongMs: this.push(gust.alongMs),
         gustLateralMs: this.push(gust.lateralMs),
+        gustVerticalMs: this.push(gust.verticalMs),
         thermalLiftMs: thermalLiftMs(
           this.opts.terrain.zones,
           this.pos().u,
@@ -1060,10 +1218,11 @@ export class FlightEngine implements Simulation {
     }
     this.stepFieldElements(dtS);
     this.instant = this.gradeNow();
-    const window = inShotWindow(this.ac.s, this.frame, plan.stats.baseM);
+    // Depois de os dados da linha fecharem (e na volta ao portal da curva), nada mais grava.
+    const window = this.passOpen && inShotWindow(this.ac.s, this.frame, plan.stats.baseM);
     if (this.activeSensor === 'RGB' && this.timer.step(dtS, plan.stats.intervalS, window))
       this.fire(false);
-    if (this.activeSensor === 'LIDAR' && this.lidar) {
+    if (this.activeSensor === 'LIDAR' && this.lidar && this.passOpen) {
       const agl = this.ac.alt - this.opts.terrain.elevation(this.pos().u, this.pos().v);
       // Os pulsos pesam conforme a nota do instante: fora da tolerância, não contam.
       const pulses = this.lidar.sweep({
@@ -1077,20 +1236,132 @@ export class FlightEngine implements Simulation {
       });
       if (pulses > 0 && window) this.lineLidarData = true;
     }
-    this.crossGates();
-    if (this.ac.s >= this.frame.lengthM) {
-      // Fim da linha: fecha a passada. A recusada volta para o fim da fila (revoo).
-      this.closePass();
-      if (this.lineCursor + 1 < this.lines.length) {
-        // A energia da curva real é consumida de uma vez; a apresentação dura até 2,5 s.
-        const turnS = plan.stats.turnTimeS;
-        this.drain(turnS);
-        this.extraTimeS += Math.max(0, turnS - Math.min(turnS, TURN_PRESENT_MAX_S));
-        this.setPhase('TURN');
-      } else {
-        this.setPhase('LANDING');
+    if (this.passOpen) this.crossGates();
+    this.stepLineEnd();
+  }
+
+  /** `s` em que os dados da linha fecham: o último portal (`aoiEndS + B`), o fim da janela da câmera. */
+  private dataEndS(): number {
+    return this.frame.aoiEndS + this.opts.mission.plan.stats.baseM;
+  }
+
+  /**
+   * Segundos reais até o portal da curva (negativo: já passou), na velocidade de agora e no
+   * ritmo base da dificuldade: perto do portal o cruzeiro está sempre em ×1, então é o tempo
+   * real; mais longe, o aviso não pisca quando o cruzeiro cai.
+   */
+  private toGateS(turn: TurnApproach): number {
+    return (turn.gateS - this.ac.s) / Math.max(0.5, this.ac.gs) / this.diff.tempo;
+  }
+
+  /**
+   * A curva até a próxima linha: o lado (o da próxima faixa em relação ao fim desta) e o portal,
+   * no fim da linha, ou além dele quando o fim dos dados fica a menos de `TURN_APPROACH_S` (ou da
+   * janela inteira) do fim.
+   */
+  private planTurn(next: FlightLine): TurnApproach {
+    const plan = this.opts.mission.plan;
+    const end = aoiPoint(this.frame, this.frame.lengthM, 0);
+    const lead = Math.max(TURN_APPROACH_S, this.diff.turnWindow.earlyS);
+    const leadM = lead * this.diff.tempo * Math.max(1, plan.params.speedMs);
+    return {
+      side: turnSideTo(end, this.frame.right, next.start),
+      gateS: Math.max(this.frame.lengthM, this.dataEndS() + leadM),
+      judged: null,
+    };
+  }
+
+  /**
+   * Fim da linha (survey-flight §5.7, ADR-035): os dados fecham no último portal (a passada é
+   * julgada ali; a recusada vai para o fim da fila). Havendo outra linha na fila, a troca de faixa
+   * não é automática: o jogador faz a manobra para o lado dela na janela em volta do portal da
+   * curva. No tempo, começa a curva; cedo, do lado errado ou sem manobra até a janela fechar, a
+   * aeronave arremete. Sem outra linha, pousa no fim.
+   */
+  private stepLineEnd(): void {
+    const keys: Parameters<typeof stepManeuver>[1] = {
+      forward: this.input.moveY,
+      lateral: this.input.moveX,
+      turnLeft: this.turnKeys.left,
+      turnRight: this.turnKeys.right,
+    };
+    // O detector anda sempre: tecla segurada desde antes não vira toque novo quando a curva arma.
+    const m = stepManeuver(this.maneuver, keys, this.realT);
+    this.maneuver = m.state;
+    if (this.ac.s < this.dataEndS()) return;
+    if (this.passOpen) this.closePass();
+    if (!this.turn) {
+      const next = this.lines[this.lineCursor + 1];
+      if (!next) {
+        if (this.ac.s >= this.frame.lengthM) this.setPhase('LANDING');
+        return;
+      }
+      this.turn = this.planTurn(next);
+    }
+    const turn = this.turn;
+    const window = this.diff.turnWindow;
+    const toGate = this.toGateS(turn);
+    if (turn.judged === null && m.done !== null) {
+      this.judgeTurnNow(turn, judgeTurn(m.done, turn.side, toGate, window));
+      if (turn.judged === 'ON_TIME') {
+        this.beginTurn();
+        return;
       }
     }
+    if (toGate < -window.lateS) {
+      if (turn.judged === null) this.judgeTurnNow(turn, 'LATE');
+      this.goAround();
+    }
+  }
+
+  private judgeTurnNow(turn: TurnApproach, result: TurnResult): void {
+    turn.judged = result;
+    this.lastTurn = { result, side: turn.side, seq: ++this.turnSeq };
+    this.opts.onTurn?.({ result, side: turn.side });
+  }
+
+  /** A curva saiu no tempo: a energia da curva real é consumida de uma vez; a tela dura até 2,5 s. */
+  private beginTurn(): void {
+    this.turnMisses = 0;
+    const turnS = this.opts.mission.plan.stats.turnTimeS;
+    this.drain(turnS);
+    this.extraTimeS += Math.max(0, turnS - Math.min(turnS, TURN_PRESENT_MAX_S));
+    this.setPhase('TURN');
+  }
+
+  /**
+   * A curva não saiu: a aeronave dá a volta (a energia da volta, a curva mais a reaproximação) e
+   * se aproxima de novo do portal. Na terceira seguida, o retorno automático (failsafe).
+   */
+  private goAround(): void {
+    this.turnMisses++;
+    if (this.turnMisses >= TURN_FAILSAFE_MISSES) {
+      this.opts.onHint?.(STRINGS.flight.hints.turnFailsafe(this.aircraft.kind === 'BIRD'));
+      this.setPhase('RETURNING');
+      return;
+    }
+    const plan = this.opts.mission.plan;
+    const loopS = plan.stats.turnTimeS + GO_AROUND_APPROACH_S * this.diff.tempo;
+    this.drain(loopS);
+    this.extraTimeS += Math.max(0, loopS - GO_AROUND_S);
+    this.setPhase('GO_AROUND');
+  }
+
+  /** Depois da arremetida: de volta à linha, alinhada, alguns segundos antes do portal da curva. */
+  private reapproach(): void {
+    const turn = this.turn;
+    const plan = this.opts.mission.plan;
+    if (!turn) {
+      this.startLine(this.lineCursor + 1);
+      return;
+    }
+    const speed = Math.max(1, plan.params.speedMs);
+    const approachM = GO_AROUND_APPROACH_S * this.diff.tempo * speed;
+    const s = Math.max(this.dataEndS(), turn.gateS - approachM);
+    this.ac = { ...this.ac, s, x: 0, v: speed, gs: speed, vLat: 0, drift: 0, vDrift: 0 };
+    this.camX = 0;
+    turn.judged = null;
+    this.setPhase('RUN');
   }
 
   /**
@@ -1124,6 +1395,7 @@ export class FlightEngine implements Simulation {
     this.pass = this.newPass(line);
     this.resetCounters();
     this.gustImpact = null;
+    this.turn = null;
     // Toda linha começa com o erro de entrada: o jogador alinha no lead-in.
     this.ac = { ...this.ac, s: 0, x: this.pass.entryOffsetM, vLat: 0, drift: 0 };
     this.camX = this.ac.x;
@@ -1248,8 +1520,11 @@ export class FlightEngine implements Simulation {
       this.rthRecommended();
     // O fator máximo vem da duração real da linha (no ritmo do voo).
     const max = cruiseMaxFor(
-      this.frame.lengthM / Math.max(0.1, plan.params.speedMs) / FLIGHT_TEMPO,
+      this.frame.lengthM / Math.max(0.1, plan.params.speedMs) / this.diff.tempo,
     );
+    // A curva chega sempre no ritmo base: o cruzeiro cai antes do portal da curva.
+    const turning = this.turn !== null || this.lineCursor + 1 < this.lines.length;
+    const toEndS = (this.frame.lengthM - this.ac.s) / Math.max(0.5, this.ac.gs) / this.diff.tempo;
     const corridorChange = plan.params.terrainFollowing
       ? 0
       : corridorChangeAhead(this.pass.profile, this.ac.s, 2 * max * this.ac.gs) /
@@ -1258,10 +1533,13 @@ export class FlightEngine implements Simulation {
       phase: this.phase,
       on: this.cruiseOn,
       steady: this.instant.grade === 'PERFECT' || this.instant.grade === 'GOOD',
-      // A rajada chega sempre no ritmo base: o cruzeiro cai um pouco antes da frente aparecer.
+      // A rajada chega sempre no ritmo base: o cruzeiro cai um pouco antes da frente aparecer
+      // (e da corrente vertical).
       gust:
         gustWarningAt(this.pass.gusts, this.lineT) !== null ||
-        gustWarningAt(this.pass.gusts, this.lineT + CRUISE_GUST_LEAD_S) !== null,
+        gustWarningAt(this.pass.gusts, this.lineT + CRUISE_GUST_LEAD_S) !== null ||
+        draftAt(this.pass.drafts, this.lineT + CRUISE_GUST_LEAD_S) !== null,
+      turnSoon: turning && toEndS < CRUISE_TURN_LEAD_S,
       solidAhead: solidAheadOf(rel, this.ac.x),
       criticalAlert: critical,
       searchlightM: nearestSearchlightM(this.opts.terrain.zones, p.u, p.v),
@@ -1376,14 +1654,17 @@ export class FlightEngine implements Simulation {
     // A rajada não tem alerta escrito: o aviso é a frente de vento na cena (ADR-034).
     if (windAboveTolerance(this.opts.contract.wind, this.aircraft))
       list.push(makeAlert('WIND_LIMIT'));
-    if (p !== null && p < minP) list.push(makeAlert('OVERLAP', Math.round(p)));
+    // Depois de os dados da linha fecharem (a aproximação da curva), a faixa, a altura e o
+    // overlap não contam mais: os avisos deles saem.
+    if (this.passOpen && p !== null && p < minP) list.push(makeAlert('OVERLAP', Math.round(p)));
     if (this.lastBlur > 1) list.push(makeAlert('MOTION_BLUR'));
     else if (plan.params.lighting === 'GOLDEN_HOUR' && this.lastBlur > 0.5)
       list.push(makeAlert('LOW_LIGHT'));
-    if (Math.abs(this.ac.x) > 0.25 * plan.stats.spacingM) list.push(makeAlert('OUT_OF_LANE'));
+    if (this.passOpen && Math.abs(this.ac.x) > 0.25 * plan.stats.spacingM)
+      list.push(makeAlert('OUT_OF_LANE'));
     // Fora da altura do corredor: além do limite da nota Boa.
     const delta = this.corridorAlt() - this.ac.alt;
-    if (Math.abs(delta) > GATE_HALF_HEIGHT * plan.params.heightM) {
+    if (this.passOpen && Math.abs(delta) > GATE_HALF_HEIGHT * plan.params.heightM) {
       list.push(makeAlert('OFF_ALTITUDE', delta));
     }
     // O vento médio tirou a velocidade do plano do alcance da aeronave.
@@ -1394,12 +1675,72 @@ export class FlightEngine implements Simulation {
     return list;
   }
 
-  /** A rajada avisada ou em curso na passada, com o lado para onde empurra. */
-  gustNow(): { side: -1 | 1; inS: number; active: boolean } | null {
+  /**
+   * A rajada avisada ou em curso na passada: o eixo e para onde empurra nele (de lado, +1
+   * direita; na vertical, +1 para cima).
+   */
+  gustNow(): {
+    side: -1 | 1;
+    axis: 'LATERAL' | 'VERTICAL';
+    inS: number;
+    active: boolean;
+  } | null {
     if (this.phase !== 'RUN') return null;
     const warned = gustWarningAt(this.pass.gusts, this.lineT);
     if (!warned) return null;
-    return { side: gustSide(warned.gust), inS: warned.inS, active: warned.inS <= 0 };
+    return {
+      side: gustDir(warned.gust),
+      axis: gustAxis(warned.gust),
+      inS: warned.inS,
+      active: warned.inS <= 0,
+    };
+  }
+
+  /** A corrente vertical avisada (os riscos aparecem 1 s antes) ou em curso. */
+  draftNow(): { dir: -1 | 1; inS: number; active: boolean } | null {
+    if (this.phase !== 'RUN') return null;
+    const d = draftAt(this.pass.drafts, this.lineT);
+    if (!d) return null;
+    return { dir: d.draft.dir, inS: d.inS, active: d.inS <= 0 };
+  }
+
+  /**
+   * A curva pedida no fim da linha (survey-flight §5.7): o lado, quanto falta (segundos reais)
+   * até o portal da curva, a janela e o julgamento; `null` antes de os dados da linha fecharem.
+   */
+  turnNow(): {
+    side: TurnSide;
+    toGateS: number;
+    window: TurnWindow;
+    judged: TurnResult | null;
+  } | null {
+    if (this.phase !== 'RUN' || !this.turn) return null;
+    return {
+      side: this.turn.side,
+      toGateS: this.toGateS(this.turn),
+      window: this.diff.turnWindow,
+      judged: this.turn.judged,
+    };
+  }
+
+  /**
+   * A curva que vem, para a seta na cena e para quem pilota: antes de os dados da linha fecharem,
+   * a da próxima linha da fila, para a seta aparecer de longe (o aviso no HUD espera a curva
+   * armar, `turnNow`).
+   */
+  turnAhead(): FlightHudSnapshot['turn'] {
+    const now = this.turnNow();
+    if (now) return now;
+    if (this.phase !== 'RUN' || !this.passOpen) return null;
+    const next = this.lines[this.lineCursor + 1];
+    if (!next) return null;
+    const preview = this.planTurn(next);
+    return {
+      side: preview.side,
+      toGateS: this.toGateS(preview),
+      window: this.diff.turnWindow,
+      judged: null,
+    };
   }
 
   pRealPct(): number | null {
@@ -1426,7 +1767,9 @@ export class FlightEngine implements Simulation {
     const samples = countSamples(this.pass.counts);
     // Para a biruta: o vento de fundo mais a rajada em curso, no frame da linha.
     const gustWind =
-      this.phase === 'RUN' ? this.gustPush(this.lineT) : { lateralMs: 0, alongMs: 0 };
+      this.phase === 'RUN'
+        ? this.gustPush(this.lineT)
+        : { lateralMs: 0, alongMs: 0, verticalMs: 0 };
     const windLateral = this.crossWind + gustWind.lateralMs;
     const windAlong = this.alongWind + gustWind.alongMs;
     const snap: FlightHudSnapshot = {
@@ -1458,12 +1801,21 @@ export class FlightEngine implements Simulation {
       passScore: samples > 0 ? passScore(this.pass.counts) : null,
       passLetter: samples > 0 ? gradeLetter(passScore(this.pass.counts)) : null,
       refly: this.pass.pass > 0,
+      difficulty: this.difficulty,
       gust: this.gustNow(),
+      draft: this.draftNow(),
       counter: this.lastCounter ? { ...this.lastCounter } : null,
       windRelDeg: (Math.atan2(windLateral, windAlong) * 180) / Math.PI,
+      windVerticalMs: this.push(gustWind.verticalMs),
+      turn: this.turnNow(),
+      lastTurn: this.lastTurn ? { ...this.lastTurn } : null,
+      turnMisses: this.turnMisses,
       cruise: { on: this.cruiseOn, factor: this.timeWarp },
       lineReport:
-        this.phase === 'TURN' || this.phase === 'LANDING' || this.phase === 'RETURNING'
+        this.phase === 'TURN' ||
+        this.phase === 'GO_AROUND' ||
+        this.phase === 'LANDING' ||
+        this.phase === 'RETURNING'
           ? this.lineReport
           : null,
       energy: this.energy,
@@ -1529,7 +1881,13 @@ export class FlightEngine implements Simulation {
     let horizon = HORIZON_CRUISE;
     if (this.phase === 'TAKEOFF')
       horizon = lerp(HORIZON_TAKEOFF, HORIZON_CRUISE, clamp(this.phaseT / TAKEOFF_S, 0, 1));
-    return makeCamera(width, height, this.camX, this.ac.alt, this.quality, horizon);
+    return makeCamera(width, height, this.camX, this.camAlt ?? this.ac.alt, this.quality, horizon);
+  }
+
+  /** A altitude da câmera persegue a da aeronave em tempo real, com atraso limitado. */
+  private followAltitude(): void {
+    this.camAlt = followCameraAlt(this.camAlt, this.ac.alt, this.realT - this.lastAltS);
+    this.lastAltS = this.realT;
   }
 
   render(): void {
@@ -1550,6 +1908,7 @@ export class FlightEngine implements Simulation {
     const fx = detailFx(this.detail.level);
     this.quality = lowerQuality(this.opts.quality(), fx.qualityDrop);
     this.camX += (this.ac.x - this.camX) * CAM_FOLLOW;
+    this.followAltitude();
     const cam = this.flightCamera();
     const terrain = this.opts.terrain;
     const frame = this.frame;
@@ -1567,7 +1926,11 @@ export class FlightEngine implements Simulation {
     // A câmera: o tremor da colisão, o tranco da rajada sem contragolpe (nada com reduceFlashes)
     // e a inclinação nas curvas, em volta do centro da tela (ADR-034).
     const shake = shakeOffset(this.shakeS, this.sortieT, calm);
+    // O tranco vai no eixo da rajada: de lado, ou para cima e para baixo na vertical.
     const jolt = gustJoltPx(this.gustImpact, this.realT, calm);
+    const vertical = this.gustImpact?.axis === 'VERTICAL';
+    const joltX = vertical ? 0 : jolt;
+    const joltY = vertical ? -jolt : 0;
     const dtReal = Math.max(0, this.realT - this.lastRenderS);
     this.lastRenderS = this.realT;
     const lateralRef =
@@ -1581,7 +1944,7 @@ export class FlightEngine implements Simulation {
     this.roll = calm ? 0 : stepRoll(this.roll, wantRoll, dtReal);
     if (Math.abs(this.roll) < 5e-4) this.roll = 0;
     ctx.save();
-    ctx.translate(width / 2 + shake.x + jolt, height / 2 + shake.y);
+    ctx.translate(width / 2 + shake.x + joltX, height / 2 + shake.y + joltY);
     // Sem inclinação, nada de `rotate`: os retângulos seguem alinhados (o caminho rápido).
     if (this.roll !== 0) ctx.rotate(this.roll);
     ctx.translate(-width / 2, -height / 2);
@@ -1664,12 +2027,14 @@ export class FlightEngine implements Simulation {
         const p = at(X, Z);
         return terrain.landCover(p.u, p.v);
       },
-      // A grade amostra elevação e cobertura juntas: o relevo é avaliado uma vez por ponto.
+      // A grade amostra elevação e cobertura juntas: o relevo é avaliado uma vez por ponto. A
+      // cobertura é a do chão sob as estradas: elas vêm por cima, como faixas contínuas.
       sampleGround: (X, Z, out) => {
         const p = at(X, Z);
         out.elev = terrain.elevation(p.u, p.v);
-        out.cover = terrain.landCoverAt(p.u, p.v, out.elev);
+        out.cover = terrain.groundCoverAt(p.u, p.v, out.elev);
       },
+      roads: this.roadsInRun(s0),
       palette: terrain.palette,
       lighting: plan.params.lighting,
       sun,
@@ -1723,23 +2088,64 @@ export class FlightEngine implements Simulation {
         height,
         this.realT,
       );
-      // A rajada avisada é só a frente de vento na cena, varrendo do lado de onde vem; a que
-      // sopra cruza a tela em riscos (poucos, se foi cortada pelo contragolpe).
+      // O portal da curva no fim da linha, com o lado da próxima faixa (survey-flight §5.7).
+      const turn = this.turnAhead();
+      if (turn) {
+        const gateS = this.turn?.gateS ?? this.frame.lengthM;
+        drawTurnGate(
+          ctx,
+          buildTurnGate({
+            Z: gateS - this.ac.s,
+            alt: this.corridorAlt(gateS),
+            side: turn.side,
+            spacingM: plan.stats.spacingM,
+            heightM: plan.params.heightM,
+            cam,
+            toGateS: turn.toGateS,
+            window: turn.window,
+            judged: turn.judged,
+            timeS: this.realT,
+            reduceFlashes: calm,
+          }),
+        );
+      }
+      // A rajada avisada é só a frente de vento na cena, varrendo do lado de onde vem (de cima ou
+      // de baixo, na vertical); a que sopra cruza a tela em riscos (poucos, se foi cortada).
       const gust = this.gustNow();
       if (gust && !gust.active) {
-        const front = buildGustFront({
+        const input = {
           side: gust.side,
           inS: gust.inS,
           aircraftX: this.ac.x,
           aircraftAlt: this.ac.alt,
           cam,
           timeS: this.realT,
-        });
+        };
+        const front =
+          gust.axis === 'LATERAL' ? buildGustFront(input) : buildVerticalGustFront(input);
         if (front) drawGustFront(ctx, front);
       }
       if (gust?.active) {
-        const cut = this.gustImpact?.cut === true;
-        drawGustStreaks(ctx, width, height, cam.horizonY, gust, this.realT, calm, cut ? 0.3 : 1);
+        const strength = this.gustImpact?.cut === true ? 0.3 : 1;
+        if (gust.axis === 'LATERAL') {
+          drawGustStreaks(ctx, width, height, cam.horizonY, gust, this.realT, calm, strength);
+        } else {
+          drawVerticalStreaks(ctx, width, height, gust.side, this.realT, calm, strength);
+        }
+      }
+      // A corrente vertical: riscos mais lentos subindo ou descendo, desde um pouco antes dela.
+      const draft = this.draftNow();
+      if (draft && !gust?.active) {
+        drawVerticalStreaks(
+          ctx,
+          width,
+          height,
+          draft.dir,
+          this.realT,
+          calm,
+          draft.active ? 0.5 : 0.2,
+          0.45,
+        );
       }
     }
     this.drawSearchlights(ctx, cam);
@@ -1779,11 +2185,11 @@ export class FlightEngine implements Simulation {
       ctx.fillRect(0, 0, width, height);
     }
     if (fx.vignette) drawVignette(ctx, width, height);
-    if (this.phase === 'TURN') {
-      // Curva: fade para o escuro e de volta.
-      const k = Math.sin(
-        clamp(this.phaseT / Math.min(plan.stats.turnTimeS, TURN_PRESENT_MAX_S), 0, 1) * Math.PI,
-      );
+    if (this.phase === 'TURN' || this.phase === 'GO_AROUND') {
+      // Curva e arremetida: fade para o escuro e de volta.
+      const span =
+        this.phase === 'TURN' ? Math.min(plan.stats.turnTimeS, TURN_PRESENT_MAX_S) : GO_AROUND_S;
+      const k = Math.sin(clamp(this.phaseT / span, 0, 1) * Math.PI);
       ctx.fillStyle = `rgba(2, 6, 23, ${0.6 * k})`;
       ctx.fillRect(0, 0, width, height);
     }
@@ -1810,6 +2216,25 @@ export class FlightEngine implements Simulation {
       }
     }
     return this.opts.terrain.objectsInRange(uMin - VISIBLE_PAD_M, uMax + VISIBLE_PAD_M);
+  }
+
+  /**
+   * As estradas (`ROAD`) no frame do *run*, com Z a partir da aeronave em `s0` (ADR-035). As
+   * trilhas não pintam o chão (como na cobertura), então ficam de fora.
+   */
+  private roadsInRun(s0: number): GroundRoad[] {
+    const out: GroundRoad[] = [];
+    for (const road of this.opts.terrain.roads) {
+      if (road.kind !== 'ROAD') continue;
+      out.push({
+        halfWidthM: road.widthM / 2,
+        points: road.points.map((p) => {
+          const r = toRun(this.frame, p);
+          return { X: r.x, Z: r.s - s0 };
+        }),
+      });
+    }
+    return out;
   }
 
   /** Manchas dos holofotes no chão: elipses amarelas translúcidas. */
@@ -1924,6 +2349,7 @@ export class FlightEngine implements Simulation {
         this.gustImpact.side,
         this.realT - this.gustImpact.atS,
         this.opts.reduceFlashes(),
+        this.gustImpact.axis,
       );
     }
     drawAircraft(ctx, {

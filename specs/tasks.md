@@ -2040,6 +2040,36 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Verificação:** `npm run verify` · `npx playwright test tests/e2e/world.spec.ts tests/e2e/gamepad.spec.ts tests/e2e/keyboard-only.spec.ts`
 - **Status:** ✅
 
+### T096 — Vento vertical, troca de faixa na mão, três dificuldades, Atlas mais alto, C01 viável e chão sem quadrados
+- **Fase:** F11 · **Depende de:** T095 · **REQs:** REQ-FLT-004, REQ-FLT-005, REQ-FLT-013, REQ-FLT-022, REQ-FLT-023, REQ-FLT-030, REQ-FLT-031, REQ-NFR-010
+- **Spec:** [ADR-035](decisions.md), [survey-flight §3, §4, §5.1, §5.3, §5.6, §5.7, §5.13, §5.14, §5.16, §5.22](features/survey-flight.md), [domain-math §5, §5.1–§5.3, §12.1](design/domain-math.md), [field-setup §5.5](features/field-setup.md), [input](design/input.md), [audio](design/audio.md), [catalog §3](content/catalog.md), [contracts-real C01](content/contracts-real.md), [terrain §3](design/terrain.md)
+- **Passos:**
+  1. Domínio: rajadas verticais (fração por dificuldade, lado da passada), correntes verticais, empurrão vertical no `stepAircraft`, a manobra da curva (acorde, sequência e julgamento), a tabela da dificuldade e o fator no pagamento.
+  2. Motor: a curva armada no fim dos dados, o portal da curva, a arremetida e o retorno automático; o contragolpe vertical; o cruzeiro antes da curva; o ritmo por dificuldade; o autopilot (contragolpe vertical, empurrão vertical e o acorde no centro da janela); a câmera que segue a altitude.
+  3. Cena: lâmina da rajada vertical, riscos verticais, seta da curva; terreno com pedaços de cobertura e estradas contínuas.
+  4. HUD e telas: aviso da curva com as teclas e a barra da janela, marca da curva, arremetida, vento vertical, selo da dificuldade; seletor no checklist; linha da dificuldade no pagamento; som `TURN_OK`; `?difficulty=` de depuração.
+  5. Catálogo e conteúdo: razões de subida, Atlas até 120 m, prédios do C01 até 65 m e cânion acima de 45 m.
+  6. Pilotos simulados: o mediano e o distraído fazem a curva e o contragolpe vertical; `QA_DIFFICULTY` mede a fácil e a difícil; calibrar pelas metas da ADR-032.
+  7. ADR-035, specs, testes e E2E do voo e do campo.
+- **Aceite:**
+  - [x] Há rajadas verticais (com contragolpe em `Q`/`E`) e correntes verticais na média e na difícil, e nenhuma na fácil.
+  - [x] A troca de faixa só sai com a manobra (acorde ou sequência no teclado, analógico e gatilho no controle) na janela; fora dela, arremetida; na terceira seguida, retorno automático.
+  - [x] A dificuldade é escolhida no checklist (a média por padrão), muda o ritmo, o vento vertical e a janela, e paga ×0,8 / ×1 / ×1,25.
+  - [x] O Atlas sobe até 120 m e passa por cima dos prédios do C01; a câmera mostra a subida e a descida.
+  - [x] Estradas e divisas de cobertura sem escada de quadrados.
+  - [x] Na média, o parado e o distraído reprovam, o mediano aprova com execução ≥ 0,65 e o bom com ≥ 0,9 e nenhuma linha recusada (3 sementes).
+  - [x] O `verify` e o E2E do voo e do campo seguem verdes.
+- **Verificação:** `npm run verify` · `npm run qa:flight` (e `QA_DIFFICULTY=EASY|HARD`) · `npx playwright test tests/e2e/flight*.spec.ts tests/e2e/field.spec.ts`
+- **Arquivos (efetivos):** \+ `src/domain/{difficulty,turnManeuver}.ts` e testes, `src/engines/flight/turnGate.ts` e teste, `src/engines/flight/{turn,autopilot}.test.ts`, `src/screens/flight/TurnHud.tsx` e teste, `src/test/turnTiming.ts`; ~ `src/domain/{gusts,flightPhysics,economy,mission,specialRules}.ts` e testes, `src/engines/flight/{FlightEngine,linePass,cruise,autopilot,tempo,projection,hudPublisher,gustRenderer,corridorRenderer,terrainRenderer}.ts` e testes, `src/world/terrain/{TerrainSampler,ruleGenerators}.ts`, `src/world/terrain/biomes/urbanVertical.ts` e testes, `src/data/{strings,contracts/real,catalog/aircraft}.ts`, `src/input/{actions,bindings,glyphs}.ts`, `src/audio/sfx.ts`, `src/screens/flight/{FlightHud,ExecutionHud,SurveyFlightScreen}.tsx`, `src/screens/field/ChecklistTab.tsx`, `src/screens/processing/ReportPayment.tsx`, `src/state/{types,slices/missionSlice}.ts`, `src/app/{debugFlags,debugFixtures}.ts`, `src/types/{mission,report}.ts`, `src/test/{pilots,flyMission,hudSnap}.ts`, `src/engines/flight/challenge/flightSeeds.qa.ts`, `tests/e2e/{flight-piloting,field}.spec.ts`; ~ `specs/{decisions,requirements,tasks,qa-manual,README}.md`, `specs/features/{survey-flight,field-setup}.md`, `specs/design/{domain-math,input,audio,terrain}.md`, `specs/content/{catalog,contracts-real}.md`, `README.md`.
+- **Notas de implementação:**
+  - **O C01 era impossível só pelos prédios.** Com o Atlas, `predictRequirements` não falha em nada de H 60 a 83 m; o teto de 80 m e os prédios de até 90 m é que barravam. Com os prédios até 65 m, o Atlas a 80 m passa 15 m acima do mais alto.
+  - **Vertical na penumbra.** A rajada vertical ×1,3 derrubou o mediano da R07 a 0,63: descer encolhe o GSD e o arrasto em pixels passa de 1 px (as fotos borram). Com a mesma força das de lado, e as verticais de uma passada para um lado só, a R07 ficou em 0,74–0,76 (o distraído em 0,44–0,49).
+  - **A difícil tinha menos verticais.** Sortear a rajada vertical e depois tirar as que caem em cima de uma corrente, com as correntes a cada 13 s, devolvia 68 % das verticais para o lado. Deixar cair em cima (do mesmo lado) somava trancos fundos demais: na R07 o mediano caiu a 0,65 pelo blur, com o distraído a 0,55. A regra final: as verticais saem só das rajadas livres de corrente, com a chance ajustada sobre elas, e a média ficou em 20 % (a R07 voltou a 0,73–0,76, com o distraído a 0,45–0,50).
+  - **Onde a curva arma.** O detector só julga depois do último portal dos dados: antes, `W`, `D` e `E` são comandos de voo e formariam acordes sem querer. Como no C00 o fim dos dados fica só 12 m antes do fim da linha, o portal da curva vai para até 1,5 s (reais) depois do fim dos dados; o aviso aparece quando a curva arma, e tudo dali até a janela é "cedo".
+  - **Chão:** a cor de um canto só por quad fazia a estrada de terra do C00 virar uma escada de quadrados marrons e as estradas finas da C02, pontos soltos. Os pedaços nos meios das arestas resolvem as divisas, e as estradas desenhadas pela polilinha ficam contínuas.
+  - **Resultados:** pilotos com 3 sementes na média: parado 0/54, distraído 3/54, mediano 54/54 (0,73 a 0,96; surtida de 0,54 a 7,1 minutos reais), bom 54/54 (0,98 a 1,00, nenhuma linha recusada). Fácil (1 semente): mediano 18/18, de 0,79 a 0,98. Difícil (1 semente): mediano 17/18, de 0,52 a 0,93; bom 18/18. C00, C01, C02, C04 e C05 a 60 FPS no Chromium sem GPU (DPR 1).
+- **Status:** ✅
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2102,8 +2132,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
 | REQ-FLT-002 | Terreno com relevo | [architecture](design/architecture.md), [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
 | REQ-FLT-003 | Decolagem cinematográfica | [survey-flight](features/survey-flight.md) | T024 | ✅ |
-| REQ-FLT-004 | Controles de voo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T013, T024 | ✅ |
-| REQ-FLT-005 | Linhas como corridas | [survey-flight](features/survey-flight.md) | T024 | ✅ |
+| REQ-FLT-004 | Controles de voo | [input](design/input.md), [survey-flight](features/survey-flight.md) | T013, T024, T096 | ✅ |
+| REQ-FLT-005 | Linhas como corridas | [survey-flight](features/survey-flight.md) | T024, T096 | ✅ |
 | REQ-FLT-006 | Câmera RGB | [survey-flight](features/survey-flight.md) | T024, T035 | ✅ |
 | REQ-FLT-007 | Sobreposição real e faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T035 | ✅ |
 | REQ-FLT-008 | Motion blur | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T011, T035 | ✅ |
@@ -2111,7 +2141,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-010 | Alternância de sensor | [input](design/input.md), [survey-flight](features/survey-flight.md) | T033 | ✅ |
 | REQ-FLT-011 | Obstáculos e colisão | [terrain](design/terrain.md), [survey-flight](features/survey-flight.md) | T028 | ✅ |
 | REQ-FLT-012 | Iluminação | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T029 | ✅ |
-| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090, T094 | ✅ |
+| REQ-FLT-013 | Vento e térmicas | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T030, T085, T088, T090, T094, T096 | ✅ |
 | REQ-FLT-014 | Energia e RTH | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T031 | ✅ |
 | REQ-FLT-015 | Comportamento de Atlas | [catalog](content/catalog.md), [survey-flight](features/survey-flight.md) | T032 | ✅ |
 | REQ-FLT-016 | Terrain Following | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T013, T034 | ✅ |
@@ -2120,14 +2150,16 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLT-019 | Fim da surtida e da missão | [survey-flight](features/survey-flight.md), [world-map](features/world-map.md) | T024, T031, T090 | ✅ |
 | REQ-FLT-020 | Interferência eletromagnética | [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T030 | ✅ |
 | REQ-FLT-021 | Clima especial | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T029, T055 | ✅ |
-| REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053 | ✅ |
-| REQ-FLT-023 | Ritmo e cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091, T094 | ✅ |
+| REQ-FLT-022 | Perda de RTK em cânions urbanos | [contracts-real](content/contracts-real.md), [survey-flight](features/survey-flight.md) | T030, T053, T096 | ✅ |
+| REQ-FLT-023 | Ritmo e cruzeiro automático | [input](design/input.md), [survey-flight](features/survey-flight.md) | T036, T091, T094, T096 | ✅ |
 | REQ-FLT-024 | Detecção furtiva e alvos especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [survey-flight](features/survey-flight.md) | T018, T036 | ✅ |
 | REQ-FLT-025 | Corredor de voo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088, T090 | ✅ |
 | REQ-FLT-026 | Nota de execução | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-027 | Aceitação da linha e revoo | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T086, T088 | ✅ |
 | REQ-FLT-028 | Entrada de faixa | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T085, T088 | ✅ |
 | REQ-FLT-029 | Retorno imediato da execução | [audio](design/audio.md), [survey-flight](features/survey-flight.md) | T090, T094 | ✅ |
+| REQ-FLT-030 | Dificuldade do voo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md), [survey-flight](features/survey-flight.md) | T096 | ✅ |
+| REQ-FLT-031 | Troca de faixa pela manobra | [domain-math](design/domain-math.md), [input](design/input.md), [survey-flight](features/survey-flight.md) | T096 | ✅ |
 | REQ-PRC-001 | Esteira SfM | [processing-results](features/processing-results.md) | T025, T043 | ✅ |
 | REQ-PRC-002 | Velocidade por hardware | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T025 | ✅ |
 | REQ-PRC-003 | Calibração de lente | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md) | T043 | ✅ |

@@ -14,7 +14,7 @@ describe('parseDebugFlags', () => {
   it('lê todos os parâmetros com debug=1', () => {
     expect(
       parseDebugFlags(
-        '?debug=1&seed=42&screen=SURVEY_FLIGHT&contract=C01&autopilot=1&calm=1&unlockAll=1&money=12345&skipIntro=1',
+        '?debug=1&seed=42&screen=SURVEY_FLIGHT&contract=C01&autopilot=1&calm=1&difficulty=HARD&unlockAll=1&money=12345&skipIntro=1',
       ),
     ).toEqual({
       debug: true,
@@ -23,6 +23,7 @@ describe('parseDebugFlags', () => {
       contract: 'C01',
       autopilot: true,
       calm: true,
+      difficulty: 'HARD',
       unlockAll: true,
       money: 12345,
       skipIntro: true,
@@ -32,7 +33,9 @@ describe('parseDebugFlags', () => {
   it('aceita as galerias e descarta valores inválidos', () => {
     expect(parseDebugFlags('?debug=1&screen=UIKIT').screen).toBe('UIKIT');
     expect(parseDebugFlags('?debug=1&screen=SOUNDBOARD').screen).toBe('SOUNDBOARD');
-    const flags = parseDebugFlags('?debug=1&screen=NOPE&money=abc&seed=&contract=');
+    const flags = parseDebugFlags(
+      '?debug=1&screen=NOPE&money=abc&seed=&contract=&difficulty=INSANO',
+    );
     expect(flags).toEqual({ ...NO_DEBUG, debug: true });
   });
 

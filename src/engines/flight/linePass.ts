@@ -9,13 +9,16 @@ import {
   plannedSamples,
   type CorridorProfile,
 } from '@/domain/corridor';
+import type { DifficultyParams } from '@/domain/difficulty';
 import { addGrade, emptyCounts, passAccepted } from '@/domain/execution';
 import {
   ENTRY_GRACE_S,
   entryOffsetM,
   maxCorrectableM,
+  planDrafts,
   planGusts,
   windRelativeRad,
+  type Draft,
   type Gust,
 } from '@/domain/gusts';
 import { hashString, mulberry32 } from '@/lib/rng';
@@ -44,12 +47,16 @@ export interface LinePassInput {
   elevationAlong: (s: number) => number;
   /** Sem rajadas e sem erro de entrada (testes de outros sistemas e `?calm=1`). */
   calm: boolean;
+  /** A dificuldade: o período das rajadas, a fração vertical e as correntes (ADR-035). */
+  difficulty: Pick<DifficultyParams, 'gustPeriodS' | 'verticalGustShare' | 'draftPeriodS'>;
 }
 
 export interface LinePassState {
   lineIndex: number;
   pass: number;
   gusts: Gust[];
+  /** Correntes verticais da passada (nenhuma na dificuldade fácil). */
+  drafts: Draft[];
   profile: CorridorProfile;
   /** Posição `s` de cada portal. */
   gates: number[];
@@ -69,7 +76,7 @@ export function passSeed(missionId: string, sortie: number, lineIndex: number, p
   return hashString(`${missionId}:${sortie}:${lineIndex}:${pass}`);
 }
 
-/** Corredor, rajadas e erro de entrada de uma passada. */
+/** Corredor, rajadas, correntes verticais e erro de entrada de uma passada. */
 export function beginLinePass(i: LinePassInput): LinePassState {
   const { plan, aircraft, frame, line } = i;
   const speed = Math.max(0.1, plan.params.speedMs);
@@ -81,14 +88,27 @@ export function beginLinePass(i: LinePassInput): LinePassState {
     climbRateMs: aircraft.climbRateMs,
     ceilingAglM: Math.min(aircraft.hMaxM, i.contract.ceilingM),
   });
+  const durationS = frame.lengthM / speed;
+  // Na passada, o ar sobe ou desce para um lado só: as correntes e as rajadas verticais juntas.
+  const verticalDir: -1 | 1 = rng.fork('vertical').next() < 0.5 ? -1 : 1;
+  // As correntes primeiro: rajada vertical não cai em cima de uma.
+  const drafts = i.calm
+    ? []
+    : planDrafts(rng.fork('drafts'), durationS, leadInS, i.difficulty.draftPeriodS, verticalDir);
   const gusts = i.calm
     ? []
     : planGusts(
         rng.fork('gusts'),
         i.contract.wind,
         windRelativeRad(i.contract.wind.directionDeg, frame.dir, frame.right),
-        frame.lengthM / speed,
+        durationS,
         leadInS,
+        {
+          periodS: i.difficulty.gustPeriodS,
+          verticalShare: i.difficulty.verticalGustShare,
+          drafts,
+          verticalDir,
+        },
       );
   const entry = i.calm
     ? 0
@@ -101,6 +121,7 @@ export function beginLinePass(i: LinePassInput): LinePassState {
     lineIndex: line.index,
     pass: i.pass,
     gusts,
+    drafts,
     profile,
     gates: gatePositions(line, plan.stats.baseM),
     planned: plannedSamples(line, plan.stats.baseM),

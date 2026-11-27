@@ -9,7 +9,7 @@
 ## 1. Ações abstratas (`src/input/actions.ts`)
 
 ```ts
-export type AxisAction = 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'LOOK_X' | 'LOOK_Y' | 'ZOOM';
+export type AxisAction = 'MOVE_X' | 'MOVE_Y' | 'ALT_UP' | 'ALT_DOWN' | 'TURN_LEFT' | 'TURN_RIGHT' | 'LOOK_X' | 'LOOK_Y' | 'ZOOM';
 export type ButtonAction =
   | 'INTERACT' | 'FIRE' | 'TOGGLE_SENSOR' | 'RTH' | 'PAUSE'
   | 'TOGGLE_DIMENSION' | 'CYCLE_VEHICLE' | 'TIME_WARP' | 'TOGGLE_GNSS'
@@ -19,7 +19,7 @@ export type ButtonAction =
 ```
 
 - `MOVE_X`, `MOVE_Y`, `LOOK_X`, `LOOK_Y` e `ZOOM` variam de −1 a 1.
-- `ALT_UP` e `ALT_DOWN` variam de 0 a 1.
+- `ALT_UP`, `ALT_DOWN`, `TURN_LEFT` e `TURN_RIGHT` variam de 0 a 1.
 - Convenção: `MOVE_Y = +1` é **para cima/frente** (W, seta ↑, analógico para cima).
 
 ---
@@ -36,6 +36,7 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 | `MOVE_X` | Voo: deriva lateral | `A` / `D` | Analógico esq. horizontal | idem |
 | `ALT_UP` | Voo: subir H | `Q` | `RT` (botão 7, analógico) | `R2` (7) |
 | `ALT_DOWN` | Voo: descer H | `E` | `LT` (botão 6, analógico) | `L2` (6) |
+| `TURN_LEFT` / `TURN_RIGHT` **[ADIÇÃO]** | Voo: a tecla da curva de cada lado na manobra de troca de faixa ([survey-flight §5.7](../features/survey-flight.md), [ADR-035](../decisions.md)). A manobra: `W`+`A`+`Q` (esquerda) ou `W`+`E`+`D` (direita) juntas, ou a sequência `A` → `Q` → `W` / `D` → `E` → `W`; no controle, o analógico para a frente e para o lado com o gatilho do lado | `Q` / `E` (as de cima de `A` e `D`) | `LT` / `RT` (6 / 7) | `L2` / `R2` |
 | `FIRE` | Disparo manual / ação de mini-game / ciclo de modo da mesa | `Espaço` | `X` (botão 2) | `□` Quadrado (2) |
 | `TOGGLE_SENSOR` | Voo: RGB ↔ LiDAR | `1` / `2` / `Tab` | `Y` (botão 3) | `△` Triângulo (3) |
 | `RTH` | Voo: retorno à base | `R` | `B` (botão 1) | `○` Círculo (1) |
@@ -132,6 +133,7 @@ detectFamily(id: string): 'XBOX' | 'PLAYSTATION' | 'GENERIC'
 | RTH | `R` | `B` (vermelho) | `○` (vermelho) |
 | PAUSE | `Esc` | `≡ Menu` | `Options` |
 | ALT_UP / ALT_DOWN | `Q` / `E` | `RT` / `LT` | `R2` / `L2` |
+| TURN_LEFT / TURN_RIGHT | `Q` / `E` | `LT` / `RT` | `L2` / `R2` |
 | TIME_WARP | `T` | `RB` | `R1` |
 | CYCLE_VEHICLE | `V` | `LB` | `L1` |
 | TOGGLE_GNSS | `G` | `RB` | `R1` |

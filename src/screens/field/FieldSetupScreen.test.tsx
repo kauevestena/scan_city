@@ -360,6 +360,21 @@ describe('FieldSetupScreen', () => {
     expect(get().session.payload).toEqual({ missionId: get().mission.active?.id });
   });
 
+  it('dificuldade do voo: a média vem marcada; a escolha vai para a missão (ADR-035)', () => {
+    render(<FieldSetupScreen />);
+    tab(/Checklist/);
+    const group = screen.getByRole('radiogroup', { name: 'Dificuldade do voo' });
+    const option = (name: RegExp) => within(group).getByRole('radio', { name });
+    expect(option(/Média/)).toHaveAttribute('aria-checked', 'true');
+    expect(option(/Média/)).toHaveTextContent('pagamento normal');
+    expect(option(/Fácil/)).toHaveTextContent('pagamento −20 %');
+    expect(option(/Difícil/)).toHaveTextContent('pagamento +25 %');
+    fireEvent.click(option(/Difícil/));
+    expect(get().mission.active?.difficulty).toBe('HARD');
+    expect(option(/Difícil/)).toHaveAttribute('aria-checked', 'true');
+    expect(option(/Média/)).toHaveAttribute('aria-checked', 'false');
+  });
+
   it('Atlas sem milho: bloqueante em vermelho e DECOLAR desabilitado', () => {
     act(() =>
       useGameStore.setState((s) => ({

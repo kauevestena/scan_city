@@ -2,7 +2,8 @@ import { STRINGS } from '@/data/strings';
 import type { ButtonAction, InputDevice } from './actions';
 
 /** Ações com glyph: botões, mais os grupos de eixos exibidos ao jogador. */
-export type GlyphAction = ButtonAction | 'MOVE' | 'LOOK' | 'ZOOM' | 'ALT_UP' | 'ALT_DOWN';
+export type GlyphAction =
+  ButtonAction | 'MOVE' | 'LOOK' | 'ZOOM' | 'ALT_UP' | 'ALT_DOWN' | 'TURN_LEFT' | 'TURN_RIGHT';
 
 export type GlyphShape = 'key' | 'face' | 'pill' | 'stick' | 'dpad';
 export type GlyphTone = 'green' | 'red' | 'blue' | 'yellow' | 'pink';
@@ -51,6 +52,8 @@ const KEYBOARD: GlyphTable = {
   ZOOM: key(K.wheel),
   ALT_UP: key('Q'),
   ALT_DOWN: key('E'),
+  TURN_LEFT: key('Q'),
+  TURN_RIGHT: key('E'),
 };
 
 const XBOX: GlyphTable = {
@@ -80,6 +83,8 @@ const XBOX: GlyphTable = {
   ZOOM: pill('RT/LT'),
   ALT_UP: pill('RT'),
   ALT_DOWN: pill('LT'),
+  TURN_LEFT: pill('LT'),
+  TURN_RIGHT: pill('RT'),
 };
 
 const PLAYSTATION: GlyphTable = {
@@ -109,6 +114,8 @@ const PLAYSTATION: GlyphTable = {
   ZOOM: pill('R2/L2'),
   ALT_UP: pill('R2'),
   ALT_DOWN: pill('L2'),
+  TURN_LEFT: pill('L2'),
+  TURN_RIGHT: pill('R2'),
 };
 
 const TABLES: Record<GlyphFamily, GlyphTable> = { KEYBOARD, XBOX, PLAYSTATION };

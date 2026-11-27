@@ -83,8 +83,9 @@ test('"Usar valores do meu equipamento" preenche os sliders com a câmera do Atl
     'aria-valuenow',
     '4.5',
   );
-  // 80 m (teto do Atlas) · 1,89 µm / 4,5 mm = 3,36 cm/px.
-  await expect(page.getByTestId('reading-gsd')).toHaveText('3,36 cm/px');
+  // O Atlas sobe até 120 m: vale a altura de trabalho do laboratório, 100 m.
+  // 100 m · 1,89 µm / 4,5 mm = 4,20 cm/px.
+  await expect(page.getByTestId('reading-gsd')).toHaveText('4,20 cm/px');
 });
 
 test('os diagramas são desenhados e animados no canvas (óptica e estereoscopia)', async ({

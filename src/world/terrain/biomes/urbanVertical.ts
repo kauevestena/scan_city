@@ -1,8 +1,8 @@
 /**
  * URBAN_VERTICAL — C01 "Metrópole Vertical" (terrain §3): relevo plano com 10 m de variação,
- * grade de ruas a cada 60–80 m, quadras com 2–6 prédios de 10–90 m (≥ 20 % acima de 60 m, e o
- * mais alto da AOI com 90 m), praça de grama no centro e as zonas `RTK_CANYON` calculadas
- * entre os arranha-céus. As cores dos biomas são exceção permitida aos tokens (ui-style §1).
+ * grade de ruas a cada 60–80 m, quadras com 2–6 prédios de 10–65 m (≥ 20 % acima de 45 m, e o
+ * mais alto da AOI com 65 m: o Atlas, que voa até 83 m pelo GSD do contrato, passa por cima;
+ * ADR-035), praça de grama no centro e as zonas `RTK_CANYON` calculadas entre os arranha-céus. As cores dos biomas são exceção permitida aos tokens (ui-style §1).
  */
 import { clamp } from '@/lib/math';
 import type { Rng } from '@/lib/rng';
@@ -24,11 +24,11 @@ export const PLAZA_CENTER: AoiPoint = {
   u: (PLAZA.uMin + PLAZA.uMax) / 2,
   v: (PLAZA.vMin + PLAZA.vMax) / 2,
 };
-/** Prédios altos: acima de 60 m (o limite do cânion); a fatia mínima é de 20 %, a meta, 25 %. */
+/** Prédios altos: acima de 45 m (o limite do cânion); a fatia mínima é de 20 %, a meta, 25 %. */
 export const TALL_MIN_M = RULE_PARAMS.rtkCanyon.minBuildingHeightM;
 export const TALL_SHARE = 0.25;
-/** O prédio mais alto da AOI: o briefing manda voar acima de 90 m. */
-export const TALLEST_BUILDING_M = 90;
+/** O prédio mais alto da AOI: o briefing manda voar acima de 65 m. */
+export const TALLEST_BUILDING_M = 65;
 export const RELIEF_M = 10;
 const RELIEF_SCALE_M = 260;
 const BUILDINGS_PER_BLOCK = [2, 6] as const;
@@ -101,8 +101,8 @@ function splitLots(rect: Rect, n: number, rng: Rng): Rect[] {
   ];
 }
 
-/** `10 + 80·r³`: a altura do prédio de sorteio `r` (terrain §3). */
-export const buildingHeightM = (r: number): number => 10 + 80 * r ** 3;
+/** `10 + 55·r³`: a altura do prédio de sorteio `r` (terrain §3). */
+export const buildingHeightM = (r: number): number => 10 + 55 * r ** 3;
 
 /** Cor do prédio pela faixa de altura: casario baixo, concreto, vidro azulado. */
 function buildingColor(heightM: number, rng: Rng): Rgb {
@@ -243,13 +243,13 @@ export const URBAN_VERTICAL: BiomeRecipe = {
       const ids = lots.flatMap((lot, i) => (inAoi(lot) === group ? [i] : []));
       for (const i of rng.shuffle(ids).slice(0, Math.ceil(TALL_SHARE * ids.length))) tall.add(i);
     }
-    // O mais alto da AOI fica com exatamente 90 m (a nota do briefing).
+    // O mais alto da AOI fica com exatamente 65 m (a nota do briefing).
     const landmark = lots.findIndex((lot, i) => tall.has(i) && inAoi(lot));
 
     const objects: WorldObject[] = [];
     lots.forEach((lot, i) => {
-      // Altos: r ∈ [0,86; 0,995) → 60,9–89,6 m. Baixos: r ≤ 0,85 → no máximo 59,1 m.
-      const r = tall.has(i) ? rng.range(0.86, 0.995) : rng.range(0.05, 0.85);
+      // Altos: r ∈ [0,87; 0,995) → 46,2–64,2 m. Baixos: r ≤ 0,85 → no máximo 43,8 m.
+      const r = tall.has(i) ? rng.range(0.87, 0.995) : rng.range(0.05, 0.85);
       const heightM = i === landmark ? TALLEST_BUILDING_M : buildingHeightM(r);
       objects.push(
         makeObject(ctx.nextId, {
@@ -286,7 +286,7 @@ export const URBAN_VERTICAL: BiomeRecipe = {
     return objects;
   },
 
-  // Cânions de RTK: onde dois prédios > 60 m ficam a < 40 m um do outro.
+  // Cânions de RTK: onde dois prédios > 45 m ficam a < 40 m um do outro.
   zones: (objects) => rtkCanyonZones(objects),
 
   guaranteedAccessible: [PLAZA_CENTER],

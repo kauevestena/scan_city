@@ -31,6 +31,13 @@ export interface AutopilotState {
    */
   lateralPushChangeMs?: number;
   alongPushChangeMs?: number;
+  /**
+   * Sem Terrain Following: o empurrão vertical de agora (rajada vertical e corrente) e quanto ele
+   * vai mudar, e a razão de subida que o comando cheio dá. O autopilot sobe ou desce contra ele.
+   */
+  verticalDriftMs?: number;
+  verticalPushChangeMs?: number;
+  climbRateMs?: number;
 }
 
 /** Ganhos: faixa (1/s), altura (por m) e velocidade no solo (por m/s). */
@@ -51,18 +58,28 @@ export const AUTOPILOT_COUNTER_UNTIL_S = 0.1;
 /**
  * O contragolpe do piloto bom: com a rajada `deltaS` segundos da chegada (negativo: ainda vem),
  * segura o comando contra ela abaixo de `threshold` até `AUTOPILOT_COUNTER_AT_S` e depois o
- * dá inteiro por um instante. `against` é o sinal do comando que vai contra a rajada.
+ * dá inteiro por um instante. `against` é o sinal do comando que vai contra a rajada: de lado,
+ * o de `MOVE_X`; na vertical, +1 é subir (`ALT_UP`) e −1 é descer (`ALT_DOWN`).
  */
 export function autopilotCounter(
   input: FlightInput,
   deltaS: number,
+  axis: 'LATERAL' | 'VERTICAL',
   against: -1 | 1,
   warnS: number,
   threshold: number,
 ): FlightInput {
   if (deltaS < -warnS || deltaS >= AUTOPILOT_COUNTER_UNTIL_S) return input;
+  const limit = 0.8 * threshold;
+  if (axis === 'VERTICAL') {
+    if (deltaS < AUTOPILOT_COUNTER_AT_S) {
+      return against > 0
+        ? { ...input, altUp: Math.min(input.altUp, limit) }
+        : { ...input, altDown: Math.min(input.altDown, limit) };
+    }
+    return against > 0 ? { ...input, altUp: 1, altDown: 0 } : { ...input, altUp: 0, altDown: 1 };
+  }
   if (deltaS < AUTOPILOT_COUNTER_AT_S) {
-    const limit = 0.8 * threshold;
     const moveX = against > 0 ? Math.min(input.moveX, limit) : Math.max(input.moveX, -limit);
     return { ...input, moveX };
   }
@@ -91,7 +108,10 @@ export function autopilotInput(st: AutopilotState): FlightInput {
   // Velocidade lateral desejada: anula o empurrão (o de agora e o que vem) e volta ao eixo.
   const push = st.driftMs + (st.lateralPushChangeMs ?? 0);
   const wanted = -push - kp * st.x;
-  const climb = st.obstacleAhead ? 1 : (st.targetAlt - st.alt) * kAlt;
+  // Sem TF, o empurrão vertical (o de agora e o que vem) entra como antecipação da subida.
+  const vPush = (st.verticalDriftMs ?? 0) + (st.verticalPushChangeMs ?? 0);
+  const feedForward = st.climbRateMs ? -vPush / Math.max(0.1, st.climbRateMs) : 0;
+  const climb = st.obstacleAhead ? 1 : (st.targetAlt - st.alt) * kAlt + feedForward;
   const groundSpeed = st.groundSpeedMs + (st.alongPushChangeMs ?? 0);
   return {
     moveX: clamp(wanted / Math.max(0.1, st.lateralMaxMs), -1, 1),

@@ -15,7 +15,14 @@ import { buildFlightPlan } from '@/domain/flightPlanner';
 import { referenceParams, referencePoints } from '@/domain/referencePlan';
 import { FlightEngine, type SortieResult } from '@/engines/flight/FlightEngine';
 import { mulberry32 } from '@/lib/rng';
-import type { Contract, LidarGrid, MissionData, QualityReport, Shot } from '@/types';
+import type {
+  Contract,
+  FlightDifficulty,
+  LidarGrid,
+  MissionData,
+  QualityReport,
+  Shot,
+} from '@/types';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { idlePilot, MediumPilot, PILOT_STEP_S, type PilotKind } from './pilots';
 
@@ -98,7 +105,13 @@ export function sortiesAllowed(aircraftId: string): number {
   return a.kind === 'BIRD' ? 3 : 1 + a.spareBatteries;
 }
 
-export function flyMission(contract: Contract, pilot: PilotKind, seed = 1): FlownMission {
+/** Voa a missão com o plano de referência; `difficulty` padrão: a média (ADR-035). */
+export function flyMission(
+  contract: Contract,
+  pilot: PilotKind,
+  seed = 1,
+  difficulty: FlightDifficulty = 'MEDIUM',
+): FlownMission {
   const terrain = createTerrain(contract);
   const plan = buildFlightPlan(referenceParams(contract), contract, CATALOG);
   let mission: MissionData = {
@@ -107,6 +120,7 @@ export function flyMission(contract: Contract, pilot: PilotKind, seed = 1): Flow
     createdAt: 0,
     rivalAdjustment: 1,
     isReplay: false,
+    difficulty,
     plan,
     groundPoints: referencePoints(contract, terrain),
     fieldEquipmentId: 'TOTAL_STATION',

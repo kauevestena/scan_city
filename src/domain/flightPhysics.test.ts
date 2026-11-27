@@ -280,3 +280,35 @@ describe('initialAircraftState', () => {
     expect(s).toMatchObject({ s: 0, x: 0, alt: 60, v: 10, gs: 10, vLat: 0, vz: 0, aglTargetM: 60 });
   });
 });
+
+describe('empurrão vertical: rajada vertical e corrente (ADR-035)', () => {
+  const start = (): AircraftState => ({ ...initialAircraftState(10, 60), aglTargetM: 60 });
+
+  it('sem TF, sobe ou desce por cima do comando; o comando segue sendo o de antes', () => {
+    const down = stepAircraft(start(), IDLE, env({ gustVerticalMs: -3 }), 1);
+    expect(down.alt).toBeCloseTo(57, 9);
+    expect(down.vDrift).toBe(-3);
+    expect(down.vz).toBe(0);
+    expect(down.climbing).toBe(false);
+    // Subindo no máximo contra a descendente: a razão de subida menos o empurrão.
+    const climb = getAircraft('DRONE_T2').climbRateMs;
+    const up = stepAircraft(start(), { ...IDLE, altUp: 1 }, env({ gustVerticalMs: -3 }), 1);
+    expect(up.alt).toBeCloseTo(60 + climb - 3, 9);
+    expect(up.vz).toBe(climb);
+  });
+
+  it('o piso barra a descida empurrada, e o teto, a subida', () => {
+    const low = { ...start(), alt: 2.5 };
+    expect(stepAircraft(low, IDLE, env({ gustVerticalMs: -3 }), 1).alt).toBe(2);
+    const high = { ...start(), alt: 119 };
+    expect(stepAircraft(high, IDLE, env({ gustVerticalMs: 5 }), 1).alt).toBe(120);
+  });
+
+  it('com TF, o laço de altura do TF corrige o que a corrente tira do lugar', () => {
+    let s: AircraftState = start();
+    const tf = env({ terrainFollowing: true, elevationAhead: () => 0, gustVerticalMs: -2 });
+    for (let k = 0; k < 600; k++) s = stepAircraft(s, IDLE, tf, 1 / 60);
+    // Em regime, o erro é o empurrão sobre o ganho do TF (2/s): 1 m abaixo do alvo.
+    expect(s.alt).toBeCloseTo(59, 1);
+  });
+});
