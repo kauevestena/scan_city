@@ -157,7 +157,12 @@ Para a linha `L` com direção `d ∈ {+1, −1}` e eixo da linha `axis` (u em `
   - `ALT_UP`/`ALT_DOWN` → vertical ou AGL-alvo (com TF);
   - `TURN_LEFT`/`TURN_RIGHT` → a tecla da curva de cada lado na manobra de troca de faixa (§5.7): `Q`/`E` no teclado, `LT`/`RT` no controle. Na linha, só a manobra as lê.
 - **Sprite** (desenhado em `Z = 0`, sempre por cima do terreno da faixa 0, com sombra no chão projetada verticalmente cujo tamanho diminui com o AGL), com cores da pintura do drone ou acessório do Atlas:
-  - **Atlas:** corpo oval, asas batendo (frequência ∝ v), cabeça com bico; o acessório é desenhado por cima (óculos, cachecol, mochilinha).
+  - **Atlas** (T097), visto de trás e de cima:
+    - cauda em leque com a ponta escura; corpo gordinho com o dorso mais claro; pescoço iridescente (verde, com um brilho violeta que corre devagar);
+    - asas batendo (frequência ∝ v), com as duas barras escuras e quatro rêmiges escuras abertas como dedos;
+    - como um pombo de verdade visto de cima: cabeça pequena e redonda (um tom mais escuro que o corpo), bico à frente com a cera branca e os olhos só como pontinhos laranja nos lados (sem topete nem cara de frente; o lado destemido fica no poleiro do escritório);
+    - o acessório equipado tem o seu desenho: óculos de aviador (tira e lentes), cachecol (a volta e as pontas tremulando), mochilinha GPS (antena e LED que pisca), coroa de louros; um id desconhecido, a faixa no pescoço;
+    - cores chapadas, sem gradiente a cada quadro. O Atlas da mesa holográfica é o mesmo sprite, em miniatura.
   - **Multirrotor:** "X" com 4 discos de hélice borrados, que rodam.
   - **VTOL:** fuselagem, asa longa, cauda em V.
   - **Inclinação visual:** *bank* = `MOVE_X × 20°`, e *pitch* conforme a velocidade.

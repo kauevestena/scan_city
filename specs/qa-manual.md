@@ -215,6 +215,7 @@ O primeiro teste humano achou o voo sem desafio ([ADR-029](decisions.md)). A Fas
 - [ ] **Troca de faixa:** o portal da curva (a seta âmbar) e o aviso com as teclas aparecem a tempo? O acorde `W`+`E`+`D` (`W`+`A`+`Q`) e a sequência `D` → `E` → `W` funcionam no seu teclado? A janela parece justa na fácil, na média e na difícil? A arremetida e o retorno automático na terceira curva perdida se entendem? No controle, o analógico na diagonal com o gatilho do lado sai fácil?
 - [ ] **Dificuldade:** o seletor do checklist explica o que muda e quanto paga? A fácil fica tranquila, a média como antes (mais o vertical) e a difícil desafia sem frustrar?
 - [ ] **C01 com o Atlas:** com o pombo a 75–80 m, o voo passa por cima de todos os prédios e o contrato aprova?
+- [ ] **O Atlas (T097):** no voo e no poleiro, ele parece destemido e fofo ao mesmo tempo? A piscada, o topete e a sobrancelha se leem no tamanho do voo? Cada acessório (óculos, cachecol, mochilinha, louros) se reconhece de trás e de perfil?
 - [ ] **Chão:** a estrada de terra do C00 e as estradas da C02 ficam contínuas, sem quadrados marrons nem pontos soltos? As divisas (campo, mata, solo da mina) ficam em diagonal, sem escada?
 
 | Contrato | Dificuldade | Execução no pós-voo | Divertido (1–5) | Difícil (1–5) | Notas |

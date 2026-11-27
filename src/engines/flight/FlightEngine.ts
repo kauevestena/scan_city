@@ -350,6 +350,8 @@ export interface FlightEngineOptions {
   reduceFlashes: () => boolean;
   colors: SpriteColors;
   accessory?: SpriteColors | null;
+  /** Qual acessório do Atlas está equipado (cada um tem o seu desenho, T097). */
+  accessoryId?: string;
   /** Índice da surtida (0 na primeira). */
   sortie: number;
   /** Disparos já registrados na missão (o índice continua). */
@@ -2362,6 +2364,7 @@ export class FlightEngine implements Simulation {
       bankRad: pose ? pose.spin : (this.input.moveX * 20 * Math.PI) / 180,
       colors: this.opts.colors,
       accessory: this.opts.accessory ?? null,
+      ...(this.opts.accessoryId ? { accessoryId: this.opts.accessoryId } : {}),
       alpha: invulnerableAlpha(this.invulnerableS, this.opts.reduceFlashes()),
     });
     if (pose && pose.smoke > 0) {

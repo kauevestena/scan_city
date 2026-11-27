@@ -73,6 +73,9 @@ function createEngine(
     colors: atlas ? { primary: '#94a3b8', secondary: '#475569' } : paint,
     accessory:
       atlas && equipped.atlasAccessory !== 'ATLAS_NONE' ? colorsOf(equipped.atlasAccessory) : null,
+    ...(atlas && equipped.atlasAccessory !== 'ATLAS_NONE'
+      ? { accessoryId: equipped.atlasAccessory }
+      : {}),
     initialEnergy: atlas ? cropEnergy(state.inventory.corn.crop) : 1,
     sortie: mission.sorties.length,
     shotOffset: mission.shots.length,

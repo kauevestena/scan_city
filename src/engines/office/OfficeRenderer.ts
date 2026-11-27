@@ -7,6 +7,14 @@ import { OFFICE_H, OFFICE_HOTSPOTS, OFFICE_W, type OfficeHotspotId } from '@/dat
 import { hash2 } from '@/lib/rng';
 import type { AircraftId, HardwareId, StaffRoleId, VehicleId } from '@/types';
 import { COLORS, withAlpha } from '@/ui/tokens';
+import {
+  ATLAS_BEAK,
+  ATLAS_EYE,
+  ATLAS_INK,
+  ATLAS_NECK,
+  ATLAS_NECK_SHEEN,
+  mixHex,
+} from '../flight/aircraftSprite';
 
 export interface OfficeSceneState {
   aircraft: readonly AircraftId[];
@@ -17,6 +25,8 @@ export interface OfficeSceneState {
   staff: Readonly<Record<StaffRoleId, number>>;
   /** Cores do acessório do Atlas, ou `null` sem acessório. */
   atlasAccessory: { primary: string; secondary: string } | null;
+  /** Qual acessório: cada um tem o seu desenho; sem id, a faixa no pescoço. */
+  atlasAccessoryId?: string;
   /** Preview `soft3d` da maquete do museu sobre a mesa; sem ele, o relevo em linhas. */
   holo?: {
     draw(
@@ -46,6 +56,8 @@ const PAL = {
   pigeon: '#8f97a3',
   pigeonDark: '#626a76',
   beak: '#e2a14a',
+  feet: '#e8836b',
+  cere: '#e5e7eb',
   door: '#6b4527',
   sky: '#9fd3f0',
   screen: '#0b3a44',
@@ -97,6 +109,239 @@ export function atlasPose(timeS: number): { blink: boolean; peck: number } {
   return { blink, peck };
 }
 
+/**
+ * O Atlas no poleiro, de perfil e olhando para a direita (T097): o mesmo pombo do voo — cabeça
+ * grande, olho laranja com a sobrancelha franzida, topete em três pontas, pescoço iridescente,
+ * as barras escuras na asa dobrada, a cauda com a ponta escura e os pés no poleiro. `(cx, by)`
+ * é o centro do corpo; o acessório equipado é desenhado do jeito dele.
+ */
+export function drawPerchedAtlas(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  by: number,
+  timeS: number,
+  accessory: OfficeSceneState['atlasAccessory'],
+  accessoryId?: string,
+): void {
+  const { blink, peck } = atlasPose(timeS);
+  const poly = (pts: readonly (readonly [number, number])[]) => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.closePath();
+    ctx.fill();
+  };
+  const oval = (x: number, y: number, rx: number, ry: number, rot = 0) => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  // Pés agarrados no poleiro.
+  ctx.fillStyle = PAL.feet;
+  ctx.fillRect(cx - 7, by + 13, 3, 7);
+  ctx.fillRect(cx + 4, by + 13, 3, 7);
+  ctx.fillRect(cx - 10, by + 18, 9, 3);
+  ctx.fillRect(cx + 1, by + 18, 9, 3);
+  // Cauda em leque, com a ponta escura.
+  ctx.fillStyle = PAL.pigeonDark;
+  poly([
+    [cx - 14, by - 4],
+    [cx - 42, by + 6],
+    [cx - 40, by + 17],
+    [cx - 12, by + 10],
+  ]);
+  ctx.fillStyle = ATLAS_INK;
+  poly([
+    [cx - 35, by + 3.5],
+    [cx - 42, by + 6],
+    [cx - 40, by + 17],
+    [cx - 33, by + 14.5],
+  ]);
+  // Corpo gordinho e o peito mais claro.
+  ctx.fillStyle = PAL.pigeon;
+  oval(cx, by, 24, 18);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+  oval(cx + 8, by + 5, 13, 9);
+  // Asa dobrada: as duas barras escuras e a ponta das rêmiges.
+  ctx.fillStyle = PAL.pigeonDark;
+  oval(cx - 7, by + 1, 17, 11, -0.25);
+  ctx.fillStyle = ATLAS_INK;
+  oval(cx - 21, by + 6, 6, 4, -0.25);
+  ctx.strokeStyle = ATLAS_INK;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 9, by - 7);
+  ctx.lineTo(cx - 13, by + 8);
+  ctx.moveTo(cx - 2, by - 8);
+  ctx.lineTo(cx - 6, by + 8);
+  ctx.stroke();
+  // Pescoço iridescente: o verde e o brilho violeta que corre devagar.
+  const nx = cx + 14 + peck * 3;
+  const ny = by - 9 + peck * 5;
+  ctx.fillStyle = ATLAS_NECK;
+  oval(nx, ny, 10, 9, -0.5);
+  ctx.fillStyle = ATLAS_NECK_SHEEN;
+  oval(nx + Math.sin(timeS * 1.7) * 3, ny, 5, 6, -0.5);
+  // Topete de três pontas, para trás; a cabeça grande e redonda cobre a base.
+  const hx = cx + 18 + peck * 6;
+  const hy = by - 17 + peck * 10;
+  ctx.fillStyle = ATLAS_INK;
+  poly([
+    [hx - 9, hy - 6],
+    [hx - 16, hy - 16],
+    [hx - 5, hy - 10],
+    [hx - 6, hy - 20],
+    [hx, hy - 11],
+    [hx + 3, hy - 18],
+    [hx + 4, hy - 9],
+  ]);
+  ctx.fillStyle = mixHex(PAL.pigeon, ATLAS_INK, 0.22);
+  ctx.beginPath();
+  ctx.arc(hx, hy, 12, 0, Math.PI * 2);
+  ctx.fill();
+  // Bico com a ponta mais escura e a cera branca na base.
+  ctx.fillStyle = ATLAS_BEAK;
+  poly([
+    [hx + 9, hy - 3],
+    [hx + 20, hy + 1],
+    [hx + 9, hy + 4],
+  ]);
+  ctx.fillStyle = mixHex(ATLAS_BEAK, ATLAS_INK, 0.35);
+  poly([
+    [hx + 16, hy - 0.5],
+    [hx + 20, hy + 1],
+    [hx + 16, hy + 2.5],
+  ]);
+  ctx.fillStyle = PAL.cere;
+  oval(hx + 10, hy - 3, 3, 2);
+  // Olho laranja com brilho (piscando, um traço) e a sobrancelha franzida.
+  const ex = hx + 3;
+  const ey = hy - 2;
+  ctx.fillStyle = ATLAS_INK;
+  if (blink) {
+    ctx.fillRect(ex - 4, ey, 8, 1.5);
+  } else {
+    ctx.fillStyle = ATLAS_EYE;
+    ctx.beginPath();
+    ctx.arc(ex, ey, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ATLAS_INK;
+    ctx.beginPath();
+    ctx.arc(ex + 0.8, ey, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ex + 1.6, ey - 1.2, 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ATLAS_INK;
+  }
+  poly([
+    [ex - 5, ey - 8],
+    [ex + 6, ey - 4.5],
+    [ex + 5.5, ey - 2.5],
+    [ex - 5, ey - 5.5],
+  ]);
+  if (accessory)
+    drawPerchedAccessory(ctx, { cx, by, hx, hy, nx, ny, timeS }, accessory, accessoryId);
+}
+
+/** O acessório do Atlas no poleiro, pelo id (sem id, a faixa no pescoço com a plaquinha). */
+function drawPerchedAccessory(
+  ctx: CanvasRenderingContext2D,
+  at: { cx: number; by: number; hx: number; hy: number; nx: number; ny: number; timeS: number },
+  colors: { primary: string; secondary: string },
+  accessoryId: string | undefined,
+): void {
+  const { cx, by, hx, hy, nx, ny, timeS } = at;
+  switch (accessoryId) {
+    case 'ATLAS_GOGGLES': {
+      // Óculos de aviador levantados na testa: a tira em volta da cabeça e a lente no alto.
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 10.5, -1.2, -2.8, true);
+      ctx.stroke();
+      ctx.fillStyle = colors.secondary;
+      ctx.beginPath();
+      ctx.arc(hx + 4, hy - 11, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fillRect(hx + 2.5, hy - 13, 1.5, 1.5);
+      return;
+    }
+    case 'ATLAS_SCARF': {
+      // Cachecol: a volta no pescoço e as pontas balançando atrás.
+      const wave = Math.sin(timeS * 2.2) * 1.5;
+      ctx.fillStyle = colors.primary;
+      ctx.beginPath();
+      ctx.moveTo(nx - 6, ny + 1);
+      ctx.quadraticCurveTo(nx - 16, ny - 2 + wave, nx - 26, ny + 3 + wave * 1.5);
+      ctx.lineTo(nx - 25, ny + 8 + wave * 1.5);
+      ctx.quadraticCurveTo(nx - 15, ny + 5 + wave, nx - 5, ny + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(nx, ny + 2, 11, 5, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = colors.secondary;
+      ctx.fillRect(nx - 25, ny + 4 + wave * 1.5, 3, 3);
+      ctx.fillRect(nx - 4, ny + 1, 8, 2);
+      return;
+    }
+    case 'ATLAS_GPS_PACK': {
+      // Mochilinha GPS nas costas: a antena com a bolinha e o LED que pisca.
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 12, by - 19);
+      ctx.lineTo(cx - 15, by - 31);
+      ctx.stroke();
+      ctx.fillStyle = colors.primary;
+      ctx.fillRect(cx - 16, by - 20, 15, 11);
+      ctx.fillStyle = colors.secondary;
+      ctx.beginPath();
+      ctx.arc(cx - 15, by - 31, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      if (Math.floor(timeS * 2) % 2 === 0) ctx.fillRect(cx - 6, by - 17, 3, 3);
+      return;
+    }
+    case 'ATLAS_LAUREL': {
+      // Coroa de louros: o ramo em volta do alto da cabeça, as folhas alternadas, a fitinha atrás.
+      ctx.strokeStyle = colors.primary;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 12, -2.75, -0.65);
+      ctx.stroke();
+      ctx.fillStyle = colors.primary;
+      for (let k = 0; k < 7; k++) {
+        const a = -2.7 + k * 0.33;
+        ctx.beginPath();
+        ctx.ellipse(
+          hx + Math.cos(a) * 12,
+          hy + Math.sin(a) * 12,
+          4.2,
+          1.9,
+          a + Math.PI / 2 + (k % 2 ? 0.6 : -0.6),
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.fillStyle = colors.secondary;
+      ctx.fillRect(hx - 14, hy - 6, 3, 6);
+      ctx.fillRect(hx - 12, hy - 5, 3, 7);
+      return;
+    }
+    default:
+      // A faixa no pescoço e a plaquinha.
+      ctx.fillStyle = colors.primary;
+      ctx.fillRect(nx - 8, ny + 2, 16, 4);
+      ctx.fillStyle = colors.secondary;
+      ctx.fillRect(nx - 8, ny + 6, 6, 6);
+  }
+}
+
 export const DUST_COUNT = 36;
 
 /** Partícula de poeira `i` no instante t: deriva lenta dentro dos cones das luminárias. */
@@ -136,7 +381,7 @@ export class OfficeRenderer {
     this.drawShelf(ctx, state.souvenirColors);
     this.drawCareer(ctx);
     this.drawHoloTable(ctx, state.holo ?? null);
-    this.drawPerch(ctx, state.atlasAccessory);
+    this.drawPerch(ctx, state.atlasAccessory, state.atlasAccessoryId);
     this.drawDoor(ctx);
     this.drawWorkstation(ctx, state.hardware);
     this.drawStaffDesk(ctx, state.staff);
@@ -287,6 +532,7 @@ export class OfficeRenderer {
   private drawPerch(
     ctx: CanvasRenderingContext2D,
     accessory: OfficeSceneState['atlasAccessory'],
+    accessoryId: string | undefined,
   ): void {
     const p = rect('PERCH');
     const cx = p.x + p.w / 2;
@@ -295,37 +541,7 @@ export class OfficeRenderer {
     ctx.fillRect(cx - 40, p.y + p.h - 8, 80, 8);
     ctx.fillStyle = PAL.wood;
     ctx.fillRect(cx - 46, p.y + 66, 92, 8);
-    const { blink, peck } = atlasPose(this.timeS);
-    const by = p.y + 46;
-    ctx.fillStyle = PAL.pigeon;
-    ctx.beginPath();
-    ctx.ellipse(cx, by, 24, 18, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = PAL.pigeonDark;
-    ctx.beginPath();
-    ctx.ellipse(cx - 6, by + 2, 16, 10, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-    const hx = cx + 18 + peck * 6;
-    const hy = by - 16 + peck * 10;
-    ctx.fillStyle = PAL.pigeon;
-    ctx.beginPath();
-    ctx.arc(hx, hy, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = PAL.beak;
-    ctx.beginPath();
-    ctx.moveTo(hx + 8, hy - 2);
-    ctx.lineTo(hx + 17, hy + 1);
-    ctx.lineTo(hx + 8, hy + 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = COLORS.bgBase;
-    ctx.fillRect(hx + 2, hy - 4, 3, blink ? 1 : 3);
-    if (accessory) {
-      ctx.fillStyle = accessory.primary;
-      ctx.fillRect(hx - 8, hy + 6, 16, 4);
-      ctx.fillStyle = accessory.secondary;
-      ctx.fillRect(hx - 8, hy + 10, 6, 6);
-    }
+    drawPerchedAtlas(ctx, cx, p.y + 46, this.timeS, accessory, accessoryId);
   }
 
   private drawDoor(ctx: CanvasRenderingContext2D): void {

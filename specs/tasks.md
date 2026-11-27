@@ -2070,6 +2070,23 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
   - **Resultados:** pilotos com 3 sementes na média: parado 0/54, distraído 3/54, mediano 54/54 (0,73 a 0,96; surtida de 0,54 a 7,1 minutos reais), bom 54/54 (0,98 a 1,00, nenhuma linha recusada). Fácil (1 semente): mediano 18/18, de 0,79 a 0,98. Difícil (1 semente): mediano 17/18, de 0,52 a 0,93; bom 18/18. C00, C01, C02, C04 e C05 a 60 FPS no Chromium sem GPU (DPR 1).
 - **Status:** ✅
 
+### T097 — O Atlas destemido e fofo, no voo e no poleiro
+- **Fase:** F11 · **Depende de:** T096 · **REQs:** REQ-OFF-001, REQ-OFF-005, REQ-PRG-008
+- **Spec:** [survey-flight §5.6](features/survey-flight.md), [office §4](features/office.md), [catalog §10](content/catalog.md)
+- **Passos:**
+  1. Sprite do voo (de trás): cauda em leque com a ponta escura, corpo gordinho, pescoço iridescente, asas com as barras e as rêmiges escuras, cabeça pequena de pombo visto de cima, com o bico e os olhos só como pontinhos nos lados.
+  2. Acessórios pelo id: óculos de aviador, cachecol com as pontas tremulando, mochilinha GPS com antena e LED, coroa de louros; sem id conhecido, a faixa no pescoço. O motor do voo recebe o id do acessório equipado.
+  3. O poleiro do escritório (de perfil) com o mesmo pombo e os mesmos acessórios, nas cores da mesma paleta.
+  4. Testes do desenho (piscada, batida das asas, um desenho por acessório, a bicada), specs e o roteiro de QA.
+- **Aceite:**
+  - [x] No voo, o Atlas parece um pombo de verdade visto de cima (sem olhos de frente); no poleiro, tem olho com brilho que pisca, sobrancelha franzida e topete. Os dois têm pescoço iridescente e as barras na asa.
+  - [x] Cada acessório tem o seu desenho, no voo e no poleiro.
+  - [x] Sem gradiente novo a cada quadro (cores chapadas); a mesa holográfica segue desenhando o Atlas em miniatura.
+  - [x] O `verify` segue verde.
+- **Verificação:** `npm run verify` · capturas do C00 (Atlas, com e sem acessório) e do escritório
+- **Arquivos (efetivos):** \+ `src/engines/flight/aircraftSprite.test.ts`; ~ `src/engines/flight/{aircraftSprite,FlightEngine}.ts`, `src/engines/office/OfficeRenderer.ts` e teste, `src/screens/flight/SurveyFlightScreen.tsx`, `src/screens/office/OfficeScreen.tsx`; ~ `specs/{tasks,qa-manual}.md`, `specs/features/{survey-flight,office}.md`, `specs/content/catalog.md`.
+- **Status:** ✅
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2101,11 +2118,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-UI-003 | Barra superior | [ui-style](design/ui-style.md), [office](features/office.md) | T020 | ✅ |
 | REQ-UI-004 | Toasts | [ui-style](design/ui-style.md), [progression](features/progression.md) | T004, T005, T076 | ✅ |
 | REQ-UI-005 | Ícones | [ui-style](design/ui-style.md) | T004 | ✅ |
-| REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050 | ✅ |
+| REQ-OFF-001 | Sala interativa | [office](features/office.md) | T020, T050, T097 | ✅ |
 | REQ-OFF-002 | Navegação entre hotspots | [office](features/office.md) | T020 | ✅ |
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ✅ |
 | REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ✅ |
-| REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048 | ✅ |
+| REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048, T097 | ✅ |
 | REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ✅ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021, T095 | ✅ |
@@ -2194,7 +2211,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-PRG-005 | Equipe | [catalog](content/catalog.md), [progression](features/progression.md) | T010, T047 | ✅ |
 | REQ-PRG-006 | XP e níveis | [domain-math](design/domain-math.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T046 | ✅ |
 | REQ-PRG-007 | Árvore de habilidades | [catalog](content/catalog.md), [progression](features/progression.md) | T019, T046 | ✅ |
-| REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049 | ✅ |
+| REQ-PRG-008 | Cosméticos | [catalog](content/catalog.md), [office](features/office.md), [progression](features/progression.md), [world-map](features/world-map.md) | T010, T049, T097 | ✅ |
 | REQ-PRG-009 | Renda passiva do museu | [domain-math](design/domain-math.md), [holo-table](features/holo-table.md), [progression](features/progression.md) | T019, T050 | ✅ |
 | REQ-PRG-010 | Souvenirs | [catalog](content/catalog.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T025, T050 | ✅ |
 | REQ-PRG-011 | Rival MegaMap | [processing-results](features/processing-results.md), [progression](features/progression.md), [world-map](features/world-map.md) | T019, T043, T051 | ✅ |

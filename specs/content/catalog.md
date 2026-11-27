@@ -200,6 +200,8 @@ Custo: rank 1 = 1 ponto, rank 2 = 1, rank 3 = 2, rank 4 = 2. São 6 pontos por r
 | `ATLAS_GPS_PACK` | ATLAS_ACCESSORY | Mochilinha GPS | R$ 700 | GNSS_RTK_KIT possuído | #0f172a / #22d3ee |
 | `ATLAS_LAUREL` | ATLAS_ACCESSORY | Coroa de Louros | — | C03 concluído | #65a30d / #fef08a |
 
+> Os acessórios do Atlas têm desenho próprio no voo (de trás) e no poleiro do escritório (de perfil), com as duas cores da tabela ([survey-flight §5.6](../features/survey-flight.md), [office](../features/office.md), T097).
+
 **Emblema inicial:** `{ shape: 'SHIELD', icon: 'Compass', primary: '#22d3ee', secondary: '#0f172a', initials: 'GS' }`.
 
 **Paleta permitida no editor:** as cores dos tokens de [ui-style §1](../design/ui-style.md), mais `#f97316`, `#facc15`, `#e2e8f0` e `#8b5cf6`.

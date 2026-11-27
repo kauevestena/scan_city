@@ -3,6 +3,7 @@ import { hasIcon } from '@/ui/iconRegistry';
 import { fitOffice, hitHotspot, hotspotStyle } from './hotspots';
 import {
   atlasPose,
+  drawPerchedAtlas,
   dustParticle,
   DUST_COUNT,
   fleetSprites,
@@ -110,5 +111,50 @@ describe('OfficeRenderer', () => {
     );
     // Frota, souvenirs, equipe e acessório acrescentam desenhos.
     expect(fill.mock.calls.length - calls).toBeGreaterThan(calls);
+  });
+});
+
+describe('o Atlas do poleiro (T097)', () => {
+  const colors = { primary: '#dc2626', secondary: '#fecaca' };
+  const draw = (timeS: number, accessoryId?: string) => {
+    const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    drawPerchedAtlas(ctx, 892, 158, timeS, accessoryId ? colors : null, accessoryId);
+    return ctx;
+  };
+  const events = (ctx: CanvasRenderingContext2D) =>
+    JSON.stringify((ctx as unknown as { __getEvents(): unknown[] }).__getEvents());
+
+  it('o olho aberto (íris, pupila e brilho) e, piscando, um traço', () => {
+    expect(atlasPose(1).blink).toBe(false);
+    expect(atlasPose(0.05).blink).toBe(true);
+    // A cabeça e os três círculos do olho; piscando, só a cabeça.
+    expect(vi.mocked(draw(1).arc).mock.calls).toHaveLength(4);
+    expect(vi.mocked(draw(0.05).arc).mock.calls).toHaveLength(1);
+  });
+
+  it('cada acessório tem o seu desenho, e todos acrescentam ao pombo', () => {
+    const ids = ['ATLAS_GOGGLES', 'ATLAS_SCARF', 'ATLAS_GPS_PACK', 'ATLAS_LAUREL', 'OUTRO'];
+    const marks = (ctx: CanvasRenderingContext2D) =>
+      vi.mocked(ctx.fill).mock.calls.length +
+      vi.mocked(ctx.fillRect).mock.calls.length +
+      vi.mocked(ctx.stroke).mock.calls.length;
+    const plain = marks(draw(1));
+    const drawn = ids.map((id) => draw(1, id));
+    for (const ctx of drawn) expect(marks(ctx)).toBeGreaterThan(plain);
+    expect(new Set(drawn.map(events)).size).toBe(ids.length);
+  });
+
+  it('a bicada leva a cabeça para a frente e para baixo; o pescoço brilha devagar', () => {
+    const head = (timeS: number) => {
+      const call = vi.mocked(draw(timeS).arc).mock.calls.find((c) => c[2] === 12);
+      return [call?.[0] ?? NaN, call?.[1] ?? NaN];
+    };
+    const [x0, y0] = head(3);
+    const [x1, y1] = head(0.3);
+    expect(x0).toBeCloseTo(910, 9);
+    expect(y0).toBeCloseTo(141, 9);
+    expect(x1).toBeCloseTo(916, 9);
+    expect(y1).toBeCloseTo(151, 9);
+    expect(events(draw(1))).not.toBe(events(draw(1.5)));
   });
 });
