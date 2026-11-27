@@ -53,17 +53,46 @@ describe('ShelfPanel', () => {
     expect(screen.getByTestId('shelf-detail')).not.toHaveTextContent('Chave da Cidade');
   });
 
-  it('obtido: ícone na cor do souvenir, nome e história', () => {
+  it('obtido: a miniatura desenhada do objeto, nome e história', () => {
     act(() => useGameStore.setState({ souvenirs: ['SV_NOTEBOOK'] }));
     render(<ShelfPanel onClose={() => undefined} />);
     expect(slot('SV_NOTEBOOK')).toHaveAttribute('data-state', 'OBTAINED');
     expect(slot('SV_NOTEBOOK')).toHaveAccessibleName('Caderneta de Campo do Avô');
-    expect(slot('SV_NOTEBOOK').querySelector('svg')).not.toBeNull();
+    expect(
+      slot('SV_NOTEBOOK').querySelector('canvas[data-souvenir-thumb="SV_NOTEBOOK"]'),
+    ).not.toBeNull();
     expect(screen.getByTestId('shelf-count')).toHaveTextContent('1 / 18 souvenirs');
     // O primeiro obtido já vem selecionado, com a história.
     const detail = screen.getByTestId('shelf-detail');
     expect(detail).toHaveTextContent('Caderneta de Campo do Avô');
     expect(detail).toHaveTextContent(SOUVENIRS[0]?.story ?? '');
+  });
+
+  it('Examinar abre o souvenir em tela cheia; Esc fecha só o exame e o foco volta ao botão', () => {
+    act(() => useGameStore.setState({ souvenirs: ['SV_NOTEBOOK'] }));
+    const onClose = vi.fn();
+    render(<ShelfPanel onClose={onClose} />);
+    const examine = screen.getByRole('button', { name: 'Examinar' });
+    examine.focus();
+    fireEvent.click(examine);
+    expect(screen.getByRole('dialog', { name: 'Caderneta de Campo do Avô' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { code: 'Escape' });
+    expect(screen.queryByTestId('souvenir-viewer')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId('shelf-panel')).toBeInTheDocument();
+    expect(examine).toHaveFocus();
+  });
+
+  it('escolher de novo o nicho escolhido também examina; um nicho vazio, não', () => {
+    act(() => useGameStore.setState({ souvenirs: ['SV_TILE'] }));
+    render(<ShelfPanel onClose={() => undefined} />);
+    fireEvent.click(slot('SV_NOTEBOOK'));
+    fireEvent.click(slot('SV_NOTEBOOK'));
+    expect(screen.queryByTestId('souvenir-viewer')).not.toBeInTheDocument();
+    fireEvent.click(slot('SV_TILE'));
+    expect(screen.queryByTestId('souvenir-viewer')).not.toBeInTheDocument();
+    fireEvent.click(slot('SV_TILE'));
+    expect(screen.getByRole('dialog', { name: 'Azulejo Português' })).toBeInTheDocument();
   });
 
   it('um souvenir novo preenche o nicho na hora', () => {

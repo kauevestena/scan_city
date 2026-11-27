@@ -37,6 +37,9 @@ export const FORBIDDEN_TERMS = [
   'death star',
   'tomb raider',
   'lara croft',
+  // O diário do faroeste que inspirou o exame dos souvenirs (ADR-036): referência só das specs.
+  'red dead',
+  'arthur morgan',
 ];
 
 const EXTENSIONS = /\.(ts|tsx|css|json|mjs|js|html|md|svg)$/;

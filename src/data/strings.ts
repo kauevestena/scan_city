@@ -186,6 +186,7 @@ export const STRINGS = {
       empty: 'Escolha um nicho para ver a história.',
       slot: (n: number) => `Nicho ${n}`,
       locked: 'Souvenir ainda não obtido',
+      examine: 'Examinar',
     },
     perchPanel: {
       title: 'Poleiro do Atlas',
@@ -1247,6 +1248,24 @@ export const STRINGS = {
     loopRate: 'Taxa / velocidade',
     loopGain: 'Intensidade',
     locked: 'Clique ou aperte uma tecla para liberar o áudio.',
+  },
+  souvenirViewer: {
+    /** Nome acessível do diálogo. */
+    dialog: (name: string) => `Examinando: ${name}`,
+    origin: (client: string, contract: string) => `Presente de ${client} · ${contract}`,
+    prev: 'Anterior',
+    next: 'Próxima',
+    close: 'Fechar',
+    counter: (n: number, total: number) => `${n} / ${total}`,
+    counterLabel: (n: number, total: number) => `Vista ${n} de ${total}`,
+    /** O canvas: o rótulo da vista. */
+    drawing: (label: string) => `Desenho: ${label}`,
+    flipHint: 'Clique na metade esquerda ou direita para virar',
+    reader: {
+      sketch: (labels: string) => (labels ? `Esboço com: ${labels}.` : 'Esboço.'),
+      signature: (name: string) => `Assinado: ${name}.`,
+      stamp: (text: string) => `Carimbo: ${text}.`,
+    },
   },
   ui: {
     close: 'Fechar',

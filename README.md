@@ -23,7 +23,7 @@ O progresso é salvo no `localStorage` do navegador (autosave ao trocar de tela)
 
 ## Roteiro de jogo
 
-1. **Escritório (`OFFICE`)**: a sede, com nove pontos de interação. A **Garagem** vende aeronaves, sensores, veículos, equipamento e pintura; o **Poleiro do Atlas** cuida do milho e da câmera do pombo; a **Mesa da Equipe** contrata e demite; o **Quadro de Carreira** guarda habilidades, perfil e visual; a **Estante de Relíquias** guarda os souvenirs; a **Workstation** processa as missões; o **Laboratório** abre os infográficos; a **Mesa Holográfica** abre o Museu; e a **Porta** leva ao mapa.
+1. **Escritório (`OFFICE`)**: a sede, com nove pontos de interação. A **Garagem** vende aeronaves, sensores, veículos, equipamento e pintura; o **Poleiro do Atlas** cuida do milho e da câmera do pombo; a **Mesa da Equipe** contrata e demite; o **Quadro de Carreira** guarda habilidades, perfil e visual; a **Estante de Relíquias** guarda os souvenirs, que se examinam de perto (a caderneta do avô se folheia página por página); a **Workstation** processa as missões; o **Laboratório** abre os infográficos; a **Mesa Holográfica** abre o Museu; e a **Porta** leva ao mapa.
 2. **Mapa (`WORLD_MAP`)**: mundo aberto 2D. Cada marcador é um contrato; entre num e aceite o briefing.
 3. **Campo (`FIELD_SETUP`)**: pontos de apoio (GCPs) com a Estação Total do Avô, plano de voo, calibração e checklist, onde se escolhe a **dificuldade do voo** (fácil, média ou difícil: o ritmo, o vento vertical, a janela da curva e o pagamento).
 4. **Voo (`SURVEY_FLIGHT`)**: voo 2.5D sobre o relevo, pelos portais do corredor de cada linha. Cada foto ganha nota (faixa, altura e avanço), as rajadas chegam como uma frente de vento visível, de lado ou de cima e de baixo (o toque contra ela no instante certo, o contragolpe, corta o empurrão), as correntes verticais pedem a mão na altura, no fim de cada linha a **curva para a próxima faixa é feita pelo jogador** no portal da curva, a linha mal voada volta para revoo e a execução do voo entra no relatório; RGB ou LiDAR, vento, bateria e eventos.
@@ -92,6 +92,7 @@ Os parâmetros abaixo só valem com `debug=1`; sem ele a URL é ignorada.
 | `difficulty=<d>`    | dificuldade do voo de teste: `EASY`, `MEDIUM` (padrão) ou `HARD`                                                        |
 | `unlockAll=1`       | todos os contratos disponíveis e todos os itens possuídos                                                               |
 | `money=<n>`         | saldo inicial em reais                                                                                                  |
+| `souvenirs=1`       | os 18 souvenirs na estante, para examinar todos                                                                         |
 
 Exemplo: `http://localhost:5173/?debug=1&screen=SURVEY_FLIGHT&autopilot=1` abre um voo que se completa sozinho. Com `screen=` ou `unlockAll=1` as dicas do tutorial ficam desligadas.
 
@@ -120,7 +121,7 @@ specs/         a especificação (SDD): a fonte da verdade do projeto
 O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](specs/README.md) é a fonte da verdade e cada tarefa de [`specs/tasks.md`](specs/tasks.md) cita os requisitos (`REQ-*`) que atende. O mapa:
 
 - [`constitution.md`](specs/constitution.md): stack, princípios, convenções e Definition of Done;
-- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 140 requisitos;
+- [`product.md`](specs/product.md) e [`requirements.md`](specs/requirements.md): visão, narrativa e os 141 requisitos;
 - [`design/`](specs/design) e [`features/`](specs/features): arquitetura, matemática do domínio, terreno, input, áudio, UI e uma spec por tela;
 - [`decisions.md`](specs/decisions.md) e [`open-questions.md`](specs/open-questions.md): decisões (ADRs) e perguntas em aberto.
 

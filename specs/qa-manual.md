@@ -167,6 +167,7 @@ Os testes tocam todos os efeitos e confirmam que não há erro; **ninguém ouviu
 | `STAGE_DONE` | etapa do pipeline concluída; linha aceita no voo | duas notas curtas, a segunda mais aguda | ☐ |
 | `GRADE` | foto com nota Boa ou Perfeita no voo | um "plim" curto; numa sequência sobe de tom pela escala pentatônica | ☐ |
 | `GRADE_MISS` | foto com nota Fraca ou Rejeitada | um "tum" grave que desce | ☐ |
+| `PAGE_TURN` | virar a página da caderneta ou o souvenir no exame | um farfalhar de papel que sobe e a folha assentando logo depois | ☐ |
 
 **Loops** (um botão liga e desliga cada um; o motor tem três variantes: Multirrotor, Asa fixa e Atlas)
 
@@ -254,6 +255,7 @@ O passo 4 da [T079](tasks.md) pedia uma partida de verdade; os testes automátic
 - [ ] As transições entre telas e os efeitos (partículas, flash da foto) ficam bonitos e não incomodam; com `Esc → Configurações → Reduzir flashes e tremores` ligado o voo não pisca nem balança.
 - [ ] Os 18 terrenos têm cara própria e sem emendas ou buracos visíveis.
 - [ ] A mesa holográfica ganha corpo conforme os setores entram.
+- [ ] **Souvenirs** (`/?debug=1&skipIntro=1&souvenirs=1` → Estante → **Examinar**, [office §5.1](features/office.md)): a caderneta abre fechada, vira em páginas duplas e fecha na contracapa; a letra parece escrita à mão e cabe na página, as tabelas e os esboços não se atropelam, e as piadas fazem sentido em pt-BR. A letra usa a fonte manuscrita da máquina ([ADR-036](decisions.md) §4): veja no **Windows** (Segoe Print) e no **macOS** (Bradley Hand ou Noteworthy), além do Linux. Cada um dos 18 objetos se reconhece pelo desenho, na estante da sala e na grade também. Depois do final, a contracapa interna traz a carta do Vô.
 
 ---
 

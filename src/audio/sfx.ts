@@ -20,7 +20,8 @@ export type SfxId =
   | 'GRADE_MISS'
   | 'GUST_CUT'
   | 'GUST_HIT'
-  | 'TURN_OK';
+  | 'TURN_OK'
+  | 'PAGE_TURN';
 
 export type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 
@@ -44,6 +45,7 @@ export const SFX_IDS: readonly SfxId[] = [
   'GUST_CUT',
   'GUST_HIT',
   'TURN_OK',
+  'PAGE_TURN',
 ];
 export const LOOP_IDS: readonly LoopId[] = ['LIDAR_HUM', 'MOTOR', 'WIND', 'PROCESSING'];
 
@@ -370,6 +372,22 @@ export const SFX: Record<SfxId, (v: Voice) => number> = {
     tone(v, 'triangle', 660, v.t0 + 0.04, { a: 0.003, d: 0.1, peak: 0.16 });
     tone(v, 'triangle', 990, v.t0 + 0.12, { a: 0.003, d: 0.14, peak: 0.16 });
     return 0.28;
+  },
+
+  // Virar a página no exame de um souvenir (ADR-036): o papel farfalhando (ruído em passa-banda
+  // que sobe) e a folha assentando logo depois (um sopro grave e curto).
+  PAGE_TURN: (v) => {
+    const g = gainNode(v.ctx, 0, v.out);
+    env(g.gain, v.t0, { a: 0.04, d: 0.18, peak: 0.16 });
+    const f = filterNode(v.ctx, 'bandpass', 1400, g, 0.8);
+    f.frequency.setValueAtTime(1400, v.t0);
+    f.frequency.exponentialRampToValueAtTime(3200, v.t0 + 0.2);
+    noiseNode(v, f, v.t0, v.t0 + 0.24);
+    const land = gainNode(v.ctx, 0, v.out);
+    env(land.gain, v.t0 + 0.13, { a: 0.005, d: 0.07, peak: 0.12 });
+    const low = filterNode(v.ctx, 'lowpass', 1200, land, 0.7);
+    noiseNode(v, low, v.t0 + 0.13, v.t0 + 0.22);
+    return 0.3;
   },
 };
 

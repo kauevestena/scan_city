@@ -21,7 +21,7 @@ class AudioEngine {
 interface LoopHandle { setParam(name: 'pitch' | 'gain' | 'rate', value: number): void; stop(fadeS?: number): void }
 type SfxId = 'SHUTTER' | 'RTH_BEEP' | 'PIGEON_COO' | 'CASH_REGISTER' | 'CRASH' | 'UI_CLICK' | 'UI_HOVER'
            | 'ALERT' | 'TAKEOFF' | 'RIFT_OPEN' | 'LEVEL_UP' | 'COLLECT' | 'DENIED' | 'STAGE_DONE'
-           | 'GRADE' | 'GRADE_MISS' | 'GUST_CUT' | 'GUST_HIT' | 'TURN_OK';
+           | 'GRADE' | 'GRADE_MISS' | 'GUST_CUT' | 'GUST_HIT' | 'TURN_OK' | 'PAGE_TURN';
 type LoopId = 'LIDAR_HUM' | 'MOTOR' | 'WIND' | 'PROCESSING';
 ```
 
@@ -68,6 +68,7 @@ fontes → gainSfx → gainMaster → DynamicsCompressor (threshold −18 dB, ra
 | `GUST_CUT` | ruído em passa-banda subindo de 1,6 para 4,2 kHz em 140 ms (o vento rasgado) e um `triangle` que sobe de 880 para 1760 Hz | 0,2 s |
 | `GUST_HIT` | ruído em passa-baixa descendo de 900 para 250 Hz em 300 ms (um sopro grave) | 0,32 s |
 | `TURN_OK` | ruído em passa-banda subindo de 0,8 para 3 kHz em 250 ms (o ar varrido na inclinação) e dois `triangle`, 660 e 990 Hz (uma quinta acima), a 40 e 120 ms | 0,28 s |
+| `PAGE_TURN` | o papel: ruído em passa-banda (Q 0,8) subindo de 1,4 para 3,2 kHz, a 40 ms, d 180 ms, peak 0,16; e a folha assentando 130 ms depois: ruído em passa-baixa de 1,2 kHz, a 5 ms, d 70 ms, peak 0,12 | 0,3 s |
 | `MOTOR` (loop) | Multirrotor: `sawtooth` (frequência = 80 + 6·v Hz) → `lowpass` 1,2 kHz, gain 0,08, mais ruído → `bandpass` 400 Hz com gain 0,04. Asa fixa: `sawtooth` (50 + 3·v Hz). Atlas: sem motor, mas um "bater de asas" (ruído em pulsos de 40 ms a cada 250 ms, com frequência de pulsos ∝ v) | contínuo |
 | `WIND` (loop) | Ruído → `lowpass` 500 Hz, com gain proporcional ao |vento| (0..0,15) | contínuo |
 | `PROCESSING` (loop) | Fan noise: ruído → `lowpass` 300 Hz, gain 0,05 × speedFactor^0,3. Mais "bips" de disco aleatórios a cada 0,3–0,8 s | contínuo |
@@ -95,6 +96,7 @@ fontes → gainSfx → gainMaster → DynamicsCompressor (threshold −18 dB, ra
 | Rajada chega cortada pelo contragolpe / sem ele ([ADR-034](../decisions.md)) | `GUST_CUT` / `GUST_HIT` |
 | Boletim da linha: passada aceita / recusada | `STAGE_DONE` / `DENIED` |
 | Manobra da troca de faixa no tempo / cedo, tarde ou do lado errado ([ADR-035](../decisions.md)) | `TURN_OK` / `GRADE_MISS` |
+| Virar a página ou o objeto no exame de um souvenir ([ADR-036](../decisions.md)) | `PAGE_TURN` |
 
 ---
 

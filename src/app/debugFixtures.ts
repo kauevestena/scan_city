@@ -24,6 +24,7 @@ import {
 } from '@/data/catalog';
 import { COSMETICS } from '@/data/cosmetics';
 import { CONTRACTS, findContract } from '@/data/contracts';
+import { SOUVENIRS } from '@/data/souvenirs';
 import { referencePoints, syntheticMission } from '@/domain/referencePlan';
 import { createTerrain } from '@/world/terrain/createTerrain';
 import { getDebugFlags, type DebugFlags } from './debugFlags';
@@ -419,6 +420,7 @@ export function applyDebugFlags(flags: DebugFlags, store: Store = useGameStore):
       cosmetics: COSMETICS.map((c) => c.id),
     };
   }
+  if (flags.souvenirs) patch.souvenirs = SOUVENIRS.map((sv) => sv.id);
   if (Object.keys(patch).length > 0) store.setState(patch);
 
   if (flags.screen !== null && flags.screen !== 'UIKIT' && flags.screen !== 'SOUNDBOARD') {

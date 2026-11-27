@@ -1,9 +1,10 @@
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { STRINGS } from '@/data/strings';
 import { useFocusNavigation } from '@/input/useFocusNavigation';
 import { cx, FOCUS_RING } from './classes';
+import { useDialogFocus } from './useDialogFocus';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -25,22 +26,7 @@ const SIZE: Record<ModalSize, string> = {
   xl: 'max-w-5xl',
 };
 
-const FOCUSABLE =
-  '[data-focusable]:not([disabled]):not([aria-disabled="true"]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])';
-
-/** Onde o foco entra no modal: o primeiro controle que não seja o ✕ de fechar (ou o próprio modal). */
-function entryPoint(dialog: HTMLElement): HTMLElement {
-  return focusableElements(dialog).find((el) => !el.hasAttribute('data-modal-close')) ?? dialog;
-}
-
-/** Modais abertos, do mais antigo ao mais novo: só o do topo segura o foco. */
-const openDialogs: HTMLElement[] = [];
-
-export function focusableElements(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    (el) => el.tabIndex >= 0 || el.getAttribute('role') === 'tab',
-  );
-}
+export { focusableElements } from './useDialogFocus';
 
 export function Modal({
   open,
@@ -62,60 +48,12 @@ export function Modal({
     onBack: dismissable ? onClose : undefined,
   });
 
-  // `aria-modal`: o foco não pode ficar fora do modal do topo. Se algo o leva para fora (um
-  // controle de trás que se foca sozinho, o Tab depois de o foco cair no corpo da página), ele
-  // volta para dentro. Declarado antes do efeito abaixo para sair antes de o foco ser devolvido.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!open || !dialog) return;
-    openDialogs.push(dialog);
-    const onFocusIn = (e: FocusEvent) => {
-      if (openDialogs[openDialogs.length - 1] !== dialog) return;
-      if (e.target instanceof Node && dialog.contains(e.target)) return;
-      entryPoint(dialog).focus();
-    };
-    document.addEventListener('focusin', onFocusIn);
-    return () => {
-      document.removeEventListener('focusin', onFocusIn);
-      const at = openDialogs.indexOf(dialog);
-      if (at >= 0) openDialogs.splice(at, 1);
-    };
-  }, [open]);
-
-  // Focus trap: entra no modal ao abrir e devolve o foco a quem o abriu ao fechar.
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const dialog = dialogRef.current;
-    if (dialog) entryPoint(dialog).focus();
-    return () => {
-      previous?.focus();
-    };
-  }, [open]);
+  // `aria-modal`: o foco entra ao abrir, não escapa (nem com Tab, nem com um controle de trás que
+  // se foca sozinho) e volta a quem abriu ao fechar (a armadilha é compartilhada com o exame dos
+  // souvenirs, ADR-036).
+  const onKeyDown = useDialogFocus(dialogRef, open);
 
   if (!open) return null;
-
-  // Tab e Shift+Tab ficam presos no modal; o Esc chega como UI_BACK pelo InputManager.
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab') return;
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const items = focusableElements(dialog);
-    e.preventDefault();
-    if (items.length === 0) {
-      dialog.focus();
-      return;
-    }
-    const index = items.indexOf(document.activeElement as HTMLElement);
-    const next = e.shiftKey
-      ? index <= 0
-        ? items.length - 1
-        : index - 1
-      : index < 0 || index === items.length - 1
-        ? 0
-        : index + 1;
-    items[next]?.focus();
-  };
 
   return createPortal(
     <div

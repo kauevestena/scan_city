@@ -233,6 +233,33 @@ Custo: rank 1 = 1 ponto, rank 2 = 1, rank 3 = 2, rank 4 = 2. São 6 pontos por r
 
 Cada souvenir tem um texto `story` de 1 a 2 frases, escrito pelo implementador no tom do cliente. Esses textos ficam em `src/data/souvenirs.ts`.
 
+### 11.1 Formas e faces para examinar ([ADR-036](../decisions.md), office §5.1)
+
+Cada souvenir tem uma forma (`form`) e as faces (`faces`), em ordem; a primeira é sempre o objeto (`OBJECT`) ou, no caderno, a capa (`COVER`). As outras levam blocos de texto (título, texto com `~~riscado~~` e `__sublinhado__`, lista, tabela, esboço, assinatura, carimbo) nas superfícies `PAGE` (página da caderneta), `TAG` (etiqueta com barbante), `NOTE` (bilhete dobrado), `CARD` (certificado com moldura), `LABEL` (etiqueta de amostra), `PLAQUE` (placa de latão gravada) ou `MAP` (croqui antigo). O texto fica em `src/data` (a caderneta em `grandpaNotebook.ts`), em pt-BR, no tom do cliente, sem nome de franquia; os desenhos ficam em `engines/souvenir`.
+
+| id | Forma | Faces depois do objeto | Mote das inscrições |
+| :--- | :--- | :--- | :--- |
+| `SV_NOTEBOOK` | `BOOK` | 14 páginas: capa; contracapa interna (dono e recompensa); as regras do agrimensor; a caderneta da poligonal do sítio (a soma dos ângulos fecha em 360°00′00″) e o croqui; o Atlas (esboço e diário); a Estação Total, "a Velha Senhora"; os moços do drone sem ponto de controle e o GSD; compras e conversões (braça, légua, alqueire, cafezinho); a ideia do museu; a última anotação, com a flor de ipê prensada; a contracapa interna (o bolso ou, depois do final, a carta); a contracapa | O Vô: rabugento, carinhoso, preciso, movido a café e a milho |
+| `SV_CITY_KEY` | `OBJECT` | verso gravado; certificado da prefeitura | a chave simbólica que não abre nada (nem o IPTU) |
+| `SV_CORN_GOLD` | `OBJECT` | etiqueta | "NÃO É PARA O POMBO"; o grão que falta |
+| `SV_BRAZIL_NUT` | `OBJECT` | envelope com as instruções de plantio | plantar onde o MDT mostrar terra firme e esperar uns séculos |
+| `SV_ORE_NUGGET` | `OBJECT` | etiqueta de amostra | o volume medido com um copo d'água |
+| `SV_TILE` | `OBJECT` | verso (tardoz) com carimbo e o bilhete da Helena | a réplica já está na fachada; você não viu nada |
+| `SV_BOTTLE_MAP` | `OBJECT` | o croqui de 1890 | "aqui há monstros (ou capivaras)"; o mar 270 m mais perto |
+| `SV_GOLD_RING` | `OBJECT` | gravação por dentro | rápido demais para ler |
+| `SV_GREEN_PIPE` | `OBJECT` | placa | garantia de uma vida |
+| `SV_STAR_SPHERE` | `OBJECT` | etiqueta | trocada por um pastel; desejos não inclusos |
+| `SV_TRIANGLE` | `OBJECT` | verso com a rede de triangulação | vértice de 1ª ordem e um "HYAAAH!" |
+| `SV_CUBE_ORE` | `OBJECT` | etiqueta de amostra | o desvio de planeza zero que deixou o laser sem graça |
+| `SV_THEODOLITE_SWORD` | `OBJECT` | placa | "para monstros e para medições"; o bilhete "Hm." |
+| `SV_CARDBOARD_BOX` | `OBJECT` | o fundo da caixa, com um bilhete | não há ninguém aqui |
+| `SV_BMX` | `OBJECT` | etiqueta | aro 20 em escala, não serve para fugir |
+| `SV_CAP` | `OBJECT` | etiqueta interna | nunca usar para a frente |
+| `SV_EXHAUST_PORT` | `OBJECT` | placa de projeto | "nenhum ponto fraco" (ponto fraco encontrado) |
+| `SV_PAINT_PISTOL` | `OBJECT` | etiqueta | a cor rosa-GCP e o "mire nos GCPs, querida" |
+
+A contracapa interna de trás da caderneta tem duas versões excludentes (`when: 'BEFORE_FINALE' | 'AFTER_FINALE'`): o número de páginas é sempre par.
+
 ---
 
 ## 12. Eventos de campo (`fieldEvents.ts`)

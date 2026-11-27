@@ -36,7 +36,7 @@ function sceneState(s: GameStore, holo: OfficeSceneState['holo']): OfficeSceneSt
     aircraft: s.inventory.aircraft,
     vehicles: s.inventory.vehicles,
     hardware: s.inventory.hardware,
-    souvenirColors: SOUVENIRS.filter((sv) => s.souvenirs.includes(sv.id)).map((sv) => sv.color),
+    souvenirIds: SOUVENIRS.filter((sv) => s.souvenirs.includes(sv.id)).map((sv) => sv.id),
     staff: s.staff,
     atlasAccessory: accessory && accessory.id !== 'ATLAS_NONE' ? accessory.colors : null,
     ...(accessory && accessory.id !== 'ATLAS_NONE' ? { atlasAccessoryId: accessory.id } : {}),

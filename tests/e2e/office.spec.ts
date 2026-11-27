@@ -85,3 +85,32 @@ test('Garagem: comprar o Drone T1 debita o saldo e o card vira "Possuído"; Esc 
   await expect(panel).toBeHidden();
   await expect(page.locator('[data-hotspot="GARAGE"]')).toBeFocused();
 });
+
+test('Estante → Examinar: a caderneta abre fechada, folheia e o Esc devolve o foco (REQ-OFF-008)', async ({
+  page,
+}) => {
+  await page.goto('/?debug=1&skipIntro=1&souvenirs=1');
+  await expect(page.getByTestId('office-screen')).toBeVisible();
+  await page.getByRole('button', { name: 'Estante de Relíquias' }).click();
+  const panel = page.getByTestId('shelf-panel');
+  await expect(panel.getByTestId('shelf-count')).toHaveText('18 / 18 souvenirs');
+  // As miniaturas desenhadas no lugar dos ícones.
+  await expect(panel.locator('canvas[data-souvenir-thumb]')).toHaveCount(18);
+  const examine = panel.getByTestId('shelf-examine');
+  await examine.click();
+  const viewer = page.getByRole('dialog', { name: 'Caderneta de Campo do Avô' });
+  await expect(viewer).toBeVisible();
+  const label = page.getByTestId('souvenir-view-label');
+  await expect(label).toContainText('1 / 8');
+  await expect(label).toContainText('Capa');
+  await page.keyboard.press('ArrowRight');
+  await expect(label).toContainText('Por dentro da capa · Regras do agrimensor');
+  await page.waitForTimeout(700);
+  await page.keyboard.press('e');
+  await expect(label).toContainText('Poligonal do sítio · Croqui do sítio');
+  await expect(page.getByTestId('souvenir-face-text')).toContainText('Fechou na mosca.');
+  await page.keyboard.press('Escape');
+  await expect(viewer).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(examine).toBeFocused();
+});

@@ -32,7 +32,7 @@
 | F9 | Polimento | T075–T079 | **M4** — release: zero placeholders, performance, acessibilidade |
 | — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
 | F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
-| F11 | Desempenho depois do voo com desafio | T093 | FPS: menos chamadas de desenho e resolução que se adapta à máquina, antes do teste humano da Fase 1 |
+| F11 | Desempenho e os pedidos do teste humano | T093–T098 | FPS: menos chamadas de desenho e resolução que se adapta à máquina; depois, o voo mais rápido e com vento vertical, a sede no mapa, o Atlas e os souvenirs que se examinam |
 
 ## Grafo de dependências (resumo)
 
@@ -2087,6 +2087,33 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Arquivos (efetivos):** \+ `src/engines/flight/aircraftSprite.test.ts`; ~ `src/engines/flight/{aircraftSprite,FlightEngine}.ts`, `src/engines/office/OfficeRenderer.ts` e teste, `src/screens/flight/SurveyFlightScreen.tsx`, `src/screens/office/OfficeScreen.tsx`; ~ `specs/{tasks,qa-manual}.md`, `specs/features/{survey-flight,office}.md`, `specs/content/catalog.md`.
 - **Status:** ✅
 
+
+### T098 — Souvenirs de verdade: a caderneta que se folheia e os objetos que se viram
+- **Fase:** F11 · **Depende de:** T097 · **REQs:** REQ-OFF-006, REQ-OFF-008, REQ-AUD-002, REQ-CNT-006, REQ-NFR-007
+- **Spec:** [ADR-036](decisions.md), [office §4, §5 e §5.1](features/office.md), [catalog §11.1](content/catalog.md), [data-model §3](design/data-model.md), [audio §3 e §4](design/audio.md), [input §2](design/input.md)
+- **Passos:**
+  1. Modelo: `form` e `faces` no `Souvenir`, os blocos, as faces visíveis (a carta depois do final) e as vistas (a capa, as páginas duplas, a contracapa).
+  2. Conteúdo: as 14 páginas da caderneta e as faces dos outros 17, no tom de cada cliente, em `src/data`.
+  3. Desenho (`engines/souvenir`): a letra à mão (fonte detectada e tremor seedado), o papel, os blocos, os esboços a lápis, os 18 objetos, a mesa e o virar da página e do objeto.
+  4. Tela: o `SouvenirViewer` (camada de input, armadilha de foco compartilhada com o `Modal`), **Examinar** na Estante e no card do relatório, as miniaturas na grade, no card e na estante da sala; `PAGE_TURN`; `souvenirs=1` de depuração.
+  5. Testes, specs, `check:terms`, roteiro de QA e E2E do escritório.
+- **Aceite:**
+  - [x] Cada um dos 18 souvenirs obtidos abre em tela cheia, com o objeto desenhado e pelo menos uma face com texto para ler.
+  - [x] A caderneta abre fechada, folheia em páginas duplas até a contracapa e volta; depois do final, a contracapa interna traz a carta do Vô, e antes, não.
+  - [x] Teclado (setas, `Q`/`E`, `Enter`, `Esc`), mouse (as metades do desenho e os botões) e controle (D-pad, `LB`/`RB`, `A`, `B`) viram e fecham; o foco volta a quem abriu e não escapa do diálogo.
+  - [x] Os textos estão em pt-BR, em `src/data`, sem nome de franquia; o `check:terms` cobre a referência nova.
+  - [x] A grade, o card do relatório e a estante da sala mostram as miniaturas; a sala não cria gradiente a cada quadro.
+  - [x] O `verify` e o E2E do escritório, do foco, do contraste e do processamento seguem verdes.
+- **Verificação:** `npm run verify` · `npx playwright test tests/e2e/office.spec.ts tests/e2e/focus-audit.spec.ts tests/e2e/contrast.spec.ts tests/e2e/processing.spec.ts` · capturas da caderneta (capa, páginas, carta) e dos 18 objetos (`/?debug=1&skipIntro=1&souvenirs=1`)
+- **Arquivos (efetivos):** \+ `src/engines/souvenir/{hand,paper,blocks,sketches,objects,faceRenderer,views,scene}.ts` e os testes `{hand,faces,views,scene}.test.ts`, `src/screens/office/{SouvenirViewer,SouvenirThumb}.tsx` e `SouvenirViewer.test.tsx`, `src/ui/useDialogFocus.ts`, `src/data/grandpaNotebook.ts`, `src/data/souvenirs.test.ts`, `src/test/fakeFonts.ts`; ~ `src/data/{souvenirs,strings}.ts`, `src/types/progression.ts`, `src/screens/office/{ShelfPanel,OfficeScreen}.tsx` e `ShelfPanel.test.tsx`, `src/screens/processing/ReportPayment.tsx` e `processing.test.tsx`, `src/engines/office/OfficeRenderer.ts` e `office.test.ts`, `src/ui/Modal.tsx`, `src/audio/sfx.ts`, `src/app/{debugFlags,debugFixtures}.ts` e `debugFlags.test.ts`, `scripts/check-forbidden-terms.mjs`, `tests/e2e/{office,focus-audit,contrast}.spec.ts`; ~ `specs/{decisions,requirements,tasks,qa-manual,README}.md`, `specs/features/office.md`, `specs/design/{data-model,audio,input,architecture}.md`, `specs/content/catalog.md`, `README.md`.
+- **Notas de implementação:**
+  - **A letra depende da máquina.** No contêiner do CI não há fonte manuscrita: vale a serifada itálica com o tremor, e as capturas foram feitas assim. No Windows e no macOS a detecção acha a Segoe Print (ou a Ink Free) e a Bradley Hand (ou a Noteworthy); o roteiro de QA pede para conferir lá ([qa-manual §8](qa-manual.md)). O `document.fonts.check` não serve para detectar: responde `true` para qualquer fonte do sistema, instalada ou não.
+  - **Tudo cabe, com qualquer letra.** As fontes manuscritas variam muito de largura; cada face encolhe a letra até caber (passos de 5 %, até 70 %), e um teste desenha as 35 faces com texto (as duas contracapas da caderneta incluídas) com uma letra mais larga que a Segoe Print já ajustada (0,56 em por letra) e exige que nenhuma transborde. Com uma letra comum, as páginas pautadas assentam na pauta na escala cheia.
+  - **Número e unidade não se separam:** a quebra de linha só usa o espaço comum, e os dados levam o espaço não separável em "5 cm", "R$ 12,50", "2 km" etc.
+  - **O Vô faz as contas certas:** os ângulos da poligonal somam 360°00'00" e a conta do GSD da página dos moços do drone bate com `gsd()` do domínio; os dois viram testes.
+  - **Desempenho:** no Chromium sem GPU, a 1920 × 1080 e DPR 1, o escritório, o exame da caderneta e o de um objeto flutuando ficam em 60 FPS. Parada, a cena não redesenha: só prepara, um por quadro, os bitmaps das vistas vizinhas, e a virada não engasga.
+- **Status:** ✅
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2111,7 +2138,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
 | REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
-| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md) | T009, T076, T090 | ✅ |
+| REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md), [office](features/office.md) | T009, T076, T090, T098 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
 | REQ-UI-001 | Paleta dark geodésica | [ui-style](design/ui-style.md) | T004 | ✅ |
 | REQ-UI-002 | Kit de componentes | [ui-style](design/ui-style.md) | T004 | ✅ |
@@ -2123,8 +2150,9 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-OFF-003 | Workstation | [office](features/office.md) | T025, T045 | ✅ |
 | REQ-OFF-004 | Garagem | [office](features/office.md) | T045 | ✅ |
 | REQ-OFF-005 | Poleiro do Atlas | [office](features/office.md) | T048, T097 | ✅ |
-| REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050 | ✅ |
+| REQ-OFF-006 | Estante de Relíquias | [office](features/office.md) | T050, T098 | ✅ |
 | REQ-OFF-007 | Introdução narrativa | [office](features/office.md) | T020 | ✅ |
+| REQ-OFF-008 | Examinar os souvenirs | [office](features/office.md), [catalog](content/catalog.md) | T098 | ✅ |
 | REQ-WLD-001 | Mapa em tiles | [world-map](features/world-map.md) | T021, T095 | ✅ |
 | REQ-WLD-002 | Locomoção | [catalog](content/catalog.md), [input](design/input.md), [world-map](features/world-map.md) | T021, T039 | ✅ |
 | REQ-WLD-003 | Passabilidade | [world-map](features/world-map.md) | T021, T039 | ✅ |
@@ -2222,7 +2250,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-003 | Progressão e desbloqueio | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [progression](features/progression.md) | T019, T071 | ✅ |
 | REQ-CNT-004 | Regras especiais | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [data-model](design/data-model.md), [terrain](design/terrain.md) | T052, T053, T054, T055, T056, T057, T058, T060–T070 | ✅ |
 | REQ-CNT-005 | Repetição | [contracts-real](content/contracts-real.md), [processing-results](features/processing-results.md), [progression](features/progression.md) | T019, T071 | ✅ |
-| REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md) | T059, T060–T070, T079 | ✅ |
+| REQ-CNT-006 | Guarda de paródias | [contracts-rifts](content/contracts-rifts.md), [architecture](design/architecture.md), [catalog](content/catalog.md) | T059, T060–T070, T079, T098 | ✅ |
 | REQ-CNT-007 | Diálogos | [contracts-real](content/contracts-real.md), [contracts-rifts](content/contracts-rifts.md), [processing-results](features/processing-results.md) | T022, T027 | ✅ |
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093, T094 | ✅ |
@@ -2231,7 +2259,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ✅ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
-| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md) | T004, T075, T078, T094 | ✅ |
+| REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md), [office](features/office.md) | T004, T075, T078, T094, T098 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
 | REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
 | REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089, T094 | ✅ |
