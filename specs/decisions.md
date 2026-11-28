@@ -371,7 +371,7 @@
 - **Status:** Aceita · 2026-11-28
 
 ### ADR-039 — CI com cobertura, E2E que barra a publicação e Firefox toda semana
-- **Contexto:** a avaliação da T099 achou dois portões da Definition of Done fora do CI. O `verify` rodava o `test` e não o `test:coverage`, então os limites do REQ-NFR-003 (≥ 90 % em `src/domain` e `src/lib`, ≥ 60 % no todo) foram medidos pela última vez na T079, 19 tarefas antes. E a suíte Playwright (137 testes, ~18 min no Chromium) só rodava quando alguém se lembrava dela, assim como o Firefox do REQ-NFR-009.
+- **Contexto:** a avaliação da T099 achou dois portões da Definition of Done fora do CI. O `verify` rodava o `test` e não o `test:coverage`, então os limites do REQ-NFR-003 (≥ 90 % em `src/domain` e `src/lib`, ≥ 60 % no todo) foram medidos pela última vez na T079, 19 tarefas antes. E a suíte Playwright (141 testes, ~18 min no Chromium) só rodava quando alguém se lembrava dela, assim como o Firefox do REQ-NFR-009.
 - **Decisão:**
   - **Cobertura no `verify`.** O `verify` troca o `test` pelo `test:coverage`: os limites valem em todo commit, na máquina e no CI. Custa ~85 s a mais (de ~151 para ~236 s num contêiner de 4 núcleos). O único teste de relógio, `products.test.ts`, já relaxa o teto com `NODE_V8_COVERAGE` ou `CI` (ADR-028).
   - **Job `e2e` no `pages.yml`**, em paralelo ao `build`, em todo pull request, todo push na `main` e no disparo manual: `npm ci`, `npx playwright install --with-deps chromium` e `npm run e2e`. Se falhar, guarda `playwright-report/` e `test-results/` por 14 dias.

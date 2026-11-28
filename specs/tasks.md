@@ -2194,11 +2194,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Aceite:**
   - [x] O `verify` falha se a cobertura cair abaixo dos limites, e passa no código atual.
   - [x] Os dois workflows são YAML válido; o `deploy` depende de `build` e `e2e` e só roda na `main`; o Firefox só roda agendado ou à mão.
-  - [ ] A suíte E2E inteira passa no Chromium na máquina local antes de barrar a publicação.
+  - [x] A suíte E2E inteira passa no Chromium na máquina local antes de barrar a publicação: 141 testes em 17,9 min, com 2 workers num contêiner de 4 núcleos, depois da T103.
   - [x] Fora do CI, o Playwright se comporta como antes.
 - **Verificação:** `npm run verify` · `npm run check:assets` · `npm run e2e` (a suíte inteira) · leitura dos workflows com um parser de YAML. O primeiro run de verdade dos jobs novos é num pull request.
 - **Arquivos (efetivos):** ~ `package.json`, `playwright.config.ts`, `.github/workflows/pages.yml`; \+ `.github/workflows/e2e-firefox.yml`; ~ `README.md`, `specs/{decisions,requirements,tasks,README}.md`, `specs/design/architecture.md`.
-- **Status:** ◐ (a suíte E2E inteira está rodando na máquina local)
+- **Status:** ✅
 
 ---
 
