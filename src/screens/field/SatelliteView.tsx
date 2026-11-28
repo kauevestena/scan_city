@@ -98,6 +98,9 @@ export function SatelliteView(props: SatelliteViewProps) {
     return {
       update: (dt) => {
         const input = InputManager.get();
+        // O mapa só ouve o input quando a tela de campo é a camada do topo: com um mini-game
+        // (`MINIGAME`) ou um modal (`UI`) por cima, ele fica parado (ADR-038).
+        if (input.context !== 'FIELD') return;
         const dx = input.axis('MOVE_X');
         const dy = -input.axis('MOVE_Y');
         if (dx !== 0 || dy !== 0) {

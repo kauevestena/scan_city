@@ -22,8 +22,7 @@ import {
 } from '@/engines/field/minigames/lemniscate';
 import { useCanvas } from '@/engines/useCanvas';
 import { useGameLoop } from '@/engines/useGameLoop';
-import { InputManager } from '@/input/InputManager';
-import { useInputContext } from '@/input/useInputContext';
+import { InputManager, type ActionEvent } from '@/input/InputManager';
 import { formatNumber } from '@/lib/format';
 import { hashString } from '@/lib/rng';
 import { useGameStore } from '@/state/store';
@@ -49,6 +48,35 @@ const LEMNISCATE_COLORS: LemniscateColors = {
 
 type Game = 'LEVEL' | 'IMU';
 
+/** O botão que abre cada mini-game: recebe o foco de volta quando o jogo termina. */
+const START_FOCUS_ID: Record<Game, string> = { LEVEL: 'level-start', IMU: 'imu-start' };
+
+/**
+ * Enquanto o mini-game está montado, ele é a camada de input do topo, no contexto `MINIGAME`
+ * (ADR-038): o D-pad, as setas, o WASD e o analógico chegam ao `MOVE` do jogo em vez de navegar o
+ * foco da tela, as abas não trocam e `Voltar` (Esc, `B`, `○`) interrompe o jogo sem pontuar. A
+ * pausa (`M`, Menu) nunca passa pelas camadas e segue valendo.
+ */
+function useMinigameLayer(onCancel: () => void): void {
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  });
+  useEffect(
+    () =>
+      InputManager.get().pushLayer({
+        context: 'MINIGAME',
+        modal: false,
+        handler: (e: ActionEvent) => {
+          if (e.action !== 'UI_BACK' || e.repeat) return false;
+          onCancelRef.current();
+          return true;
+        },
+      }),
+    [],
+  );
+}
+
 /** Aba 3 (field-setup §5.4): mini-games opcionais de calibração. */
 export function CalibrationTab({ field }: { field: FieldContext }) {
   const { mission, equipment, predict } = field;
@@ -66,9 +94,28 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
     setLastOutcome(null);
     setPlaying(game);
   };
+  const cancel = () => {
+    setLastOutcome(null);
+    setPlaying(null);
+  };
+
+  // O botão de início sai da tela durante o jogo, e o foco cai no `body`. Quando o jogo termina
+  // (ou é interrompido), o foco volta ao botão dele, se não tiver ido para outro lugar.
+  const tabRef = useRef<HTMLDivElement>(null);
+  const lastGame = useRef<Game | null>(null);
+  useEffect(() => {
+    const ended = lastGame.current;
+    lastGame.current = playing;
+    if (playing !== null || ended === null) return;
+    const tab = tabRef.current;
+    const active = document.activeElement;
+    const loose = active === null || active === document.body || tab?.contains(active);
+    if (!loose) return;
+    tab?.querySelector<HTMLElement>(`[data-focus-id="${START_FOCUS_ID[ended]}"]`)?.focus();
+  }, [playing]);
 
   return (
-    <div className="flex flex-col gap-5" data-testid="calibration-tab">
+    <div className="flex flex-col gap-5" data-testid="calibration-tab" ref={tabRef}>
       <p className="text-sm text-slate-300">{C.intro}</p>
       <Panel title={C.levelTitle}>
         <div className="flex flex-col gap-3">
@@ -82,9 +129,14 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
                 setLastOutcome(outcome);
                 setPlaying(null);
               }}
+              onCancel={cancel}
             />
           ) : (
-            <Button icon={Crosshair} onClick={() => start('LEVEL')}>
+            <Button
+              icon={Crosshair}
+              onClick={() => start('LEVEL')}
+              data-focus-id={START_FOCUS_ID.LEVEL}
+            >
               {level === undefined ? C.levelStart : C.levelRetry}
             </Button>
           )}
@@ -120,9 +172,10 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
                 setLastOutcome(null);
                 setPlaying(null);
               }}
+              onCancel={cancel}
             />
           ) : (
-            <Button icon={Compass} onClick={() => start('IMU')}>
+            <Button icon={Compass} onClick={() => start('IMU')} data-focus-id={START_FOCUS_ID.IMU}>
               {imu === undefined ? C.imuStart : C.imuRetry}
             </Button>
           )}
@@ -148,13 +201,14 @@ export function CalibrationTab({ field }: { field: FieldContext }) {
 interface BubbleGameProps {
   seed: number;
   onFinish: (score: number, outcome: 'LOCKED' | 'TIMEOUT') => void;
+  /** `Voltar` durante o jogo: fecha sem pontuar. */
+  onCancel: () => void;
 }
 
 /** O canvas 360×360 do nível de bolha; roda no `GameLoop` e se desmonta ao terminar. */
-function BubbleGame({ seed, onFinish }: BubbleGameProps) {
+function BubbleGame({ seed, onFinish, onCancel }: BubbleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Durante o jogo, o D-pad e o analógico movem a bolha em vez de navegar o foco.
-  useInputContext('MINIGAME');
+  useMinigameLayer(onCancel);
   const surface = useCanvas(canvasRef);
   const [sim] = useState(() => new BubbleSim(seed));
   const [holdS, setHoldS] = useState(0);
@@ -241,12 +295,14 @@ function BubbleGame({ seed, onFinish }: BubbleGameProps) {
 
 interface ImuGameProps {
   onFinish: (score: number) => void;
+  /** `Voltar` durante o jogo: fecha sem pontuar. */
+  onCancel: () => void;
 }
 
 /** O canvas 480×300 da lemniscata; o mouse (sem clicar) ou o analógico guiam o cursor. */
-function ImuGame({ onFinish }: ImuGameProps) {
+function ImuGame({ onFinish, onCancel }: ImuGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useInputContext('MINIGAME');
+  useMinigameLayer(onCancel);
   const surface = useCanvas(canvasRef);
   const [sim] = useState(() => new LemniscateSim());
   const [elapsedS, setElapsedS] = useState(0);

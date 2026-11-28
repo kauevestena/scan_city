@@ -129,6 +129,8 @@ Qualquer mudança recalcula `plan` via `buildFlightPlan(params, contract)`, que 
 ### 5.4 Aba 3 — Calibração (mini-games)
 Os dois mini-games são opcionais. Cada um pode ser repetido; vale a melhor pontuação da sessão. Se o jogador decolar sem jogar, valem os padrões `levelScore = 0,5` e `imuScore = 0`.
 
+**Controles durante o jogo** ([ADR-038](../decisions.md)): o mini-game aberto é a camada de input do topo, no contexto `MINIGAME`. O analógico esquerdo, o D-pad, `W A S D`, as setas e o mouse movem a bolha ou o cursor; o mapa de satélite fica parado e as abas não trocam. `Voltar` (`Esc`, `B`, `○`) interrompe o jogo sem pontuar, e a tela segue na aba. Quando o jogo termina ou é interrompido, o foco volta ao botão que o abriu. `M` e Menu/Options pausam.
+
 **Nivelamento do instrumento (bolha), REQ-FLD-010:**
 - **Canvas** de 360 × 360: vista de cima de um nível de bolha circular. O alvo central tem raio `r_t = 18 px`, e a bolha tem raio de 14 px.
 - **Física da bolha:** `pos += vel·dt`, `vel += (drift(t) + kick + inputForce − 2,5·vel)·dt`, onde:

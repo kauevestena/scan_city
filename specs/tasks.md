@@ -33,8 +33,8 @@
 | — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
 | F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
 | F11 | Desempenho e os pedidos do teste humano | T093–T098 | FPS: menos chamadas de desenho e resolução que se adapta à máquina; depois, o voo mais rápido e com vento vertical, a sede no mapa, o Atlas e os souvenirs que se examinam |
-| — | Manutenção | T099 | A spec volta a descrever o código: o README da spec, a ADR-037 (foco do voo em telas largas) e os testes de regressão do controle no campo |
-| — | Backlog | T100–T103 | ☐ Trabalho adiado que só existia nas notas: Fases 2 e 3 do voo, duração das surtidas, rival no domínio, D-pad nos mini-games |
+| — | Manutenção | T099, T103 | A spec volta a descrever o código (o README da spec, a ADR-037 e os testes de regressão do controle no campo) e o D-pad nos mini-games (ADR-038) |
+| — | Backlog | T100–T102 | ☐ Trabalho adiado que só existia nas notas: Fases 2 e 3 do voo, duração das surtidas e o rival no domínio |
 
 ## Grafo de dependências (resumo)
 
@@ -2160,11 +2160,25 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Escopo:** a store passa a chamar as funções do domínio; os testes da store e do domínio seguem verdes sem mudar nenhum resultado.
 - **Status:** ☐
 
-### T103 — O D-pad nos mini-games da calibração (backlog)
-- **Fase:** Backlog · **Depende de:** T099 · **REQs:** REQ-FLD-010, REQ-FLD-011 (melhoria, não exigida)
-- **Origem:** achado da T099: com um mini-game aberto, o contexto efetivo segue `FIELD` (a camada de foco do `FieldSetupScreen` fica no topo), então o D-pad move o foco da tela em vez do cursor, ao contrário do que o commit `b83ad75` pretendia.
-- **Escopo a decidir:** fazer o mini-game empilhar a própria camada `MINIGAME` (e decidir o que o `B` faz durante o jogo), ou registrar que só o analógico e o mouse movem o cursor. Pede ADR se mudar a field-setup §5.4 ou a input §2.
-- **Status:** ☐
+### T103 — O D-pad nos mini-games da calibração
+- **Fase:** Manutenção (saiu do backlog) · **Depende de:** T099 · **REQs:** REQ-FLD-010, REQ-FLD-011
+- **Spec:** [ADR-038](decisions.md), [field-setup §5.4](features/field-setup.md), [input §2](design/input.md)
+- **Origem:** achado da T099: com um mini-game aberto, o contexto efetivo segue `FIELD` (a camada de foco do `FieldSetupScreen` fica no topo), então o D-pad move o foco da tela em vez do cursor, ao contrário do que o commit `b83ad75` pretendia; o `B` volta uma aba e mata o jogo; e o analógico move o cursor e o mapa juntos.
+- **Passos:**
+  1. ADR-038 e as specs (field-setup §5.4, input §2, qa-manual §3).
+  2. `useMinigameLayer` em `CalibrationTab.tsx`: cada mini-game empilha a camada `MINIGAME` enquanto montado, e o `UI_BACK` dela interrompe o jogo sem pontuar. Sai o `useInputContext('MINIGAME')`.
+  3. O foco volta ao botão do jogo (`data-focus-id` `level-start` e `imu-start`) quando ele termina ou é interrompido, se estiver solto.
+  4. `SatelliteView`: pan e zoom só no contexto efetivo `FIELD`.
+  5. Testes.
+- **Aceite:**
+  - [x] Com um mini-game aberto, o contexto efetivo é `MINIGAME`, e o D-pad, as setas e o analógico chegam ao `MOVE` do jogo sem mover o foco da tela.
+  - [x] `B` e `Esc` interrompem o jogo sem mudar a nota, a tela segue na aba da calibração, o foco volta ao botão e a pausa não abre; fora do jogo, o `Esc` volta uma aba como antes.
+  - [x] Com a bolha aberta, segurar `D` não mexe no mapa; sem o jogo, mexe.
+  - [x] Os cinco testes de comportamento falham no código de antes da tarefa.
+  - [x] O `verify` e o E2E do campo, do controle e do foco seguem verdes.
+- **Verificação:** `npm run verify` · `npx vitest run src/screens/field` · `npx playwright test tests/e2e/field.spec.ts tests/e2e/gamepad.spec.ts tests/e2e/focus-audit.spec.ts`
+- **Arquivos (efetivos):** ~ `src/screens/field/{CalibrationTab,SatelliteView}.tsx`, `src/screens/field/{CalibrationTab,FieldSetupScreen}.test.tsx`; ~ `specs/{decisions,tasks,qa-manual}.md`, `specs/features/field-setup.md`, `specs/design/input.md`.
+- **Status:** ✅
 
 ---
 
@@ -2222,8 +2236,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-007 | Estatísticas ao vivo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md) | T011, T023 | ✅ |
 | REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
-| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ✅ |
-| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038, T094 | ✅ |
+| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037, T103 | ✅ |
+| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038, T094, T103 | ✅ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |

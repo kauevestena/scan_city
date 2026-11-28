@@ -357,3 +357,15 @@
 - **Decisão:** `focalPx = (min(W, H · 16/9) / 2) / tan(35°)` (`REFERENCE_ASPECT = 16/9` em `engines/flight/projection.ts`). Até 16:9 nada muda (o FOV horizontal segue em 70°). Mais largo que isso, o enquadramento vertical fica o do 16:9 na mesma altura, e a largura que sobra mostra mais cenário dos lados.
 - **Consequências:** a aeronave fica na tela em qualquer proporção. O REQ-NFR-004 continua pedindo a UI de 1280 × 720 a 1920 × 1080; as telas mais largas são suportadas no voo, sem E2E próprio. O teste `projection.test.ts` cobre o foco em 16:9 e em 21:9. Registrado na T099.
 - **Status:** Aceita · 2026-11-28 (o código é de 2026-11-27)
+
+### ADR-038 — O mini-game é a camada de input do topo, e o Voltar o interrompe
+- **Contexto:** o commit `b83ad75` quis que o D-pad e o analógico movessem o cursor dos mini-games da calibração chamando `useInputContext('MINIGAME')`. Isso troca só o contexto **da tela**, mas o `FieldSetupScreen` empilha uma camada de foco no contexto `FIELD`, e o contexto efetivo do `InputManager` é o da camada do topo. Com a bolha ou a lemniscata abertas, então: o D-pad e as setas moviam o foco da tela; o `B` e o `Esc` voltavam uma aba e desmontavam o jogo no meio; e o analógico movia o cursor **e** o mapa de satélite, que fica visível em todas as abas e lê o `MOVE` a cada quadro (achado da T099).
+- **Decisão:**
+  - Cada mini-game, enquanto montado, empilha a própria camada `MINIGAME` (`useMinigameLayer` em `CalibrationTab.tsx`). Nela, o analógico esquerdo, o D-pad, o WASD e as setas são o `MOVE` do jogo; não há navegação de foco nem troca de aba.
+  - `Voltar` (`Esc`, `B`, `○`) **interrompe** o jogo sem pontuar: a nota guardada não muda, a tela segue na aba da calibração e o foco volta ao botão do jogo. É o que o jogador espera de um "voltar" no meio do jogo, em vez de perder a aba.
+  - Quando o jogo termina ou é interrompido, o foco volta ao botão que o abriu, se não tiver ido para outro lugar (a regra do `autoFocus` da navegação de foco).
+  - O mapa de satélite só ouve o `MOVE` e o `ZOOM` quando o contexto efetivo é `FIELD`: com um mini-game ou um modal por cima, ele fica parado.
+  - A pausa (`M`, Menu, Options) não passa pelas camadas e segue valendo durante o jogo.
+- **Alternativas descartadas:** deixar só o analógico e o mouse moverem o cursor (é o mínimo da field-setup §5.4, mas contradiz o contexto `MINIGAME`, que liga o D-pad e as setas, e mantém o mapa andando junto com a bolha); mudar o contexto da camada `FIELD` enquanto há jogo (acopla a tela ao estado de dentro da aba).
+- **Consequências:** o `useInputContext('MINIGAME')` sai dos mini-games; o contexto `MINIGAME` passa a ser sempre uma camada. Os testes de `CalibrationTab.test.tsx` e de `FieldSetupScreen.test.tsx` cobrem o D-pad, as setas, o analógico, o `B`, o `Esc` sem pausa, o foco de volta e o mapa parado; os cinco de comportamento falham no código de antes. Registrado na T103.
+- **Status:** Aceita · 2026-11-28

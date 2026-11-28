@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { getFieldEquipment } from '@/data/catalog';
 import { gcpSigma } from '@/domain/accuracy';
-import { InputManager } from '@/input/InputManager';
-import { createPad, installGamepads, XBOX_ID } from '@/test/fakeGamepad';
+import { PAD } from '@/input/gamepad';
+import { InputManager, type ActionEvent } from '@/input/InputManager';
+import { createPad, installGamepads, setButton, XBOX_ID } from '@/test/fakeGamepad';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { FieldSetupScreen } from './FieldSetupScreen';
@@ -97,24 +98,51 @@ describe('aba 3 — Calibração (bolha)', () => {
   });
 });
 
-describe('aba 3 — mini-games pelo controle (REQ-FLD-010, REQ-FLD-011, commit b83ad75)', () => {
+describe('aba 3 — a camada de input dos mini-games (REQ-FLD-010, REQ-FLD-011, ADR-038)', () => {
   const input = () => InputManager.get();
+  const openLevel = () => screen.getByRole('button', { name: 'Nivelar instrumento' });
 
-  it('cada mini-game aberto põe a tela no contexto MINIGAME; a troca entre eles o mantém', () => {
-    expect(input().screenContext).toBe('FIELD');
-    fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
-    expect(input().screenContext).toBe('MINIGAME');
+  it('com um mini-game aberto o contexto efetivo é MINIGAME; a troca entre eles o mantém', () => {
+    expect(input().context).toBe('FIELD');
+    fireEvent.click(openLevel());
+    expect(input().context).toBe('MINIGAME');
     fireEvent.click(screen.getByRole('button', { name: 'Calibrar IMU' }));
     expect(screen.getByTestId('imu-game')).toBeInTheDocument();
-    expect(input().screenContext).toBe('MINIGAME');
+    expect(input().context).toBe('MINIGAME');
   });
 
-  it('com a bolha aberta, o analógico esquerdo chega ao MOVE que o mini-game lê', () => {
+  it('o D-pad e as setas chegam ao MOVE do jogo e não movem o foco da tela', () => {
     const pad = createPad(XBOX_ID);
     const uninstall = installGamepads([pad]);
     try {
-      fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
-      expect(screen.getByTestId('bubble-game')).toBeInTheDocument();
+      const imuButton = screen.getByRole('button', { name: 'Calibrar IMU' });
+      fireEvent.click(openLevel());
+      act(() => imuButton.focus());
+      setButton(pad, PAD.DPAD_RIGHT, true);
+      act(() => input().poll(1));
+      expect(input().axis('MOVE_X')).toBe(1);
+      setButton(pad, PAD.DPAD_UP, true);
+      act(() => input().poll(2));
+      expect(input().axis('MOVE_Y')).toBe(1);
+      expect(document.activeElement).toBe(imuButton);
+      setButton(pad, PAD.DPAD_RIGHT, false);
+      setButton(pad, PAD.DPAD_UP, false);
+      act(() => input().poll(3));
+      expect(input().axis('MOVE_X')).toBe(0);
+    } finally {
+      uninstall();
+    }
+    fireEvent.keyDown(window, { code: 'ArrowLeft', key: 'ArrowLeft' });
+    expect(input().axis('MOVE_X')).toBe(-1);
+    fireEvent.keyUp(window, { code: 'ArrowLeft', key: 'ArrowLeft' });
+    expect(input().axis('MOVE_X')).toBe(0);
+  });
+
+  it('o analógico esquerdo chega ao MOVE que a bolha lê', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      fireEvent.click(openLevel());
       pad.axes[0] = 1;
       act(() => input().poll(1));
       expect(input().axis('MOVE_X')).toBeCloseTo(1, 6);
@@ -124,11 +152,49 @@ describe('aba 3 — mini-games pelo controle (REQ-FLD-010, REQ-FLD-011, commit b
       act(() => input().poll(2));
       expect(input().axis('MOVE_X')).toBe(0);
       expect(input().axis('MOVE_Y')).toBeCloseTo(1, 6);
-      pad.axes[1] = 0;
-      act(() => input().poll(3));
-      expect(input().axis('MOVE_Y')).toBe(0);
     } finally {
       uninstall();
+    }
+  });
+
+  it('o B do controle interrompe o jogo sem pontuar e devolve o foco ao botão', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      fireEvent.click(openLevel());
+      expect(screen.getByTestId('bubble-game')).toBeInTheDocument();
+      setButton(pad, PAD.B, true);
+      act(() => input().poll(1));
+      expect(screen.queryByTestId('bubble-game')).not.toBeInTheDocument();
+      expect(get().mission.active?.minigames.levelScore).toBeUndefined();
+      expect(screen.getByTestId('level-score')).toHaveTextContent('Sem nivelar');
+      expect(screen.queryByTestId('level-outcome')).not.toBeInTheDocument();
+      // Continua na aba da calibração, com o foco no botão do jogo.
+      expect(screen.getByTestId('calibration-tab')).toBeInTheDocument();
+      expect(document.activeElement).toBe(openLevel());
+      expect(input().context).toBe('FIELD');
+    } finally {
+      uninstall();
+    }
+  });
+
+  it('o Esc interrompe a lemniscata em vez de pausar; fora do jogo, o Esc volta uma aba', () => {
+    const actions: ActionEvent[] = [];
+    const off = input().onAction((e) => actions.push(e));
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Calibrar IMU' }));
+      expect(screen.getByTestId('imu-game')).toBeInTheDocument();
+      fireEvent.keyDown(window, { code: 'Escape', key: 'Escape' });
+      fireEvent.keyUp(window, { code: 'Escape', key: 'Escape' });
+      expect(screen.queryByTestId('imu-game')).not.toBeInTheDocument();
+      expect(get().mission.active?.minigames.imuScore).toBeUndefined();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Calibrar IMU' }));
+      expect(actions.map((e) => e.action)).not.toContain('PAUSE');
+      // Sem jogo aberto, o Voltar é o da tela de campo de novo.
+      fireEvent.keyDown(window, { code: 'Escape', key: 'Escape' });
+      expect(screen.queryByTestId('calibration-tab')).not.toBeInTheDocument();
+    } finally {
+      off();
     }
   });
 });
