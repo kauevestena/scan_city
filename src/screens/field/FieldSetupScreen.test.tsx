@@ -155,6 +155,38 @@ describe('FieldSetupScreen — mira do teclado no mapa (REQ-NFR-007)', () => {
   });
 });
 
+describe('FieldSetupScreen — mira do controle no mapa (REQ-INP-006, commit b83ad75)', () => {
+  it('com o foco no mapa, o A do controle coloca o ponto na mira', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      render(<FieldSetupScreen />);
+      const canvas = screen.getByTestId('satellite-canvas');
+      act(() => canvas.focus());
+      setButton(pad, PAD.A, true);
+      act(() => InputManager.get().poll(1));
+      const placed = get().mission.active?.groundPoints ?? [];
+      expect(placed.map((p) => p.id)).toEqual(['GCP-01']);
+      expect(placed[0]?.u).toBeCloseTo(C00.aoi.lengthM / 2, 3);
+      expect(placed[0]?.v).toBeCloseTo(C00.aoi.widthM / 2, 3);
+      setButton(pad, PAD.A, false);
+      act(() => InputManager.get().poll(2));
+      expect(get().mission.active?.groundPoints).toHaveLength(1);
+    } finally {
+      uninstall();
+    }
+  });
+
+  it('o clique do mouse não age em dobro: só o clique sintético (detail 0) usa a mira', () => {
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    fireEvent.click(canvas, { detail: 1 });
+    expect(get().mission.active?.groundPoints).toEqual([]);
+    act(() => canvas.click());
+    expect(get().mission.active?.groundPoints.map((p) => p.id)).toEqual(['GCP-01']);
+  });
+});
+
 describe('FieldSetupScreen', () => {
   it('cabeçalho com o contrato e as quatro abas', () => {
     render(<FieldSetupScreen />);

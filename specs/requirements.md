@@ -679,8 +679,8 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 **REQ-NFR-003: Cobertura de testes.** `src/domain/` e `src/lib/` devem ter cobertura ≥ 90 % de linhas, e o projeto todo ≥ 60 %.
 - *Aceite:* `npm run test:coverage` com thresholds configurados no Vitest.
 
-**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR; o do voo e o da mesa podem baixar a escala do buffer quando o quadro fica lento (resolução adaptativa, ADR-033) e marcam a escala em uso.
-- *Aceite:* E2E com dois viewports.
+**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR; o do voo e o da mesa podem baixar a escala do buffer quando o quadro fica lento (resolução adaptativa, ADR-033) e marcam a escala em uso. Em telas mais largas que 16:9, o voo mantém o enquadramento vertical do 16:9 (ADR-037).
+- *Aceite:* E2E com dois viewports; teste unitário do foco do voo em 16:9 e em 21:9.
 
 **REQ-NFR-005: Zero placeholders.** O código não deve conter `TODO`, `FIXME`, `XXX`, funções vazias nem o `DebugScreenShell` acessível fora do debug.
 - *Aceite:* script `npm run check:placeholders` (grep) sem resultados.

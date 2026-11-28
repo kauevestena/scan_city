@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { getFieldEquipment } from '@/data/catalog';
 import { gcpSigma } from '@/domain/accuracy';
+import { InputManager } from '@/input/InputManager';
+import { createPad, installGamepads, XBOX_ID } from '@/test/fakeGamepad';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
 import { FieldSetupScreen } from './FieldSetupScreen';
@@ -92,5 +94,41 @@ describe('aba 3 — Calibração (bolha)', () => {
     expect(screen.getByTestId('imu-drift')).toHaveTextContent('Deriva giroscópica: 5,6 °/h');
     act(() => get().recordMinigame('imu', 0.3));
     expect(get().mission.active?.minigames.imuScore).toBe(0.9);
+  });
+});
+
+describe('aba 3 — mini-games pelo controle (REQ-FLD-010, REQ-FLD-011, commit b83ad75)', () => {
+  const input = () => InputManager.get();
+
+  it('cada mini-game aberto põe a tela no contexto MINIGAME; a troca entre eles o mantém', () => {
+    expect(input().screenContext).toBe('FIELD');
+    fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
+    expect(input().screenContext).toBe('MINIGAME');
+    fireEvent.click(screen.getByRole('button', { name: 'Calibrar IMU' }));
+    expect(screen.getByTestId('imu-game')).toBeInTheDocument();
+    expect(input().screenContext).toBe('MINIGAME');
+  });
+
+  it('com a bolha aberta, o analógico esquerdo chega ao MOVE que o mini-game lê', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
+      expect(screen.getByTestId('bubble-game')).toBeInTheDocument();
+      pad.axes[0] = 1;
+      act(() => input().poll(1));
+      expect(input().axis('MOVE_X')).toBeCloseTo(1, 6);
+      // MOVE_Y é positivo para cima (o analógico para cima dá −1 no eixo 1).
+      pad.axes[0] = 0;
+      pad.axes[1] = -1;
+      act(() => input().poll(2));
+      expect(input().axis('MOVE_X')).toBe(0);
+      expect(input().axis('MOVE_Y')).toBeCloseTo(1, 6);
+      pad.axes[1] = 0;
+      act(() => input().poll(3));
+      expect(input().axis('MOVE_Y')).toBe(0);
+    } finally {
+      uninstall();
+    }
   });
 });
