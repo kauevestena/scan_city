@@ -145,7 +145,7 @@ scan_city/
 | `check:placeholders` | `node scripts/check-placeholders.mjs` |
 | `check:assets` | `node scripts/check-assets.mjs` (roda após o build) |
 | `check:terms` | `node scripts/check-forbidden-terms.mjs` |
-| `verify` | `npm run typecheck && npm run lint && npm run test && npm run build && npm run check:placeholders && npm run check:terms` |
+| `verify` | `npm run typecheck && npm run lint && npm run test:coverage && npm run build && npm run check:placeholders && npm run check:terms` (a cobertura entrou na ADR-039) |
 
 ---
 

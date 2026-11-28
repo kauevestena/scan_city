@@ -31,8 +31,8 @@ O desenvolvimento segue **Spec-Driven Development (SDD)**: primeiro a spec, depo
 | 6 | [content/catalog.md](content/catalog.md) | Números de equipamentos, skills, cosméticos, souvenirs, eventos, balanceamento |
 | 6 | [content/contracts-real.md](content/contracts-real.md) | Regras especiais + C00–C06 com planos de referência verificados |
 | 6 | [content/contracts-rifts.md](content/contracts-rifts.md) | R01–R11 (Fendas) com planos de referência |
-| 7 | [tasks.md](tasks.md) | **103 tarefas**: T001–T098 em 12 fases (F0–F11, com o pós-release T080–T083), a manutenção (T099, T103) e o backlog (T100–T102); mais a matriz de rastreabilidade |
-| — | [decisions.md](decisions.md) | ADRs (20 da conversão; 38 ao todo) |
+| 7 | [tasks.md](tasks.md) | **104 tarefas**: T001–T098 em 12 fases (F0–F11, com o pós-release T080–T083), a manutenção (T099, T103, T104) e o backlog (T100–T102); mais a matriz de rastreabilidade |
+| — | [decisions.md](decisions.md) | ADRs (20 da conversão; 39 ao todo) |
 | — | [open-questions.md](open-questions.md) | Ambiguidades e padrões provisórios |
 | — | [qa-manual.md](qa-manual.md) | Roteiro dos testes que só uma pessoa faz: Firefox e Edge, controle real, FPS com GPU, som e campanha jogada |
 
@@ -69,7 +69,7 @@ O código nunca diverge silenciosamente da spec.
 4. **Implementar** só o escopo da tarefa (constitution §4.2). Sem `TODO`, sem funções vazias.
 5. **Verificar:**
    ```bash
-   npm run verify          # typecheck + lint + test + build + check:placeholders (+ check:terms após T059)
+   npm run verify          # typecheck + lint + test:coverage + build + check:placeholders + check:terms (ADR-039)
    # mais os comandos do campo "Verificação" da tarefa, e npm run e2e quando indicado
    ```
 6. **Marcar** os critérios de aceite `[x]`, o status `✅` e, na matriz de rastreabilidade, os REQs cujas tarefas estejam todas concluídas.
@@ -93,7 +93,7 @@ O código nunca diverge silenciosamente da spec.
 | Pós-release | Verificação extra, resiliência do navegador, publicação e Firefox | T080–T083 | ✅ |
 | **M5** Voo com desafio | Fase 1 do replanejamento do voo: corredor, nota de execução, rajadas, revoo e cruzeiro ([ADR-029 a 032](decisions.md)) | T084–T092 | ✅ |
 | (F11) Desempenho e o teste humano | Resolução adaptativa, voo mais rápido com vento vertical e curva na mão, três dificuldades, sede no mapa e navegação GNSS, o Atlas, os souvenirs que se examinam ([ADR-033 a 036](decisions.md)) | T093–T098 | ✅ |
-| Manutenção | Reconciliação da spec com o código depois da F11 ([ADR-037](decisions.md)); o D-pad nos mini-games ([ADR-038](decisions.md)) | T099, T103 | ✅ |
+| Manutenção | Reconciliação da spec com o código depois da F11 ([ADR-037](decisions.md)); o D-pad nos mini-games ([ADR-038](decisions.md)); o CI com cobertura, E2E e Firefox semanal ([ADR-039](decisions.md)) | T099, T103, T104 | ✅ |
 | Backlog | Trabalho adiado que só existia nas notas: Fases 2 e 3 do voo, duração das surtidas e o rival no domínio | T100–T102 | ☐ |
 
 ---
@@ -146,7 +146,8 @@ O código nunca diverge silenciosamente da spec.
 - vento vertical, troca de faixa na mão, três dificuldades e voo mais alto (ADR-035);
 - souvenirs que se examinam (ADR-036);
 - foco do voo limitado pela altura em telas mais largas que 16:9 (ADR-037);
-- o mini-game da calibração como camada de input própria, com o Voltar que o interrompe (ADR-038).
+- o mini-game da calibração como camada de input própria, com o Voltar que o interrompe (ADR-038);
+- CI com cobertura no `verify`, E2E no Chromium barrando a publicação e Firefox toda semana (ADR-039).
 
 ---
 

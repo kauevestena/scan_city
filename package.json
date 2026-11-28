@@ -21,7 +21,7 @@
     "check:assets": "node scripts/check-assets.mjs",
     "qa:random": "node scripts/qa-random.mjs",
     "qa:flight": "vitest run -c vitest.qa.config.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:placeholders && npm run check:terms"
+    "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run build && npm run check:placeholders && npm run check:terms"
   },
   "dependencies": {
     "lucide-react": "^1.72.0",

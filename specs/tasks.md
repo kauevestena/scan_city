@@ -33,7 +33,7 @@
 | — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
 | F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
 | F11 | Desempenho e os pedidos do teste humano | T093–T098 | FPS: menos chamadas de desenho e resolução que se adapta à máquina; depois, o voo mais rápido e com vento vertical, a sede no mapa, o Atlas e os souvenirs que se examinam |
-| — | Manutenção | T099, T103 | A spec volta a descrever o código (o README da spec, a ADR-037 e os testes de regressão do controle no campo) e o D-pad nos mini-games (ADR-038) |
+| — | Manutenção | T099, T103, T104 | A spec volta a descrever o código (o README da spec, a ADR-037 e os testes de regressão do controle no campo), o D-pad nos mini-games (ADR-038) e o CI com cobertura, E2E e Firefox semanal (ADR-039) |
 | — | Backlog | T100–T102 | ☐ Trabalho adiado que só existia nas notas: Fases 2 e 3 do voo, duração das surtidas e o rival no domínio |
 
 ## Grafo de dependências (resumo)
@@ -2180,6 +2180,26 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 - **Arquivos (efetivos):** ~ `src/screens/field/{CalibrationTab,SatelliteView}.tsx`, `src/screens/field/{CalibrationTab,FieldSetupScreen}.test.tsx`; ~ `specs/{decisions,tasks,qa-manual}.md`, `specs/features/field-setup.md`, `specs/design/input.md`.
 - **Status:** ✅
 
+### T104 — CI com cobertura, E2E e Firefox semanal
+- **Fase:** Manutenção · **Depende de:** T103 · **REQs:** REQ-NFR-003, REQ-NFR-009
+- **Spec:** [ADR-039](decisions.md), [ADR-028](decisions.md)
+- **Origem:** avaliação da T099: a cobertura não era conferida desde a T079, e o E2E (Chromium e Firefox) só rodava à mão.
+- **Passos:**
+  1. ADR-039, a nota na ADR-028 e os aceites do REQ-NFR-003 e do REQ-NFR-009.
+  2. `package.json`: o `verify` roda o `test:coverage` no lugar do `test`.
+  3. `playwright.config.ts`: no CI, uma nova tentativa (marcada como *flaky*), relatório HTML e captura das falhas.
+  4. `pages.yml`: o job `e2e` (Chromium) em paralelo ao `build`, o relatório guardado se falhar, o `deploy` esperando os dois e só a `main` publicando.
+  5. `e2e-firefox.yml`: a suíte no Firefox toda segunda-feira e no disparo manual, sem publicar.
+  6. README: o `verify` e o CI.
+- **Aceite:**
+  - [x] O `verify` falha se a cobertura cair abaixo dos limites, e passa no código atual.
+  - [x] Os dois workflows são YAML válido; o `deploy` depende de `build` e `e2e` e só roda na `main`; o Firefox só roda agendado ou à mão.
+  - [ ] A suíte E2E inteira passa no Chromium na máquina local antes de barrar a publicação.
+  - [x] Fora do CI, o Playwright se comporta como antes.
+- **Verificação:** `npm run verify` · `npm run check:assets` · `npm run e2e` (a suíte inteira) · leitura dos workflows com um parser de YAML. O primeiro run de verdade dos jobs novos é num pull request.
+- **Arquivos (efetivos):** ~ `package.json`, `playwright.config.ts`, `.github/workflows/pages.yml`; \+ `.github/workflows/e2e-firefox.yml`; ~ `README.md`, `specs/{decisions,requirements,tasks,README}.md`, `specs/design/architecture.md`.
+- **Status:** ◐ (a suíte E2E inteira está rodando na máquina local)
+
 ---
 
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
@@ -2321,11 +2341,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093, T094 | ✅ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ✅ |
-| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ✅ |
+| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079, T104 | ✅ |
 | REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077, T099 | ✅ |
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ✅ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md), [office](features/office.md) | T004, T075, T078, T094, T098 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
-| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
+| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083, T104 | ✅ |
 | REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089, T094 | ✅ |
