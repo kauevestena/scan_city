@@ -88,7 +88,7 @@ Abra `/?debug=1&skipIntro=1&unlockAll=1`, aperte um botão e confira:
 - [ ] `Menu` abre a pausa; em **Controles** a linha "Dispositivo ativo" mostra **Xbox** ou **PlayStation** e os botões da tabela mudam (A/B/X/Y ou ✕/○/□/△; `Menu` ou `Options`).
 - [ ] **Escritório:** o D-pad (ou o analógico esquerdo) anda entre os nove pontos; `A` abre o painel; `B` fecha e devolve o foco.
 - [ ] **Mapa:** o analógico anda sem **deriva** (solto, o avatar para); `LB` troca o veículo; `Y` troca Real e Fendas; `A` interage; `View`/`Create` dispensa a dica.
-- [ ] **Campo:** `LB`/`RB` trocam de aba; `B` volta uma aba; o D-pad e `A` operam os controles.
+- [ ] **Campo:** `LB`/`RB` trocam de aba; `B` volta uma aba; o D-pad e `A` operam os controles. Na aba 3, com um mini-game aberto, o D-pad e o analógico movem a bolha (e o cursor da IMU) sem mexer no mapa, e o `B` interrompe o jogo e devolve o foco ao botão dele.
 - [ ] **Voo** (`/?debug=1&skipIntro=1&screen=SURVEY_FLIGHT&contract=C01`, **sem** `autopilot`): analógico esquerdo = velocidade e deriva; `RT`/`LT` sobem e descem **na proporção do aperto**; `X` tira foto; `Y` troca RGB e LiDAR (num contrato de LiDAR, como `contract=C03`); `B` pede o retorno à base; `RB` acelera o tempo; `Menu` pausa.
 - [ ] **Mesa** (`screen=HOLO_TABLE_VIEW`): analógico direito orbita; `RT`/`LT` dão zoom; `X` muda o modo; `Y` troca a dimensão; `RB` abre o painel de alas.
 - [ ] **Laboratório** (`screen=INFOGRAPHIC_LAB`): `LB`/`RB` trocam de aba; o D-pad anda entre os controles e, com um slider em foco, `←` `→` mudam o valor.

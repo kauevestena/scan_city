@@ -6,7 +6,7 @@ O jogo roda inteiro no navegador, sem servidor e sem arquivo externo: o terreno 
 
 ## Jogar online
 
-**https://kauevestena.github.io/scan_city/**: cada push na `main` que passa no `npm run verify` publica a versão nova ([`.github/workflows/pages.yml`](.github/workflows/pages.yml), [ADR-028](specs/decisions.md)). Os parâmetros de depuração de [Depuração](#depuração-debug1) valem também lá.
+**https://kauevestena.github.io/scan_city/**: cada push na `main` que passa no `npm run verify` e na suíte E2E no Chromium publica a versão nova ([`.github/workflows/pages.yml`](.github/workflows/pages.yml), [ADR-028 e ADR-039](specs/decisions.md)). Os pull requests rodam os mesmos dois jobs, sem publicar, e o Firefox roda toda segunda-feira ([`.github/workflows/e2e-firefox.yml`](.github/workflows/e2e-firefox.yml)). Os parâmetros de depuração de [Depuração](#depuração-debug1) valem também lá.
 
 ## Como rodar
 
@@ -72,9 +72,9 @@ O jogo se joga do começo ao fim só com o teclado ou só com o controle (REQ-NF
 | `npm run check:assets`                                  | nenhum asset externo no `dist/` (REQ-NFR-006)                                                                                                                                                                                           |
 | `npm run qa:random`                                     | entradas aleatórias (teclado, mouse e controle) contra o `npm run preview`, procurando erro, queda e travada; com `--soak` mede a memória (opções no topo de `scripts/qa-random.mjs`)                                                   |
 | `npm run qa:flight`                                     | os quatro pilotos simulados (parado, distraído, mediano e bom) nos 18 contratos, em 3 sementes (`QA_SEEDS=<n>` muda), com a tabela de execução e as metas de desafio (REQ-NFR-010); `QA_DIFFICULTY=EASY\|HARD` voa em outra dificuldade |
-| `npm run verify`                                        | `typecheck`, `lint`, `test`, `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                                                                            |
+| `npm run verify`                                        | `typecheck`, `lint`, `test:coverage` (os testes com os limites de cobertura), `build`, `check:placeholders` e `check:terms`: o que cada commit precisa passar                                                                           |
 
-Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa (137 testes) leva cerca de 18 minutos no Chromium e 22 no Firefox; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
+Na primeira execução do `npm run e2e` numa máquina nova, instale o navegador: `npx playwright install chromium`. A suíte completa (141 testes) leva cerca de 18 minutos no Chromium e 22 no Firefox, e o CI a roda no Chromium em todo pull request e no Firefox toda semana; `npx playwright test tests/e2e/<arquivo>.spec.ts` roda um arquivo só.
 
 ## Depuração (`?debug=1`)
 
@@ -129,5 +129,5 @@ O projeto foi construído por **Spec-Driven Development**: a pasta [`specs/`](sp
 
 O roteiro dos testes que só uma pessoa faz (Firefox e Edge, controle real, FPS com GPU, som e campanha jogada) está em [`specs/qa-manual.md`](specs/qa-manual.md).
 
-- **Firefox:** a suíte E2E inteira (137 testes) passa no Firefox 155 (`npm run e2e:firefox`) e o jogo publicado também ([OQ-014](specs/open-questions.md), resolvida); o toque humano (aparência, som, controle de verdade) segue no roteiro.
+- **Firefox:** a suíte E2E inteira passou no Firefox 155 (`npm run e2e:firefox`, 137 testes na T092) e agora roda toda semana no CI ([ADR-039](specs/decisions.md)); o jogo publicado também passou ([OQ-014](specs/open-questions.md), resolvida); o toque humano (aparência, som, controle de verdade) segue no roteiro.
 - **GPU:** os FPS foram medidos em Chromium sem GPU, com raster por software ([OQ-013](specs/open-questions.md)).

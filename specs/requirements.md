@@ -677,10 +677,10 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 - *Aceite:* CI local (`npm run verify`).
 
 **REQ-NFR-003: Cobertura de testes.** `src/domain/` e `src/lib/` devem ter cobertura ≥ 90 % de linhas, e o projeto todo ≥ 60 %.
-- *Aceite:* `npm run test:coverage` com thresholds configurados no Vitest.
+- *Aceite:* `npm run test:coverage` com thresholds configurados no Vitest, rodado pelo `npm run verify` em todo commit e no CI ([ADR-039](decisions.md)).
 
-**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR; o do voo e o da mesa podem baixar a escala do buffer quando o quadro fica lento (resolução adaptativa, ADR-033) e marcam a escala em uso.
-- *Aceite:* E2E com dois viewports.
+**REQ-NFR-004: Resolução e responsividade.** A UI deve funcionar de 1280 × 720 a 1920 × 1080, sem rolagem horizontal. Os Canvas ocupam o espaço disponível e respeitam o DPR; o do voo e o da mesa podem baixar a escala do buffer quando o quadro fica lento (resolução adaptativa, ADR-033) e marcam a escala em uso. Em telas mais largas que 16:9, o voo mantém o enquadramento vertical do 16:9 (ADR-037).
+- *Aceite:* E2E com dois viewports; teste unitário do foco do voo em 16:9 e em 21:9.
 
 **REQ-NFR-005: Zero placeholders.** O código não deve conter `TODO`, `FIXME`, `XXX`, funções vazias nem o `DebugScreenShell` acessível fora do debug.
 - *Aceite:* script `npm run check:placeholders` (grep) sem resultados.
@@ -699,7 +699,7 @@ Missão sem dado de execução (save antigo) vale `E = 1`.
 - *Aceite:* testes de `format.ts`.
 
 **REQ-NFR-009: Navegadores.** O jogo deve funcionar nas versões atuais de Chrome, Edge e Firefox. A Gamepad API é testada em Chrome e Edge.
-- *Aceite:* smoke E2E no Chromium + verificação manual no Firefox documentada.
+- *Aceite:* a suíte E2E inteira no Chromium em todo pull request e em todo push na `main`, barrando a publicação, e no Firefox toda semana ([ADR-039](decisions.md)); a verificação manual segue no [qa-manual](qa-manual.md) §1 e §2.
 
 **REQ-NFR-010: Desafio do voo verificável.** Para cada contrato, com o plano de referência, o voo deve cumprir as metas de [ADR-032](decisions.md) com quatro pilotos simulados no motor de verdade:
 - o **parado** (nenhum comando) é reprovado, com execução abaixo da mínima do contrato;

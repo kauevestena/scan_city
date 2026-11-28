@@ -33,6 +33,8 @@
 | — | Pós-release | T080–T083 | Verificação extra, resiliência, publicação e Firefox |
 | F10 | Voo com desafio (Fase 1 do replanejamento) | T084–T092 | **M5** — pilotar passa a valer: corredor, nota de execução, rajadas, revoo e cruzeiro; o jogador parado é reprovado |
 | F11 | Desempenho e os pedidos do teste humano | T093–T098 | FPS: menos chamadas de desenho e resolução que se adapta à máquina; depois, o voo mais rápido e com vento vertical, a sede no mapa, o Atlas e os souvenirs que se examinam |
+| — | Manutenção | T099, T103, T104 | A spec volta a descrever o código (o README da spec, a ADR-037 e os testes de regressão do controle no campo), o D-pad nos mini-games (ADR-038) e o CI com cobertura, E2E e Firefox semanal (ADR-039) |
+| — | Backlog | T100–T102 | ☐ Trabalho adiado que só existia nas notas: Fases 2 e 3 do voo, duração das surtidas e o rival no domínio |
 
 ## Grafo de dependências (resumo)
 
@@ -2116,6 +2118,90 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 
 ---
 
+# Manutenção e backlog (depois da F11)
+
+### T099 — Reconciliação da spec depois da F11
+- **Fase:** Manutenção · **Depende de:** T098 · **REQs:** REQ-NFR-004, REQ-INP-006 (*parc.*: só testes)
+- **Spec:** [README da spec](README.md) §1 e §4, [ADR-037](decisions.md), [survey-flight §5.1](features/survey-flight.md), [field-setup §5.1 e §5.4](features/field-setup.md), [input §2](design/input.md)
+- **Contexto:** uma avaliação do estado do projeto contra a spec (2026-11-28) achou o README da spec parado nos números da conversão e dois commits entregues fora do protocolo, sem tarefa: `8ab9413` (o foco do voo limitado pela altura em telas mais largas que 16:9) e `b83ad75` (o controle nos mini-games da calibração e na mira do mapa de satélite). O comportamento do jogo não muda nesta tarefa: o código desses commits fica como está e a spec passa a descrevê-lo.
+- **Passos:**
+  1. README da spec: as contagens (103 tarefas com o backlog, F0–F11, 37 ADRs, 32 golden values), o M5 ✅, as linhas da F11, da manutenção e do backlog no quadro de marcos e as ADR-029 a 037 em "Adições e ajustes".
+  2. ADR-037, a linha do FOV em survey-flight §5.1 e a nota do REQ-NFR-004 sobre as telas mais largas que 16:9.
+  3. Testes de regressão do `b83ad75`, que falham no código de antes dele: o `A` do controle com o foco no mapa coloca o ponto na mira; o clique do mouse não age em dobro; cada mini-game põe a tela no contexto `MINIGAME`; o analógico esquerdo chega ao `MOVE` que a bolha lê.
+  4. O trabalho adiado que só existia nas notas de implementação vira tarefa de backlog (T100–T103).
+- **Aceite:**
+  - [x] O README da spec bate com o `tasks.md`, o `decisions.md` e a domain-math §14.
+  - [x] A survey-flight §5.1 descreve o foco que o `projection.ts` calcula, com a ADR-037.
+  - [x] Os 4 testes novos passam no código atual e os 3 que dependem do `b83ad75` falham no código de antes dele.
+  - [x] Nenhum arquivo de produção em `src/` muda.
+  - [x] O `verify` segue verde.
+- **Verificação:** `npm run verify` · `npx vitest run src/screens/field`
+- **Arquivos (efetivos):** ~ `src/screens/field/{CalibrationTab,FieldSetupScreen}.test.tsx`; ~ `specs/{README,decisions,requirements,tasks}.md`, `specs/features/survey-flight.md`.
+- **Notas de implementação:**
+  - **Achado: o D-pad não chega aos mini-games.** O `useInputContext('MINIGAME')` do `b83ad75` troca o contexto **da tela**, mas o `FieldSetupScreen` empilha uma camada de foco com o contexto `FIELD`, e o contexto efetivo é o da camada do topo. Com a bolha ou a lemniscata abertas, o analógico esquerdo move o cursor (o `FIELD` já liga o `MOVE` ao analógico, e é o que a field-setup §5.4 pede), mas o D-pad e as setas seguem movendo o foco da tela, ao contrário do que o commit diz. A spec não exige o D-pad nos mini-games, então nenhum requisito cai; a correção mexe no comportamento e ficou para a T103.
+  - **Fora do escopo:** pôr o `test:coverage` e o E2E no CI. A cobertura foi medida pela última vez na T079 e o E2E só roda à mão; a decisão é do responsável do produto.
+- **Status:** ✅
+
+### T100 — Fases 2 e 3 do replanejamento do voo (backlog)
+- **Fase:** Backlog · **Depende de:** T099 · **REQs:** a definir
+- **Origem:** [ADR-029](decisions.md) ("a variedade por contrato e as transições jogáveis ficam para as Fases 2 e 3").
+- **Escopo a especificar:** variedade do desafio por contrato e transições jogáveis (decolagem, curva entre faixas, pouso), depois do teste humano da Fase 1 ([qa-manual §6](qa-manual.md)). Precisa de ADR, REQs e passos antes de começar.
+- **Status:** ☐
+
+### T101 — Surtidas de 2 a 4 minutos (backlog)
+- **Fase:** Backlog · **Depende de:** T099 · **REQs:** a definir
+- **Origem:** T091: a meta de surtidas de 2 a 4 minutos não foi atingida (o C02 ainda leva 6,9 min, e R08, R09 e R11 quase não aceleram). A T091 a deixou para a Fase 2.
+- **Escopo a especificar:** janela operacional por contrato, ou áreas e planos de referência menores, sem quebrar as metas dos pilotos simulados (REQ-NFR-010) nem o balanceamento da campanha (T071).
+- **Status:** ☐
+
+### T102 — Roubo de contrato pela função do domínio (backlog)
+- **Fase:** Backlog · **Depende de:** T099 · **REQs:** REQ-PRG-011 (sem mudar o comportamento)
+- **Origem:** T080: `stealContract` e `returnStolen` (`src/domain/rival.ts`) só são usados nos testes, e a store repete a regra em `markStolen` (`contractsSlice`) e na conclusão da missão (`missionSlice`). Isso fere a [constitution §2.6](constitution.md) (uma fonte de verdade por conceito).
+- **Escopo:** a store passa a chamar as funções do domínio; os testes da store e do domínio seguem verdes sem mudar nenhum resultado.
+- **Status:** ☐
+
+### T103 — O D-pad nos mini-games da calibração
+- **Fase:** Manutenção (saiu do backlog) · **Depende de:** T099 · **REQs:** REQ-FLD-010, REQ-FLD-011
+- **Spec:** [ADR-038](decisions.md), [field-setup §5.4](features/field-setup.md), [input §2](design/input.md)
+- **Origem:** achado da T099: com um mini-game aberto, o contexto efetivo segue `FIELD` (a camada de foco do `FieldSetupScreen` fica no topo), então o D-pad move o foco da tela em vez do cursor, ao contrário do que o commit `b83ad75` pretendia; o `B` volta uma aba e mata o jogo; e o analógico move o cursor e o mapa juntos.
+- **Passos:**
+  1. ADR-038 e as specs (field-setup §5.4, input §2, qa-manual §3).
+  2. `useMinigameLayer` em `CalibrationTab.tsx`: cada mini-game empilha a camada `MINIGAME` enquanto montado, e o `UI_BACK` dela interrompe o jogo sem pontuar. Sai o `useInputContext('MINIGAME')`.
+  3. O foco volta ao botão do jogo (`data-focus-id` `level-start` e `imu-start`) quando ele termina ou é interrompido, se estiver solto.
+  4. `SatelliteView`: pan e zoom só no contexto efetivo `FIELD`.
+  5. Testes.
+- **Aceite:**
+  - [x] Com um mini-game aberto, o contexto efetivo é `MINIGAME`, e o D-pad, as setas e o analógico chegam ao `MOVE` do jogo sem mover o foco da tela.
+  - [x] `B` e `Esc` interrompem o jogo sem mudar a nota, a tela segue na aba da calibração, o foco volta ao botão e a pausa não abre; fora do jogo, o `Esc` volta uma aba como antes.
+  - [x] Com a bolha aberta, segurar `D` não mexe no mapa; sem o jogo, mexe.
+  - [x] Os cinco testes de comportamento falham no código de antes da tarefa.
+  - [x] O `verify` e o E2E do campo, do controle e do foco seguem verdes.
+- **Verificação:** `npm run verify` · `npx vitest run src/screens/field` · `npx playwright test tests/e2e/field.spec.ts tests/e2e/gamepad.spec.ts tests/e2e/focus-audit.spec.ts`
+- **Arquivos (efetivos):** ~ `src/screens/field/{CalibrationTab,SatelliteView}.tsx`, `src/screens/field/{CalibrationTab,FieldSetupScreen}.test.tsx`; ~ `specs/{decisions,tasks,qa-manual}.md`, `specs/features/field-setup.md`, `specs/design/input.md`.
+- **Status:** ✅
+
+### T104 — CI com cobertura, E2E e Firefox semanal
+- **Fase:** Manutenção · **Depende de:** T103 · **REQs:** REQ-NFR-003, REQ-NFR-009
+- **Spec:** [ADR-039](decisions.md), [ADR-028](decisions.md)
+- **Origem:** avaliação da T099: a cobertura não era conferida desde a T079, e o E2E (Chromium e Firefox) só rodava à mão.
+- **Passos:**
+  1. ADR-039, a nota na ADR-028 e os aceites do REQ-NFR-003 e do REQ-NFR-009.
+  2. `package.json`: o `verify` roda o `test:coverage` no lugar do `test`.
+  3. `playwright.config.ts`: no CI, uma nova tentativa (marcada como *flaky*), relatório HTML e captura das falhas.
+  4. `pages.yml`: o job `e2e` (Chromium) em paralelo ao `build`, o relatório guardado se falhar, o `deploy` esperando os dois e só a `main` publicando.
+  5. `e2e-firefox.yml`: a suíte no Firefox toda segunda-feira e no disparo manual, sem publicar.
+  6. README: o `verify` e o CI.
+- **Aceite:**
+  - [x] O `verify` falha se a cobertura cair abaixo dos limites, e passa no código atual.
+  - [x] Os dois workflows são YAML válido; o `deploy` depende de `build` e `e2e` e só roda na `main`; o Firefox só roda agendado ou à mão.
+  - [x] A suíte E2E inteira passa no Chromium na máquina local antes de barrar a publicação: 141 testes em 17,9 min, com 2 workers num contêiner de 4 núcleos, depois da T103.
+  - [x] Fora do CI, o Playwright se comporta como antes.
+- **Verificação:** `npm run verify` · `npm run check:assets` · `npm run e2e` (a suíte inteira) · leitura dos workflows com um parser de YAML. O primeiro run de verdade dos jobs novos é num pull request.
+- **Arquivos (efetivos):** ~ `package.json`, `playwright.config.ts`, `.github/workflows/pages.yml`; \+ `.github/workflows/e2e-firefox.yml`; ~ `README.md`, `specs/{decisions,requirements,tasks,README}.md`, `specs/design/architecture.md`.
+- **Status:** ✅
+
+---
+
 ## Matriz de rastreabilidade (REQ → spec → tarefas)
 
 > Gerada a partir das referências cruzadas. Ao concluir uma tarefa, o agente marca a coluna **Status** do REQ como ✅ quando **todas** as tarefas listadas estiverem concluídas.
@@ -2136,7 +2222,7 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-INP-003 | Mapeamento padrão | [input](design/input.md), [world-map](features/world-map.md) | T008, T095 | ✅ |
 | REQ-INP-004 | Glyphs dinâmicos | [input](design/input.md) | T008, T095 | ✅ |
 | REQ-INP-005 | Deadzone e borda | [input](design/input.md) | T008 | ✅ |
-| REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078 | ✅ |
+| REQ-INP-006 | Navegação de UI por gamepad | [input](design/input.md), [field-setup](features/field-setup.md), [infographic-lab](features/infographic-lab.md), [office](features/office.md) | T008, T078, T099 | ✅ |
 | REQ-AUD-001 | Inicialização preguiçosa | [audio](design/audio.md) | T009 | ✅ |
 | REQ-AUD-002 | Catálogo de efeitos | [audio](design/audio.md), [processing-results](features/processing-results.md), [survey-flight](features/survey-flight.md), [office](features/office.md) | T009, T076, T090, T098 | ✅ |
 | REQ-AUD-003 | Volume e mudo | [audio](design/audio.md) | T009, T075 | ✅ |
@@ -2170,8 +2256,8 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-FLD-007 | Estatísticas ao vivo | [domain-math](design/domain-math.md), [field-setup](features/field-setup.md) | T011, T023 | ✅ |
 | REQ-FLD-008 | Traçado das linhas | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLD-009 | Checklist de requisitos | [field-setup](features/field-setup.md) | T018, T023 | ✅ |
-| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037 | ✅ |
-| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038, T094 | ✅ |
+| REQ-FLD-010 | Mini-game de nivelamento | [field-setup](features/field-setup.md) | T037, T103 | ✅ |
+| REQ-FLD-011 | Mini-game de calibração da IMU | [field-setup](features/field-setup.md) | T038, T094, T103 | ✅ |
 | REQ-FLD-012 | Modos especiais de voo | [field-setup](features/field-setup.md) | T014, T034 | ✅ |
 | REQ-FLD-013 | Validação para decolar | [field-setup](features/field-setup.md) | T014, T023 | ✅ |
 | REQ-FLT-001 | Projeção em perspectiva | [domain-math](design/domain-math.md), [survey-flight](features/survey-flight.md) | T024 | ✅ |
@@ -2255,11 +2341,11 @@ Uma tarefa por fenda, **nesta ordem**: T060 = R01, T061 = R02, T062 = R08, T063 
 | REQ-CNT-008 | Final da campanha | [catalog](content/catalog.md), [contracts-real](content/contracts-real.md), [office](features/office.md), [progression](features/progression.md) | T071 | ✅ |
 | REQ-NFR-001 | Performance | [holo-table](features/holo-table.md), [survey-flight](features/survey-flight.md) | T007, T077, T093, T094 | ✅ |
 | REQ-NFR-002 | Qualidade de build | [architecture](design/architecture.md) | T001, T079 | ✅ |
-| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079 | ✅ |
-| REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077 | ✅ |
+| REQ-NFR-003 | Cobertura de testes | [architecture](design/architecture.md) | T001, T079, T104 | ✅ |
+| REQ-NFR-004 | Resolução e responsividade | [ui-style](design/ui-style.md) | T004, T077, T099 | ✅ |
 | REQ-NFR-005 | Zero placeholders | [architecture](design/architecture.md) | T079 | ✅ |
 | REQ-NFR-006 | Sem assets externos | [architecture](design/architecture.md) | T001, T079 | ✅ |
 | REQ-NFR-007 | Acessibilidade | [ui-style](design/ui-style.md), [survey-flight](features/survey-flight.md), [office](features/office.md) | T004, T075, T078, T094, T098 | ✅ |
 | REQ-NFR-008 | Localização pt-BR | [ui-style](design/ui-style.md) | T002 | ✅ |
-| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083 | ✅ |
+| REQ-NFR-009 | Navegadores | [architecture](design/architecture.md) | T001, T078, T083, T104 | ✅ |
 | REQ-NFR-010 | Desafio do voo verificável | [survey-flight](features/survey-flight.md), [decisions](decisions.md) | T089, T094 | ✅ |

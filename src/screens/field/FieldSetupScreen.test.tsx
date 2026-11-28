@@ -7,6 +7,7 @@ import { estimateFromPlan, predictRequirements } from '@/domain/requirements';
 import { initialView, toScreen, viewTransform } from '@/engines/field/satellite';
 import { PAD } from '@/input/gamepad';
 import { InputManager } from '@/input/InputManager';
+import { createFakeRaf } from '@/test/fakeRaf';
 import { createPad, installGamepads, setButton, XBOX_ID } from '@/test/fakeGamepad';
 import { useGameStore } from '@/state/store';
 import { resetGameStore } from '@/test/resetStore';
@@ -152,6 +153,88 @@ describe('FieldSetupScreen — mira do teclado no mapa (REQ-NFR-007)', () => {
     );
     enter(canvas);
     expect(screen.getByTestId('satellite-refusal')).toHaveTextContent('Limite do instrumento (8)');
+  });
+});
+
+describe('FieldSetupScreen — mira do controle no mapa (REQ-INP-006, commit b83ad75)', () => {
+  it('com o foco no mapa, o A do controle coloca o ponto na mira', () => {
+    const pad = createPad(XBOX_ID);
+    const uninstall = installGamepads([pad]);
+    try {
+      render(<FieldSetupScreen />);
+      const canvas = screen.getByTestId('satellite-canvas');
+      act(() => canvas.focus());
+      setButton(pad, PAD.A, true);
+      act(() => InputManager.get().poll(1));
+      const placed = get().mission.active?.groundPoints ?? [];
+      expect(placed.map((p) => p.id)).toEqual(['GCP-01']);
+      expect(placed[0]?.u).toBeCloseTo(C00.aoi.lengthM / 2, 3);
+      expect(placed[0]?.v).toBeCloseTo(C00.aoi.widthM / 2, 3);
+      setButton(pad, PAD.A, false);
+      act(() => InputManager.get().poll(2));
+      expect(get().mission.active?.groundPoints).toHaveLength(1);
+    } finally {
+      uninstall();
+    }
+  });
+
+  it('o clique do mouse não age em dobro: só o clique sintético (detail 0) usa a mira', () => {
+    render(<FieldSetupScreen />);
+    const canvas = screen.getByTestId('satellite-canvas');
+    fireEvent.click(canvas, { detail: 1 });
+    expect(get().mission.active?.groundPoints).toEqual([]);
+    act(() => canvas.click());
+    expect(get().mission.active?.groundPoints.map((p) => p.id)).toEqual(['GCP-01']);
+  });
+});
+
+describe('FieldSetupScreen — o mapa fica parado durante um mini-game (ADR-038)', () => {
+  let fake = createFakeRaf();
+  let now = 0;
+  beforeEach(() => {
+    fake = createFakeRaf();
+    now = 0;
+    vi.stubGlobal('requestAnimationFrame', fake.raf);
+    vi.stubGlobal('cancelAnimationFrame', fake.caf);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Segura `D` por meio segundo de quadros e devolve o que o cursor lê no mesmo pixel. */
+  const holdDAndRead = () => {
+    const canvas = screen.getByTestId('satellite-canvas');
+    fireEvent.keyDown(window, { code: 'KeyD', key: 'd' });
+    for (let i = 0; i < 30; i++) {
+      now += 1000 / 60;
+      act(() => fake.frame(now));
+    }
+    fireEvent.keyUp(window, { code: 'KeyD', key: 'd' });
+    const p = canvasAt(100, 50);
+    fireEvent.pointerMove(canvas, { clientX: p.x, clientY: p.y });
+    return screen.getByTestId('satellite-cursor').textContent;
+  };
+
+  it('com a bolha aberta, segurar D move a bolha e não o mapa; sem o jogo, D move o mapa', () => {
+    render(<FieldSetupScreen />);
+    act(() => fake.frame(now));
+    tab(/Calibração/);
+    const canvas = screen.getByTestId('satellite-canvas');
+    const p = canvasAt(100, 50);
+    fireEvent.pointerMove(canvas, { clientX: p.x, clientY: p.y });
+    const before = screen.getByTestId('satellite-cursor').textContent;
+    expect(before).toMatch(/^u 100,0 m · v 50,0 m/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nivelar instrumento' }));
+    expect(InputManager.get().context).toBe('MINIGAME');
+    expect(holdDAndRead()).toBe(before);
+
+    // Sem o jogo, a mesma tecla volta a mexer no mapa (o controle do teste).
+    fireEvent.keyDown(window, { code: 'Escape', key: 'Escape' });
+    fireEvent.keyUp(window, { code: 'Escape', key: 'Escape' });
+    expect(screen.queryByTestId('bubble-game')).not.toBeInTheDocument();
+    expect(InputManager.get().context).toBe('FIELD');
+    expect(holdDAndRead()).not.toBe(before);
   });
 });
 

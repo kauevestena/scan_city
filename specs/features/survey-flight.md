@@ -67,7 +67,7 @@ O HUD lê o `FlightHudSnapshot` (§6), publicado a 10 Hz. Alertas centrais: no m
 ### 5.1 Câmera e projeção (`engines/flight/projection.ts`)
 | Constante | Valor |
 | :--- | :--- |
-| FOV horizontal | 70° → `focalPx = (W/2) / tan(35°)` |
+| FOV horizontal | 70° até 16:9 → `focalPx = (min(W, H·16/9)/2) / tan(35°)`: em telas mais largas o foco é limitado pela altura, e o que sobra de largura mostra mais cenário ([ADR-037](../decisions.md)) |
 | `cameraOffset` (distância atrás da aeronave) | 30 m |
 | `camUp` (altura da câmera acima da aeronave) | 12 m |
 | `HorizonX` | `W/2` |

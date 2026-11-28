@@ -61,7 +61,7 @@ As linhas marcadas **[ADIÇÃO]** não constam no spec original. Elas foram intr
 - `'UI'` (há um modal/painel aberto)
 - `'HOLO'`
 - `'HOLO_PANEL'` (a mesa com o painel de alas aberto: as setas navegam pelos botões do painel em vez de orbitar, o `Tab` fica livre para o foco nativo, `W`/`RB` fecham e o analógico direito segue orbitando)
-- `'MINIGAME'`
+- `'MINIGAME'` (um mini-game da calibração aberto: ele empilha a própria camada acima do `'FIELD'` da tela, então o D-pad, as setas, o WASD e o analógico são o `MOVE` do jogo, não há navegação de foco, e `UI_BACK` interrompe o jogo; [ADR-038](../decisions.md))
 
 Nos contextos de jogo (`OVERWORLD`, `FLIGHT`, `HOLO`) o `Tab` e as setas têm outro uso, então os botões do DOM dessas telas (a barra superior, as abas, "Entendi" da dica) não são alcançáveis pelo foco: cada um tem uma tecla equivalente (`M`/`Esc` pausa, `Tab` troca a dimensão, `1 2 3` os modos, `W` o painel de alas, `H` a dica). Nada fica só no mouse (REQ-NFR-007).
 
